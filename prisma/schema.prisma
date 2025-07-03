@@ -1,0 +1,422 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  CUSTOMER
+  SELLER
+  COMPANY
+  STAKEHOLDER
+  ADMIN
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PACKED
+  OUT_FOR_DELIVERY
+  DELIVERED
+  CANCELLED
+}
+
+enum ProductType {
+  EGGS
+  CHICKEN_MEAT
+  CHICKEN_FEED
+  CHICKS
+  HATCHING_EGGS
+}
+
+enum ApplicationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum TagType {
+  VERIFIED
+  TRUSTED
+  RECOMMENDED
+  PREMIUM
+  FEATURED
+  ORGANIC
+  LOCAL
+  BESTSELLER
+}
+
+enum PaymentMethod {
+  MPESA
+  CASH_ON_DELIVERY
+}
+
+enum PaymentType {
+  BEFORE_DELIVERY
+  AFTER_DELIVERY
+}
+
+enum PaymentStatus {
+  UNPAID
+  PENDING
+  SUBMITTED
+  APPROVED
+  REJECTED
+  REFUNDED
+}
+
+enum SponsorshipStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  ACTIVE
+  EXPIRED
+}
+
+enum NotificationType {
+  EMAIL
+  SMS
+  PUSH
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String
+  phone     String?
+  avatar    String?
+  role      UserRole @default(CUSTOMER)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Profile fields
+  bio         String?
+  location    String?
+  website     String?
+  
+  // Custom domain/dashboard
+  customDomain     String?
+  dashboardSlug    String?
+  qrCode          String?
+
+  // Customer relationships
+  orders          Order[]
+  hatchingRequests HatchingRequest[]
+  applications    Application[]
+  reviews         Review[]
+  reviewLikes     ReviewLike[]
+  payments        Payment[]
+
+  // Seller/Company relationships
+  products         Product[]
+  vouchers         Voucher[]
+  sponsorships     Sponsorship[]
+  receivedSponsorships Sponsorship[] @relation("SponsorshipReceiver")
+  tags             UserTag[]
+  analytics        Analytics[]
+  reviewReplies    ReviewReply[]
+  
+  // Payment approvals
+  paymentApprovals PaymentApprovalLog[]
+  
+  // Notifications
+  sentNotifications     Notification[] @relation("NotificationSender")
+  receivedNotifications Notification[] @relation("NotificationReceiver")
+
+  @@map("users")
+}
+
+model Product {
+  id          String      @id @default(cuid())
+  name        String
+  description String
+  price       Float
+  stock       Int
+  type        ProductType
+  images      String[]
+  sellerId    String
+  seller      User        @relation(fields: [sellerId], references: [id])
+  isActive    Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  // SEO and metadata
+  slug        String?
+  metaTitle   String?
+  metaDescription String?
+
+  orderItems OrderItem[]
+  reviews    Review[]
+
+  @@map("products")
+}
+
+model Order {
+  id         String      @id @default(cuid())
+  customerId String
+  customer   User        @relation(fields: [customerId], references: [id])
+  status     OrderStatus @default(PENDING)
+  total      Float
+  notes      String?
+  
+  // Enhanced payment fields
+  paymentType    PaymentType   @default(BEFORE_DELIVERY)
+  paymentStatus  PaymentStatus @default(UNPAID)
+  paymentDetails String?       // Customer submitted payment details
+  paymentPhone   String?       // Phone number used for payment
+  paymentReference String?     // M-Pesa reference/transaction code
+  
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  items      OrderItem[]
+  delivery   Delivery?
+  payment    Payment?
+  notifications Notification[]
+  paymentApprovals PaymentApprovalLog[]
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  order     Order   @relation(fields: [orderId], references: [id])
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  quantity  Int
+  price     Float
+
+  @@map("order_items")
+}
+
+model Delivery {
+  id         String   @id @default(cuid())
+  orderId    String   @unique
+  order      Order    @relation(fields: [orderId], references: [id])
+  address    String
+  trackingId String   @unique
+  status     String   @default("processing")
+  courierName String?
+  courierPhone String?
+  estimatedDelivery DateTime?
+  actualDelivery    DateTime?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("deliveries")
+}
+
+model Payment {
+  id              String        @id @default(cuid())
+  orderId         String        @unique
+  order           Order         @relation(fields: [orderId], references: [id])
+  userId          String
+  user            User          @relation(fields: [userId], references: [id])
+  amount          Float
+  method          PaymentMethod
+  status          PaymentStatus @default(PENDING)
+  phoneNumber     String?
+  transactionCode String?
+  mpesaMessage    String?
+  referenceNumber String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@map("payments")
+}
+
+model PaymentApprovalLog {
+  id        String   @id @default(cuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id])
+  approverId String
+  approver  User     @relation(fields: [approverId], references: [id])
+  action    String   // APPROVED, REJECTED
+  notes     String?
+  createdAt DateTime @default(now())
+
+  @@map("payment_approval_logs")
+}
+
+model Review {
+  id        String   @id @default(cuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  rating    Int      // 1-5 stars
+  comment   String
+  images    String[] // Array of image URLs
+  isVisible Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  likes     ReviewLike[]
+  replies   ReviewReply[]
+
+  @@unique([productId, userId])
+  @@map("reviews")
+}
+
+model ReviewImage {
+  id       String @id @default(cuid())
+  reviewId String
+  imageUrl String
+  createdAt DateTime @default(now())
+
+  @@map("review_images")
+}
+
+model ReviewLike {
+  id       String @id @default(cuid())
+  reviewId String
+  review   Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User   @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([reviewId, userId])
+  @@map("review_likes")
+}
+
+model ReviewReply {
+  id       String @id @default(cuid())
+  reviewId String
+  review   Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User   @relation(fields: [userId], references: [id])
+  comment  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("review_replies")
+}
+
+model HatchingRequest {
+  id          String            @id @default(cuid())
+  customerId  String
+  customer    User              @relation(fields: [customerId], references: [id])
+  eggType     String
+  quantity    Int
+  purpose     String
+  status      ApplicationStatus @default(PENDING)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@map("hatching_requests")
+}
+
+model Application {
+  id          String            @id @default(cuid())
+  userId      String
+  user        User              @relation(fields: [userId], references: [id])
+  requestedRole UserRole
+  businessName String?
+  businessType String?
+  description String?
+  documents   String[] // URLs to uploaded documents
+  status      ApplicationStatus @default(PENDING)
+  reviewedAt  DateTime?
+  reviewedBy  String?
+  reviewNotes String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@map("applications")
+}
+
+model Voucher {
+  id          String    @id @default(cuid())
+  code        String    @unique
+  discount    Float
+  type        String    @default("percentage") // percentage or fixed
+  validFrom   DateTime
+  validUntil  DateTime
+  maxUses     Int       @default(1)
+  usedCount   Int       @default(0)
+  createdById String
+  createdBy   User      @relation(fields: [createdById], references: [id])
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("vouchers")
+}
+
+model Sponsorship {
+  id          String            @id @default(cuid())
+  companyId   String
+  company     User              @relation(fields: [companyId], references: [id])
+  sellerId    String
+  seller      User              @relation("SponsorshipReceiver", fields: [sellerId], references: [id])
+  amount      Float
+  description String
+  terms       String?
+  duration    Int? // in months
+  benefits    String[]
+  status      SponsorshipStatus @default(PENDING)
+  startDate   DateTime?
+  endDate     DateTime?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@map("sponsorships")
+}
+
+model UserTag {
+  id      String  @id @default(cuid())
+  userId  String
+  user    User    @relation(fields: [userId], references: [id])
+  tag     TagType
+  addedBy String?
+  addedAt DateTime @default(now())
+
+  @@unique([userId, tag])
+  @@map("user_tags")
+}
+
+model Analytics {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  date      DateTime @default(now())
+  
+  // Sales metrics
+  totalSales    Float    @default(0)
+  orderCount    Int      @default(0)
+  productViews  Int      @default(0)
+  
+  // Performance metrics
+  fulfillmentRate Float  @default(0)
+  averageRating   Float  @default(0)
+  
+  @@unique([userId, date])
+  @@map("analytics")
+}
+
+model Notification {
+  id         String           @id @default(cuid())
+  senderId   String?
+  sender     User?            @relation("NotificationSender", fields: [senderId], references: [id])
+  receiverId String
+  receiver   User             @relation("NotificationReceiver", fields: [receiverId], references: [id])
+  orderId    String?
+  order      Order?           @relation(fields: [orderId], references: [id])
+  type       NotificationType
+  title      String
+  message    String
+  isRead     Boolean          @default(false)
+  sentAt     DateTime?
+  createdAt  DateTime         @default(now())
+
+  @@map("notifications")
+}
