@@ -314,7 +314,7 @@ model HatchingRequest {
 model Application {
   id          String            @id @default(cuid())
   userId      String
-  user        User              @relation(fields: [userId], references: [id])
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   requestedRole UserRole
   businessName String?
   businessType String?
@@ -404,9 +404,9 @@ model Notification {
   senderId   String?
   sender     User?            @relation("NotificationSender", fields: [senderId], references: [id])
   receiverId String
-  receiver   User             @relation("NotificationReceiver", fields: [receiverId], references: [id])
+  receiver   User             @relation("NotificationReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
   orderId    String?
-  order      Order?           @relation(fields: [orderId], references: [id])
+  order      Order?           @relation(fields: [orderId], references: [id], onDelete: Cascade)
   type       NotificationType
   title      String
   message    String

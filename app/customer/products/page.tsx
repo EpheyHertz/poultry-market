@@ -252,7 +252,7 @@ export default function CustomerProducts() {
                   <SelectValue placeholder="Filter by type" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Types</SelectItem>
+                  {/* <SelectItem value="">All Types</SelectItem> */}
                   <SelectItem value="EGGS">Eggs</SelectItem>
                   <SelectItem value="CHICKEN_MEAT">Chicken Meat</SelectItem>
                   <SelectItem value="CHICKEN_FEED">Chicken Feed</SelectItem>
@@ -266,7 +266,7 @@ export default function CustomerProducts() {
                   <SelectValue placeholder="Sort by" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Default</SelectItem>
+                  {/* <SelectItem value="  ">Default</SelectItem> */}
                   <SelectItem value="price_low">Price: Low to High</SelectItem>
                   <SelectItem value="price_high">Price: High to Low</SelectItem>
                   <SelectItem value="name">Name: A to Z</SelectItem>

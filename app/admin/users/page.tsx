@@ -193,7 +193,7 @@ export default function AdminUsers() {
                   <SelectValue placeholder="Filter by role" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Roles</SelectItem>
+                  {/* <SelectItem value="">All Roles</SelectItem> */}
                   <SelectItem value="CUSTOMER">Customer</SelectItem>
                   <SelectItem value="SELLER">Seller</SelectItem>
                   <SelectItem value="COMPANY">Company</SelectItem>

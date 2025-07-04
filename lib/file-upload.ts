@@ -17,7 +17,7 @@ export async function uploadFile(file: File, folder: string = 'uploads'): Promis
     
     // Write file
     const filepath = join(uploadDir, filename)
-    await writeFile(filepath, buffer)
+    await writeFile(filepath, new Uint8Array(buffer))
     
     // Return public URL
     return `/${folder}/${filename}`

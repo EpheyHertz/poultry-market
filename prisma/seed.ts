@@ -145,7 +145,7 @@ async function main() {
     const order = await prisma.order.create({
       data: {
         customerId: customer.id,
-        status: OrderStatus.PROCESSING,
+        status: OrderStatus.PENDING,
         total: eggProduct.price * 2,
         items: {
           create: {
