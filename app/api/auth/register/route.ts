@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { hashPassword } from '@/lib/auth'
+import { sendEmail, emailTemplates } from '@/lib/email'
 import { UserRole } from '@prisma/client'
+import crypto from 'crypto'
 
 export async function POST(request: NextRequest) {
   try {
@@ -18,6 +20,10 @@ export async function POST(request: NextRequest) {
 
     // Hash password
     const hashedPassword = await hashPassword(password)
+
+    // Generate verification token
+    const verificationToken = crypto.randomBytes(32).toString('hex')
+    const verificationTokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
 
     // Generate dashboard slug for sellers and companies
     let dashboardSlug = null
@@ -43,6 +49,9 @@ export async function POST(request: NextRequest) {
         phone,
         role: role as UserRole,
         dashboardSlug,
+        verificationToken,
+        verificationTokenExpiry,
+        isVerified: false,
       },
       select: {
         id: true,
@@ -50,11 +59,21 @@ export async function POST(request: NextRequest) {
         name: true,
         role: true,
         dashboardSlug: true,
+        isVerified: true,
       },
     })
 
+    // Send verification email
+    const verificationUrl = `${process.env.NEXTAUTH_URL}/auth/verify-email?token=${verificationToken}`
+    
+    await sendEmail({
+      to: email,
+      subject: 'Verify your email - PoultryMarket',
+      html: emailTemplates.verification(name, verificationUrl),
+    })
+
     return NextResponse.json({
-      message: 'User created successfully',
+      message: 'User created successfully. Please check your email to verify your account.',
       user,
     })
   } catch (error) {

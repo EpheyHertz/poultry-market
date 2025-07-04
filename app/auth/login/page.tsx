@@ -49,6 +49,9 @@ export default function LoginPage() {
           case 'COMPANY':
             router.push('/company/dashboard');
             break;
+          case 'STAKEHOLDER':
+            router.push('/stakeholder/dashboard');
+            break;
           default:
             router.push('/customer/dashboard');
         }
@@ -117,6 +120,12 @@ export default function LoginPage() {
                   )}
                 </Button>
               </div>
+            </div>
+
+            <div className="text-right">
+              <Link href="/auth/forgot-password" className="text-sm text-green-600 hover:underline">
+                Forgot password?
+              </Link>
             </div>
             
             <Button type="submit" className="w-full" disabled={isLoading}>

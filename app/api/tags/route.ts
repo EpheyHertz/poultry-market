@@ -59,3 +59,29 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to create tag' }, { status: 500 })
   }
 }
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const user = await getCurrentUser()
+    
+    if (!user || user.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const { userId, tag } = await request.json()
+
+    await prisma.userTag.delete({
+      where: {
+        userId_tag: {
+          userId,
+          tag: tag as TagType
+        }
+      }
+    })
+
+    return NextResponse.json({ message: 'Tag removed successfully' })
+  } catch (error) {
+    console.error('Tag deletion error:', error)
+    return NextResponse.json({ error: 'Failed to remove tag' }, { status: 500 })
+  }
+}

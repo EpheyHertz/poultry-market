@@ -15,6 +15,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 })
     }
 
+    // Check if email is verified
+    if (!user.isVerified) {
+      return NextResponse.json({ 
+        error: 'Please verify your email before logging in. Check your inbox for the verification link.' 
+      }, { status: 401 })
+    }
+
     const token = await signToken({ userId: user.id })
     const cookieStore = await cookies()
 

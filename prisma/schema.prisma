@@ -94,6 +94,11 @@ model User {
   avatar    String?
   role      UserRole @default(CUSTOMER)
   isActive  Boolean  @default(true)
+  isVerified Boolean @default(false)
+  verificationToken String?
+  verificationTokenExpiry DateTime?
+  resetToken String?
+  resetTokenExpiry DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -265,15 +270,6 @@ model Review {
 
   @@unique([productId, userId])
   @@map("reviews")
-}
-
-model ReviewImage {
-  id       String @id @default(cuid())
-  reviewId String
-  imageUrl String
-  createdAt DateTime @default(now())
-
-  @@map("review_images")
 }
 
 model ReviewLike {
