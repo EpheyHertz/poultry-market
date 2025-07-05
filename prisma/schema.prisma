@@ -176,6 +176,10 @@ model User {
   // Notifications
   sentNotifications     Notification[] @relation("NotificationSender")
   receivedNotifications Notification[] @relation("NotificationReceiver")
+  
+  // Product interactions
+  productLikes          ProductLike[]
+  cartItems             CartItem[]
 
   @@map("users")
 }
@@ -209,6 +213,8 @@ model Product {
   orderItems OrderItem[]
   reviews    Review[]
   tags       ProductTag[]
+  likes      ProductLike[]
+  cartItems  CartItem[]
 
   @@map("products")
 }
@@ -499,4 +505,30 @@ model Notification {
   createdAt  DateTime         @default(now())
 
   @@map("notifications")
+}
+
+model ProductLike {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, productId])
+  @@map("product_likes")
+}
+
+model CartItem {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  quantity  Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, productId])
+  @@map("cart_items")
 }

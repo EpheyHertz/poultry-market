@@ -124,3 +124,96 @@ export async function DELETE(
     return NextResponse.json({ error: 'Failed to delete product' }, { status: 500 })
   }
 }
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import { getCurrentUser } from '@/lib/auth';
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const { id } = params;
+    const user = await getCurrentUser();
+
+    const product = await prisma.product.findFirst({
+      where: {
+        OR: [
+          { id: id },
+          { slug: id }
+        ],
+        isActive: true
+      },
+      include: {
+        seller: {
+          select: {
+            id: true,
+            name: true,
+            avatar: true,
+            role: true,
+            location: true,
+            createdAt: true,
+            dashboardSlug: true,
+            tags: true
+          }
+        },
+        tags: true,
+        reviews: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                avatar: true
+              }
+            },
+            likes: true
+          },
+          orderBy: {
+            createdAt: 'desc'
+          }
+        }
+      }
+    });
+
+    if (!product) {
+      return NextResponse.json({ error: 'Product not found' }, { status: 404 });
+    }
+
+    // Calculate average rating
+    const averageRating = product.reviews.length > 0
+      ? product.reviews.reduce((sum, review) => sum + review.rating, 0) / product.reviews.length
+      : 0;
+
+    // Check if product is discounted
+    let currentPrice = product.price;
+    let isDiscounted = false;
+    
+    if (product.hasDiscount && product.discountStartDate && product.discountEndDate) {
+      const now = new Date();
+      const startDate = new Date(product.discountStartDate);
+      const endDate = new Date(product.discountEndDate);
+      
+      if (now >= startDate && now <= endDate) {
+        isDiscounted = true;
+        if (product.discountType === 'PERCENTAGE') {
+          currentPrice = product.price * (1 - (product.discountAmount || 0) / 100);
+        } else {
+          currentPrice = Math.max(0, product.price - (product.discountAmount || 0));
+        }
+      }
+    }
+
+    const productData = {
+      ...product,
+      averageRating: Math.round(averageRating * 10) / 10,
+      currentPrice,
+      isDiscounted
+    };
+
+    return NextResponse.json(productData);
+  } catch (error) {
+    console.error('Error fetching product:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
