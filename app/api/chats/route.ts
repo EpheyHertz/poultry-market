@@ -83,6 +83,82 @@ export async function POST(request: NextRequest) {
 
     const { participantId, productId, orderId } = await request.json()
 
+    // Handle admin support chat
+    if (participantId === 'admin-support') {
+      const adminUser = await prisma.user.findFirst({
+        where: { role: 'ADMIN' },
+        select: { id: true }
+      })
+      
+      if (!adminUser) {
+        return NextResponse.json({ error: 'Admin not found' }, { status: 404 })
+      }
+      
+      const actualParticipantId = adminUser.id
+      
+      let chat = await prisma.chat.findFirst({
+        where: {
+          OR: [
+            { 
+              participant1Id: user.id, 
+              participant2Id: actualParticipantId 
+            },
+            { 
+              participant1Id: actualParticipantId, 
+              participant2Id: user.id 
+            }
+          ]
+        },
+        include: {
+          participant1: {
+            select: {
+              id: true,
+              name: true,
+              avatar: true,
+              role: true
+            }
+          },
+          participant2: {
+            select: {
+              id: true,
+              name: true,
+              avatar: true,
+              role: true
+            }
+          }
+        }
+      })
+
+      if (!chat) {
+        chat = await prisma.chat.create({
+          data: {
+            participant1Id: user.id,
+            participant2Id: actualParticipantId
+          },
+          include: {
+            participant1: {
+              select: {
+                id: true,
+                name: true,
+                avatar: true,
+                role: true
+              }
+            },
+            participant2: {
+              select: {
+                id: true,
+                name: true,
+                avatar: true,
+                role: true
+              }
+            }
+          }
+        })
+      }
+
+      return NextResponse.json(chat)
+    }
+
     // Check if chat already exists
     let whereClause: any = {
       OR: [

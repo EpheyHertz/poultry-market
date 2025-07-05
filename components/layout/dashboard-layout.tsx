@@ -76,6 +76,7 @@ export default function DashboardLayout({ children, user }: DashboardLayoutProps
           { name: 'Sponsorships', href: '/admin/sponsorships', icon: HandHeart },
           { name: 'Delivery', href: '/admin/delivery-agents', icon: BarChart3 },
           { name: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
+          { name: 'Support Chats', href: '/admin/chats', icon: MessageCircle },
         ];
       case 'SELLER':
         return [
@@ -85,6 +86,7 @@ export default function DashboardLayout({ children, user }: DashboardLayoutProps
           { name: 'Vouchers', href: '/seller/vouchers', icon: Ticket },
           { name: 'Sponsorships', href: '/seller/sponsorships', icon: HandHeart },
           { name: 'Profile', href: '/seller/profile', icon: Settings },
+          { name: 'Chats', href: '/seller/chats', icon: MessageCircle },
         ];
       case 'COMPANY':
         return [
@@ -94,6 +96,7 @@ export default function DashboardLayout({ children, user }: DashboardLayoutProps
           { name: 'Vouchers', href: '/company/vouchers', icon: Ticket },
           { name: 'Sponsorships', href: '/company/sponsorships', icon: HandHeart },
           { name: 'Profile', href: '/company/profile', icon: Settings },
+          { name: 'Chats', href: '/company/chats', icon: MessageCircle },
         ];
       case 'CUSTOMER':
         return [
@@ -103,6 +106,7 @@ export default function DashboardLayout({ children, user }: DashboardLayoutProps
           { name: 'Applications', href: '/customer/applications', icon: FileText },
           { name: 'Track deliveries', href: '/customer/deliveries', icon: FileText },
           { name: 'Profile', href: '/customer/profile', icon: Settings },
+          { name: 'Chats', href: '/customer/chats', icon: MessageCircle },
         ];
       default:
         return baseItems;

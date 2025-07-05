@@ -83,10 +83,9 @@ export default function ChatWidget({
   }
 
   const initializeSocket = () => {
-    const token = localStorage.getItem('auth-token')
     const newSocket = io(process.env.NODE_ENV === 'production' ? '' : 'http://localhost:3000', {
       path: '/api/socket',
-      auth: { token }
+      auth: { token: 'temp-token' }
     })
 
     newSocket.on('connect', () => {

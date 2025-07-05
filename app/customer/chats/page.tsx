@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -107,6 +106,43 @@ export default function CustomerChats() {
           <p className="text-gray-600 mt-2">Communicate with sellers, companies, and support</p>
         </div>
 
+        {/* Customer Care Section */}
+        <Card className="bg-blue-50 border-blue-200">
+          <CardHeader>
+            <CardTitle className="flex items-center text-blue-800">
+              <MessageCircle className="mr-2 h-5 w-5" />
+              Customer Care
+            </CardTitle>
+            <CardDescription className="text-blue-700">
+              Need help? Chat with our support team
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <Avatar className="h-10 w-10 bg-blue-100">
+                  <AvatarFallback className="text-blue-800">AC</AvatarFallback>
+                </Avatar>
+                <div>
+                  <h4 className="font-medium text-blue-900">Admin Support</h4>
+                  <p className="text-sm text-blue-700">Online • Ready to help</p>
+                </div>
+              </div>
+              <ChatWidget
+                participantId="admin-support"
+                participantName="Customer Support"
+                participantAvatar=""
+                triggerButton={
+                  <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                    Start Chat
+                  </button>
+                }
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Chats List */}
         {isLoading ? (
           <div className="flex justify-center py-8">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
@@ -132,7 +168,7 @@ export default function CustomerChats() {
                           {chat.otherParticipant.name[0]}
                         </AvatarFallback>
                       </Avatar>
-                      
+
                       <div className="flex-1">
                         <div className="flex items-center space-x-2">
                           <h3 className="font-semibold text-gray-900">
@@ -147,7 +183,7 @@ export default function CustomerChats() {
                             </Badge>
                           )}
                         </div>
-                        
+
                         {chat.product && (
                           <div className="flex items-center space-x-2 mt-1">
                             <Package className="h-4 w-4 text-gray-400" />
@@ -156,7 +192,7 @@ export default function CustomerChats() {
                             </span>
                           </div>
                         )}
-                        
+
                         {chat.order && (
                           <div className="flex items-center space-x-2 mt-1">
                             <ShoppingCart className="h-4 w-4 text-gray-400" />
@@ -165,7 +201,7 @@ export default function CustomerChats() {
                             </span>
                           </div>
                         )}
-                        
+
                         <p className="text-sm text-gray-500 mt-1">
                           Last activity: {new Date(chat.lastMessageAt).toLocaleDateString()}
                         </p>
