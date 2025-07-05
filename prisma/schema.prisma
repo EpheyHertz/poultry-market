@@ -180,6 +180,15 @@ model User {
   // Product interactions
   productLikes          ProductLike[]
   cartItems             CartItem[]
+  
+  // Chat relationships
+  sentMessages          ChatMessage[] @relation("SentMessages")
+  chatsAsParticipant1   Chat[] @relation("ChatParticipant1")
+  chatsAsParticipant2   Chat[] @relation("ChatParticipant2")
+  
+  // Follow relationships
+  followers             Follow[] @relation("Followers")
+  following             Follow[] @relation("Following")
 
   @@map("users")
 }
@@ -215,6 +224,9 @@ model Product {
   tags       ProductTag[]
   likes      ProductLike[]
   cartItems  CartItem[]
+  categories ProductCategory[]
+  collections ProductCollection[]
+  chats      Chat[]
 
   @@map("products")
 }
@@ -257,6 +269,8 @@ model Order {
   payment    Payment?
   notifications Notification[]
   paymentApprovals PaymentApprovalLog[]
+  chats      Chat[]
+  invoice    Invoice?
 
   @@map("orders")
 }
@@ -531,4 +545,121 @@ model CartItem {
 
   @@unique([userId, productId])
   @@map("cart_items")
+}
+
+model Chat {
+  id             String   @id @default(cuid())
+  participant1Id String
+  participant1   User     @relation("ChatParticipant1", fields: [participant1Id], references: [id], onDelete: Cascade)
+  participant2Id String
+  participant2   User     @relation("ChatParticipant2", fields: [participant2Id], references: [id], onDelete: Cascade)
+  productId      String?
+  product        Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  orderId        String?
+  order          Order?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  lastMessage    String?
+  lastMessageAt  DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  messages ChatMessage[]
+
+  @@unique([participant1Id, participant2Id, productId])
+  @@unique([participant1Id, participant2Id, orderId])
+  @@map("chats")
+}
+
+model ChatMessage {
+  id        String   @id @default(cuid())
+  chatId    String
+  chat      Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  senderId  String
+  sender    User     @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  content   String
+  type      String   @default("text") // text, image
+  images    String[]
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@map("chat_messages")
+}
+
+model Category {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  slug        String    @unique
+  description String?
+  icon        String?
+  image       String?
+  isActive    Boolean   @default(true)
+  sortOrder   Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  products ProductCategory[]
+
+  @@map("categories")
+}
+
+model ProductCategory {
+  id         String   @id @default(cuid())
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, categoryId])
+  @@map("product_categories")
+}
+
+model Collection {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  slug        String    @unique
+  description String?
+  image       String?
+  isActive    Boolean   @default(true)
+  isFeatured  Boolean   @default(false)
+  sortOrder   Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  products ProductCollection[]
+
+  @@map("collections")
+}
+
+model ProductCollection {
+  id           String     @id @default(cuid())
+  productId    String
+  product      Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  collectionId String
+  collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, collectionId])
+  @@map("product_collections")
+}
+
+model Follow {
+  id          String   @id @default(cuid())
+  followerId  String
+  follower    User     @relation("Following", fields: [followerId], references: [id], onDelete: Cascade)
+  followingId String
+  following   User     @relation("Followers", fields: [followingId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+
+  @@unique([followerId, followingId])
+  @@map("follows")
+}
+
+model Invoice {
+  id              String   @id @default(cuid())
+  orderId         String   @unique
+  order           Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  invoiceNumber   String   @unique
+  fileName        String
+  filePath        String
+  generatedAt     DateTime @default(now())
+
+  @@map("invoices")
 }

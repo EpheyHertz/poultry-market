@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -43,6 +42,8 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import ChatWidget from '@/components/chat/chat-widget';
+import { formatCurrency } from '@/lib/invoice';
 
 const tagIcons = {
   VERIFIED: Shield,
@@ -126,7 +127,7 @@ export default function ProductDetailPage() {
       if (response.ok) {
         const data = await response.json();
         setProduct(data);
-        
+
         // Update view count
         await fetch(`/api/products/${params.slug}/view`, { method: 'POST' });
       }
@@ -287,13 +288,13 @@ export default function ProductDetailPage() {
 
   const getCurrentPrice = () => {
     let price = product.price;
-    
+
     // Apply product discount if active
     if (product.hasDiscount && product.discountStartDate && product.discountEndDate) {
       const now = new Date();
       const startDate = new Date(product.discountStartDate);
       const endDate = new Date(product.discountEndDate);
-      
+
       if (now >= startDate && now <= endDate) {
         if (product.discountType === 'PERCENTAGE') {
           price = price * (1 - product.discountAmount / 100);
@@ -317,11 +318,11 @@ export default function ProductDetailPage() {
 
   const getDiscountPercentage = () => {
     if (!product.hasDiscount) return 0;
-    
+
     const now = new Date();
     const startDate = new Date(product.discountStartDate);
     const endDate = new Date(product.discountEndDate);
-    
+
     if (now >= startDate && now <= endDate) {
       if (product.discountType === 'PERCENTAGE') {
         return product.discountAmount;
@@ -390,7 +391,7 @@ export default function ProductDetailPage() {
                 <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-300 flex items-center justify-center">
                   <ZoomIn className="h-8 w-8 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
                 </div>
-                
+
                 {/* Discount Badge */}
                 {getDiscountPercentage() > 0 && (
                   <div className="absolute top-4 left-4">
@@ -487,15 +488,15 @@ export default function ProductDetailPage() {
                 <div className="mb-4">
                   <div className="flex items-center space-x-2">
                     <span className="text-3xl font-bold text-green-600">
-                      ${getCurrentPrice().toFixed(2)}
+                      {formatCurrency(getCurrentPrice())}
                     </span>
                     {getCurrentPrice() < product.price && (
                       <span className="text-lg text-gray-500 line-through">
-                        ${product.price.toFixed(2)}
+                        {formatCurrency(product.price)}
                       </span>
                     )}
                   </div>
-                  
+
                   {/* Discount Countdown */}
                   {timeLeft && (
                     <motion.div
@@ -541,7 +542,7 @@ export default function ProductDetailPage() {
                     </div>
                     {appliedVoucher && (
                       <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-green-700 text-sm">
-                        Voucher applied: {appliedVoucher.name} - Save ${(product.price * quantity - getCurrentPrice() * quantity).toFixed(2)}
+                        Voucher applied: {appliedVoucher.name} - Save {formatCurrency(product.price * quantity - getCurrentPrice() * quantity)}
                       </div>
                     )}
                   </div>
@@ -671,7 +672,7 @@ export default function ProductDetailPage() {
                         <p className="text-gray-600">{product.id}</p>
                       </div>
                     </div>
-                    
+
                     {product.metaDescription && (
                       <div>
                         <span className="font-medium">Description:</span>
@@ -708,7 +709,7 @@ export default function ProductDetailPage() {
                           <Calendar className="h-4 w-4" />
                           <span>Member since {new Date(product.seller.createdAt).getFullYear()}</span>
                         </div>
-                        
+
                         {product.seller.tags.length > 0 && (
                           <div className="flex flex-wrap gap-1 mt-2">
                             {product.seller.tags.map((tagData: any) => {
@@ -726,7 +727,7 @@ export default function ProductDetailPage() {
                             })}
                           </div>
                         )}
-                        
+
                         <div className="mt-4">
                           <Link href={`/store/${product.seller.dashboardSlug || product.seller.id}`}>
                             <Button variant="outline" size="sm">
@@ -767,7 +768,7 @@ export default function ProductDetailPage() {
                           </div>
                           <p className="text-gray-600">{product.reviews?.length || 0} reviews</p>
                         </div>
-                        
+
                         <div className="space-y-2">
                           {[5, 4, 3, 2, 1].map((rating) => {
                             const count = product.reviews?.filter((r: any) => r.rating === rating).length || 0;
@@ -782,7 +783,7 @@ export default function ProductDetailPage() {
                           })}
                         </div>
                       </div>
-                      
+
                       {user && user.role === 'CUSTOMER' && (
                         <div className="mt-6 pt-6 border-t">
                           <Button onClick={() => setShowReviewForm(true)} className="w-full">
@@ -824,7 +825,7 @@ export default function ProductDetailPage() {
                               </div>
                             </div>
                             <p className="text-gray-600 mb-3">{review.comment}</p>
-                            
+
                             {review.images && review.images.length > 0 && (
                               <div className="flex space-x-2 mb-3">
                                 {review.images.map((image: string, index: number) => (
@@ -837,7 +838,7 @@ export default function ProductDetailPage() {
                                 ))}
                               </div>
                             )}
-                            
+
                             <div className="flex items-center space-x-4 text-sm text-gray-500">
                               <span>{new Date(review.createdAt).toLocaleDateString()}</span>
                               <button className="flex items-center space-x-1 hover:text-blue-600">
@@ -912,7 +913,7 @@ export default function ProductDetailPage() {
                 ))}
               </div>
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium mb-2">Comment</label>
               <Textarea
@@ -922,7 +923,7 @@ export default function ProductDetailPage() {
                 rows={4}
               />
             </div>
-            
+
             <div className="flex space-x-2">
               <Button onClick={() => setShowReviewForm(false)} variant="outline" className="flex-1">
                 Cancel
@@ -962,7 +963,7 @@ export default function ProductDetailPage() {
               onClick={handleBuyNow}
               className="flex-1"
             >
-              Buy Now - ${getCurrentPrice().toFixed(2)}
+              Buy Now - {formatCurrency(getCurrentPrice())}
             </Button>
           </div>
         </div>

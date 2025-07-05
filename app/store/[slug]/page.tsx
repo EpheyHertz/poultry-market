@@ -1,12 +1,12 @@
-
 import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { MapPin, Phone, Globe, Star, Package, Calendar } from 'lucide-react'
+import { MapPin, Phone, Globe, Star, Package, Calendar, Users, Heart } from 'lucide-react'
 import Link from 'next/link'
+import { ChatWidget } from '@/components/chat/chat-widget';
 
 interface StorePageProps {
   params: {
@@ -17,7 +17,6 @@ interface StorePageProps {
 export default async function StorePage({ params }: StorePageProps) {
   const { slug } = params
 
-  // Find store owner by slug
   const storeOwner = await prisma.user.findFirst({
     where: {
       OR: [
@@ -41,17 +40,14 @@ export default async function StorePage({ params }: StorePageProps) {
         orderBy: { createdAt: 'desc' }
       },
       tags: true,
-      reviews: {
-        include: {
-          user: {
-            select: {
-              name: true,
-              avatar: true
-            }
-          }
-        },
-        orderBy: { createdAt: 'desc' },
-        take: 5
+      followers: {
+        select: {
+          followerId: true
+        }
+      },
+      analytics: {
+        orderBy: { date: 'desc' },
+        take: 1
       }
     }
   })
@@ -78,7 +74,7 @@ export default async function StorePage({ params }: StorePageProps) {
                 {storeOwner.name.charAt(0)}
               </AvatarFallback>
             </Avatar>
-            
+
             <div className="flex-1">
               <div className="flex items-center gap-3 mb-2">
                 <h1 className="text-3xl font-bold text-gray-900">{storeOwner.name}</h1>
@@ -86,7 +82,7 @@ export default async function StorePage({ params }: StorePageProps) {
                   {storeOwner.role}
                 </Badge>
               </div>
-              
+
               <div className="flex items-center gap-4 text-sm text-gray-600 mb-4">
                 <span className="flex items-center gap-1">
                   <Package className="h-4 w-4" />
@@ -147,7 +143,7 @@ export default async function StorePage({ params }: StorePageProps) {
           {/* Products */}
           <div className="lg:col-span-2">
             <h2 className="text-2xl font-bold text-gray-900 mb-6">Products</h2>
-            
+
             {storeOwner.products.length === 0 ? (
               <Card>
                 <CardContent className="flex items-center justify-center py-12">
@@ -190,7 +186,7 @@ export default async function StorePage({ params }: StorePageProps) {
                             {product.stock > 0 ? `${product.stock} in stock` : 'Out of stock'}
                           </Badge>
                         </div>
-                        
+
                         {product.reviews.length > 0 && (
                           <div className="flex items-center gap-1 mb-3">
                             <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
@@ -203,7 +199,7 @@ export default async function StorePage({ params }: StorePageProps) {
                         <Badge variant="outline" className="mb-3">
                           {product.type.replace('_', ' ')}
                         </Badge>
-                        
+
                         <Link href={`/products/${product.id}`}>
                           <Button className="w-full">View Details</Button>
                         </Link>
