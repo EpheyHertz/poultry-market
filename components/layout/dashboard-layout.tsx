@@ -26,7 +26,9 @@ import {
   HandHeart,
   FileText,
   BarChart3,
-  Tag
+  Tag,
+  Truck,
+  MessageCircle
 } from 'lucide-react';
 import { toast } from 'sonner';
 

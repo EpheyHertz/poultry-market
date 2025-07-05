@@ -18,6 +18,9 @@ export default function Checkout() {
   const [cartItems, setCartItems] = useState<any[]>([]);
   const [paymentType, setPaymentType] = useState('BEFORE_DELIVERY');
   const [deliveryAddress, setDeliveryAddress] = useState('');
+  const [deliveryFee, setDeliveryFee] = useState(0);
+  const [deliveryVoucherCode, setDeliveryVoucherCode] = useState('');
+  const [deliveryDiscount, setDeliveryDiscount] = useState(0);
   const [paymentDetails, setPaymentDetails] = useState({
     phone: '',
     reference: '',
@@ -55,6 +58,7 @@ export default function Checkout() {
     if (items) {
       try {
         setCartItems(JSON.parse(decodeURIComponent(items)));
+        fetchDeliveryFee();
       } catch (error) {
         console.error('Failed to parse cart items:', error);
         router.push('/customer/products');
@@ -64,8 +68,63 @@ export default function Checkout() {
     }
   }, [searchParams, router]);
 
-  const calculateTotal = () => {
+  const fetchDeliveryFee = async () => {
+    try {
+      const response = await fetch('/api/delivery-fees');
+      if (response.ok) {
+        const fees = await response.json();
+        const defaultFee = fees.find((fee: any) => fee.isDefault) || fees[0];
+        if (defaultFee) {
+          setDeliveryFee(defaultFee.amount);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch delivery fee:', error);
+    }
+  };
+
+  const validateDeliveryVoucher = async () => {
+    if (!deliveryVoucherCode.trim()) return;
+    
+    try {
+      const response = await fetch(`/api/delivery-vouchers?code=${deliveryVoucherCode}`);
+      if (response.ok) {
+        const voucher = await response.json();
+        const subtotal = calculateSubtotal();
+        
+        if (voucher.minOrderAmount && subtotal < voucher.minOrderAmount) {
+          toast.error(`Minimum order amount for this voucher is $${voucher.minOrderAmount}`);
+          return;
+        }
+        
+        let discount = 0;
+        if (voucher.discountType === 'PERCENTAGE') {
+          discount = (deliveryFee * voucher.discountValue) / 100;
+        } else {
+          discount = Math.min(voucher.discountValue, deliveryFee);
+        }
+        
+        setDeliveryDiscount(discount);
+        toast.success(`Delivery voucher applied! $${discount.toFixed(2)} discount`);
+      } else {
+        const error = await response.json();
+        toast.error(error.error || 'Invalid voucher code');
+        setDeliveryDiscount(0);
+      }
+    } catch (error) {
+      toast.error('Failed to validate voucher');
+      setDeliveryDiscount(0);
+    }
+  };
+
+  const calculateSubtotal = () => {
     return cartItems.reduce((total, item) => total + (item.price * item.quantity), 0);
+  };
+
+  const calculateTotal = () => {
+    const subtotal = calculateSubtotal();
+    const finalDeliveryFee = Math.max(0, deliveryFee - deliveryDiscount);
+    return subtotal + finalDeliveryFee;
   };
 
   const handlePlaceOrder = async (e: React.FormEvent) => {
@@ -80,7 +139,10 @@ export default function Checkout() {
         })),
         deliveryAddress,
         paymentType,
-        paymentDetails: paymentType === 'BEFORE_DELIVERY' ? paymentDetails : null
+        paymentDetails: paymentType === 'BEFORE_DELIVERY' ? paymentDetails : null,
+        deliveryFee: Math.max(0, deliveryFee - deliveryDiscount),
+        deliveryVoucherCode: deliveryVoucherCode || null,
+        deliveryDiscount
       };
 
       const response = await fetch('/api/orders', {
@@ -146,6 +208,25 @@ export default function Checkout() {
                 
                 <Separator />
                 
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span>Subtotal:</span>
+                    <span>${calculateSubtotal().toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Delivery fee:</span>
+                    <span>${deliveryFee.toFixed(2)}</span>
+                  </div>
+                  {deliveryDiscount > 0 && (
+                    <div className="flex justify-between text-green-600">
+                      <span>Delivery discount:</span>
+                      <span>-${deliveryDiscount.toFixed(2)}</span>
+                    </div>
+                  )}
+                </div>
+                
+                <Separator />
+                
                 <div className="flex justify-between items-center text-lg font-bold">
                   <span>Total:</span>
                   <span>${calculateTotal().toFixed(2)}</span>
@@ -205,6 +286,26 @@ export default function Checkout() {
                       </div>
                     </div>
                   </RadioGroup>
+                </div>
+
+                {/* Delivery Voucher */}
+                <div className="space-y-4 p-4 bg-green-50 rounded-lg">
+                  <h4 className="font-medium">Delivery Voucher (Optional)</h4>
+                  <div className="flex space-x-2">
+                    <Input
+                      value={deliveryVoucherCode}
+                      onChange={(e) => setDeliveryVoucherCode(e.target.value.toUpperCase())}
+                      placeholder="Enter delivery voucher code"
+                    />
+                    <Button type="button" onClick={validateDeliveryVoucher} variant="outline">
+                      Apply
+                    </Button>
+                  </div>
+                  {deliveryDiscount > 0 && (
+                    <p className="text-sm text-green-600">
+                      Voucher applied! You save ${deliveryDiscount.toFixed(2)} on delivery
+                    </p>
+                  )}
                 </div>
 
                 {/* Payment Details (if paying before delivery) */}
