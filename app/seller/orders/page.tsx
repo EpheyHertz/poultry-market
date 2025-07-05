@@ -239,6 +239,31 @@ export default function SellerOrders() {
                         </p>
                       </div>
 
+                      {/* Delivery Agent Info */}
+                      {order.delivery && (
+                        <div className="p-3 bg-green-50 rounded-lg">
+                          <h4 className="font-medium mb-1 flex items-center">
+                            <Truck className="h-4 w-4 mr-2" />
+                            Delivery Status
+                          </h4>
+                          <div className="grid grid-cols-2 gap-2 text-sm text-gray-600">
+                            <p>Tracking: {order.delivery.trackingId}</p>
+                            <p>Status: {order.delivery.status.replace('_', ' ')}</p>
+                            {order.delivery.agentName && (
+                              <>
+                                <p>Agent: {order.delivery.agentName}</p>
+                                {order.delivery.agentPhone && (
+                                  <p>Phone: {order.delivery.agentPhone}</p>
+                                )}
+                              </>
+                            )}
+                            {!order.delivery.agentId && (
+                              <p className="col-span-2 text-orange-600">⚠️ No delivery agent assigned</p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
                       {/* Payment Details */}
                       {order.paymentDetails && (
                         <div className="p-3 bg-green-50 rounded-lg">

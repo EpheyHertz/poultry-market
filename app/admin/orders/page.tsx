@@ -73,7 +73,7 @@ export default function AdminOrders() {
     try {
       const params = new URLSearchParams();
       if (statusFilter) params.append('status', statusFilter);
-      
+
       const response = await fetch(`/api/orders?${params}`);
       if (response.ok) {
         const data = await response.json();
@@ -177,6 +177,16 @@ export default function AdminOrders() {
     return <div>Loading...</div>;
   }
 
+    const getStatusIcon = (status: string) => {
+        switch (status) {
+            case 'PENDING': return Clock;
+            case 'CONFIRMED': return CheckCircle;
+            case 'REJECTED': return XCircle;
+            case 'DELIVERED': return Package;
+            default: return Package;
+        }
+    };
+
   return (
     <DashboardLayout user={user}>
       <div className="space-y-8">
@@ -258,7 +268,7 @@ export default function AdminOrders() {
                           </p>
                         </div>
                       </div>
-                      
+
                       <div className="flex items-center space-x-2">
                         <div className="text-right">
                           <Badge className={getStatusColor(order.status)}>
@@ -288,7 +298,7 @@ export default function AdminOrders() {
                                 Manage order #{order.id.slice(-8)}
                               </DialogDescription>
                             </DialogHeader>
-                            
+
                             <div className="space-y-6">
                               {/* Order Details */}
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -386,7 +396,7 @@ export default function AdminOrders() {
                                       <CheckCircle className="h-4 w-4 mr-2" />
                                       Approve & Assign Delivery
                                     </Button>
-                                    
+
                                     <Dialog>
                                       <DialogTrigger asChild>
                                         <Button variant="destructive">
@@ -401,7 +411,7 @@ export default function AdminOrders() {
                                             Please provide a reason for rejecting this order
                                           </DialogDescription>
                                         </DialogHeader>
-                                        
+
                                         <div className="space-y-4">
                                           <div className="space-y-2">
                                             <Label htmlFor="reason">Rejection Reason</Label>

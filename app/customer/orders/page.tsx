@@ -286,13 +286,52 @@ export default function CustomerOrders() {
                       {/* Delivery Info */}
                       {order.delivery && (
                         <div className="p-3 bg-blue-50 rounded-lg">
-                          <h4 className="font-medium mb-1">Delivery Information</h4>
-                          <p className="text-sm text-gray-600">
-                            Tracking ID: {order.delivery.trackingId}
-                          </p>
-                          <p className="text-sm text-gray-600">
-                            Address: {order.delivery.address}
-                          </p>
+                          <h4 className="font-medium mb-1 flex items-center">
+                            <Truck className="h-4 w-4 mr-2" />
+                            Delivery Tracking
+                          </h4>
+                          <div className="space-y-2">
+                            <div className="flex justify-between text-sm">
+                              <span className="text-gray-600">Tracking ID:</span>
+                              <span className="font-medium">{order.delivery.trackingId}</span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                              <span className="text-gray-600">Status:</span>
+                              <Badge variant="outline" className="text-xs">
+                                {order.delivery.status.replace('_', ' ')}
+                              </Badge>
+                            </div>
+                            {order.delivery.agentName && (
+                              <>
+                                <div className="flex justify-between text-sm">
+                                  <span className="text-gray-600">Delivery Agent:</span>
+                                  <span className="font-medium">{order.delivery.agentName}</span>
+                                </div>
+                                {order.delivery.agentPhone && (
+                                  <div className="flex justify-between text-sm">
+                                    <span className="text-gray-600">Agent Phone:</span>
+                                    <a href={`tel:${order.delivery.agentPhone}`} className="text-blue-600 hover:underline">
+                                      {order.delivery.agentPhone}
+                                    </a>
+                                  </div>
+                                )}
+                                {order.delivery.vehicleInfo && (
+                                  <div className="flex justify-between text-sm">
+                                    <span className="text-gray-600">Vehicle:</span>
+                                    <span className="font-medium">{order.delivery.vehicleInfo}</span>
+                                  </div>
+                                )}
+                              </>
+                            )}
+                            <div className="pt-2 border-t">
+                              <p className="text-sm text-gray-600">Address: {order.delivery.address}</p>
+                            </div>
+                            {order.delivery.deliveryNotes && (
+                              <div className="pt-2 border-t">
+                                <p className="text-sm text-gray-600">Notes: {order.delivery.deliveryNotes}</p>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       )}
 
