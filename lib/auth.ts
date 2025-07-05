@@ -42,6 +42,10 @@ export async function getCurrentUser() {
       avatar: true,
       dashboardSlug: true,
       customDomain: true,
+      isApproved: true,
+      isActive: true,
+      isVerified: true,
+      createdAt: true,
     },
   })
 

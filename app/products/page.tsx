@@ -356,7 +356,7 @@ export default function PublicProductsPage() {
                     <SelectValue placeholder="Product type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Types</SelectItem>
+                    {/* <SelectItem value="">All Types</SelectItem> */}
                     {filters.types?.map((type: any) => (
                       <SelectItem key={type.type} value={type.type}>
                         {type.type.replace('_', ' ')} ({type._count.type})
@@ -371,7 +371,7 @@ export default function PublicProductsPage() {
                     <SelectValue placeholder="Filter by tag" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Tags</SelectItem>
+                    {/* <SelectItem value="">All Tags</SelectItem> */}
                     {filters.tags?.map((tag: any) => (
                       <SelectItem key={tag.tag} value={tag.tag}>
                         {tag.tag.replace('_', ' ')} ({tag._count.tag})

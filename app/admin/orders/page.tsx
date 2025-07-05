@@ -210,7 +210,7 @@ export default function AdminOrders() {
                   <SelectValue placeholder="Filter by status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Orders</SelectItem>
+                  {/* <SelectItem value="">All Orders</SelectItem> */}
                   <SelectItem value="PENDING">Pending</SelectItem>
                   <SelectItem value="CONFIRMED">Confirmed</SelectItem>
                   <SelectItem value="PACKED">Packed</SelectItem>

@@ -230,7 +230,7 @@ model Order {
   customer   User        @relation(fields: [customerId], references: [id])
   status     OrderStatus @default(PENDING)
   total      Float
-  subtotal   Float
+  subtotal   Float @default(0)
   discountAmount Float   @default(0)
   voucherCode    String?
   notes      String?

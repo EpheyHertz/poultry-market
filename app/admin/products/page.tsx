@@ -167,7 +167,7 @@ export default function AdminProducts() {
                   <SelectValue placeholder="Filter by type" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Types</SelectItem>
+                  {/* <SelectItem value="">All Types</SelectItem> */}
                   <SelectItem value="EGGS">Eggs</SelectItem>
                   <SelectItem value="CHICKEN_MEAT">Chicken Meat</SelectItem>
                   <SelectItem value="CHICKEN_FEED">Chicken Feed</SelectItem>
@@ -181,7 +181,7 @@ export default function AdminProducts() {
                   <SelectValue placeholder="Filter by seller type" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Sellers</SelectItem>
+                  {/* <SelectItem value="">All Sellers</SelectItem> */}
                   <SelectItem value="SELLER">Individual Sellers</SelectItem>
                   <SelectItem value="COMPANY">Companies</SelectItem>
                 </SelectContent>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useRef, useEffect, ChangeEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/layout/dashboard-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,9 +10,16 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ArrowLeft, Upload } from 'lucide-react';
+import { ArrowLeft, Upload, X } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import Image from 'next/image';
+
+type ImagePreview = {
+  url: string;
+  name: string;
+  size: number;
+};
 
 export default function NewCompanyProduct() {
   const [user, setUser] = useState<any>(null);
@@ -22,11 +29,16 @@ export default function NewCompanyProduct() {
     price: '',
     stock: '',
     type: '',
-    images: ['']
   });
+  const [imagePreviews, setImagePreviews] = useState<ImagePreview[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
+
+  const MAX_IMAGES = 5;
+  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -55,6 +67,12 @@ export default function NewCompanyProduct() {
     setIsLoading(true);
     setError('');
 
+    if (imagePreviews.length === 0) {
+      setError('Please upload at least one image');
+      setIsLoading(false);
+      return;
+    }
+
     try {
       const response = await fetch('/api/products', {
         method: 'POST',
@@ -63,7 +81,7 @@ export default function NewCompanyProduct() {
         },
         body: JSON.stringify({
           ...formData,
-          images: formData.images.filter(img => img.trim() !== '')
+          images: imagePreviews.map(img => img.url)
         }),
       });
 
@@ -82,28 +100,124 @@ export default function NewCompanyProduct() {
     }
   };
 
-  const addImageField = () => {
-    setFormData({
-      ...formData,
-      images: [...formData.images, '']
-    });
+  const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    // Check if we're exceeding the max number of images
+    if (imagePreviews.length + files.length > MAX_IMAGES) {
+      toast.error(`You can only upload up to ${MAX_IMAGES} images`);
+      return;
+    }
+
+    setIsUploading(true);
+
+    try {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+
+        // Check file size
+        if (file.size > MAX_FILE_SIZE) {
+          toast.error(`Image ${file.name} is too large (max 10MB)`);
+          continue;
+        }
+
+        // Compress image (client-side)
+        const compressedFile = await compressImage(file);
+
+        const formData = new FormData();
+        formData.append('file', compressedFile);
+
+        const response = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setImagePreviews(prev => [
+            ...prev,
+            {
+              url: data.url,
+              name: file.name,
+              size: file.size,
+            }
+          ]);
+        } else {
+          toast.error(`Failed to upload ${file.name}`);
+        }
+      }
+    } catch (error) {
+      toast.error('Upload failed');
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
   };
 
-  const updateImage = (index: number, value: string) => {
-    const newImages = [...formData.images];
-    newImages[index] = value;
-    setFormData({
-      ...formData,
-      images: newImages
+  const compressImage = async (file: File): Promise<File> => {
+    return new Promise((resolve) => {
+      // Skip compression for non-image files
+      if (!file.type.match('image.*')) {
+        resolve(file);
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new window.Image();
+        img.src = event.target?.result as string;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+
+          // Set maximum dimensions
+          const MAX_WIDTH = 1200;
+          const MAX_HEIGHT = 1200;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > MAX_WIDTH) {
+              height *= MAX_WIDTH / width;
+              width = MAX_WIDTH;
+            }
+          } else {
+            if (height > MAX_HEIGHT) {
+              width *= MAX_HEIGHT / height;
+              height = MAX_HEIGHT;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          ctx?.drawImage(img, 0, 0, width, height);
+
+          canvas.toBlob((blob) => {
+            if (!blob) {
+              resolve(file);
+              return;
+            }
+            const compressedFile = new File([blob], file.name, {
+              type: 'image/jpeg',
+              lastModified: Date.now(),
+            });
+            resolve(compressedFile);
+          }, 'image/jpeg', 0.7);
+        };
+      };
     });
   };
 
   const removeImage = (index: number) => {
-    const newImages = formData.images.filter((_, i) => i !== index);
-    setFormData({
-      ...formData,
-      images: newImages.length === 0 ? [''] : newImages
-    });
+    setImagePreviews(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const triggerFileInput = () => {
+    fileInputRef.current?.click();
   };
 
   if (!user) {
@@ -210,40 +324,67 @@ export default function NewCompanyProduct() {
               </div>
 
               <div className="space-y-4">
-                <Label>Product Images (URLs)</Label>
-                {formData.images.map((image, index) => (
-                  <div key={index} className="flex space-x-2">
-                    <Input
-                      value={image}
-                      onChange={(e) => updateImage(index, e.target.value)}
-                      placeholder="https://example.com/image.jpg"
-                      className="flex-1"
-                    />
-                    {formData.images.length > 1 && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => removeImage(index)}
-                      >
-                        Remove
-                      </Button>
-                    )}
+                <Label>Product Images</Label>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileChange}
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                />
+
+                <div className="flex flex-col gap-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={triggerFileInput}
+                    disabled={imagePreviews.length >= MAX_IMAGES || isUploading}
+                  >
+                    <Upload className="mr-2 h-4 w-4" />
+                    {isUploading ? 'Uploading...' : 'Upload Images'}
+                    <span className="ml-2 text-xs text-gray-500">
+                      ({imagePreviews.length}/{MAX_IMAGES})
+                    </span>
+                  </Button>
+                  <p className="text-sm text-gray-500">
+                    Upload up to {MAX_IMAGES} images (max 10MB each)
+                  </p>
+                </div>
+
+                {imagePreviews.length > 0 && (
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4">
+                    {imagePreviews.map((image, index) => (
+                      <div key={index} className="relative group">
+                        <div className="aspect-square overflow-hidden rounded-lg border">
+                          <Image
+                            src={image.url}
+                            alt={`Preview ${index + 1}`}
+                            width={200}
+                            height={200}
+                            className="object-cover w-full h-full"
+                          />
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 hover:bg-white"
+                          onClick={() => removeImage(index)}
+                        >
+                          <X className="h-4 w-4 text-red-500" />
+                        </Button>
+                        <div className="text-xs text-gray-500 mt-1 truncate">
+                          {image.name}
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                ))}
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={addImageField}
-                >
-                  <Upload className="mr-2 h-4 w-4" />
-                  Add Another Image
-                </Button>
+                )}
               </div>
 
               <div className="flex space-x-4">
-                <Button type="submit" disabled={isLoading} className="flex-1">
+                <Button type="submit" disabled={isLoading || isUploading} className="flex-1">
                   {isLoading ? 'Creating...' : 'Create Product'}
                 </Button>
                 <Link href="/company/products">

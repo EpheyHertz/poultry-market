@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'
-import { OrderStatus, PaymentType, PaymentStatus } from '@prisma/client'
+import { OrderStatus, PaymentType, PaymentStatus, DeliveryStatus } from '@prisma/client'
 import { createNotification, notificationTemplates } from '@/lib/notifications'
 
 export async function GET(request: NextRequest) {
@@ -161,7 +161,7 @@ export async function POST(request: NextRequest) {
           create: {
             address: deliveryAddress,
             trackingId: `TRK${Date.now()}`,
-            status: 'processing'
+            status:DeliveryStatus.ASSIGNED
           }
         } : undefined
       },

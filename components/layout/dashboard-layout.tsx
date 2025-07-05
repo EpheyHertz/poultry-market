@@ -72,6 +72,7 @@ export default function DashboardLayout({ children, user }: DashboardLayoutProps
           { name: 'Orders', href: '/admin/orders', icon: ShoppingCart },
           { name: 'Applications', href: '/admin/applications', icon: FileText },
           { name: 'Sponsorships', href: '/admin/sponsorships', icon: HandHeart },
+          { name: 'Delivery', href: '/admin/delivery-agents', icon: BarChart3 },
           { name: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
         ];
       case 'SELLER':
@@ -98,6 +99,7 @@ export default function DashboardLayout({ children, user }: DashboardLayoutProps
           { name: 'Browse Products', href: '/customer/products', icon: Package },
           { name: 'My Orders', href: '/customer/orders', icon: ShoppingCart },
           { name: 'Applications', href: '/customer/applications', icon: FileText },
+          { name: 'Track deliveries', href: '/customer/deliveries', icon: FileText },
           { name: 'Profile', href: '/customer/profile', icon: Settings },
         ];
       default:

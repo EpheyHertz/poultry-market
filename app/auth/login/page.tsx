@@ -214,14 +214,14 @@ export default function LoginPage() {
           
           <div className="mt-6 text-center text-sm">
             <p className="text-gray-600">
-              Don't have an account?{' '}
+              Don&apos;t have an account?{' '}
               <Link href="/auth/register" className="text-green-600 hover:underline font-medium">
                 Sign up
               </Link>
             </p>
           </div>
 
-          <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+          {/* <div className="mt-4 p-4 bg-gray-50 rounded-lg">
             <p className="text-sm font-medium text-gray-700 mb-2">Demo Accounts:</p>
             <div className="space-y-1 text-xs text-gray-600">
               <p><strong>Admin:</strong> admin@poultry.com / password123</p>
@@ -229,7 +229,7 @@ export default function LoginPage() {
               <p><strong>Seller:</strong> seller@poultry.com / password123</p>
               <p><strong>Customer:</strong> customer@poultry.com / password123</p>
             </div>
-          </div>
+          </div> */}
         </CardContent>
       </Card>
     </div>
