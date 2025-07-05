@@ -57,6 +57,7 @@
     "eslint": "8.49.0",
     "eslint-config-next": "13.5.1",
     "framer-motion": "^12.23.0",
+    "fs": "^0.0.1-security",
     "input-otp": "^1.2.4",
     "jose": "^5.2.0",
     "lucide-react": "^0.446.0",
@@ -86,6 +87,7 @@
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
     "@types/nodemailer": "^6.4.14",
+    "@types/pdfkit": "^0.14.0",
     "@types/qrcode": "^1.5.5",
     "ts-node": "^10.9.2"
   }

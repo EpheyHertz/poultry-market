@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { MapPin, Phone, Globe, Star, Package, Calendar, Users, Heart } from 'lucide-react'
 import Link from 'next/link'
-import { ChatWidget } from '@/components/chat/chat-widget';
+import ChatWidget  from '@/components/chat/chat-widget';
 
 interface StorePageProps {
   params: {
@@ -15,7 +15,7 @@ interface StorePageProps {
 }
 
 export default async function StorePage({ params }: StorePageProps) {
-  const { slug } = params
+  const { slug } = await params
 
   const storeOwner = await prisma.user.findFirst({
     where: {
@@ -33,21 +33,32 @@ export default async function StorePage({ params }: StorePageProps) {
           tags: true,
           reviews: {
             select: {
-              rating: true
-            }
-          }
-        },
-        orderBy: { createdAt: 'desc' }
+              id: true,
+              rating: true,
+              comment: true, // optional
+              createdAt: true, // optional
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  avatar: true, // or whatever field represents the reviewer
+                },
+              },
+            },
+            orderBy: { createdAt: 'desc' }
+          },
+          // analytics: {
+          //   orderBy: { date: 'desc' },
+          //   take: 1
+          // }
+        }
       },
       tags: true,
       followers: {
         select: {
           followerId: true
         }
-      },
-      analytics: {
-        orderBy: { date: 'desc' },
-        take: 1
       }
     }
   })
@@ -57,9 +68,20 @@ export default async function StorePage({ params }: StorePageProps) {
   }
 
   const totalProducts = storeOwner.products.length
-  const totalReviews = storeOwner.reviews.length
+  const totalFollowers = storeOwner.followers.length
+  const productRatings = storeOwner.products.flatMap(product => product.reviews.map(review => review.rating))
+  const productReviews = storeOwner.products.reduce((acc, product) => acc + product.reviews.length, 0)
+const allProductReviews = storeOwner.products.flatMap(product => 
+  product.reviews.map(review => ({
+    ...review,
+    productId: product.id,
+    productName: product.name,
+  }))
+);
+
+  const totalReviews =  productReviews
   const averageRating = totalReviews > 0 
-    ? storeOwner.reviews.reduce((sum, review) => sum + review.rating, 0) / totalReviews
+    ? productReviews/ totalReviews
     : 0
 
   return (
@@ -200,7 +222,7 @@ export default async function StorePage({ params }: StorePageProps) {
                           {product.type.replace('_', ' ')}
                         </Badge>
 
-                        <Link href={`/products/${product.id}`}>
+                        <Link href={`/product/${product.id}`}>
                           <Button className="w-full">View Details</Button>
                         </Link>
                       </CardContent>
@@ -226,13 +248,13 @@ export default async function StorePage({ params }: StorePageProps) {
             )}
 
             {/* Recent Reviews */}
-            {storeOwner.reviews.length > 0 && (
+            {allProductReviews.length > 0 && (
               <Card>
                 <CardHeader>
                   <CardTitle>Recent Reviews</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {storeOwner.reviews.slice(0, 3).map((review) => (
+                  {allProductReviews.slice(0, 3).map((review) => (
                     <div key={review.id} className="border-b pb-3 last:border-b-0">
                       <div className="flex items-center gap-2 mb-2">
                         <Avatar className="h-6 w-6">

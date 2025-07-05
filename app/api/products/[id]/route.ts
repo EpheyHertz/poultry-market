@@ -2,39 +2,39 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  try {
-    const product = await prisma.product.findUnique({
-      where: { id: params.id },
-      include: {
-        seller: {
-          select: {
-            id: true,
-            name: true,
-            role: true,
-            dashboardSlug: true,
-            tags: {
-              select: {
-                tag: true
-              }
-            }
-          }
-        }
-      }
-    })
+// export async function GET(
+//   request: NextRequest,
+//   { params }: { params: { id: string } }
+// ) {
+//   try {
+//     const product = await prisma.product.findUnique({
+//       where: { id: params.id },
+//       include: {
+//         seller: {
+//           select: {
+//             id: true,
+//             name: true,
+//             role: true,
+//             dashboardSlug: true,
+//             tags: {
+//               select: {
+//                 tag: true
+//               }
+//             }
+//           }
+//         }
+//       }
+//     })
 
-    if (!product) {
-      return NextResponse.json({ error: 'Product not found' }, { status: 404 })
-    }
+//     if (!product) {
+//       return NextResponse.json({ error: 'Product not found' }, { status: 404 })
+//     }
 
-    return NextResponse.json(product)
-  } catch (error) {
-    return NextResponse.json({ error: 'Failed to fetch product' }, { status: 500 })
-  }
-}
+//     return NextResponse.json(product)
+//   } catch (error) {
+//     return NextResponse.json({ error: 'Failed to fetch product' }, { status: 500 })
+//   }
+// }
 
 export async function PUT(
   request: NextRequest,
@@ -124,9 +124,7 @@ export async function DELETE(
     return NextResponse.json({ error: 'Failed to delete product' }, { status: 500 })
   }
 }
-import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { getCurrentUser } from '@/lib/auth';
+
 
 export async function GET(
   request: NextRequest,

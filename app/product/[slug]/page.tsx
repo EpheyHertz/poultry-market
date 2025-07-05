@@ -43,7 +43,8 @@ import {
 import Link from 'next/link';
 import { toast } from 'sonner';
 import ChatWidget from '@/components/chat/chat-widget';
-import { formatCurrency } from '@/lib/invoice';
+import { formatCurrency } from '@/lib/formatCurrency';
+import Head from 'next/head';
 
 const tagIcons = {
   VERIFIED: Shield,
@@ -357,16 +358,18 @@ export default function ProductDetailPage() {
   }
 
   return (
+    
     <div className="min-h-screen bg-gray-50">
       {/* SEO Meta Tags */}
-      <head>
+      <Head>
         <title>{product.metaTitle || product.name}</title>
         <meta name="description" content={product.metaDescription || product.description} />
         <meta property="og:title" content={product.name} />
         <meta property="og:description" content={product.description} />
         <meta property="og:image" content={product.images[0]} />
         <meta property="og:url" content={window.location.href} />
-      </head>
+      </Head>
+    
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <motion.div
@@ -892,7 +895,7 @@ export default function ProductDetailPage() {
 
       {/* Review Form Dialog */}
       <Dialog open={showReviewForm} onOpenChange={setShowReviewForm}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md" title='Write a Review'>
           <DialogHeader>
             <DialogTitle>Write a Review</DialogTitle>
           </DialogHeader>
@@ -937,8 +940,10 @@ export default function ProductDetailPage() {
       </Dialog>
 
       {/* Image Zoom Modal */}
-      <Dialog open={isZoomed} onOpenChange={setIsZoomed}>
-        <DialogContent className="max-w-4xl">
+      <Dialog open={isZoomed} onOpenChange={setIsZoomed} >
+        <DialogContent className="max-w-4xl" title='Image Zoom'>
+            <DialogTitle>Zoom the Image</DialogTitle>
+          
           <img
             src={product.images[selectedImageIndex]}
             alt={product.name}

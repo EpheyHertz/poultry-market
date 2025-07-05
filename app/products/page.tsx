@@ -167,9 +167,11 @@ export default function PublicProductsPage() {
           {/* Quick Actions */}
           <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100">
             <div className="flex space-x-2">
-              <Button size="sm" variant="secondary" className="rounded-full">
-                <Eye className="h-4 w-4" />
-              </Button>
+              <Link href={`/product/${product.id}`}>
+                <Button size="sm" variant="secondary" className="rounded-full">
+                  <Eye className="h-4 w-4" />
+                </Button>
+              </Link>
               <Button size="sm" variant="secondary" className="rounded-full">
                 <Heart className="h-4 w-4" />
               </Button>
