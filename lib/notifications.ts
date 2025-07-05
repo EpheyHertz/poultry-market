@@ -69,6 +69,21 @@ export const notificationTemplates = {
     message: `Your order #${orderNumber} has been packed and is ready for delivery.`
   }),
   
+  orderDispatched: (orderNumber: string, trackingId: string, agentName: string) => ({
+    title: 'Order Dispatched',
+    message: `Your order #${orderNumber} has been dispatched. Tracking ID: ${trackingId}. Delivery agent: ${agentName}`
+  }),
+
+  orderPickedUp: (orderNumber: string, trackingId: string) => ({
+    title: 'Order Picked Up',
+    message: `Your order #${orderNumber} has been picked up by our delivery agent. Tracking ID: ${trackingId}`
+  }),
+
+  orderInTransit: (orderNumber: string, trackingId: string) => ({
+    title: 'Order In Transit',
+    message: `Your order #${orderNumber} is now in transit. Tracking ID: ${trackingId}`
+  }),
+  
   orderOutForDelivery: (orderNumber: string, trackingId: string) => ({
     title: 'Order Out for Delivery',
     message: `Your order #${orderNumber} is out for delivery. Tracking ID: ${trackingId}`
@@ -77,6 +92,11 @@ export const notificationTemplates = {
   orderDelivered: (orderNumber: string) => ({
     title: 'Order Delivered',
     message: `Your order #${orderNumber} has been delivered successfully.`
+  }),
+
+  orderRejected: (orderNumber: string, reason: string) => ({
+    title: 'Order Rejected',
+    message: `Your order #${orderNumber} has been rejected. Reason: ${reason}`
   }),
   
   newOrder: (orderNumber: string, paymentType: string) => ({
@@ -117,5 +137,10 @@ export const notificationTemplates = {
   reviewReceived: (productName: string, rating: number) => ({
     title: 'New Review Received',
     message: `You received a ${rating}-star review for ${productName}.`
+  }),
+
+  deliveryAssigned: (orderNumber: string, customerName: string) => ({
+    title: 'New Delivery Assignment',
+    message: `You have been assigned to deliver order #${orderNumber} for ${customerName}.`
   })
 }

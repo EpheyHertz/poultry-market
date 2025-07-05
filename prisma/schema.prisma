@@ -16,15 +16,18 @@ enum UserRole {
   COMPANY
   STAKEHOLDER
   ADMIN
+  DELIVERY_AGENT
 }
 
 enum OrderStatus {
   PENDING
   CONFIRMED
   PACKED
+  DISPATCHED
   OUT_FOR_DELIVERY
   DELIVERED
   CANCELLED
+  REJECTED
 }
 
 enum ProductType {
@@ -50,11 +53,16 @@ enum TagType {
   ORGANIC
   LOCAL
   BESTSELLER
+  DISCOUNTED
+  NEW_ARRIVAL
+  LIMITED_STOCK
 }
 
 enum PaymentMethod {
   MPESA
   CASH_ON_DELIVERY
+  GOOGLE_PAY
+  BANK_TRANSFER
 }
 
 enum PaymentType {
@@ -85,10 +93,32 @@ enum NotificationType {
   PUSH
 }
 
+enum DeliveryStatus {
+  ASSIGNED
+  PICKED_UP
+  IN_TRANSIT
+  OUT_FOR_DELIVERY
+  DELIVERED
+  FAILED
+  RETURNED
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED_AMOUNT
+}
+
+enum VoucherType {
+  PERCENTAGE
+  FIXED_AMOUNT
+  FREE_SHIPPING
+}
+
 model User {
   id        String   @id @default(cuid())
   email     String   @unique
-  password  String
+  password  String?
+  googleId  String?  @unique
   name      String
   phone     String?
   avatar    String?
@@ -112,6 +142,14 @@ model User {
   dashboardSlug    String?
   qrCode          String?
 
+  // Delivery Agent specific fields
+  agentId         String?   @unique
+  vehicleType     String?
+  vehicleNumber   String?
+  licenseNumber   String?
+  coverageArea    String?
+  isApproved      Boolean   @default(false)
+  
   // Customer relationships
   orders          Order[]
   hatchingRequests HatchingRequest[]
@@ -128,6 +166,9 @@ model User {
   tags             UserTag[]
   analytics        Analytics[]
   reviewReplies    ReviewReply[]
+  
+  // Delivery Agent relationships
+  deliveries       Delivery[]
   
   // Payment approvals
   paymentApprovals PaymentApprovalLog[]
@@ -154,14 +195,33 @@ model Product {
   updatedAt   DateTime    @updatedAt
 
   // SEO and metadata
-  slug        String?
+  slug        String?     @unique
   metaTitle   String?
   metaDescription String?
 
+  // Discount fields
+  hasDiscount     Boolean   @default(false)
+  discountType    DiscountType?
+  discountAmount  Float?
+  discountStartDate DateTime?
+  discountEndDate   DateTime?
+
   orderItems OrderItem[]
   reviews    Review[]
+  tags       ProductTag[]
 
   @@map("products")
+}
+
+model ProductTag {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  tag       TagType
+  addedAt   DateTime @default(now())
+
+  @@unique([productId, tag])
+  @@map("product_tags")
 }
 
 model Order {
@@ -170,14 +230,18 @@ model Order {
   customer   User        @relation(fields: [customerId], references: [id])
   status     OrderStatus @default(PENDING)
   total      Float
+  subtotal   Float
+  discountAmount Float   @default(0)
+  voucherCode    String?
   notes      String?
+  rejectionReason String?
   
   // Enhanced payment fields
   paymentType    PaymentType   @default(BEFORE_DELIVERY)
   paymentStatus  PaymentStatus @default(UNPAID)
-  paymentDetails String?       // Customer submitted payment details
-  paymentPhone   String?       // Phone number used for payment
-  paymentReference String?     // M-Pesa reference/transaction code
+  paymentDetails String?
+  paymentPhone   String?
+  paymentReference String?
   
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
@@ -199,21 +263,33 @@ model OrderItem {
   product   Product @relation(fields: [productId], references: [id])
   quantity  Int
   price     Float
+  discountApplied Float @default(0)
 
   @@map("order_items")
 }
 
 model Delivery {
-  id         String   @id @default(cuid())
-  orderId    String   @unique
-  order      Order    @relation(fields: [orderId], references: [id])
+  id         String        @id @default(cuid())
+  orderId    String        @unique
+  order      Order         @relation(fields: [orderId], references: [id])
+  agentId    String?
+  agent      User?         @relation(fields: [agentId], references: [id])
   address    String
-  trackingId String   @unique
-  status     String   @default("processing")
-  courierName String?
-  courierPhone String?
+  trackingId String        @unique
+  status     DeliveryStatus @default(ASSIGNED)
+  
+  // Delivery details
   estimatedDelivery DateTime?
   actualDelivery    DateTime?
+  pickupTime        DateTime?
+  dispatchTime      DateTime?
+  deliveryNotes     String?
+  
+  // Agent details
+  agentName         String?
+  agentPhone        String?
+  vehicleInfo       String?
+  
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
@@ -245,11 +321,40 @@ model PaymentApprovalLog {
   order     Order    @relation(fields: [orderId], references: [id])
   approverId String
   approver  User     @relation(fields: [approverId], references: [id])
-  action    String   // APPROVED, REJECTED
+  action    String
   notes     String?
   createdAt DateTime @default(now())
 
   @@map("payment_approval_logs")
+}
+
+model Voucher {
+  id              String      @id @default(cuid())
+  code            String      @unique
+  name            String?
+  description     String?
+  discountType    VoucherType
+  discountValue   Float
+  minOrderAmount  Float       @default(0)
+  maxDiscountAmount Float?
+  validFrom       DateTime
+  validUntil      DateTime
+  maxUses         Int         @default(1)
+  usedCount       Int         @default(0)
+  isActive        Boolean     @default(true)
+  
+  // Creator info
+  createdById     String
+  createdBy       User        @relation(fields: [createdById], references: [id])
+  
+  // Usage restrictions
+  applicableRoles UserRole[]
+  applicableProductTypes ProductType[]
+  
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@map("vouchers")
 }
 
 model Review {
@@ -258,9 +363,9 @@ model Review {
   product   Product  @relation(fields: [productId], references: [id])
   userId    String
   user      User     @relation(fields: [userId], references: [id])
-  rating    Int      // 1-5 stars
+  rating    Int
   comment   String
-  images    String[] // Array of image URLs
+  images    String[]
   isVisible Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -319,7 +424,7 @@ model Application {
   businessName String?
   businessType String?
   description String?
-  documents   String[] // URLs to uploaded documents
+  documents   String[]
   status      ApplicationStatus @default(PENDING)
   reviewedAt  DateTime?
   reviewedBy  String?
@@ -328,24 +433,6 @@ model Application {
   updatedAt   DateTime          @updatedAt
 
   @@map("applications")
-}
-
-model Voucher {
-  id          String    @id @default(cuid())
-  code        String    @unique
-  discount    Float
-  type        String    @default("percentage") // percentage or fixed
-  validFrom   DateTime
-  validUntil  DateTime
-  maxUses     Int       @default(1)
-  usedCount   Int       @default(0)
-  createdById String
-  createdBy   User      @relation(fields: [createdById], references: [id])
-  isActive    Boolean   @default(true)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  @@map("vouchers")
 }
 
 model Sponsorship {
@@ -357,7 +444,7 @@ model Sponsorship {
   amount      Float
   description String
   terms       String?
-  duration    Int? // in months
+  duration    Int?
   benefits    String[]
   status      SponsorshipStatus @default(PENDING)
   startDate   DateTime?
@@ -386,12 +473,9 @@ model Analytics {
   user      User     @relation(fields: [userId], references: [id])
   date      DateTime @default(now())
   
-  // Sales metrics
   totalSales    Float    @default(0)
   orderCount    Int      @default(0)
   productViews  Int      @default(0)
-  
-  // Performance metrics
   fulfillmentRate Float  @default(0)
   averageRating   Float  @default(0)
   
