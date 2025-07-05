@@ -87,6 +87,12 @@ enum SponsorshipStatus {
   EXPIRED
 }
 
+enum SponsorshipApplicationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 enum NotificationType {
   EMAIL
   SMS
@@ -136,7 +142,7 @@ model User {
   bio         String?
   location    String?
   website     String?
-  
+
   // Custom domain/dashboard
   customDomain     String?
   dashboardSlug    String?
@@ -149,7 +155,7 @@ model User {
   licenseNumber   String?
   coverageArea    String?
   isApproved      Boolean   @default(false)
-  
+
   // Customer relationships
   orders          Order[]
   hatchingRequests HatchingRequest[]
@@ -163,29 +169,32 @@ model User {
   vouchers         Voucher[]
   sponsorships     Sponsorship[]
   receivedSponsorships Sponsorship[] @relation("SponsorshipReceiver")
+  companySponsorships   Sponsorship[] @relation("CompanySponsorships")
+  sellerSponsorships    Sponsorship[] @relation("SellerSponsorships")
+  sponsorshipApplications SponsorshipApplication[] @relation("SellerSponsorshipApplications")
   tags             UserTag[]
   analytics        Analytics[]
   reviewReplies    ReviewReply[]
-  
+
   // Delivery Agent relationships
   deliveries       Delivery[]
-  
+
   // Payment approvals
   paymentApprovals PaymentApprovalLog[]
-  
+
   // Notifications
   sentNotifications     Notification[] @relation("NotificationSender")
   receivedNotifications Notification[] @relation("NotificationReceiver")
-  
+
   // Product interactions
   productLikes          ProductLike[]
   cartItems             CartItem[]
-  
+
   // Chat relationships
   sentMessages          ChatMessage[] @relation("SentMessages")
   chatsAsParticipant1   Chat[] @relation("ChatParticipant1")
   chatsAsParticipant2   Chat[] @relation("ChatParticipant2")
-  
+
   // Follow relationships
   followers             Follow[] @relation("Followers")
   following             Follow[] @relation("Following")
@@ -253,14 +262,14 @@ model Order {
   voucherCode    String?
   notes      String?
   rejectionReason String?
-  
+
   // Enhanced payment fields
   paymentType    PaymentType   @default(BEFORE_DELIVERY)
   paymentStatus  PaymentStatus @default(UNPAID)
   paymentDetails String?
   paymentPhone   String?
   paymentReference String?
-  
+
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
 
@@ -297,19 +306,19 @@ model Delivery {
   address    String
   trackingId String        @unique
   status     DeliveryStatus @default(ASSIGNED)
-  
+
   // Delivery details
   estimatedDelivery DateTime?
   actualDelivery    DateTime?
   pickupTime        DateTime?
   dispatchTime      DateTime?
   deliveryNotes     String?
-  
+
   // Agent details
   agentName         String?
   agentPhone        String?
   vehicleInfo       String?
-  
+
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
@@ -362,15 +371,15 @@ model Voucher {
   maxUses         Int         @default(1)
   usedCount       Int         @default(0)
   isActive        Boolean     @default(true)
-  
+
   // Creator info
   createdById     String
   createdBy       User        @relation(fields: [createdById], references: [id])
-  
+
   // Usage restrictions
   applicableRoles UserRole[]
   applicableProductTypes ProductType[]
-  
+
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
 
@@ -458,9 +467,7 @@ model Application {
 model Sponsorship {
   id          String            @id @default(cuid())
   companyId   String
-  company     User              @relation(fields: [companyId], references: [id])
-  sellerId    String
-  seller      User              @relation("SponsorshipReceiver", fields: [sellerId], references: [id])
+  sellerId    String?
   amount      Float
   description String
   terms       String?
@@ -472,7 +479,31 @@ model Sponsorship {
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
 
+  company User @relation("CompanySponsorships", fields: [companyId], references: [id], onDelete: Cascade)
+  seller  User? @relation("SellerSponsorships", fields: [sellerId], references: [id], onDelete: SetNull)
+
+  applications SponsorshipApplication[]
+
   @@map("sponsorships")
+}
+
+model SponsorshipApplication {
+  id              String                      @id @default(cuid())
+  sponsorshipId   String
+  sellerId        String
+  message         String?
+  businessDetails Json?
+  status          SponsorshipApplicationStatus @default(PENDING)
+  rejectionReason String?
+  reviewedAt      DateTime?
+  createdAt       DateTime                    @default(now())
+  updatedAt       DateTime                    @updatedAt
+
+  sponsorship Sponsorship @relation(fields: [sponsorshipId], references: [id], onDelete: Cascade)
+  seller      User        @relation("SellerSponsorshipApplications", fields: [sellerId], references: [id], onDelete: Cascade)
+
+  @@unique([sponsorshipId, sellerId])
+  @@map("sponsorship_applications")
 }
 
 model UserTag {
@@ -492,13 +523,13 @@ model Analytics {
   userId    String
   user      User     @relation(fields: [userId], references: [id])
   date      DateTime @default(now())
-  
+
   totalSales    Float    @default(0)
   orderCount    Int      @default(0)
   productViews  Int      @default(0)
   fulfillmentRate Float  @default(0)
   averageRating   Float  @default(0)
-  
+
   @@unique([userId, date])
   @@map("analytics")
 }

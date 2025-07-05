@@ -28,7 +28,9 @@ import {
   BarChart3,
   Tag,
   Truck,
-  MessageCircle
+  MessageCircle,
+  Percent,
+  QrCode
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -93,8 +95,11 @@ export default function DashboardLayout({ children, user }: DashboardLayoutProps
           ...baseItems,
           { name: 'Products', href: '/company/products', icon: Package },
           { name: 'Orders', href: '/company/orders', icon: ShoppingCart },
-          { name: 'Vouchers', href: '/company/vouchers', icon: Ticket },
+          { name: 'Vouchers', href: '/company/vouchers', icon: Tag },
+          { name: 'Discounts', href: '/company/discounts', icon: Percent },
           { name: 'Sponsorships', href: '/company/sponsorships', icon: HandHeart },
+          { name: 'Analytics', href: '/company/analytics', icon: BarChart3 },
+          { name: 'QR Code', href: '/company/qr-code', icon: QrCode },
           { name: 'Profile', href: '/company/profile', icon: Settings },
           { name: 'Chats', href: '/company/chats', icon: MessageCircle },
         ];

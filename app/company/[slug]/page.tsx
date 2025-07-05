@@ -1,0 +1,278 @@
+
+import { notFound } from 'next/navigation';
+import { prisma } from '@/lib/prisma';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { 
+  MapPin, 
+  Phone, 
+  Mail, 
+  Star, 
+  Package, 
+  Users,
+  Calendar,
+  Award,
+  ExternalLink
+} from 'lucide-react';
+import Link from 'next/link';
+
+export default async function CompanyPublicPage({ params }: { params: { slug: string } }) {
+  const company = await prisma.user.findFirst({
+    where: {
+      dashboardSlug: params.slug,
+      role: 'COMPANY',
+      isActive: true
+    },
+    include: {
+      tags: {
+        select: {
+          tag: true
+        }
+      },
+      products: {
+        where: {
+          stock: {
+            gt: 0
+          }
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 12
+      },
+      _count: {
+        select: {
+          products: true,
+          sponsorships: {
+            where: {
+              status: 'ACTIVE'
+            }
+          }
+        }
+      }
+    }
+  });
+
+  if (!company) {
+    notFound();
+  }
+
+  const stats = await prisma.order.aggregate({
+    where: {
+      items: {
+        some: {
+          product: {
+            sellerId: company.id
+          }
+        }
+      },
+      status: 'DELIVERED'
+    },
+    _count: true,
+    _sum: {
+      total: true
+    }
+  });
+
+  const getTypeColor = (type: string) => {
+    switch (type) {
+      case 'CHICKEN_FEED': return 'bg-green-100 text-green-800';
+      case 'CHICKS': return 'bg-orange-100 text-orange-800';
+      case 'HATCHING_EGGS': return 'bg-purple-100 text-purple-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="bg-white shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="flex items-start justify-between">
+            <div className="flex items-center space-x-6">
+              <div className="w-24 h-24 bg-blue-600 rounded-full flex items-center justify-center text-white text-2xl font-bold">
+                {company.name.charAt(0)}
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900">{company.name}</h1>
+                <p className="text-gray-600 mt-1">Poultry Company</p>
+                <div className="flex items-center space-x-2 mt-2">
+                  {company.tags.map((tag) => (
+                    <Badge key={tag.tag} variant="secondary" className="flex items-center space-x-1">
+                      <Award className="h-3 w-3" />
+                      <span>{tag.tag}</span>
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-sm text-gray-500">Member since</div>
+              <div className="font-medium">{new Date(company.createdAt).toLocaleDateString()}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Main Content */}
+          <div className="lg:col-span-2 space-y-8">
+            {/* Company Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <Card>
+                <CardContent className="p-4 text-center">
+                  <Package className="h-8 w-8 mx-auto text-blue-600 mb-2" />
+                  <div className="text-2xl font-bold">{company._count.products}</div>
+                  <div className="text-sm text-gray-600">Products</div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-4 text-center">
+                  <Users className="h-8 w-8 mx-auto text-green-600 mb-2" />
+                  <div className="text-2xl font-bold">{stats._count}</div>
+                  <div className="text-sm text-gray-600">Orders</div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-4 text-center">
+                  <Star className="h-8 w-8 mx-auto text-yellow-600 mb-2" />
+                  <div className="text-2xl font-bold">{company._count.sponsorships}</div>
+                  <div className="text-sm text-gray-600">Sponsorships</div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-4 text-center">
+                  <Calendar className="h-8 w-8 mx-auto text-purple-600 mb-2" />
+                  <div className="text-2xl font-bold">${(stats._sum.total || 0).toFixed(0)}</div>
+                  <div className="text-sm text-gray-600">Revenue</div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Products */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <Package className="h-5 w-5" />
+                  <span>Products</span>
+                </CardTitle>
+                <CardDescription>
+                  Browse our selection of feeds, chicks, and hatching eggs
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {company.products.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    No products available at the moment
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {company.products.map((product) => (
+                      <div key={product.id} className="border rounded-lg overflow-hidden hover:shadow-md transition-shadow">
+                        {product.images.length > 0 ? (
+                          <img
+                            src={product.images[0]}
+                            alt={product.name}
+                            className="w-full h-32 object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-32 bg-gray-200 flex items-center justify-center">
+                            <Package className="h-8 w-8 text-gray-400" />
+                          </div>
+                        )}
+                        <div className="p-3">
+                          <div className="flex justify-between items-start mb-2">
+                            <h3 className="font-medium text-sm">{product.name}</h3>
+                            <Badge className={getTypeColor(product.type)} size="sm">
+                              {product.type.replace('_', ' ')}
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-gray-600 mb-2 line-clamp-2">
+                            {product.description}
+                          </p>
+                          <div className="flex justify-between items-center">
+                            <span className="font-bold text-green-600">${product.price.toFixed(2)}</span>
+                            <span className="text-xs text-gray-500">{product.stock} available</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {company.products.length > 0 && (
+                  <div className="mt-4 text-center">
+                    <Link href={`/products?sellerId=${company.id}`}>
+                      <Button variant="outline">
+                        View All Products
+                        <ExternalLink className="ml-2 h-4 w-4" />
+                      </Button>
+                    </Link>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Sidebar */}
+          <div className="space-y-6">
+            {/* Contact Info */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Contact Information</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex items-center space-x-3">
+                  <Mail className="h-4 w-4 text-gray-500" />
+                  <span className="text-sm">{company.email}</span>
+                </div>
+                {company.phone && (
+                  <div className="flex items-center space-x-3">
+                    <Phone className="h-4 w-4 text-gray-500" />
+                    <span className="text-sm">{company.phone}</span>
+                  </div>
+                )}
+                {company.address && (
+                  <div className="flex items-center space-x-3">
+                    <MapPin className="h-4 w-4 text-gray-500" />
+                    <span className="text-sm">{company.address}</span>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Quick Actions */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Quick Actions</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <Link href={`/products?sellerId=${company.id}`} className="block">
+                  <Button className="w-full" variant="outline">
+                    <Package className="mr-2 h-4 w-4" />
+                    View All Products
+                  </Button>
+                </Link>
+                <Button className="w-full" variant="outline">
+                  <Mail className="mr-2 h-4 w-4" />
+                  Contact Company
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Company Description */}
+            {company.bio && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>About</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-gray-700">{company.bio}</p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
