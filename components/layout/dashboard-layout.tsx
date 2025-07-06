@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -116,6 +115,7 @@ export default function DashboardLayout({ children, user }: DashboardLayoutProps
           { name: 'Track deliveries', href: '/customer/deliveries', icon: FileText },
           { name: 'Profile', href: '/customer/profile', icon: Settings },
           { name: 'Chats', href: '/customer/chats', icon: MessageCircle },
+          { name: 'Vouchers', href: '/customer/vouchers', icon: Ticket },
         ];
       default:
         return baseItems;
