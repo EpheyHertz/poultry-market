@@ -11,44 +11,49 @@ export async function PUT(
   try {
     const user = await getCurrentUser()
     
-    if (!user || !['SELLER', 'COMPANY'].includes(user.role)) {
+    if (!user || !['SELLER', 'COMPANY', 'ADMIN'].includes(user.role)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const { id } = await params
+    
+    const {
+      hasDiscount,
+      discountType,
+      discountAmount,
+      discountStartDate,
+      discountEndDate
+    } = await request.json()
+
+    // Get the product first to verify ownership
     const product = await prisma.product.findUnique({
-      where: { id: params.id }
+      where: { id },
+      include: { seller: true }
     })
 
     if (!product) {
       return NextResponse.json({ error: 'Product not found' }, { status: 404 })
     }
 
-    if (product.sellerId !== user.id) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    // Check if user owns this product (unless admin)
+    if (user.role !== 'ADMIN' && product.sellerId !== user.id) {
+      return NextResponse.json({ error: 'You can only manage discounts for your own products' }, { status: 403 })
     }
 
-    const { 
-      hasDiscount, 
-      discountType, 
-      discountAmount, 
-      discountStartDate, 
-      discountEndDate 
-    } = await request.json()
-
-    // Validate discount dates
+    // Validate discount data if discount is being enabled
     if (hasDiscount) {
-      const startDate = new Date(discountStartDate)
-      const endDate = new Date(discountEndDate)
-      
-      if (endDate <= startDate) {
+      if (!discountType || !discountAmount || !discountStartDate || !discountEndDate) {
         return NextResponse.json({ 
-          error: 'End date must be after start date' 
+          error: 'Missing required discount fields' 
         }, { status: 400 })
       }
 
-      if (startDate < new Date()) {
+      const startDate = new Date(discountStartDate)
+      const endDate = new Date(discountEndDate)
+
+      if (endDate <= startDate) {
         return NextResponse.json({ 
-          error: 'Start date cannot be in the past' 
+          error: 'End date must be after start date' 
         }, { status: 400 })
       }
 
@@ -65,6 +70,7 @@ export async function PUT(
       }
     }
 
+    // Update product with discount information
     const updateData: any = {
       hasDiscount,
       discountType: hasDiscount ? discountType as DiscountType : null,
@@ -74,29 +80,31 @@ export async function PUT(
     }
 
     const updatedProduct = await prisma.product.update({
-      where: { id: params.id },
+      where: { id },
       data: updateData
     })
 
     // Manage DISCOUNTED tag
     if (hasDiscount) {
+      // Add DISCOUNTED tag
       await prisma.productTag.upsert({
         where: {
           productId_tag: {
-            productId: product.id,
+            productId: id,
             tag: 'DISCOUNTED'
           }
         },
         update: {},
         create: {
-          productId: product.id,
+          productId: id,
           tag: 'DISCOUNTED'
         }
       })
     } else {
+      // Remove DISCOUNTED tag
       await prisma.productTag.deleteMany({
         where: {
-          productId: product.id,
+          productId: id,
           tag: 'DISCOUNTED'
         }
       })
@@ -105,7 +113,7 @@ export async function PUT(
     return NextResponse.json(updatedProduct)
   } catch (error) {
     console.error('Product discount update error:', error)
-    return NextResponse.json({ error: 'Failed to update discount' }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to update product discount' }, { status: 500 })
   }
 }
 
@@ -116,25 +124,30 @@ export async function DELETE(
   try {
     const user = await getCurrentUser()
     
-    if (!user || !['SELLER', 'COMPANY'].includes(user.role)) {
+    if (!user || !['SELLER', 'COMPANY', 'ADMIN'].includes(user.role)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const { id } = await params
+
+    // Get the product first to verify ownership
     const product = await prisma.product.findUnique({
-      where: { id: params.id }
+      where: { id },
+      include: { seller: true }
     })
 
     if (!product) {
       return NextResponse.json({ error: 'Product not found' }, { status: 404 })
     }
 
-    if (product.sellerId !== user.id) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    // Check if user owns this product (unless admin)
+    if (user.role !== 'ADMIN' && product.sellerId !== user.id) {
+      return NextResponse.json({ error: 'You can only manage discounts for your own products' }, { status: 403 })
     }
 
-    // Remove discount
+    // Remove discount from product
     const updatedProduct = await prisma.product.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         hasDiscount: false,
         discountType: null,
@@ -147,7 +160,7 @@ export async function DELETE(
     // Remove DISCOUNTED tag
     await prisma.productTag.deleteMany({
       where: {
-        productId: product.id,
+        productId: id,
         tag: 'DISCOUNTED'
       }
     })
@@ -155,6 +168,6 @@ export async function DELETE(
     return NextResponse.json(updatedProduct)
   } catch (error) {
     console.error('Product discount removal error:', error)
-    return NextResponse.json({ error: 'Failed to remove discount' }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to remove product discount' }, { status: 500 })
   }
 }

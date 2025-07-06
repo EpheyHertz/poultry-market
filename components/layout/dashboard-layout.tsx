@@ -89,6 +89,7 @@ export default function DashboardLayout({ children, user }: DashboardLayoutProps
           { name: 'Products', href: '/seller/products', icon: Package },
           { name: 'Orders', href: '/seller/orders', icon: ShoppingCart },
           { name: 'Vouchers', href: '/seller/vouchers', icon: Ticket },
+          { name: 'Discounts', href: '/seller/discounts', icon: Percent },
           { name: 'Sponsorships', href: '/seller/sponsorships', icon: HandHeart },
           { name: 'Profile', href: '/seller/profile', icon: Settings },
           { name: 'Chats', href: '/seller/chats', icon: MessageCircle },

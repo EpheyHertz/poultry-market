@@ -1,7 +1,8 @@
-
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import DashboardLayout from '@/components/layout/dashboard-layout'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -9,20 +10,16 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { 
   Percent, 
   Package, 
   Calendar, 
   Edit, 
-  Trash2, 
-  Plus,
+  Trash2,
   Search,
-  Filter,
-  TrendingUp,
-  Users
+  Filter
 } from 'lucide-react'
+import { toast } from 'sonner'
 
 interface Product {
   id: string
@@ -54,7 +51,7 @@ export default function CompanyDiscountsPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
   const [isSaving, setIsSaving] = useState(false)
-  const [activeTab, setActiveTab] = useState('products')
+  const router = useRouter()
 
   // Form state
   const [discountForm, setDiscountForm] = useState({
@@ -76,8 +73,13 @@ export default function CompanyDiscountsPage() {
 
   useEffect(() => {
     fetchUser()
-    fetchProducts()
   }, [])
+
+  useEffect(() => {
+    if (user) {
+      fetchProducts()
+    }
+  }, [user])
 
   useEffect(() => {
     filterProducts()
@@ -88,10 +90,16 @@ export default function CompanyDiscountsPage() {
       const response = await fetch('/api/auth/me')
       if (response.ok) {
         const userData = await response.json()
-        setUser(userData.user)
+        if (userData.role !== 'COMPANY') {
+          router.push('/auth/login')
+          return
+        }
+        setUser(userData)
+      } else {
+        router.push('/auth/login')
       }
     } catch (error) {
-      console.error('Failed to fetch user:', error)
+      router.push('/auth/login')
     }
   }
 
@@ -104,6 +112,7 @@ export default function CompanyDiscountsPage() {
       }
     } catch (error) {
       console.error('Failed to fetch products:', error)
+      toast.error('Failed to fetch products')
     } finally {
       setIsLoading(false)
     }
@@ -173,16 +182,17 @@ export default function CompanyDiscountsPage() {
       })
 
       if (response.ok) {
+        toast.success('Discount updated successfully')
         await fetchProducts()
         setIsDialogOpen(false)
         setSelectedProduct(null)
       } else {
         const error = await response.json()
-        alert(error.error || 'Failed to update discount')
+        toast.error(error.error || 'Failed to update discount')
       }
     } catch (error) {
       console.error('Discount update error:', error)
-      alert('Failed to update discount')
+      toast.error('Failed to update discount')
     } finally {
       setIsSaving(false)
     }
@@ -239,21 +249,22 @@ export default function CompanyDiscountsPage() {
       })
 
       if (response.ok) {
+        toast.success('Discount removed successfully')
         await fetchProducts()
       } else {
         const error = await response.json()
-        alert(error.error || 'Failed to remove discount')
+        toast.error(error.error || 'Failed to remove discount')
       }
     } catch (error) {
       console.error('Discount removal error:', error)
-      alert('Failed to remove discount')
+      toast.error('Failed to remove discount')
     }
   }
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-KE', {
+    return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: 'KES'
+      currency: 'USD'
     }).format(amount)
   }
 
@@ -322,7 +333,7 @@ export default function CompanyDiscountsPage() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center">
@@ -358,164 +369,311 @@ export default function CompanyDiscountsPage() {
               </div>
             </CardContent>
           </Card>
-        </div>
+        </div> */}
 
         {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
+        {/* <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList>
             <TabsTrigger value="products">Individual Products</TabsTrigger>
             <TabsTrigger value="bulk">Bulk Discounts</TabsTrigger>
-          </TabsList>
+          </TabsList> */}
 
-          <TabsContent value="products" className="space-y-6">
-            {/* Search and Filters */}
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex flex-col md:flex-row gap-4">
-                  <div className="flex-1">
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                      <Input
-                        placeholder="Search products..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-10"
-                      />
-                    </div>
-                  </div>
-                  <Select value={filterType} onValueChange={setFilterType}>
-                    <SelectTrigger className="w-48">
-                      <Filter className="h-4 w-4 mr-2" />
-                      <SelectValue placeholder="Filter by status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="ALL">All Products</SelectItem>
-                      <SelectItem value="DISCOUNTED">With Discounts</SelectItem>
-                      <SelectItem value="NO_DISCOUNT">No Discount</SelectItem>
-                      <SelectItem value="ACTIVE">Active Discounts</SelectItem>
-                      <SelectItem value="EXPIRED">Expired Discounts</SelectItem>
-                    </SelectContent>
-                  </Select>
+        {/* <TabsContent value="products" className="space-y-6"> */}
+        {/* Search and Filters */}
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex-1">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                  <Input
+                    placeholder="Search products..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
                 </div>
-              </CardContent>
-            </Card>
-
-            {/* Products Grid */}
-            {isLoading ? (
-              <div className="text-center py-8">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
-                <p className="text-gray-600">Loading products...</p>
               </div>
-            ) : filteredProducts.length === 0 ? (
-              <Card>
-                <CardContent className="text-center py-8">
-                  <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No products found</h3>
-                  <p className="text-gray-600">
-                    {searchTerm || filterType !== 'ALL' 
-                      ? 'Try adjusting your search or filter criteria'
-                      : 'Add some products to start managing discounts'
-                    }
-                  </p>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredProducts.map((product) => {
-                  const discountStatus = getDiscountStatus(product)
-                  const discountedPrice = calculateDiscountedPrice(product)
-                  
-                  return (
-                    <Card key={product.id} className="overflow-hidden">
-                      <div className="aspect-w-16 aspect-h-9">
-                        {product.images[0] ? (
-                          <img
-                            src={product.images[0]}
-                            alt={product.name}
-                            className="w-full h-48 object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-48 bg-gray-200 flex items-center justify-center">
-                            <Package className="h-12 w-12 text-gray-400" />
+              <Select value={filterType} onValueChange={setFilterType}>
+                <SelectTrigger className="w-48">
+                  <Filter className="h-4 w-4 mr-2" />
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">All Products</SelectItem>
+                  <SelectItem value="DISCOUNTED">With Discounts</SelectItem>
+                  <SelectItem value="NO_DISCOUNT">No Discount</SelectItem>
+                  <SelectItem value="ACTIVE">Active Discounts</SelectItem>
+                  <SelectItem value="EXPIRED">Expired Discounts</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Products Grid */}
+        {isLoading ? (
+          <div className="text-center py-8">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading products...</p>
+          </div>
+        ) : filteredProducts.length === 0 ? (
+          <Card>
+            <CardContent className="text-center py-8">
+              <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">No products found</h3>
+              <p className="text-gray-600">
+                {searchTerm || filterType !== 'ALL' 
+                  ? 'Try adjusting your search or filter criteria'
+                  : 'Add some products to start managing discounts'
+                }
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredProducts.map((product) => {
+              const discountStatus = getDiscountStatus(product)
+              const discountedPrice = calculateDiscountedPrice(product)
+
+              return (
+                <Card key={product.id} className="overflow-hidden">
+                  <div className="aspect-w-16 aspect-h-9">
+                    {product.images[0] ? (
+                      <img
+                        src={product.images[0]}
+                        alt={product.name}
+                        className="w-full h-48 object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-48 bg-gray-200 flex items-center justify-center">
+                        <Package className="h-12 w-12 text-gray-400" />
+                      </div>
+                    )}
+                  </div>
+
+                  <CardContent className="p-4">
+                    <div className="flex justify-between items-start mb-2">
+                      <h3 className="font-semibold text-lg">{product.name}</h3>
+                      <Badge className={discountStatus.color}>
+                        {discountStatus.status}
+                      </Badge>
+                    </div>
+
+                    <div className="space-y-2">
+                      {/* Price Information */}
+                      <div>
+                        {product.hasDiscount ? (
+                          <div className="flex items-center space-x-2">
+                            <span className="text-lg font-bold text-green-600">
+                              {formatCurrency(discountedPrice)}
+                            </span>
+                            <span className="text-sm text-gray-500 line-through">
+                              {formatCurrency(product.price)}
+                            </span>
+                            <Badge variant="secondary" className="text-xs">
+                              {product.discountType === 'PERCENTAGE' 
+                                ? `-${product.discountAmount}%`
+                                : `-${formatCurrency(product.discountAmount)}`
+                              }
+                            </Badge>
                           </div>
+                        ) : (
+                          <span className="text-lg font-bold">
+                            {formatCurrency(product.price)}
+                          </span>
                         )}
                       </div>
-                      
-                      <CardContent className="p-4">
-                        <div className="flex justify-between items-start mb-2">
-                          <h3 className="font-semibold text-lg">{product.name}</h3>
-                          <Badge className={discountStatus.color}>
-                            {discountStatus.status}
-                          </Badge>
+
+                      {/* Stock */}
+                      <p className="text-sm text-gray-600">
+                        Stock: {product.stock} units
+                      </p>
+
+                      {/* Discount Dates */}
+                      {product.hasDiscount && product.discountStartDate && product.discountEndDate && (
+                        <div className="text-xs text-gray-500">
+                          <p>From: {new Date(product.discountStartDate).toLocaleDateString()}</p>
+                          <p>Until: {new Date(product.discountEndDate).toLocaleDateString()}</p>
                         </div>
-                        
-                        <div className="space-y-2">
-                          {/* Price Information */}
-                          <div>
-                            {product.hasDiscount ? (
-                              <div className="flex items-center space-x-2">
-                                <span className="text-lg font-bold text-green-600">
-                                  {formatCurrency(discountedPrice)}
-                                </span>
-                                <span className="text-sm text-gray-500 line-through">
-                                  {formatCurrency(product.price)}
-                                </span>
-                                <Badge variant="secondary" className="text-xs">
-                                  {product.discountType === 'PERCENTAGE' 
-                                    ? `-${product.discountAmount}%`
-                                    : `-${formatCurrency(product.discountAmount)}`
-                                  }
-                                </Badge>
-                              </div>
-                            ) : (
-                              <span className="text-lg font-bold">
-                                {formatCurrency(product.price)}
-                              </span>
-                            )}
+                      )}
+                    </div>
+
+                    <div className="flex space-x-2 mt-4">
+                      <Button
+                        onClick={() => openDiscountDialog(product)}
+                        className="flex-1 bg-green-600 hover:bg-green-700"
+                        size="sm"
+                      >
+                        <Edit className="h-4 w-4 mr-1" />
+                        {product.hasDiscount ? 'Edit' : 'Add'} Discount
+                      </Button>
+
+                      {product.hasDiscount && (
+                        <Button
+                          onClick={() => handleRemoveDiscount(product.id)}
+                          variant="outline"
+                          size="sm"
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              )
+            })}
+          </div>
+        )}
+
+        {/* Discount Dialog */}
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center">
+                <Percent className="h-5 w-5 mr-2" />
+                {selectedProduct?.hasDiscount ? 'Edit' : 'Add'} Product Discount
+              </DialogTitle>
+            </DialogHeader>
+
+            {selectedProduct && (
+              <div className="space-y-4">
+                <div className="p-3 bg-gray-50 rounded-lg">
+                  <h4 className="font-medium">{selectedProduct.name}</h4>
+                  <p className="text-sm text-gray-600">
+                    Current Price: {formatCurrency(selectedProduct.price)}
+                  </p>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="hasDiscount"
+                      checked={discountForm.hasDiscount}
+                      onChange={(e) => setDiscountForm({
+                        ...discountForm,
+                        hasDiscount: e.target.checked
+                      })}
+                      className="rounded"
+                    />
+                    <Label htmlFor="hasDiscount">Enable discount for this product</Label>
+                  </div>
+
+                  {discountForm.hasDiscount && (
+                    <>
+                      <div>
+                        <Label htmlFor="discountType">Discount Type</Label>
+                        <Select 
+                          value={discountForm.discountType} 
+                          onValueChange={(value) => setDiscountForm({
+                            ...discountForm,
+                            discountType: value
+                          })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="PERCENTAGE">Percentage (%)</SelectItem>
+                            <SelectItem value="FIXED_AMOUNT">Fixed Amount ($)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div>
+                        <Label htmlFor="discountAmount">
+                          Discount {discountForm.discountType === 'PERCENTAGE' ? 'Percentage' : 'Amount'}
+                        </Label>
+                        <Input
+                          id="discountAmount"
+                          type="number"
+                          value={discountForm.discountAmount}
+                          onChange={(e) => setDiscountForm({
+                            ...discountForm,
+                            discountAmount: e.target.value
+                          })}
+                          placeholder={discountForm.discountType === 'PERCENTAGE' ? '10' : '5.00'}
+                          min="0"
+                          max={discountForm.discountType === 'PERCENTAGE' ? '100' : selectedProduct.price.toString()}
+                          step={discountForm.discountType === 'PERCENTAGE' ? '1' : '0.01'}
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="discountStartDate">Start Date</Label>
+                        <Input
+                          id="discountStartDate"
+                          type="datetime-local"
+                          value={discountForm.discountStartDate}
+                          onChange={(e) => setDiscountForm({
+                            ...discountForm,
+                            discountStartDate: e.target.value
+                          })}
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="discountEndDate">End Date</Label>
+                        <Input
+                          id="discountEndDate"
+                          type="datetime-local"
+                          value={discountForm.discountEndDate}
+                          onChange={(e) => setDiscountForm({
+                            ...discountForm,
+                            discountEndDate: e.target.value
+                          })}
+                        />
+                      </div>
+
+                      {/* Preview */}
+                      {discountForm.discountAmount && (
+                        <div className="p-3 bg-green-50 rounded-lg">
+                          <h4 className="font-medium text-sm mb-1">Preview</h4>
+                          <div className="text-sm">
+                            <p>Original Price: {formatCurrency(selectedProduct.price)}</p>
+                            <p className="text-green-600 font-medium">
+                              Discounted Price: {formatCurrency(
+                                discountForm.discountType === 'PERCENTAGE'
+                                  ? selectedProduct.price - (selectedProduct.price * parseFloat(discountForm.discountAmount) / 100)
+                                  : selectedProduct.price - parseFloat(discountForm.discountAmount)
+                              )}
+                            </p>
+                            <p className="text-gray-600">
+                              Savings: {discountForm.discountType === 'PERCENTAGE' 
+                                ? `${discountForm.discountAmount}%`
+                                : formatCurrency(parseFloat(discountForm.discountAmount))
+                              }
+                            </p>
                           </div>
-
-                          {/* Stock */}
-                          <p className="text-sm text-gray-600">
-                            Stock: {product.stock} units
-                          </p>
-
-                          {/* Discount Dates */}
-                          {product.hasDiscount && product.discountStartDate && product.discountEndDate && (
-                            <div className="text-xs text-gray-500">
-                              <p>From: {new Date(product.discountStartDate).toLocaleDateString()}</p>
-                              <p>Until: {new Date(product.discountEndDate).toLocaleDateString()}</p>
-                            </div>
-                          )}
                         </div>
+                      )}
+                    </>
+                  )}
+                </div>
 
-                        <div className="flex space-x-2 mt-4">
-                          <Button
-                            onClick={() => openDiscountDialog(product)}
-                            className="flex-1 bg-green-600 hover:bg-green-700"
-                            size="sm"
-                          >
-                            <Edit className="h-4 w-4 mr-1" />
-                            {product.hasDiscount ? 'Edit' : 'Add'} Discount
-                          </Button>
-                          
-                          {product.hasDiscount && (
-                            <Button
-                              onClick={() => handleRemoveDiscount(product.id)}
-                              variant="outline"
-                              size="sm"
-                              className="text-red-600 hover:text-red-700"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )
-                })}
+                <div className="flex space-x-2 pt-4">
+                  <Button
+                    onClick={() => setIsDialogOpen(false)}
+                    variant="outline"
+                    className="flex-1"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleSaveDiscount}
+                    disabled={isSaving}
+                    className="flex-1 bg-green-600 hover:bg-green-700"
+                  >
+                    {isSaving ? 'Saving...' : 'Save Discount'}
+                  </Button>
+                </div>
               </div>
             )}
-          </TabsContent>
+          </DialogContent>
+        </Dialog>
+        {/* </TabsContent>
 
           <TabsContent value="bulk" className="space-y-6">
             <Card>
@@ -635,153 +793,8 @@ export default function CompanyDiscountsPage() {
               </CardContent>
             </Card>
           </TabsContent>
-        </Tabs>
+        </Tabs> */}
 
-        {/* Individual Discount Dialog */}
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle className="flex items-center">
-                <Percent className="h-5 w-5 mr-2" />
-                {selectedProduct?.hasDiscount ? 'Edit' : 'Add'} Product Discount
-              </DialogTitle>
-            </DialogHeader>
-            
-            {selectedProduct && (
-              <div className="space-y-4">
-                <div className="p-3 bg-gray-50 rounded-lg">
-                  <h4 className="font-medium">{selectedProduct.name}</h4>
-                  <p className="text-sm text-gray-600">
-                    Current Price: {formatCurrency(selectedProduct.price)}
-                  </p>
-                </div>
-
-                <div className="space-y-4">
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      id="hasDiscount"
-                      checked={discountForm.hasDiscount}
-                      onChange={(e) => setDiscountForm({
-                        ...discountForm,
-                        hasDiscount: e.target.checked
-                      })}
-                      className="rounded"
-                    />
-                    <Label htmlFor="hasDiscount">Enable discount for this product</Label>
-                  </div>
-
-                  {discountForm.hasDiscount && (
-                    <>
-                      <div>
-                        <Label htmlFor="discountType">Discount Type</Label>
-                        <Select 
-                          value={discountForm.discountType} 
-                          onValueChange={(value) => setDiscountForm({
-                            ...discountForm,
-                            discountType: value
-                          })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="PERCENTAGE">Percentage (%)</SelectItem>
-                            <SelectItem value="FIXED_AMOUNT">Fixed Amount (KES)</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div>
-                        <Label htmlFor="discountAmount">
-                          Discount {discountForm.discountType === 'PERCENTAGE' ? 'Percentage' : 'Amount'}
-                        </Label>
-                        <Input
-                          id="discountAmount"
-                          type="number"
-                          value={discountForm.discountAmount}
-                          onChange={(e) => setDiscountForm({
-                            ...discountForm,
-                            discountAmount: e.target.value
-                          })}
-                          placeholder={discountForm.discountType === 'PERCENTAGE' ? '10' : '100'}
-                          min="0"
-                          max={discountForm.discountType === 'PERCENTAGE' ? '100' : selectedProduct.price.toString()}
-                        />
-                      </div>
-
-                      <div>
-                        <Label htmlFor="discountStartDate">Start Date</Label>
-                        <Input
-                          id="discountStartDate"
-                          type="datetime-local"
-                          value={discountForm.discountStartDate}
-                          onChange={(e) => setDiscountForm({
-                            ...discountForm,
-                            discountStartDate: e.target.value
-                          })}
-                        />
-                      </div>
-
-                      <div>
-                        <Label htmlFor="discountEndDate">End Date</Label>
-                        <Input
-                          id="discountEndDate"
-                          type="datetime-local"
-                          value={discountForm.discountEndDate}
-                          onChange={(e) => setDiscountForm({
-                            ...discountForm,
-                            discountEndDate: e.target.value
-                          })}
-                        />
-                      </div>
-
-                      {/* Preview */}
-                      {discountForm.discountAmount && (
-                        <div className="p-3 bg-green-50 rounded-lg">
-                          <h4 className="font-medium text-sm mb-1">Preview</h4>
-                          <div className="text-sm">
-                            <p>Original Price: {formatCurrency(selectedProduct.price)}</p>
-                            <p className="text-green-600 font-medium">
-                              Discounted Price: {formatCurrency(
-                                discountForm.discountType === 'PERCENTAGE'
-                                  ? selectedProduct.price - (selectedProduct.price * parseFloat(discountForm.discountAmount) / 100)
-                                  : selectedProduct.price - parseFloat(discountForm.discountAmount)
-                              )}
-                            </p>
-                            <p className="text-gray-600">
-                              Savings: {discountForm.discountType === 'PERCENTAGE' 
-                                ? `${discountForm.discountAmount}%`
-                                : formatCurrency(parseFloat(discountForm.discountAmount))
-                              }
-                            </p>
-                          </div>
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
-
-                <div className="flex space-x-2 pt-4">
-                  <Button
-                    onClick={() => setIsDialogOpen(false)}
-                    variant="outline"
-                    className="flex-1"
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    onClick={handleSaveDiscount}
-                    disabled={isSaving}
-                    className="flex-1 bg-green-600 hover:bg-green-700"
-                  >
-                    {isSaving ? 'Saving...' : 'Save Discount'}
-                  </Button>
-                </div>
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
       </div>
     </DashboardLayout>
   )
