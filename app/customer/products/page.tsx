@@ -188,7 +188,7 @@ export default function CustomerProducts() {
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg flex items-center justify-between">
                   <span>Cart ({cart.length})</span>
-                  <span className="text-green-600">${cartTotal.toFixed(2)}</span>
+                  <span className="text-green-600">Ksh {cartTotal.toFixed(2)}</span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
@@ -347,7 +347,7 @@ export default function CustomerProducts() {
                     {/* Price and Stock */}
                     <div className="flex justify-between items-center">
                       <span className="text-2xl font-bold text-green-600">
-                        ${product.price.toFixed(2)}
+                        Ksh {product.price.toFixed(2)}
                       </span>
                       <span className="text-sm text-gray-500">
                         {product.stock} in stock

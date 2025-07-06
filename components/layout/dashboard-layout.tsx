@@ -1,7 +1,4 @@
-The changes involve adding chat functionality, including admin support chat, chat notifications, and modifying the dashboard layout to accommodate these features.
-```
 
-```replit_final_file
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -34,7 +31,8 @@ import {
   Truck,
   MessageCircle,
   Percent,
-  QrCode
+  QrCode,
+  Bell
 } from 'lucide-react';
 import { toast } from 'sonner';
 import AdminSupportChat from './admin-support-chat';

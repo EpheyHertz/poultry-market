@@ -266,7 +266,7 @@ export default function CustomerCart() {
                           </span>
                         </div>
                         <p className="text-lg font-semibold text-green-600 mt-1">
-                          ${item.product.price.toFixed(2)}
+                          Ksh {item.product.price.toFixed(2)}
                         </p>
                       </div>
 
@@ -309,7 +309,7 @@ export default function CustomerCart() {
                       {/* Item Total */}
                       <div className="text-right">
                         <p className="font-semibold">
-                          ${(item.product.price * item.quantity).toFixed(2)}
+                          Ksh {(item.product.price * item.quantity).toFixed(2)}
                         </p>
                         <Button
                           size="sm"
@@ -337,7 +337,7 @@ export default function CustomerCart() {
                   <div className="space-y-2">
                     <div className="flex justify-between">
                       <span>Subtotal ({cartItems.length} items)</span>
-                      <span>${calculateSubtotal().toFixed(2)}</span>
+                      <span>Ksh {calculateSubtotal().toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between text-sm text-gray-500">
                       <span>Delivery fee</span>
@@ -349,7 +349,7 @@ export default function CustomerCart() {
                   
                   <div className="flex justify-between font-semibold text-lg">
                     <span>Total</span>
-                    <span className="text-green-600">${calculateSubtotal().toFixed(2)}</span>
+                    <span className="text-green-600">Ksh {calculateSubtotal().toFixed(2)}</span>
                   </div>
                   
                   <Button onClick={proceedToCheckout} className="w-full" size="lg">

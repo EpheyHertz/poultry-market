@@ -342,6 +342,17 @@ model DeliveryVoucher {
 
   @@map("delivery_vouchers")
 }
+model DeliveryFee {
+  id          String   @id @default(uuid())
+  name        String
+  amount      Float
+  description String?
+  isDefault   Boolean  @default(false)
+  zones       String[] // PostgreSQL supports array fields natively
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
 
 model Payment {
   id              String        @id @default(cuid())

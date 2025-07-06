@@ -216,7 +216,7 @@ export default function SellerOrders() {
                                 <span className="font-medium">{item.product.name}</span>
                                 <span className="text-gray-500 ml-2">x{item.quantity}</span>
                               </div>
-                              <span>${(item.price * item.quantity).toFixed(2)}</span>
+                              <span>Ksh {(item.price * item.quantity).toFixed(2)}</span>
                             </div>
                           ))}
                         </div>
@@ -225,7 +225,7 @@ export default function SellerOrders() {
                       {/* Total */}
                       <div className="flex justify-between items-center pt-2 border-t">
                         <span className="font-medium">Total:</span>
-                        <span className="text-xl font-bold">${order.total.toFixed(2)}</span>
+                        <span className="text-xl font-bold">Ksh {order.total.toFixed(2)}</span>
                       </div>
 
                       {/* Customer Info */}

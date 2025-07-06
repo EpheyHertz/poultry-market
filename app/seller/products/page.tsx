@@ -105,7 +105,7 @@ export default async function SellerProducts() {
                     <div className="space-y-4">
                       <div className="flex justify-between items-center">
                         <span className="text-2xl font-bold text-green-600">
-                          ${product.price.toFixed(2)}
+                          KSH{product.price.toFixed(2)}
                         </span>
                         <Badge className={stockStatus.color}>
                           {stockStatus.text}

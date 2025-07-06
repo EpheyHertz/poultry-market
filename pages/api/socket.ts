@@ -1,7 +1,6 @@
-
+// pages/api/socket.ts
 import { NextApiRequest } from 'next'
-import { NextApiResponseServerIO } from '@/lib/socket'
-import { initSocket } from '@/lib/socket'
+import { NextApiResponseServerIO, initSocket } from '@/lib/socket'
 
 export default function handler(req: NextApiRequest, res: NextApiResponseServerIO) {
   if (!res.socket.server.io) {

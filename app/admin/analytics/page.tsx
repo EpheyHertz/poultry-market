@@ -76,9 +76,7 @@ export default async function AdminAnalytics() {
           include: {
             orderItems: {
               include: {
-                order: {
-                  where: { status: 'DELIVERED' }
-                }
+                order: true
               }
             }
           }
@@ -93,9 +91,7 @@ export default async function AdminAnalytics() {
       include: {
         orderItems: {
           include: {
-            order: {
-              where: { status: 'DELIVERED' }
-            }
+            order: true
           }
         },
         seller: {
@@ -130,10 +126,10 @@ export default async function AdminAnalytics() {
   const processedSellers = topSellers.map(seller => {
     const totalSales = seller.products.reduce((sum, product) => 
       sum + product.orderItems.reduce((itemSum, item) => 
-        itemSum + (item.order.length > 0 ? item.quantity * item.price : 0), 0), 0)
+        itemSum + (item.order ? item.quantity * item.price : 0), 0), 0)
     
     const totalOrders = seller.products.reduce((sum, product) => 
-      sum + product.orderItems.filter(item => item.order.length > 0).length, 0)
+      sum + product.orderItems.filter(item => item.order).length, 0)
     
     return {
       ...seller,
@@ -145,10 +141,10 @@ export default async function AdminAnalytics() {
   // Process top products data
   const processedProducts = topProducts.map(product => {
     const totalSales = product.orderItems.reduce((sum, item) => 
-      sum + (item.order.length > 0 ? item.quantity * item.price : 0), 0)
+      sum + (item.order ? item.quantity * item.price : 0), 0)
     
     const totalQuantity = product.orderItems.reduce((sum, item) => 
-      sum + (item.order.length > 0 ? item.quantity : 0), 0)
+      sum + (item.order ? item.quantity : 0), 0)
     
     return {
       ...product,
@@ -165,7 +161,7 @@ export default async function AdminAnalytics() {
   }, {} as Record<string, number>)
 
   return (
-    <DashboardLayout user={user}>
+    <DashboardLayout user={{ ...user, avatar: user.avatar ?? undefined }}>
       <div className="space-y-8">
         {/* Header */}
         <div>

@@ -197,11 +197,11 @@ export default function Checkout() {
                     <div>
                       <h4 className="font-medium">{item.name}</h4>
                       <p className="text-sm text-gray-500">
-                        ${item.price.toFixed(2)} x {item.quantity}
+                        Ksh {item.price.toFixed(2)} x {item.quantity}
                       </p>
                     </div>
                     <span className="font-medium">
-                      ${(item.price * item.quantity).toFixed(2)}
+                      Ksh {(item.price * item.quantity).toFixed(2)}
                     </span>
                   </div>
                 ))}
@@ -211,16 +211,16 @@ export default function Checkout() {
                 <div className="space-y-2">
                   <div className="flex justify-between">
                     <span>Subtotal:</span>
-                    <span>${calculateSubtotal().toFixed(2)}</span>
+                    <span>Ksh {calculateSubtotal().toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Delivery fee:</span>
-                    <span>${deliveryFee.toFixed(2)}</span>
+                    <span>Ksh {deliveryFee.toFixed(2)}</span>
                   </div>
                   {deliveryDiscount > 0 && (
                     <div className="flex justify-between text-green-600">
                       <span>Delivery discount:</span>
-                      <span>-${deliveryDiscount.toFixed(2)}</span>
+                      <span>-Ksh {deliveryDiscount.toFixed(2)}</span>
                     </div>
                   )}
                 </div>
@@ -229,7 +229,7 @@ export default function Checkout() {
                 
                 <div className="flex justify-between items-center text-lg font-bold">
                   <span>Total:</span>
-                  <span>${calculateTotal().toFixed(2)}</span>
+                  <span>Ksh {calculateTotal().toFixed(2)}</span>
                 </div>
               </div>
             </CardContent>
@@ -303,7 +303,7 @@ export default function Checkout() {
                   </div>
                   {deliveryDiscount > 0 && (
                     <p className="text-sm text-green-600">
-                      Voucher applied! You save ${deliveryDiscount.toFixed(2)} on delivery
+                      Voucher applied! You save Ksh {deliveryDiscount.toFixed(2)} on delivery
                     </p>
                   )}
                 </div>
