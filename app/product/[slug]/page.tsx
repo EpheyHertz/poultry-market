@@ -359,7 +359,7 @@ export default function ProductDetailPage() {
   }
 
   return (
-    
+
     <div className="min-h-screen bg-gray-50">
       {/* SEO Meta Tags */}
       <Head>
@@ -370,7 +370,7 @@ export default function ProductDetailPage() {
         <meta property="og:image" content={product.images[0]} />
         <meta property="og:url" content={window.location.href} />
       </Head>
-    
+
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <motion.div
@@ -740,7 +740,7 @@ export default function ProductDetailPage() {
                           </Link>
 
        <ChatWidget participantId={product?.seller?.id} participantName={product?.seller?.name} participantAvatar={product?.seller?.avatar} productId={product?.id}  />
-    
+
        {/* {showChatWidget && (
         <div className="mt-4">
           <ChatWidget participantId={product?.seller?.id} participantName={product?.seller?.name} participantAvatar={product?.seller?.avatar} productId={product?.id}  />
@@ -862,6 +862,8 @@ export default function ProductDetailPage() {
                         </div>
                       </motion.div>
                     ))}
+                  ```text
+
                   </div>
                 </div>
               </TabsContent>
@@ -952,7 +954,7 @@ export default function ProductDetailPage() {
       <Dialog open={isZoomed} onOpenChange={setIsZoomed} >
         <DialogContent className="max-w-4xl" title='Image Zoom'>
             <DialogTitle>Zoom the Image</DialogTitle>
-          
+
           <img
             src={product.images[selectedImageIndex]}
             alt={product.name}

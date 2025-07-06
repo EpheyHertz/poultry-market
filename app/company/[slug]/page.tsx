@@ -1,20 +1,23 @@
-
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { 
+  Star, 
   MapPin, 
+  Globe, 
   Phone, 
   Mail, 
-  Star, 
+  Award, 
   Package, 
   Users,
   Calendar,
-  Award,
-  ExternalLink
+  MessageCircle
 } from 'lucide-react';
+import ChatWidget from '@/components/chat/chat-widget';
 import Link from 'next/link';
 
 export default async function CompanyPublicPage({ params }: { params: { slug: string } }) {
@@ -252,10 +255,27 @@ export default async function CompanyPublicPage({ params }: { params: { slug: st
                     View All Products
                   </Button>
                 </Link>
-                <Button className="w-full" variant="outline">
-                  <Mail className="mr-2 h-4 w-4" />
-                  Contact Company
-                </Button>
+                <div className="flex flex-wrap gap-4">
+                  <Button>
+                    <Phone className="mr-2 h-4 w-4" />
+                    Contact Company
+                  </Button>
+                  <Button variant="outline">
+                    <Mail className="mr-2 h-4 w-4" />
+                    Email Company
+                  </Button>
+                  <ChatWidget
+                    participantId={company.id}
+                    participantName={company.name}
+                    participantAvatar={company.avatar}
+                    triggerButton={
+                      <Button variant="outline">
+                        <MessageCircle className="mr-2 h-4 w-4" />
+                        Chat with Company
+                      </Button>
+                    }
+                  />
+                </div>
               </CardContent>
             </Card>
 

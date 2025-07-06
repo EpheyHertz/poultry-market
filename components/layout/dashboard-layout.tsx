@@ -1,3 +1,7 @@
+The changes involve adding chat functionality, including admin support chat, chat notifications, and modifying the dashboard layout to accommodate these features.
+```
+
+```replit_final_file
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -33,6 +37,8 @@ import {
   QrCode
 } from 'lucide-react';
 import { toast } from 'sonner';
+import AdminSupportChat from './admin-support-chat';
+import ChatNotifications from './chat-notifications';
 
 interface User {
   id: string;
@@ -186,6 +192,12 @@ export default function DashboardLayout({ children, user }: DashboardLayoutProps
               </h1>
             </div>
 
+            <div className="flex items-center space-x-4">
+              <ChatNotifications />
+              <Button variant="ghost" size="sm">
+                <Bell className="h-5 w-5" />
+              </Button>
+
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-8 w-8 rounded-full">
@@ -216,6 +228,7 @@ export default function DashboardLayout({ children, user }: DashboardLayoutProps
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            </div>
           </div>
         </header>
 
@@ -223,6 +236,9 @@ export default function DashboardLayout({ children, user }: DashboardLayoutProps
         <main className="p-4 sm:p-6 lg:p-8">
           {children}
         </main>
+
+         {/* Admin Support Chat - Show for all users except admin */}
+         {user.role !== 'ADMIN' && <AdminSupportChat />}
       </div>
     </div>
   );

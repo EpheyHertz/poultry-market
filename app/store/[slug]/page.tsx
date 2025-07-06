@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { MapPin, Phone, Globe, Star, Package, Calendar, Users, Heart } from 'lucide-react'
 import Link from 'next/link'
 import ChatWidget  from '@/components/chat/chat-widget';
+import { MessageCircle } from 'lucide-react';
 
 interface StorePageProps {
   params: {
@@ -279,6 +280,41 @@ const allProductReviews = storeOwner.products.flatMap(product =>
                 </CardContent>
               </Card>
             )}
+             {/* Contact Seller */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Contact Seller</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {storeOwner.phone && (
+                  <div className="flex items-center gap-2 mb-2">
+                    <Phone className="h-4 w-4" />
+                    <a href={`tel:${storeOwner.phone}`} className="text-blue-600 hover:underline">
+                      Call {storeOwner.name}
+                    </a>
+                  </div>
+                )}
+                {storeOwner.email && (
+                  <div className="flex items-center gap-2 mb-2">
+                    <Mail className="h-4 w-4" />
+                    <a href={`mailto:${storeOwner.email}`} className="text-blue-600 hover:underline">
+                      Email {storeOwner.name}
+                    </a>
+                  </div>
+                )}
+                <ChatWidget
+                  participantId={storeOwner.id}
+                  participantName={storeOwner.name}
+                  participantAvatar={storeOwner.avatar || ''}
+                  triggerButton={
+                    <Button variant="outline">
+                      <MessageCircle className="mr-2 h-4 w-4" />
+                      Chat with {storeOwner.name}
+                    </Button>
+                  }
+                />
+              </CardContent>
+            </Card>
           </div>
         </div>
       </div>
