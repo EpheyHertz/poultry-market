@@ -1,8 +1,9 @@
+
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ShoppingCart, Egg, Beef, Wheat, Bird, Star, Shield, Award } from 'lucide-react';
+import { ShoppingCart, Egg, Beef, Wheat, Bird, Star, Shield, Award, ArrowRight } from 'lucide-react';
 
 export default function Home() {
   const featuredProducts = [
@@ -41,10 +42,10 @@ export default function Home() {
   ];
 
   const categories = [
-    { name: 'Eggs', icon: Egg, count: '500+ products' },
-    { name: 'Chicken Meat', icon: Beef, count: '200+ products' },
-    { name: 'Chicken Feed', icon: Wheat, count: '150+ products' },
-    { name: 'Chicks', icon: Bird, count: '100+ products' }
+    { name: 'Eggs', icon: Egg, count: '500+ products', type: 'EGGS' },
+    { name: 'Chicken Meat', icon: Beef, count: '200+ products', type: 'CHICKEN_MEAT' },
+    { name: 'Chicken Feed', icon: Wheat, count: '150+ products', type: 'CHICKEN_FEED' },
+    { name: 'Chicks', icon: Bird, count: '100+ products', type: 'CHICKS' }
   ];
 
   return (
@@ -58,6 +59,9 @@ export default function Home() {
               <span className="text-2xl font-bold text-gray-900">PoultryMarket</span>
             </div>
             <div className="flex items-center space-x-4">
+              <Link href="/products">
+                <Button variant="ghost">Browse Products</Button>
+              </Link>
               <Link href="/auth/login">
                 <Button variant="ghost">Login</Button>
               </Link>
@@ -81,10 +85,10 @@ export default function Home() {
             quality feeds, and healthy chicks from verified sellers across the country.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/auth/register">
+            <Link href="/products">
               <Button size="lg" className="bg-green-600 hover:bg-green-700">
                 <ShoppingCart className="mr-2 h-5 w-5" />
-                Start Shopping
+                Browse All Products
               </Button>
             </Link>
             <Link href="/auth/register?role=seller">
@@ -99,16 +103,26 @@ export default function Home() {
       {/* Categories */}
       <section className="py-16 px-4 sm:px-6 lg:px-8 bg-white">
         <div className="max-w-7xl mx-auto">
-          <h2 className="text-3xl font-bold text-center text-gray-900 mb-12">Shop by Category</h2>
+          <div className="flex justify-between items-center mb-12">
+            <h2 className="text-3xl font-bold text-gray-900">Shop by Category</h2>
+            <Link href="/products">
+              <Button variant="outline">
+                View All Products
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </Link>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {categories.map((category) => (
-              <Card key={category.name} className="hover:shadow-lg transition-shadow cursor-pointer">
-                <CardHeader className="text-center">
-                  <category.icon className="h-12 w-12 mx-auto text-green-600 mb-4" />
-                  <CardTitle>{category.name}</CardTitle>
-                  <CardDescription>{category.count}</CardDescription>
-                </CardHeader>
-              </Card>
+              <Link key={category.name} href={`/products?type=${category.type}`}>
+                <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+                  <CardHeader className="text-center">
+                    <category.icon className="h-12 w-12 mx-auto text-green-600 mb-4" />
+                    <CardTitle>{category.name}</CardTitle>
+                    <CardDescription>{category.count}</CardDescription>
+                  </CardHeader>
+                </Card>
+              </Link>
             ))}
           </div>
         </div>
@@ -117,7 +131,15 @@ export default function Home() {
       {/* Featured Products */}
       <section className="py-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
-          <h2 className="text-3xl font-bold text-center text-gray-900 mb-12">Featured Products</h2>
+          <div className="flex justify-between items-center mb-12">
+            <h2 className="text-3xl font-bold text-gray-900">Featured Products</h2>
+            <Link href="/products">
+              <Button variant="outline">
+                View All
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </Link>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {featuredProducts.map((product) => (
               <Card key={product.id} className="hover:shadow-lg transition-shadow">
@@ -145,38 +167,16 @@ export default function Home() {
                 <CardContent>
                   <div className="flex justify-between items-center">
                     <span className="text-2xl font-bold text-green-600">${product.price}</span>
-                    <Button size="sm">
-                      <ShoppingCart className="w-4 h-4 mr-2" />
-                      Add to Cart
-                    </Button>
+                    <Link href="/auth/login">
+                      <Button size="sm">
+                        <ShoppingCart className="w-4 h-4 mr-2" />
+                        Add to Cart
+                      </Button>
+                    </Link>
                   </div>
                 </CardContent>
               </Card>
             ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Features */}
-      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-white">
-        <div className="max-w-7xl mx-auto">
-          <h2 className="text-3xl font-bold text-center text-gray-900 mb-12">Why Choose Us?</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="text-center">
-              <Shield className="h-12 w-12 mx-auto text-green-600 mb-4" />
-              <h3 className="text-xl font-semibold mb-2">Verified Sellers</h3>
-              <p className="text-gray-600">All our sellers are verified and trusted by our community</p>
-            </div>
-            <div className="text-center">
-              <Star className="h-12 w-12 mx-auto text-green-600 mb-4" />
-              <h3 className="text-xl font-semibold mb-2">Quality Products</h3>
-              <p className="text-gray-600">Fresh, high-quality products delivered to your doorstep</p>
-            </div>
-            <div className="text-center">
-              <Award className="h-12 w-12 mx-auto text-green-600 mb-4" />
-              <h3 className="text-xl font-semibold mb-2">Best Prices</h3>
-              <p className="text-gray-600">Competitive prices with regular discounts and offers</p>
-            </div>
           </div>
         </div>
       </section>
@@ -195,7 +195,7 @@ export default function Home() {
             <div>
               <h3 className="text-lg font-semibold mb-4">Quick Links</h3>
               <ul className="space-y-2 text-gray-400">
-                <li><Link href="/products" className="hover:text-white">Products</Link></li>
+                <li><Link href="/products" className="hover:text-white">All Products</Link></li>
                 <li><Link href="/sellers" className="hover:text-white">Sellers</Link></li>
                 <li><Link href="/about" className="hover:text-white">About Us</Link></li>
                 <li><Link href="/contact" className="hover:text-white">Contact</Link></li>

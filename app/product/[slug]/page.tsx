@@ -1,7 +1,8 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -38,13 +39,14 @@ import {
   Edit,
   Flag,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  CreditCard,
+  Loader2
 } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import ChatWidget from '@/components/chat/chat-widget';
 import { formatCurrency } from '@/lib/formatCurrency';
-import Head from 'next/head';
 
 const tagIcons = {
   VERIFIED: Shield,
@@ -76,14 +78,16 @@ const tagColors = {
 
 export default function ProductDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const [product, setProduct] = useState<any>(null);
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [addingToCart, setAddingToCart] = useState(false);
+  const [buyingNow, setBuyingNow] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [isZoomed, setIsZoomed] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
-  const [isWishlisted, setIsWishlisted] = useState(false);
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [voucherCode, setVoucherCode] = useState('');
   const [appliedVoucher, setAppliedVoucher] = useState<any>(null);
@@ -93,7 +97,6 @@ export default function ProductDetailPage() {
     images: []
   });
   const [timeLeft, setTimeLeft] = useState<any>(null);
-  const [showChatWidget, setShowChatWidget] = useState(false)
 
   useEffect(() => {
     fetchProduct();
@@ -155,9 +158,11 @@ export default function ProductDetailPage() {
   const handleAddToCart = async () => {
     if (!user) {
       toast.error('Please login to add items to cart');
+      router.push('/auth/login');
       return;
     }
 
+    setAddingToCart(true);
     try {
       const response = await fetch('/api/cart', {
         method: 'POST',
@@ -171,31 +176,48 @@ export default function ProductDetailPage() {
       if (response.ok) {
         toast.success('Added to cart successfully');
       } else {
-        toast.error('Failed to add to cart');
+        const error = await response.json();
+        toast.error(error.error || 'Failed to add to cart');
       }
     } catch (error) {
       toast.error('Failed to add to cart');
+    } finally {
+      setAddingToCart(false);
     }
   };
 
   const handleBuyNow = async () => {
     if (!user) {
       toast.error('Please login to purchase');
+      router.push('/auth/login');
       return;
     }
 
-    // Redirect to checkout with this product
-    const checkoutData = {
-      items: [{
-        productId: product.id,
-        quantity,
-        price: getCurrentPrice()
-      }],
-      voucherCode: appliedVoucher?.code
-    };
+    setBuyingNow(true);
+    try {
+      // Create a temporary order for direct checkout
+      const checkoutData = {
+        items: [{
+          productId: product.id,
+          quantity,
+          price: getCurrentPrice(),
+          productName: product.name,
+          productImage: product.images[0] || '',
+          sellerId: product.sellerId,
+          sellerName: product.seller.name
+        }],
+        voucherCode: appliedVoucher?.code,
+        total: getCurrentPrice() * quantity
+      };
 
-    localStorage.setItem('checkoutData', JSON.stringify(checkoutData));
-    window.location.href = '/customer/checkout';
+      // Store checkout data and redirect
+      localStorage.setItem('directCheckout', JSON.stringify(checkoutData));
+      router.push('/customer/checkout?type=direct');
+    } catch (error) {
+      toast.error('Failed to proceed to checkout');
+    } finally {
+      setBuyingNow(false);
+    }
   };
 
   const handleLike = async () => {
@@ -339,7 +361,7 @@ export default function ProductDetailPage() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
+          <Loader2 className="animate-spin h-12 w-12 text-green-600 mx-auto mb-4" />
           <p className="text-gray-600">Loading product details...</p>
         </div>
       </div>
@@ -353,25 +375,16 @@ export default function ProductDetailPage() {
           <Package className="h-16 w-16 text-gray-400 mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Product Not Found</h2>
           <p className="text-gray-600">The product you're looking for doesn't exist.</p>
+          <Link href="/products">
+            <Button className="mt-4">Browse Products</Button>
+          </Link>
         </div>
       </div>
     );
   }
 
   return (
-
     <div className="min-h-screen bg-gray-50">
-      {/* SEO Meta Tags */}
-      <Head>
-        <title>{product.metaTitle || product.name}</title>
-        <meta name="description" content={product.metaDescription || product.description} />
-        <meta property="og:title" content={product.name} />
-        <meta property="og:description" content={product.description} />
-        <meta property="og:image" content={product.images[0]} />
-        <meta property="og:url" content={window.location.href} />
-      </Head>
-
-
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -581,21 +594,39 @@ export default function ProductDetailPage() {
                       </div>
                     </div>
 
-                    <div className="flex space-x-3">
+                    <div className="grid grid-cols-2 gap-3">
                       <Button
                         onClick={handleAddToCart}
                         variant="outline"
+                        disabled={addingToCart}
                         className="flex-1"
                       >
-                        <ShoppingCart className="h-4 w-4 mr-2" />
-                        Add to Cart
+                        {addingToCart ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <ShoppingCart className="h-4 w-4 mr-2" />
+                        )}
+                        {addingToCart ? 'Adding...' : 'Add to Cart'}
                       </Button>
                       <Button
                         onClick={handleBuyNow}
+                        disabled={buyingNow}
                         className="flex-1"
                       >
-                        Buy Now
+                        {buyingNow ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <CreditCard className="h-4 w-4 mr-2" />
+                        )}
+                        {buyingNow ? 'Processing...' : 'Buy Now'}
                       </Button>
+                    </div>
+
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                      <div className="flex justify-between items-center text-sm">
+                        <span>Total:</span>
+                        <span className="font-bold text-lg">{formatCurrency(getCurrentPrice() * quantity)}</span>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -626,12 +657,6 @@ export default function ProductDetailPage() {
                         Edit
                       </Button>
                     </Link>
-                  )}
-                  {user && user.role === 'ADMIN' && (
-                    <Button variant="outline" size="sm" className="text-red-600">
-                      <Flag className="h-4 w-4 mr-1" />
-                      Flag
-                    </Button>
                   )}
                 </div>
               </motion.div>
@@ -732,20 +757,24 @@ export default function ProductDetailPage() {
                           </div>
                         )}
 
-                        <div className="mt-4">
+                        <div className="mt-4 flex space-x-2">
                           <Link href={`/store/${product.seller.dashboardSlug || product.seller.id}`}>
                             <Button variant="outline" size="sm">
                               Visit Store
                             </Button>
                           </Link>
-
-       <ChatWidget participantId={product?.seller?.id} participantName={product?.seller?.name} participantAvatar={product?.seller?.avatar} productId={product?.id}  />
-
-       {/* {showChatWidget && (
-        <div className="mt-4">
-          <ChatWidget participantId={product?.seller?.id} participantName={product?.seller?.name} participantAvatar={product?.seller?.avatar} productId={product?.id}  />
-        </div>
-      )} */}
+                          <ChatWidget 
+                            participantId={product?.seller?.id} 
+                            participantName={product?.seller?.name} 
+                            participantAvatar={product?.seller?.avatar} 
+                            productId={product?.id}
+                            triggerButton={
+                              <Button variant="outline" size="sm">
+                                <MessageCircle className="h-4 w-4 mr-1" />
+                                Chat
+                              </Button>
+                            }
+                          />
                         </div>
                       </div>
                     </div>
@@ -862,8 +891,6 @@ export default function ProductDetailPage() {
                         </div>
                       </motion.div>
                     ))}
-                  ```text
-
                   </div>
                 </div>
               </TabsContent>
@@ -906,7 +933,7 @@ export default function ProductDetailPage() {
 
       {/* Review Form Dialog */}
       <Dialog open={showReviewForm} onOpenChange={setShowReviewForm}>
-        <DialogContent className="max-w-md" title='Write a Review'>
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Write a Review</DialogTitle>
           </DialogHeader>
@@ -951,10 +978,11 @@ export default function ProductDetailPage() {
       </Dialog>
 
       {/* Image Zoom Modal */}
-      <Dialog open={isZoomed} onOpenChange={setIsZoomed} >
-        <DialogContent className="max-w-4xl" title='Image Zoom'>
-            <DialogTitle>Zoom the Image</DialogTitle>
-
+      <Dialog open={isZoomed} onOpenChange={setIsZoomed}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Product Image</DialogTitle>
+          </DialogHeader>
           <img
             src={product.images[selectedImageIndex]}
             alt={product.name}
@@ -963,23 +991,34 @@ export default function ProductDetailPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Sticky Mobile Cart */}
+      {/* Sticky Mobile Actions */}
       {user && user.role === 'CUSTOMER' && product.stock > 0 && (
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t p-4 md:hidden z-50">
-          <div className="flex space-x-2">
+          <div className="grid grid-cols-2 gap-2">
             <Button
               onClick={handleAddToCart}
               variant="outline"
+              disabled={addingToCart}
               className="flex-1"
             >
-              <ShoppingCart className="h-4 w-4 mr-2" />
-              Add to Cart
+              {addingToCart ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <ShoppingCart className="h-4 w-4 mr-2" />
+              )}
+              Cart
             </Button>
             <Button
               onClick={handleBuyNow}
+              disabled={buyingNow}
               className="flex-1"
             >
-              Buy Now - {formatCurrency(getCurrentPrice())}
+              {buyingNow ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <CreditCard className="h-4 w-4 mr-2" />
+              )}
+              Buy Now
             </Button>
           </div>
         </div>
