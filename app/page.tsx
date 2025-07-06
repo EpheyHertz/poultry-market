@@ -6,40 +6,6 @@ import { Badge } from '@/components/ui/badge';
 import { ShoppingCart, Egg, Beef, Wheat, Bird, Star, Shield, Award, ArrowRight } from 'lucide-react';
 
 export default function Home() {
-  const featuredProducts = [
-    {
-      id: 1,
-      name: 'Fresh Farm Eggs',
-      price: 4.99,
-      image: 'https://images.pexels.com/photos/1556707/pexels-photo-1556707.jpeg?auto=compress&cs=tinysrgb&w=400',
-      seller: 'Farm Fresh Seller',
-      tags: ['Verified', 'Recommended']
-    },
-    {
-      id: 2,
-      name: 'Premium Chicken Feed',
-      price: 25.99,
-      image: 'https://images.pexels.com/photos/162240/chicken-feed-food-eat-162240.jpeg?auto=compress&cs=tinysrgb&w=400',
-      seller: 'Premium Poultry Co.',
-      tags: ['Verified', 'Trusted']
-    },
-    {
-      id: 3,
-      name: 'Organic Chicken Meat',
-      price: 8.99,
-      image: 'https://images.pexels.com/photos/616401/pexels-photo-616401.jpeg?auto=compress&cs=tinysrgb&w=400',
-      seller: 'Farm Fresh Seller',
-      tags: ['Verified']
-    },
-    {
-      id: 4,
-      name: 'Rhode Island Red Chicks',
-      price: 5.99,
-      image: 'https://images.pexels.com/photos/3596906/pexels-photo-3596906.jpeg?auto=compress&cs=tinysrgb&w=400',
-      seller: 'Premium Poultry Co.',
-      tags: ['Trusted', 'Premium']
-    }
-  ];
 
   const categories = [
     { name: 'Eggs', icon: Egg, count: '500+ products', type: 'EGGS' },
@@ -106,7 +72,8 @@ export default function Home() {
           <div className="flex justify-between items-center mb-12">
             <h2 className="text-3xl font-bold text-gray-900">Shop by Category</h2>
             <Link href="/products">
-              <Button variant="outline">
+              <Button>
+                <ShoppingCart className="mr-2 h-4 w-4" />
                 View All Products
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
@@ -128,58 +95,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Featured Products */}
-      <section className="py-16 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex justify-between items-center mb-12">
-            <h2 className="text-3xl font-bold text-gray-900">Featured Products</h2>
-            <Link href="/products">
-              <Button variant="outline">
-                View All
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            </Link>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {featuredProducts.map((product) => (
-              <Card key={product.id} className="hover:shadow-lg transition-shadow">
-                <div className="aspect-square relative overflow-hidden rounded-t-lg">
-                  <img 
-                    src={product.image} 
-                    alt={product.name}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <CardHeader>
-                  <div className="flex flex-wrap gap-1 mb-2">
-                    {product.tags.map((tag) => (
-                      <Badge key={tag} variant="secondary" className="text-xs">
-                        {tag === 'Verified' && <Shield className="w-3 h-3 mr-1" />}
-                        {tag === 'Trusted' && <Star className="w-3 h-3 mr-1" />}
-                        {tag === 'Recommended' && <Award className="w-3 h-3 mr-1" />}
-                        {tag}
-                      </Badge>
-                    ))}
-                  </div>
-                  <CardTitle className="text-lg">{product.name}</CardTitle>
-                  <CardDescription>{product.seller}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex justify-between items-center">
-                    <span className="text-2xl font-bold text-green-600">${product.price}</span>
-                    <Link href="/auth/login">
-                      <Button size="sm">
-                        <ShoppingCart className="w-4 h-4 mr-2" />
-                        Add to Cart
-                      </Button>
-                    </Link>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
+      
 
       {/* Footer */}
       <footer className="bg-gray-900 text-white py-12">

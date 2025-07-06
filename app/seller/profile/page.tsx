@@ -29,6 +29,7 @@ import {
   TrendingUp
 } from 'lucide-react';
 import { toast } from 'sonner';
+import ImageUpload from '@/components/ui/image-upload';
 
 const tagIcons = {
   VERIFIED: Shield,
@@ -190,12 +191,13 @@ export default function SellerProfile() {
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1">
-                        <Label htmlFor="avatar">Avatar URL</Label>
-                        <Input
-                          id="avatar"
-                          value={formData.avatar}
-                          onChange={(e) => setFormData({ ...formData, avatar: e.target.value })}
-                          placeholder="https://example.com/avatar.jpg"
+                        <Label>Profile Picture</Label>
+                        <ImageUpload
+                          name="avatar"
+                          multiple={false}
+                          maxFiles={1}
+                          onUpload={(urls) => setFormData({ ...formData, avatar: urls[0] || '' })}
+                          defaultImages={formData.avatar ? [formData.avatar] : []}
                         />
                       </div>
                     </div>
