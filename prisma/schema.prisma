@@ -167,7 +167,7 @@ model User {
   // Seller/Company relationships
   products         Product[]
   vouchers         Voucher[]
-  sponsorships     Sponsorship[]
+  sponsorships     Sponsorship[] @relation("UserSponsorships")
   receivedSponsorships Sponsorship[] @relation("SponsorshipReceiver")
   companySponsorships   Sponsorship[] @relation("CompanySponsorships")
   sellerSponsorships    Sponsorship[] @relation("SellerSponsorships")
@@ -325,6 +325,24 @@ model Delivery {
   @@map("deliveries")
 }
 
+model DeliveryVoucher {
+  id              String      @id @default(cuid())
+  code            String      @unique
+  name            String?
+  description     String?
+  discountType    VoucherType
+  discountValue   Float
+  minOrderAmount  Float       @default(0)
+  maxUses         Int         @default(1)
+  usedCount       Int         @default(0)
+  expiresAt       DateTime?
+  isActive        Boolean     @default(true)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@map("delivery_vouchers")
+}
+
 model Payment {
   id              String        @id @default(cuid())
   orderId         String        @unique
@@ -468,6 +486,7 @@ model Sponsorship {
   id          String            @id @default(cuid())
   companyId   String
   sellerId    String?
+  userId      String?
   amount      Float
   description String
   terms       String?
@@ -481,10 +500,12 @@ model Sponsorship {
 
   company User @relation("CompanySponsorships", fields: [companyId], references: [id], onDelete: Cascade)
   seller  User? @relation("SellerSponsorships", fields: [sellerId], references: [id], onDelete: SetNull)
+  user    User? @relation("UserSponsorships", fields: [userId], references: [id])
 
   applications SponsorshipApplication[]
 
   @@map("sponsorships")
+  User User[] @relation("SponsorshipReceiver")
 }
 
 model SponsorshipApplication {

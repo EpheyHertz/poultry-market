@@ -1,9 +1,24 @@
 
 import { Server as NetServer } from 'http'
 import { NextApiRequest, NextApiResponse } from 'next'
-import { Server as ServerIO } from 'socket.io'
+import { Server as ServerIO, Socket } from 'socket.io'
 import { prisma } from './prisma'
 import { verifyToken } from './auth'
+
+// Extend NetServer type to include 'io'
+declare module 'http' {
+  interface Server {
+    io?: ServerIO
+  }
+}
+
+// Extend Socket type to include userId and userRole
+declare module 'socket.io' {
+  interface Socket {
+    userId?: string
+    userRole?: string
+  }
+}
 
 export type NextApiResponseServerIO = NextApiResponse & {
   socket: {
@@ -66,6 +81,11 @@ export function initSocket(server: NetServer) {
         try {
           const { chatId, content, type = 'text', images = [] } = data
           
+          if (!socket.userId) {
+            socket.emit('error', { message: 'User not authenticated' })
+            return
+          }
+
           const message = await prisma.chatMessage.create({
             data: {
               chatId,

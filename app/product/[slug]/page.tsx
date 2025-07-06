@@ -93,6 +93,7 @@ export default function ProductDetailPage() {
     images: []
   });
   const [timeLeft, setTimeLeft] = useState<any>(null);
+  const [showChatWidget, setShowChatWidget] = useState(false)
 
   useEffect(() => {
     fetchProduct();
@@ -737,6 +738,14 @@ export default function ProductDetailPage() {
                               Visit Store
                             </Button>
                           </Link>
+
+       <ChatWidget participantId={product?.seller?.id} participantName={product?.seller?.name} participantAvatar={product?.seller?.avatar} productId={product?.id}  />
+    
+       {/* {showChatWidget && (
+        <div className="mt-4">
+          <ChatWidget participantId={product?.seller?.id} participantName={product?.seller?.name} participantAvatar={product?.seller?.avatar} productId={product?.id}  />
+        </div>
+      )} */}
                         </div>
                       </div>
                     </div>
