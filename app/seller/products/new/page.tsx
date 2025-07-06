@@ -399,3 +399,182 @@ export default function NewProduct() {
     </DashboardLayout>
   );
 }
+import { redirect } from 'next/navigation';
+import { getCurrentUser } from '@/lib/auth';
+import DashboardLayout from '@/components/layout/dashboard-layout';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import ImageUpload from '@/components/ui/image-upload';
+import { ArrowLeft } from 'lucide-react';
+import Link from 'next/link';
+
+export default async function NewSellerProduct() {
+  const user = await getCurrentUser();
+  
+  if (!user || user.role !== 'SELLER') {
+    redirect('/auth/login');
+  }
+
+  return (
+    <DashboardLayout user={user}>
+      <div className="max-w-4xl mx-auto space-y-8">
+        {/* Header */}
+        <div className="flex items-center gap-4">
+          <Link href="/seller/products">
+            <Button variant="outline" size="sm">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Products
+            </Button>
+          </Link>
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Add New Product</h1>
+            <p className="text-gray-600 mt-2">Create a new product listing for your store</p>
+          </div>
+        </div>
+
+        {/* Product Form */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Product Information</CardTitle>
+            <CardDescription>
+              Fill in the details for your new product. All fields marked with * are required.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form className="space-y-6" action="/api/products" method="POST">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Product Name *</Label>
+                  <Input
+                    id="name"
+                    name="name"
+                    placeholder="e.g., Fresh Farm Eggs"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="type">Product Type *</Label>
+                  <Select name="type" required>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select product type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="EGGS">Eggs</SelectItem>
+                      <SelectItem value="CHICKEN_MEAT">Chicken Meat</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="price">Price (USD) *</Label>
+                  <Input
+                    id="price"
+                    name="price"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="0.00"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="stock">Stock Quantity *</Label>
+                  <Input
+                    id="stock"
+                    name="stock"
+                    type="number"
+                    min="0"
+                    placeholder="0"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="description">Description *</Label>
+                <Textarea
+                  id="description"
+                  name="description"
+                  rows={4}
+                  placeholder="Describe your product in detail..."
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Product Images</Label>
+                <ImageUpload
+                  name="images"
+                  multiple={true}
+                  maxFiles={5}
+                  accept="image/*"
+                />
+                <p className="text-sm text-gray-500">
+                  Upload up to 5 high-quality images of your product. The first image will be used as the main product image.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label htmlFor="unit">Unit of Measurement</Label>
+                  <Select name="unit">
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select unit" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pieces">Pieces</SelectItem>
+                      <SelectItem value="dozen">Dozen</SelectItem>
+                      <SelectItem value="kg">Kilograms</SelectItem>
+                      <SelectItem value="lb">Pounds</SelectItem>
+                      <SelectItem value="tray">Tray</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="minOrder">Minimum Order Quantity</Label>
+                  <Input
+                    id="minOrder"
+                    name="minOrder"
+                    type="number"
+                    min="1"
+                    placeholder="1"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="tags">Product Tags</Label>
+                <Input
+                  id="tags"
+                  name="tags"
+                  placeholder="organic, free-range, local (separate with commas)"
+                />
+                <p className="text-sm text-gray-500">
+                  Add relevant tags to help customers find your product
+                </p>
+              </div>
+
+              <div className="flex justify-end space-x-4">
+                <Link href="/seller/products">
+                  <Button type="button" variant="outline">
+                    Cancel
+                  </Button>
+                </Link>
+                <Button type="submit">
+                  Create Product
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+    </DashboardLayout>
+  );
+}

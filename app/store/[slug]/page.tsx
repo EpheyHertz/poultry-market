@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { MapPin, Phone, Globe, Star, Package, Calendar, Users, Heart } from 'lucide-react'
+import { MapPin, Phone, Globe, Star, Package, Calendar, Users, Heart, Mail, ExternalLink } from 'lucide-react'
 import Link from 'next/link'
 import ChatWidget  from '@/components/chat/chat-widget';
 import { MessageCircle } from 'lucide-react';

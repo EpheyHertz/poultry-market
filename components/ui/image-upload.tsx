@@ -1,47 +1,57 @@
-
 'use client';
 
 import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Upload, X, Loader2, Image as ImageIcon } from 'lucide-react';
+import { Upload, X, Image, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface ImageUploadProps {
-  value?: string[];
-  onChange: (urls: string[]) => void;
-  maxImages?: number;
-  folder?: string;
-  className?: string;
+  name: string;
+  multiple?: boolean;
+  maxFiles?: number;
+  accept?: string;
+  onUpload?: (urls: string[]) => void;
+  defaultImages?: string[];
 }
 
 export default function ImageUpload({
-  value = [],
-  onChange,
-  maxImages = 5,
-  folder = 'products',
-  className = ''
+  name,
+  multiple = false,
+  maxFiles = 1,
+  accept = 'image/*',
+  onUpload,
+  defaultImages = []
 }: ImageUploadProps) {
+  const [images, setImages] = useState<string[]>(defaultImages);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
-    
+
     if (files.length === 0) return;
-    
-    if (value.length + files.length > maxImages) {
-      toast.error(`Maximum ${maxImages} images allowed`);
+
+    if (images.length + files.length > maxFiles) {
+      toast.error(`Maximum ${maxFiles} images allowed`);
+      return;
+    }
+
+    // Validate file sizes (max 5MB per file)
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    const oversizedFiles = files.filter(file => file.size > maxSize);
+    if (oversizedFiles.length > 0) {
+      toast.error('Some files are too large. Maximum size is 5MB per image.');
       return;
     }
 
     setUploading(true);
+    setUploadProgress(0);
 
     try {
-      const uploadPromises = files.map(async (file) => {
+      const uploadPromises = files.map(async (file, index) => {
         const formData = new FormData();
         formData.append('file', file);
-        formData.append('folder', folder);
 
         const response = await fetch('/api/upload/cloudinary', {
           method: 'POST',
@@ -49,96 +59,151 @@ export default function ImageUpload({
         });
 
         if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.error || 'Upload failed');
+          throw new Error('Upload failed');
         }
 
-        const result = await response.json();
-        return result.url;
+        const data = await response.json();
+        setUploadProgress(((index + 1) / files.length) * 100);
+        return data.url;
       });
 
       const uploadedUrls = await Promise.all(uploadPromises);
-      onChange([...value, ...uploadedUrls]);
+      const newImages = [...images, ...uploadedUrls];
+      setImages(newImages);
+      onUpload?.(newImages);
       toast.success(`${uploadedUrls.length} image(s) uploaded successfully`);
     } catch (error) {
       console.error('Upload error:', error);
-      toast.error('Failed to upload images');
+      toast.error('Failed to upload images. Please try again.');
     } finally {
       setUploading(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
+      setUploadProgress(0);
     }
   };
 
   const removeImage = (index: number) => {
-    const newImages = value.filter((_, i) => i !== index);
-    onChange(newImages);
+    const newImages = images.filter((_, i) => i !== index);
+    setImages(newImages);
+    onUpload?.(newImages);
+    toast.success('Image removed');
+  };
+
+  const moveImage = (fromIndex: number, toIndex: number) => {
+    const newImages = [...images];
+    const [movedImage] = newImages.splice(fromIndex, 1);
+    newImages.splice(toIndex, 0, movedImage);
+    setImages(newImages);
+    onUpload?.(newImages);
   };
 
   return (
-    <div className={className}>
+    <div className="space-y-4">
+      {/* Hidden file input */}
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/*"
-        multiple
+        name={name}
+        multiple={multiple}
+        accept={accept}
         onChange={handleFileSelect}
         className="hidden"
       />
 
-      {/* Upload Button */}
-      {value.length < maxImages && (
-        <Card className="border-dashed border-2 hover:border-primary/50 transition-colors">
-          <CardContent className="flex flex-col items-center justify-center p-6">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploading}
-              className="h-auto p-4"
-            >
-              {uploading ? (
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-              ) : (
-                <Upload className="h-8 w-8 text-muted-foreground" />
-              )}
-            </Button>
-            <p className="text-sm text-muted-foreground mt-2">
-              {uploading ? 'Uploading...' : 'Click to upload images'}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {value.length}/{maxImages} images
-            </p>
-          </CardContent>
-        </Card>
-      )}
+      {/* Upload button */}
+      <Button
+        type="button"
+        variant="outline"
+        onClick={() => fileInputRef.current?.click()}
+        disabled={uploading || images.length >= maxFiles}
+        className="w-full"
+      >
+        {uploading ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Uploading... {Math.round(uploadProgress)}%
+          </>
+        ) : (
+          <>
+            <Upload className="mr-2 h-4 w-4" />
+            Upload Images
+          </>
+        )}
+      </Button>
 
-      {/* Uploaded Images */}
-      {value.length > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4">
-          {value.map((url, index) => (
+      {/* Upload help text */}
+      <p className="text-sm text-gray-500">
+        {multiple 
+          ? `Upload up to ${maxFiles} images. Maximum 5MB per image.` 
+          : 'Upload 1 image. Maximum 5MB.'
+        }
+        <br />
+        Supported formats: JPG, PNG, WebP, GIF
+      </p>
+
+      {/* Image preview grid */}
+      {images.length > 0 && (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {images.map((image, index) => (
             <div key={index} className="relative group">
-              <div className="aspect-square rounded-lg overflow-hidden bg-gray-100">
+              <div className="aspect-square rounded-lg overflow-hidden border-2 border-gray-200 hover:border-blue-300 transition-colors">
                 <img
-                  src={url}
+                  src={image}
                   alt={`Upload ${index + 1}`}
                   className="w-full h-full object-cover"
+                  loading="lazy"
                 />
               </div>
+
+              {/* Remove button */}
               <Button
                 type="button"
                 variant="destructive"
                 size="sm"
+                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 p-0"
                 onClick={() => removeImage(index)}
-                className="absolute top-2 right-2 h-6 w-6 rounded-full p-0 opacity-0 group-hover:opacity-100 transition-opacity"
               >
                 <X className="h-3 w-3" />
               </Button>
+
+              {/* Main image indicator */}
+              {index === 0 && (
+                <div className="absolute bottom-2 left-2">
+                  <span className="bg-blue-600 text-white text-xs px-2 py-1 rounded font-medium">
+                    Main
+                  </span>
+                </div>
+              )}
+
+              {/* Image order indicator */}
+              <div className="absolute top-2 left-2">
+                <span className="bg-black bg-opacity-75 text-white text-xs px-1.5 py-0.5 rounded">
+                  {index + 1}
+                </span>
+              </div>
             </div>
           ))}
         </div>
       )}
+
+      {/* Image URLs as hidden inputs for form submission */}
+      {images.map((image, index) => (
+        <input
+          key={index}
+          type="hidden"
+          name={`${name}[]`}
+          value={image}
+        />
+      ))}
+
+      {/* Upload status */}
+      <div className="flex items-center justify-between text-sm text-gray-500">
+        <span>{images.length}/{maxFiles} images uploaded</span>
+        {images.length > 0 && (
+          <span className="text-blue-600">
+            Drag images to reorder • First image will be the main display
+          </span>
+        )}
+      </div>
     </div>
   );
 }
