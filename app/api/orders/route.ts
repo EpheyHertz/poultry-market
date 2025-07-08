@@ -227,8 +227,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Client/server mismatch in amounts' }, { status: 400 });
     }
 
-    const initialStatus = paymentType === 'MPESA' ? 'CONFIRMED' : 'PENDING';
-    const initialPaymentStatus = paymentType === 'MPESA' ? 'PAID' : 'UNPAID';
+    const initialStatus = 'PENDING';
+    const initialPaymentStatus = paymentType === 'MPESA' ? 'SUBMITTED' : 'UNPAID';
 
     const [order, payment] = await prisma.$transaction(async (tx) => {
       const createdOrder = await tx.order.create({
@@ -262,22 +262,8 @@ export async function POST(request: NextRequest) {
         }
       });
 
-      let paymentRecord;
-      if (paymentType === 'MPESA') {
-        paymentRecord = await tx.payment.create({
-          data: {
-            order: { connect: { id: createdOrder.id } },
-            user: { connect: { id: user.id } },
-            amount: serverTotal,
-            method: 'MPESA',
-            status: 'APPROVED',
-            phoneNumber: paymentDetails?.phone,
-            transactionCode: paymentDetails?.reference,
-            mpesaMessage: paymentDetails?.details,
-            referenceNumber: `PAY-${Date.now()}`
-          }
-        });
-      }
+      // Payment record will be created when admin approves
+      let paymentRecord = null;
 
       for (const item of orderItems) {
         await tx.product.update({

@@ -9,7 +9,7 @@ export async function POST(
 ) {
   try {
     const user = await getCurrentUser()
-    
+
     if (!user || !['ADMIN', 'SELLER', 'COMPANY'].includes(user.role)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -17,7 +17,6 @@ export async function POST(
     const order = await prisma.order.findUnique({
       where: { id: params.id },
       include: {
-        customer: true,
         items: {
           include: {
             product: {
@@ -33,6 +32,13 @@ export async function POST(
 
     if (!order) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 })
+    }
+
+    // Only allow delivery assignment for approved orders
+    if (order.paymentStatus !== 'APPROVED') {
+      return NextResponse.json({ 
+        error: 'Cannot assign delivery to order with unapproved payment' 
+      }, { status: 400 })
     }
 
     // Check permissions

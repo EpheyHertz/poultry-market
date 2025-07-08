@@ -31,7 +31,8 @@ import {
   MessageCircle,
   Percent,
   QrCode,
-  Bell
+  Bell,
+  CreditCard
 } from 'lucide-react';
 import { toast } from 'sonner';
 import AdminSupportChat from './admin-support-chat';
@@ -66,7 +67,7 @@ export default function DashboardLayout({ children, user: propUser }: DashboardL
           setIsLoading(true);
           const response = await fetch('/api/auth/me');
           if (!response.ok) throw new Error('Unauthorized');
-          
+
           const userData = await response.json();
           setUser(userData);
         } catch (error) {
@@ -106,6 +107,7 @@ export default function DashboardLayout({ children, user: propUser }: DashboardL
           { name: 'Users', href: '/admin/users', icon: Users },
           { name: 'Products', href: '/admin/products', icon: Package },
           { name: 'Orders', href: '/admin/orders', icon: ShoppingCart },
+		  { name: 'Payment Approvals', href: '/admin/payment-approvals', icon: CreditCard },
           { name: 'Applications', href: '/admin/applications', icon: FileText },
           { name: 'Delivery Data', href: '/admin/delivery-management', icon: FileText },
           { name: 'Sponsorships', href: '/admin/sponsorships', icon: HandHeart },
