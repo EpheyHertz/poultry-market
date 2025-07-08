@@ -128,7 +128,7 @@ export default function NewCompanyProduct() {
         const formData = new FormData();
         formData.append('file', compressedFile);
 
-        const response = await fetch('/api/upload', {
+        const response = await fetch('/api/upload/cloudinary', {
           method: 'POST',
           body: formData,
         });

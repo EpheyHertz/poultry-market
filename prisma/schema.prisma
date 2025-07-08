@@ -301,6 +301,7 @@ model Delivery {
   id         String        @id @default(cuid())
   orderId    String        @unique
   order      Order         @relation(fields: [orderId], references: [id])
+  fee        Float         @default(0)
   agentId    String?
   agent      User?         @relation(fields: [agentId], references: [id])
   address    String

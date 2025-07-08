@@ -71,26 +71,34 @@ export default function LoginPage() {
     }
   };
 
-  const handleGoogleLogin = async () => {
+  const handleGoogleLogin = async (user) => {
     setIsGoogleLoading(true);
     setError('');
+    console.log('Google user:', user);
 
     try {
       // In a real implementation, you would use Google OAuth
       // For demo purposes, we'll simulate Google login
-      const mockGoogleUser = {
-        googleId: 'google_' + Date.now(),
-        email: 'demo@google.com',
-        name: 'Google User',
-        avatar: 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=100'
-      };
+      // const mockGoogleUser = {
+      //   googleId: 'google_' + Date.now(),
+      //   email: 'demo@google.com',
+      //   name: 'Google User',
+      //   avatar: 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=100'
+      // };
+      const googleUser={
+        googleId:'google_' + Date.now(),
+        email: user.email,
+        name: user.name,
+        avatar: user.avatar || 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=100'
+
+      }
 
       const response = await fetch('/api/auth/google', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(mockGoogleUser),
+        body: JSON.stringify(googleUser),
       });
 
       const data = await response.json();
@@ -123,6 +131,7 @@ export default function LoginPage() {
           <GoogleSignIn
             onSuccess={(user) => {
               console.log('Google sign-in successful:', user)
+              handleGoogleLogin(user)
             }}
             onError={(error) => {
               setError(error)

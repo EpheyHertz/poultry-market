@@ -1,4 +1,4 @@
-'use client';
+'use client'
 
 import { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
@@ -47,13 +47,40 @@ interface User {
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
-  user: User;
+  user?: User; // Make user optional
 }
 
-export default function DashboardLayout({ children, user }: DashboardLayoutProps) {
+export default function DashboardLayout({ children, user: propUser }: DashboardLayoutProps) {
+  const [user, setUser] = useState<User | null>(propUser || null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(!propUser); // Only loading if user wasn't provided
+
   const router = useRouter();
   const pathname = usePathname();
+
+  // Fetch user if not provided
+  useEffect(() => {
+    if (!propUser) {
+      const fetchCurrentUser = async () => {
+        try {
+          setIsLoading(true);
+          const response = await fetch('/api/auth/me');
+          if (!response.ok) throw new Error('Unauthorized');
+          
+          const userData = await response.json();
+          setUser(userData);
+        } catch (error) {
+          console.error('Failed to fetch user:', error);
+          toast.error('Please login to continue');
+          router.push('/auth/login');
+        } finally {
+          setIsLoading(false);
+        }
+      };
+
+      fetchCurrentUser();
+    }
+  }, [propUser, router]);
 
   const handleLogout = async () => {
     try {
@@ -66,6 +93,8 @@ export default function DashboardLayout({ children, user }: DashboardLayoutProps
   };
 
   const getNavigationItems = () => {
+    if (!user) return [];
+
     const baseItems = [
       { name: 'Dashboard', href: `/${user.role.toLowerCase()}/dashboard`, icon: Home },
     ];
@@ -78,6 +107,7 @@ export default function DashboardLayout({ children, user }: DashboardLayoutProps
           { name: 'Products', href: '/admin/products', icon: Package },
           { name: 'Orders', href: '/admin/orders', icon: ShoppingCart },
           { name: 'Applications', href: '/admin/applications', icon: FileText },
+          { name: 'Delivery Data', href: '/admin/delivery-management', icon: FileText },
           { name: 'Sponsorships', href: '/admin/sponsorships', icon: HandHeart },
           { name: 'Delivery', href: '/admin/delivery-agents', icon: BarChart3 },
           { name: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
@@ -154,6 +184,18 @@ export default function DashboardLayout({ children, user }: DashboardLayoutProps
     </div>
   );
 
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null; // or redirect to login
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Desktop Sidebar */}
@@ -197,36 +239,36 @@ export default function DashboardLayout({ children, user }: DashboardLayoutProps
                 <Bell className="h-5 w-5" />
               </Button>
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src={user.avatar} alt={user.name} />
-                    <AvatarFallback>
-                      {user.name.split(' ').map(n => n[0]).join('').toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56" align="end" forceMount>
-                <div className="flex flex-col space-y-1 p-2">
-                  <p className="text-sm font-medium leading-none">{user.name}</p>
-                  <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
-                </div>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link href={`/${user.role.toLowerCase()}/profile`}>
-                    <Settings className="mr-2 h-4 w-4" />
-                    Settings
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleLogout}>
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Log out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage src={user.avatar} alt={user.name} />
+                      <AvatarFallback>
+                        {user.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56" align="end" forceMount>
+                  <div className="flex flex-col space-y-1 p-2">
+                    <p className="text-sm font-medium leading-none">{user.name}</p>
+                    <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
+                  </div>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link href={`/${user.role.toLowerCase()}/profile`}>
+                      <Settings className="mr-2 h-4 w-4" />
+                      Settings
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleLogout}>
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Log out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
         </header>
@@ -236,8 +278,8 @@ export default function DashboardLayout({ children, user }: DashboardLayoutProps
           {children}
         </main>
 
-         {/* Admin Support Chat - Show for all users except admin */}
-         {user.role !== 'ADMIN' && <AdminSupportChat />}
+        {/* Admin Support Chat - Show for all users except admin */}
+        {user.role !== 'ADMIN' && <AdminSupportChat />}
       </div>
     </div>
   );
