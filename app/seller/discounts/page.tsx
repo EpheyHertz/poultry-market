@@ -76,7 +76,8 @@ export default function SellerDiscountsPage() {
       const response = await fetch('/api/auth/me')
       if (response.ok) {
         const userData = await response.json()
-        setUser(userData.user)
+        // console.log(userData)
+        setUser(userData)
       }
     } catch (error) {
       console.error('Failed to fetch user:', error)

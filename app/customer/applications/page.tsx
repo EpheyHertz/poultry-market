@@ -76,7 +76,7 @@ export default function CustomerApplications() {
     formData.append('file', file);
 
     try {
-      const response = await fetch('/api/upload', {
+      const response = await fetch('/api/upload/cloudinary', {
         method: 'POST',
         body: formData
       });

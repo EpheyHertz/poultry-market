@@ -1,7 +1,8 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import jwt from 'jsonwebtoken'
+import {signToken} from '@/lib/auth'
+import { cookies } from 'next/headers'
 
 export async function POST(request: NextRequest) {
   try {
@@ -10,7 +11,11 @@ export async function POST(request: NextRequest) {
     if (!googleId || !email || !name) {
       return NextResponse.json({ error: 'Missing required Google profile data' }, { status: 400 })
     }
-
+// googleId: payload.sub,
+//           email: payload.email,
+//           name: payload.name,
+//           avatar: payload.picture,
+//           emailVerified: payload.email_verified,
     // Check if user exists by Google ID or email
     let user = await prisma.user.findFirst({
       where: {
@@ -29,16 +34,16 @@ export async function POST(request: NextRequest) {
           data: {
             googleId,
             avatar: avatar || user.avatar,
-            emailVerified: emailVerified || user.emailVerified,
-            lastLogin: new Date()
+            isVerified: emailVerified || user.isVerified,
+            
           }
         })
       } else {
         // Just update last login
-        user = await prisma.user.update({
-          where: { id: user.id },
-          data: { lastLogin: new Date() }
-        })
+        // user = await prisma.user.update({
+        //   where: { id: user.id },
+        //   data: { lastLogin: new Date() }
+        // })
       }
     } else {
       // Create new user
@@ -49,23 +54,26 @@ export async function POST(request: NextRequest) {
           name,
           avatar,
           role: 'CUSTOMER', // Default role
-          emailVerified: emailVerified || false,
+          isVerified: emailVerified || false,
           isActive: true,
-          lastLogin: new Date()
+         
         }
       })
     }
 
     // Generate JWT token
-    const token = jwt.sign(
-      { 
-        userId: user.id, 
-        email: user.email, 
-        role: user.role 
-      },
-      process.env.JWT_SECRET!,
-      { expiresIn: '7d' }
-    )
+    const token = await signToken({ userId: user.id })
+        const cookieStore = await cookies()
+    
+        cookieStore.set('token', token, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          maxAge: 24 * 60 * 60, // 24 hours
+          path: '/',
+        })
+
+//  console.log('User authenticated:', user)
+//  console.log('JWT token generated:', token)
 
     // Create response with cookie
     const response = NextResponse.json({
@@ -76,18 +84,12 @@ export async function POST(request: NextRequest) {
         name: user.name,
         role: user.role,
         avatar: user.avatar,
-        emailVerified: user.emailVerified
+        emailVerified: user.isVerified
       }
     })
 
-    // Set HTTP-only cookie
-    response.cookies.set('auth-token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 7, // 7 days
-      path: '/'
-    })
+    
+
 
     return response
   } catch (error) {

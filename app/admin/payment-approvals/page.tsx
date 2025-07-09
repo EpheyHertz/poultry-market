@@ -72,6 +72,7 @@ export default function AdminPaymentApprovals() {
       const response = await fetch('/api/admin/payment-approvals');
       if (response.ok) {
         const data = await response.json();
+        console.log('Fetched pending payments:', data);
         setOrders(data.orders);
       }
     } catch (error) {

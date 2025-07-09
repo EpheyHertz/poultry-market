@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'
 import { createNotification, notificationTemplates } from '@/lib/notifications'
+import { OrderStatus } from '@prisma/client'
 
 export async function POST(
   request: NextRequest,
@@ -40,7 +41,7 @@ export async function POST(
     const updatedOrder = await prisma.order.update({
       where: { id: params.id },
       data: {
-        status: 'REJECTED',
+        status: OrderStatus.REJECTED,
         rejectionReason: reason
       }
     })

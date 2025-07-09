@@ -195,7 +195,7 @@ export default function AdminOrders() {
   const handleApproveOrder = async (orderId: string) => {
     setIsLoading(true);
     try {
-      const response = await fetch(`/api/orders/${orderId}`, {
+      const response = await fetch(`/api/orders/${orderId}/approve-payment`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
