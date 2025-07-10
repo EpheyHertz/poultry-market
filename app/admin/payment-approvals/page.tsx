@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -72,11 +71,17 @@ export default function AdminPaymentApprovals() {
       const response = await fetch('/api/admin/payment-approvals');
       if (response.ok) {
         const data = await response.json();
-        console.log('Fetched pending payments:', data);
-        setOrders(data.orders);
+        const processedOrders = data.orders.map((order: any) => ({
+          ...order,
+          paymentDetails: order.paymentDetails || null,
+          paymentPhone: order.paymentDetails?.phone || null,
+          paymentReference: order.paymentDetails?.reference || null
+        }));
+        setOrders(processedOrders);
       }
     } catch (error) {
       console.error('Failed to fetch pending payments:', error);
+      toast.error('Failed to load payment approvals');
     }
   };
 
@@ -130,9 +135,9 @@ export default function AdminPaymentApprovals() {
 
   const filteredOrders = orders.filter(order =>
     order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    order.customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    order.paymentPhone?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    order.paymentReference?.toLowerCase().includes(searchTerm.toLowerCase())
+    order.customer?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (order.paymentDetails?.phone && order.paymentDetails.phone.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (order.paymentDetails?.reference && order.paymentDetails.reference.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   if (!user) {
@@ -182,7 +187,7 @@ export default function AdminPaymentApprovals() {
                     <div>
                       <CardTitle className="text-xl">Order #{order.id.slice(-8)}</CardTitle>
                       <CardDescription>
-                        Customer: {order.customer.name} • {new Date(order.createdAt).toLocaleDateString()}
+                        Customer: {order.customer?.name} • {new Date(order.createdAt).toLocaleDateString()}
                       </CardDescription>
                     </div>
                     <Badge className={getPaymentStatusColor(order.paymentStatus)}>
@@ -233,20 +238,25 @@ export default function AdminPaymentApprovals() {
                       <div className="space-y-3">
                         <div className="bg-gray-50 p-3 rounded-lg">
                           <p className="text-sm font-medium">Payment Method: {order.paymentType}</p>
-                          {order.paymentPhone && (
+                          {order.paymentDetails?.phone && (
                             <p className="text-sm text-gray-600 flex items-center">
                               <Phone className="h-3 w-3 mr-1" />
-                              {order.paymentPhone}
+                              {order.paymentDetails.phone}
                             </p>
                           )}
-                          {order.paymentReference && (
+                          {order.paymentDetails?.reference && (
                             <p className="text-sm text-gray-600">
-                              Reference: {order.paymentReference}
+                              Reference: {order.paymentDetails.reference}
                             </p>
                           )}
-                          {order.paymentDetails && (
+                          {order.paymentDetails?.message && (
                             <p className="text-sm text-gray-600">
-                              Details: {order.paymentDetails}
+                              Message: {order.paymentDetails.message}
+                            </p>
+                          )}
+                          {order.paymentDetails?.code && (
+                            <p className="text-sm text-gray-600">
+                              Transaction Code: {order.paymentDetails.code}
                             </p>
                           )}
                         </div>
@@ -256,8 +266,9 @@ export default function AdminPaymentApprovals() {
                             <User className="h-3 w-3 mr-1" />
                             Customer Information
                           </h5>
-                          <p className="text-sm">{order.customer.name}</p>
-                          <p className="text-sm text-gray-600">{order.customer.email}</p>
+                          <p className="text-sm">{order.customer?.name}</p>
+                          <p className="text-sm text-gray-600">{order.customer?.email}</p>
+                          <p className="text-sm text-gray-600">{order.customer?.phone}</p>
                         </div>
                       </div>
                     </div>
@@ -289,11 +300,14 @@ export default function AdminPaymentApprovals() {
                               <h4 className="font-medium mb-2">Payment Details</h4>
                               <p className="text-sm"><strong>Amount:</strong> {formatCurrency(order.total)}</p>
                               <p className="text-sm"><strong>Method:</strong> {order.paymentType}</p>
-                              {order.paymentPhone && (
-                                <p className="text-sm"><strong>Phone:</strong> {order.paymentPhone}</p>
+                              {order.paymentDetails?.phone && (
+                                <p className="text-sm"><strong>Phone:</strong> {order.paymentDetails.phone}</p>
                               )}
-                              {order.paymentReference && (
-                                <p className="text-sm"><strong>Reference:</strong> {order.paymentReference}</p>
+                              {order.paymentDetails?.reference && (
+                                <p className="text-sm"><strong>Reference:</strong> {order.paymentDetails.reference}</p>
+                              )}
+                              {order.paymentDetails?.code && (
+                                <p className="text-sm"><strong>Transaction Code:</strong> {order.paymentDetails.code}</p>
                               )}
                             </div>
 

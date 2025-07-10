@@ -15,145 +15,145 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '10')
     const skip = (page - 1) * limit
 
-    const where: any = {
-      paymentStatus: 'PENDING'
-    }
-
-    const [orders, total] = await Promise.all([
-      prisma.order.findMany({
-        where,
-        include: {
-          customer: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              phone: true
-            }
-          },
-          items: {
-            include: {
-              product: {
-                select: {
-                  id: true,
-                  name: true,
-                  price: true,
-                  type: true
-                }
-              }
-            }
-          },
-          // Ensure payment is included with all fields
-          payment: {
-            include: {
-              user: {
-                select: {
-                  id: true,
-                  name: true,
-                  phone: true
-                }
-              }
-            }
-          },
-          delivery: {
-            select: {
-              status: true,
-              fee: true,
-              agent: {
-                select: {
-                  id: true,
-                  name: true,
-                  phone: true
-                }
-              }
-            }
-          },
-          paymentApprovals: {
-            include: {
-              approver: {
-                select: {
-                  id: true,
-                  name: true,
-                  role: true
-                }
-              }
-            },
-            orderBy: { createdAt: 'desc' }
+    // First fetch orders with basic information
+    const orders = await prisma.order.findMany({
+      where: { paymentStatus: { in: ['PENDING', 'SUBMITTED', 'UNPAID','APPROVED','REJECTED'] } },
+      select: {
+        id: true,
+        createdAt: true,
+        updatedAt: true,
+        status: true,
+        paymentStatus: true,
+        paymentType: true,
+        total: true,
+        subtotal: true,
+        discountAmount: true,
+        voucherCode: true,
+        notes: true,
+        rejectionReason: true,
+        customer: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true
           }
         },
-        orderBy: { createdAt: 'desc' },
-        skip,
-        take: limit,
-      }),
-      prisma.order.count({ where })
-    ])
-
-    // Format the response to ensure payment details are included
-    const formattedOrders = orders.map(order => {
-      // Check if payment exists but wasn't properly included
-      let paymentDetails = order.payment
-      if (!paymentDetails) {
-        // If payment is null but paymentStatus is PENDING, there might be a data inconsistency
-        console.warn(`Order ${order.id} has paymentStatus PENDING but no payment record`)
-      }
-
-      return {
-        id: order.id,
-        createdAt: order.createdAt,
-        updatedAt: order.updatedAt,
-        status: order.status,
-        paymentStatus: order.paymentStatus,
-        paymentType: order.paymentType,
-        total: order.total,
-        subtotal: order.subtotal,
-        discountAmount: order.discountAmount,
-        voucherCode: order.voucherCode,
-        notes: order.notes,
-        rejectionReason: order.rejectionReason,
-        customer: order.customer,
-        items: order.items.map(item => ({
-          id: item.id,
-          productId: item.productId,
-          quantity: item.quantity,
-          price: item.price,
-          discountApplied: item.discountApplied,
-          product: {
-            id: item.product.id,
-            name: item.product.name,
-            price: item.product.price,
-            type: item.product.type
+        items: {
+          select: {
+            id: true,
+            productId: true,
+            quantity: true,
+            price: true,
+            discountApplied: true,
+            product: {
+              select: {
+                id: true,
+                name: true,
+                price: true,
+                type: true
+              }
+            }
           }
-        })),
-        payment: paymentDetails ? {
-          id: paymentDetails.id,
-          amount: paymentDetails.amount,
-          method: paymentDetails.method,
-          status: paymentDetails.status,
-          phoneNumber: paymentDetails.phoneNumber,
-          transactionCode: paymentDetails.transactionCode,
-          mpesaMessage: paymentDetails.mpesaMessage,
-          referenceNumber: paymentDetails.referenceNumber,
-          createdAt: paymentDetails.createdAt,
-          updatedAt: paymentDetails.updatedAt,
-          payer: paymentDetails.user
-        } : null,
-        delivery: order.delivery,
-        paymentApprovals: order.paymentApprovals,
-        // Legacy fields
-        paymentDetails: paymentDetails ? {
-          phone: paymentDetails.phoneNumber,
-          reference: paymentDetails.referenceNumber,
-          message: paymentDetails.mpesaMessage,
-          code: paymentDetails.transactionCode
-        } : null,
-        paymentPhone: paymentDetails?.phoneNumber || null,
-        paymentReference: paymentDetails?.referenceNumber || null
+        },
+        delivery: {
+          select: {
+            status: true,
+            fee: true,
+            agent: {
+              select: {
+                id: true,
+                name: true,
+                phone: true
+              }
+            }
+          }
+        },
+        paymentApprovals: {
+          select: {
+            id: true,
+            action: true,
+            notes: true,
+            createdAt: true,
+            approver: {
+              select: {
+                id: true,
+                name: true,
+                role: true
+              }
+            }
+          },
+          orderBy: { createdAt: 'desc' }
+        }
+      },
+      orderBy: { createdAt: 'desc' },
+      skip,
+      take: limit,
+    })
+
+    // Get the count of pending orders
+    const total = await prisma.order.count({ 
+      where: { paymentStatus: 'PENDING' }
+    })
+
+    // Fetch payments separately for these orders
+    const payments = await prisma.payment.findMany({
+      where: {
+        orderId: {
+          in: orders.map(order => order.id)
+        }
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            phone: true
+          }
+        }
       }
     })
-    console.log('Fetched pending payments:', formattedOrders)
+
+    // Create a map for quick payment lookup by orderId
+    const paymentMap = new Map(
+      payments.map(payment => [payment.orderId, payment])
+    )
+
+    // Merge orders with their payments
+    const ordersWithPayments = orders.map(order => {
+      const payment = paymentMap.get(order.id)
+      
+      return {
+        ...order,
+        payment: payment ? {
+          id: payment.id,
+          amount: payment.amount,
+          method: payment.method,
+          status: payment.status,
+          phoneNumber: payment.phoneNumber,
+          transactionCode: payment.transactionCode,
+          mpesaMessage: payment.mpesaMessage,
+          referenceNumber: payment.referenceNumber,
+          description: payment.description,
+          createdAt: payment.createdAt,
+          updatedAt: payment.updatedAt,
+          payer: payment.user
+        } : null,
+        // Legacy fields for backward compatibility
+        paymentDetails: payment ? {
+          phone: payment.phoneNumber,
+          reference: payment.referenceNumber,
+          message: payment.mpesaMessage,
+          code: payment.transactionCode
+        } : null,
+        paymentPhone: payment?.phoneNumber || null,
+        paymentReference: payment?.referenceNumber || null
+      }
+    })
+    // console.log('Orders with payments:', ordersWithPayments)
 
     return NextResponse.json({
-      orders: formattedOrders,
+      orders: ordersWithPayments,
       pagination: {
         page,
         limit,
@@ -161,10 +161,14 @@ export async function GET(request: NextRequest) {
         pages: Math.ceil(total / limit)
       }
     })
+
   } catch (error) {
-    console.error('Failed to fetch payment approvals:', error)
+    console.error('Failed to fetch pending payments:', error)
     return NextResponse.json(
-      { error: 'Failed to fetch payment approvals', details: error instanceof Error ? error.message : String(error) },
+      { 
+        error: 'Failed to fetch pending payments',
+        details: error instanceof Error ? error.message : String(error)
+      },
       { status: 500 }
     )
   }

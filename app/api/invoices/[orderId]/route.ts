@@ -1,10 +1,8 @@
-
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'
 import { generateInvoicePDF } from '@/lib/invoice'
-import path from 'path'
-import fs from 'fs'
+import { uploadToCloudinary } from '@/lib/cloudinary'
 
 export async function GET(
   request: NextRequest,
@@ -62,33 +60,47 @@ export async function GET(
         voucherCode: order.voucherCode
       }
 
-      const fileName = await generateInvoicePDF(invoiceData)
-      const filePath = `/invoices/${fileName}`
+      // Generate PDF buffer
+      const pdfBuffer = await generateInvoicePDF(invoiceData)
+      
+      // Convert buffer to File object
+      const pdfFile = new File([pdfBuffer], `${invoiceNumber}.pdf`, {
+        type: 'application/pdf',
+      })
 
+      // Upload to Cloudinary
+      const cloudinaryUrl = await uploadToCloudinary(
+        pdfFile,
+        `invoices/${invoiceNumber}`
+      )
+
+      if (!cloudinaryUrl) {
+        throw new Error('Failed to upload invoice to Cloudinary')
+      }
+
+      // Save invoice reference in database
       await prisma.invoice.create({
         data: {
           orderId: order.id,
           invoiceNumber,
-          fileName,
-          filePath
+          fileName: `${invoiceNumber}.pdf`,
+          filePath: cloudinaryUrl,
+          // Note: Your upload function doesn't return public_id, so we can't store it
+          // If you need public_id, you'll need to modify the upload function to return it
         }
       })
 
       return NextResponse.json({ 
-        downloadUrl: filePath,
+        downloadUrl: cloudinaryUrl,
         invoiceNumber 
       })
     }
 
     if (order.invoice) {
-      const filePath = path.join(process.cwd(), 'public', order.invoice.filePath)
-      
-      if (fs.existsSync(filePath)) {
-        return NextResponse.json({ 
-          downloadUrl: order.invoice.filePath,
-          invoiceNumber: order.invoice.invoiceNumber 
-        })
-      }
+      return NextResponse.json({ 
+        downloadUrl: order.invoice.filePath,
+        invoiceNumber: order.invoice.invoiceNumber 
+      })
     }
 
     return NextResponse.json({ error: 'Invoice not available' }, { status: 404 })

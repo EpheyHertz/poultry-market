@@ -1,8 +1,7 @@
-
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'
-import { PaymentStatus, OrderStatus } from '@prisma/client'
+import { PaymentStatus, OrderStatus, PaymentType, PaymentMethod } from '@prisma/client'
 import { createNotification, notificationTemplates } from '@/lib/notifications'
 
 interface RouteParams {
@@ -33,7 +32,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
           include: {
             product: true
           }
-        }
+        },
+        payment: true
       }
     })
 
@@ -42,11 +42,18 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     if (order.paymentStatus !== 'SUBMITTED') {
-      return NextResponse.json({ error: 'Payment not pending approval' }, { status: 400 })
+      return NextResponse.json(
+        { error: 'Payment not pending approval' }, 
+        { status: 400 }
+      )
     }
 
-    const newPaymentStatus = action === 'APPROVE' ? PaymentStatus.APPROVED : PaymentStatus.REJECTED
-    const newOrderStatus = action === 'APPROVE' ? OrderStatus.CONFIRMED : OrderStatus.CANCELLED
+    const newPaymentStatus = action === 'APPROVE' 
+      ? PaymentStatus.APPROVED 
+      : PaymentStatus.REJECTED
+    const newOrderStatus = action === 'APPROVE' 
+      ? OrderStatus.CONFIRMED 
+      : OrderStatus.REJECTED
 
     const updatedOrder = await prisma.$transaction(async (tx) => {
       // Update order status
@@ -54,7 +61,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         where: { id: params.orderId },
         data: {
           paymentStatus: newPaymentStatus,
-          status: newOrderStatus
+          status: newOrderStatus,
+          ...(action === 'REJECT' && { rejectionReason: notes || null })
         }
       })
 
@@ -68,21 +76,37 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         }
       })
 
-      // Create payment record if approved
+      // Handle payment - update if exists, create if not
       if (action === 'APPROVE') {
-        await tx.payment.create({
-          data: {
-            orderId: order.id,
-            userId: order.customerId,
-            amount: order.total,
-            method: order.paymentType as any,
-            status: 'APPROVED',
-            phoneNumber: order.paymentPhone,
-            transactionCode: order.paymentReference,
-            mpesaMessage: order.paymentDetails,
-            referenceNumber: `PAY-${Date.now()}`
-          }
-        })
+        if (order.payment) {
+          // Update existing payment
+          await tx.payment.update({
+            where: { id: order.payment.id },
+            data: {
+              status: PaymentStatus.APPROVED,
+              phoneNumber: order.paymentPhone || order.payment.phoneNumber,
+              transactionCode: order.paymentReference || order.payment.transactionCode,
+              mpesaMessage: order.paymentDetails ? 
+                JSON.stringify(order.paymentDetails) : 
+                order.payment.mpesaMessage
+            }
+          })
+        } else {
+          // Create new payment record
+          await tx.payment.create({
+            data: {
+              orderId: order.id,
+              userId: order.customerId,
+              amount: order.total,
+              method: PaymentMethod.MPESA,
+              status: 'APPROVED',
+              phoneNumber: order.paymentPhone || null,
+              transactionCode: order.paymentReference || null,
+              mpesaMessage: order.paymentDetails ? JSON.stringify(order.paymentDetails) : null,
+              referenceNumber: `PAY-${Date.now()}`
+            }
+          })
+        }
       }
 
       return updated
@@ -91,7 +115,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     // Send notification to customer
     const template = action === 'APPROVE' 
       ? notificationTemplates.paymentApproved(order.id.slice(-8))
-      : notificationTemplates.paymentRejected(order.id.slice(-8), notes)
+      : notificationTemplates.paymentRejected(order.id.slice(-8), notes || 'No reason provided')
 
     await createNotification({
       receiverId: order.customerId,
@@ -102,9 +126,34 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       message: template.message
     })
 
-    return NextResponse.json(updatedOrder)
+    // Return updated order with payment details
+    const fullOrder = await prisma.order.findUnique({
+      where: { id: updatedOrder.id },
+      include: {
+        payment: true,
+        customer: true,
+        items: {
+          include: {
+            product: true
+          }
+        }
+      }
+    })
+
+    return NextResponse.json({
+      order: fullOrder,
+      paymentDetails: {
+        transactionCode: fullOrder?.payment?.transactionCode || null,
+        mpesaMessage: fullOrder?.payment?.mpesaMessage ? 
+          JSON.parse(fullOrder.payment.mpesaMessage) : null,
+        paymentPhone: fullOrder?.payment?.phoneNumber || null
+      }
+    })
   } catch (error) {
     console.error('Payment approval error:', error)
-    return NextResponse.json({ error: 'Failed to process payment approval' }, { status: 500 })
+    return NextResponse.json(
+      { error: 'Failed to process payment approval' }, 
+      { status: 500 }
+    )
   }
 }

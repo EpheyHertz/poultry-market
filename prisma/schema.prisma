@@ -367,6 +367,7 @@ model Payment {
   phoneNumber     String?
   transactionCode String?
   mpesaMessage    String?
+  description     String?
   referenceNumber String?
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
@@ -723,6 +724,7 @@ model Invoice {
   invoiceNumber   String   @unique
   fileName        String
   filePath        String
+  cloudinaryPublicId String?
   generatedAt     DateTime @default(now())
 
   @@map("invoices")
