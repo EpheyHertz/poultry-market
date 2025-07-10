@@ -10,7 +10,8 @@ interface RouteParams {
   }
 }
 
-export async function POST(request: NextRequest, { params }: RouteParams) {
+export async function POST(request: NextRequest) {
+  const orderId = request.nextUrl.pathname.split('/').pop() || ''
   try {
     const user = await getCurrentUser()
     
@@ -25,7 +26,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     const order = await prisma.order.findUnique({
-      where: { id: params.orderId },
+      where: { id: orderId },
       include: {
         customer: true,
         items: {
@@ -58,7 +59,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const updatedOrder = await prisma.$transaction(async (tx) => {
       // Update order status
       const updated = await tx.order.update({
-        where: { id: params.orderId },
+        where: { id: orderId },
         data: {
           paymentStatus: newPaymentStatus,
           status: newOrderStatus,
