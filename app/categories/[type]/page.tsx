@@ -9,21 +9,23 @@ import StockAlert from '@/components/stock/stock-alert'
 import Link from 'next/link'
 import Image from 'next/image'
 
-interface CategoryPageProps {
-  params: {
-    type: string
-  }
-}
-
-export default async function CategoryPage({ params }: CategoryPageProps) {
-  const res = await fetch(`/api/categories/${params.type}`)
+export default async function CategoryPage({
+  params,
+}: {
+  params: { type: string }
+}) {
+  const res = await fetch(
+    `/api/categories/${params.type}`,
+    {
+      cache: 'no-store',
+    }
+  )
 
   if (!res.ok) {
     notFound()
   }
 
   const data = await res.json()
-
   const category = data.category
   const products = data.products
 
@@ -73,7 +75,9 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
 
       {products.length === 0 && (
         <div className="text-center py-12">
-          <p className="text-muted-foreground">No products found in this category.</p>
+          <p className="text-muted-foreground">
+            No products found in this category.
+          </p>
         </div>
       )}
     </div>
