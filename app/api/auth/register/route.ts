@@ -26,7 +26,8 @@ export async function POST(request: NextRequest) {
     const verificationTokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
 
     // Generate dashboard slug for sellers and companies
-    let dashboardSlug = null
+   let dashboardSlug: string | null
+
     if (role === 'SELLER' || role === 'COMPANY') {
       dashboardSlug = name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-')
       
