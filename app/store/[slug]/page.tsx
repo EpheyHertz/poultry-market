@@ -10,6 +10,7 @@ import { MapPin, Phone, Globe, Star, Package, Calendar, Mail, MessageCircle, Ext
 import Link from 'next/link'
 import ChatWidget from '@/components/chat/chat-widget'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useParams } from 'next/navigation'
 
 interface StorePageProps {
   params: {
@@ -17,7 +18,8 @@ interface StorePageProps {
   }
 }
 
-export default function StorePage({ params }: StorePageProps) {
+export default function StorePage() {
+  const { slug } = useParams<StorePageProps['params']>()
   const router = useRouter()
   const [storeOwner, setStoreOwner] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -27,7 +29,7 @@ export default function StorePage({ params }: StorePageProps) {
     const fetchStoreData = async () => {
       try {
         setLoading(true)
-        const response = await fetch(`/api/stores/${params.slug}`)
+        const response = await fetch(`/api/stores/${slug}`)
         if (!response.ok) {
           throw new Error('Failed to fetch store data')
         }
@@ -41,7 +43,7 @@ export default function StorePage({ params }: StorePageProps) {
     }
 
     fetchStoreData()
-  }, [params.slug])
+  }, [slug])
 
   if (loading) {
     return (

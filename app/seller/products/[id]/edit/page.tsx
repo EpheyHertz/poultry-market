@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import ImageUpload from '@/components/ui/image-upload'
 import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
+import { useParams } from 'next/navigation'
 
 interface EditProductProps {
   params: {
@@ -19,7 +20,8 @@ interface EditProductProps {
   }
 }
 
-export default function EditProduct({ params }: EditProductProps) {
+export default function EditProduct() {
+   const { id } = useParams()
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
   const [product, setProduct] = useState<any>(null)
@@ -45,7 +47,7 @@ export default function EditProduct({ params }: EditProductProps) {
         }
 
         // Fetch product data
-        const productResponse = await fetch(`/api/products/${params.id}?sellerId=${userData.id}`)
+        const productResponse = await fetch(`/api/products/${id}?sellerId=${userData.id}`)
         if (!productResponse.ok) {
           throw new Error('Failed to fetch product')
         }
@@ -65,7 +67,7 @@ export default function EditProduct({ params }: EditProductProps) {
     }
 
     fetchData()
-  }, [params.id, router])
+  }, [id, router])
 
   if (loading) {
     return (

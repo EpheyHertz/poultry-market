@@ -21,14 +21,16 @@ import {
   AlertCircle
 } from 'lucide-react'
 import Link from 'next/link'
+import { useParams } from 'next/navigation'
 
-interface OrderPageProps {
-  params: {
-    id: string
-  }
-}
+// interface OrderPageProps {
+//   params: {
+//     id: string
+//   }
+// }
 
-export default function OrderPage({ params }: OrderPageProps) {
+export default function OrderPage() {
+  const { id } = useParams()
   const router = useRouter()
   const [order, setOrder] = useState<any>(null)
   const [user, setUser] = useState<any>(null)
@@ -54,7 +56,7 @@ export default function OrderPage({ params }: OrderPageProps) {
         }
 
         // Fetch order data
-        const orderResponse = await fetch(`/api/orders/${params.id}?userId=${userData.id}`)
+        const orderResponse = await fetch(`/api/orders/${id}?userId=${userData.id}`)
         if (!orderResponse.ok) {
           throw new Error('Failed to fetch order')
         }
@@ -75,7 +77,7 @@ export default function OrderPage({ params }: OrderPageProps) {
     }
 
     fetchData()
-  }, [params.id, router])
+  }, [id, router])
 
   const getStatusColor = (status: string) => {
     switch (status) {
