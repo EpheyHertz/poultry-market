@@ -4,7 +4,7 @@ import fs from 'fs'
 import path from 'path'
 
 interface InvoiceData {
-  invoiceNumber: string
+  invoiceNumber: string | null
   order: any
   customer: any
   seller: any
@@ -12,7 +12,7 @@ interface InvoiceData {
   subtotal: number
   discountAmount: number
   total: number
-  voucherCode?: string
+  voucherCode?: string | null
 }
 
 export async function generateInvoicePDF(data: InvoiceData): Promise<string> {
