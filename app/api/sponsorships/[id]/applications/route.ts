@@ -4,19 +4,20 @@ import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'
 
 export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
+  request: NextRequest
+  // { params }: { params: { id: string } }
 ) {
   try {
-    const user = await getCurrentUser()
     
+    const user = await getCurrentUser()
+     const id = request.nextUrl.pathname.split('/').pop() || ''
     if (!user || user.role !== 'COMPANY') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const sponsorship = await prisma.sponsorship.findFirst({
       where: {
-        id: params.id,
+        id: id,
         companyId: user.id
       }
     })
@@ -27,7 +28,7 @@ export async function GET(
 
     const applications = await prisma.sponsorshipApplication.findMany({
       where: {
-        sponsorshipId: params.id
+        sponsorshipId: id
       },
       include: {
         seller: {
@@ -55,10 +56,11 @@ export async function GET(
 }
 
 export async function POST(
-  request: NextRequest,
-  { params }: { params: { id: string } }
+  request: NextRequest
+  // { params }: { params: { id: string } }
 ) {
   try {
+     const id = request.nextUrl.pathname.split('/').pop() || ''
     const user = await getCurrentUser()
     
     if (!user || user.role !== 'SELLER') {
@@ -68,7 +70,7 @@ export async function POST(
     const { message, businessDetails } = await request.json()
 
     const sponsorship = await prisma.sponsorship.findUnique({
-      where: { id: params.id }
+      where: { id: id }
     })
 
     if (!sponsorship) {
@@ -78,7 +80,7 @@ export async function POST(
     // Check if seller already applied
     const existingApplication = await prisma.sponsorshipApplication.findFirst({
       where: {
-        sponsorshipId: params.id,
+        sponsorshipId: id,
         sellerId: user.id
       }
     })
@@ -89,7 +91,7 @@ export async function POST(
 
     const application = await prisma.sponsorshipApplication.create({
       data: {
-        sponsorshipId: params.id,
+        sponsorshipId: id,
         sellerId: user.id,
         message,
         businessDetails,

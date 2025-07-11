@@ -5,17 +5,17 @@ import { generateInvoicePDF } from '@/lib/invoice'
 import { uploadToCloudinary } from '@/lib/cloudinary'
 
 export async function GET(
-  request: NextRequest,
-  { params }: { params: { orderId: string } }
+  request: NextRequest
 ) {
   try {
+       const orderId = request.nextUrl.pathname.split('/').pop() || ''
     const user = await getCurrentUser()
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const order = await prisma.order.findUnique({
-      where: { id: params.orderId },
+      where: { id: orderId },
       include: {
         customer: true,
         items: {

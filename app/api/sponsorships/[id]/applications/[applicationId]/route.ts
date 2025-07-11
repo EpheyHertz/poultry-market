@@ -1,12 +1,8 @@
-
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'
 
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: { id: string; applicationId: string } }
-) {
+export async function PUT(request: NextRequest) {
   try {
     const user = await getCurrentUser()
     
@@ -20,10 +16,15 @@ export async function PUT(
       return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
     }
 
+    // Extract path parameters from URL
+    const segments = request.nextUrl.pathname.split('/')
+    const applicationId = segments.pop() || ''
+    const sponsorshipId = segments.pop() || ''
+
     const application = await prisma.sponsorshipApplication.findFirst({
       where: {
-        id: params.applicationId,
-        sponsorshipId: params.id,
+        id: applicationId,
+        sponsorshipId: sponsorshipId,
         sponsorship: {
           companyId: user.id
         }
@@ -39,7 +40,7 @@ export async function PUT(
     }
 
     const updatedApplication = await prisma.sponsorshipApplication.update({
-      where: { id: params.applicationId },
+      where: { id: applicationId },
       data: {
         status,
         rejectionReason: status === 'REJECTED' ? rejectionReason : null,
@@ -66,10 +67,10 @@ export async function PUT(
       }
     })
 
-    // If approved, create actual sponsorship relationship
+    // If approved, activate the sponsorship
     if (status === 'APPROVED') {
       await prisma.sponsorship.update({
-        where: { id: params.id },
+        where: { id: sponsorshipId },
         data: {
           sellerId: application.sellerId,
           status: 'ACTIVE',

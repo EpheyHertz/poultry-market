@@ -5,10 +5,11 @@ import { getCurrentUser } from '@/lib/auth'
 import { createNotification, notificationTemplates } from '@/lib/notifications'
 
 export async function PUT(
-  request: NextRequest,
-  { params }: { params: { id: string } }
+  request: NextRequest
+  // { params }: { params: { id: string } }
 ) {
   try {
+     const id = request.nextUrl.pathname.split('/').pop() || ''
     const user = await getCurrentUser()
     
     if (!user || user.role !== 'ADMIN') {
@@ -22,7 +23,7 @@ export async function PUT(
     }
 
     const sponsorship = await prisma.sponsorship.findUnique({
-      where: { id: params.id },
+      where: { id: id },
       include: {
         company: true,
         seller: true
@@ -46,7 +47,7 @@ export async function PUT(
     }
 
     const updatedSponsorship = await prisma.sponsorship.update({
-      where: { id: params.id },
+      where: { id: id },
       data: updateData,
       include: {
         company: true,
