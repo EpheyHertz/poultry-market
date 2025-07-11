@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { MapPin, Phone, Globe, Star, Package, Calendar, Mail, MessageCircle, ExternalLink } from 'lucide-react'
+import { MapPin, Phone, Globe, Star, Package, Calendar, Mail, MessageCircle, ExternalLink, Heart } from 'lucide-react'
 import Link from 'next/link'
 import ChatWidget from '@/components/chat/chat-widget'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -129,6 +129,7 @@ export default function StorePage({ params }: StorePageProps) {
       productId: product.id,
       productName: product.name,
     })) || []
+  ) || []
   const totalReviews = allProductReviews.length
   const averageRating = totalReviews > 0 
     ? allProductReviews.reduce((sum: number, review: any) => sum + review.rating, 0) / totalReviews
