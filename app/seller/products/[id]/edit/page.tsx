@@ -1,40 +1,106 @@
+"use client"
 
-import { redirect, notFound } from 'next/navigation';
-import { getCurrentUser } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
-import DashboardLayout from '@/components/layout/dashboard-layout';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import ImageUpload from '@/components/ui/image-upload';
-import { ArrowLeft } from 'lucide-react';
-import Link from 'next/link';
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import DashboardLayout from '@/components/layout/dashboard-layout'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import ImageUpload from '@/components/ui/image-upload'
+import { ArrowLeft } from 'lucide-react'
+import Link from 'next/link'
 
 interface EditProductProps {
   params: {
-    id: string;
-  };
+    id: string
+  }
 }
 
-export default async function EditProduct({ params }: EditProductProps) {
-  const user = await getCurrentUser();
-  
-  if (!user || user.role !== 'SELLER') {
-    redirect('/auth/login');
+export default function EditProduct({ params }: EditProductProps) {
+  const router = useRouter()
+  const [user, setUser] = useState<any>(null)
+  const [product, setProduct] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true)
+        
+        // Fetch user data
+        const userResponse = await fetch('/api/auth/current-user')
+        if (!userResponse.ok) {
+          throw new Error('Failed to fetch user')
+        }
+        const userData = await userResponse.json()
+        setUser(userData)
+
+        if (!userData || userData.role !== 'SELLER') {
+          router.push('/auth/login')
+          return
+        }
+
+        // Fetch product data
+        const productResponse = await fetch(`/api/products/${params.id}?sellerId=${userData.id}`)
+        if (!productResponse.ok) {
+          throw new Error('Failed to fetch product')
+        }
+        const productData = await productResponse.json()
+        
+        if (!productData) {
+          setError('Product not found')
+          return
+        }
+
+        setProduct(productData)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'An unknown error occurred')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchData()
+  }, [params.id, router])
+
+  if (loading) {
+    return (
+      <DashboardLayout user={null}>
+        <div className="max-w-4xl mx-auto space-y-8">
+          <div className="flex items-center justify-center h-64">
+            <p>Loading product data...</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    )
   }
 
-  const product = await prisma.product.findUnique({
-    where: {
-      id: params.id,
-      sellerId: user.id
-    }
-  });
+  if (error) {
+    return (
+      <DashboardLayout user={user}>
+        <div className="max-w-4xl mx-auto space-y-8">
+          <div className="flex items-center justify-center h-64">
+            <p className="text-red-500">{error}</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    )
+  }
 
   if (!product) {
-    notFound();
+    return (
+      <DashboardLayout user={user}>
+        <div className="max-w-4xl mx-auto space-y-8">
+          <div className="flex items-center justify-center h-64">
+            <p>Product not found</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    )
   }
 
   return (
@@ -154,5 +220,5 @@ export default async function EditProduct({ params }: EditProductProps) {
         </Card>
       </div>
     </DashboardLayout>
-  );
+  )
 }

@@ -1,7 +1,7 @@
+"use client"
 
-import { notFound } from 'next/navigation'
-import { prisma } from '@/lib/prisma'
-import { getCurrentUser } from '@/lib/auth'
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -28,82 +28,54 @@ interface OrderPageProps {
   }
 }
 
-export default async function OrderPage({ params }: OrderPageProps) {
-  const { id } = await params
-  const user = await getCurrentUser()
+export default function OrderPage({ params }: OrderPageProps) {
+  const router = useRouter()
+  const [order, setOrder] = useState<any>(null)
+  const [user, setUser] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  if (!user) {
-    return notFound()
-  }
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true)
+        
+        // Fetch user data
+        const userResponse = await fetch('/api/auth/current-user')
+        if (!userResponse.ok) {
+          throw new Error('Failed to fetch user')
+        }
+        const userData = await userResponse.json()
+        setUser(userData)
 
-  const order = await prisma.order.findFirst({
-    where: {
-      id: id,
-      OR: [
-        { customerId: user.id }, // Customer can view their order
-        { items: { some: { product: { sellerId: user.id } } } }, // Seller can view orders for their products
-        ...(user.role === 'ADMIN' ? [{}] : []), // Admin can view any order
-        ...(user.role === 'DELIVERY_AGENT' ? [{ delivery: { agentId: user.id } }] : []) // Agent can view assigned deliveries
-      ]
-    },
-    include: {
-      customer: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          phone: true
+        if (!userData) {
+          router.replace('/not-found')
+          return
         }
-      },
-      items: {
-        include: {
-          product: {
-            include: {
-              seller: {
-                select: {
-                  id: true,
-                  name: true,
-                  role: true,
-                  phone: true,
-                  email: true
-                }
-              }
-            }
-          }
+
+        // Fetch order data
+        const orderResponse = await fetch(`/api/orders/${params.id}?userId=${userData.id}`)
+        if (!orderResponse.ok) {
+          throw new Error('Failed to fetch order')
         }
-      },
-      delivery: {
-        include: {
-          agent: {
-            select: {
-              id: true,
-              name: true,
-              phone: true,
-              email: true,
-              avatar: true
-            }
-          }
+        const orderData = await orderResponse.json()
+        
+        if (!orderData) {
+          router.replace('/not-found')
+          return
         }
-      },
-      paymentApprovals: {
-        include: {
-          approver: {
-            select: {
-              id: true,
-              name: true,
-              role: true
-            }
-          }
-        },
-        orderBy: { createdAt: 'desc' }
-      },
-      payment: true
+
+        setOrder(orderData)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'An unknown error occurred')
+        router.replace('/not-found')
+      } finally {
+        setLoading(false)
+      }
     }
-  })
 
-  if (!order) {
-    notFound()
-  }
+    fetchData()
+  }, [params.id, router])
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -150,6 +122,8 @@ export default async function OrderPage({ params }: OrderPageProps) {
   }
 
   const getProgressSteps = () => {
+    if (!order) return { steps: [], currentIndex: -1, progress: 0 }
+
     const steps = [
       { key: 'PENDING', label: 'Order Placed', icon: Package, description: 'Order has been placed and is awaiting confirmation' },
       { key: 'CONFIRMED', label: 'Confirmed', icon: CheckCircle, description: 'Order has been confirmed and payment approved' },
@@ -163,6 +137,26 @@ export default async function OrderPage({ params }: OrderPageProps) {
     const progress = currentIndex >= 0 ? ((currentIndex + 1) / steps.length) * 100 : 0
 
     return { steps, currentIndex, progress }
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <p>Loading order details...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error || !order || !user) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-500">{error || 'Order not found'}</p>
+        </div>
+      </div>
+    )
   }
 
   const { steps, currentIndex, progress } = getProgressSteps()
@@ -327,7 +321,7 @@ export default async function OrderPage({ params }: OrderPageProps) {
                   <div className="mt-6 pt-6 border-t">
                     <h4 className="font-medium mb-3">Payment History</h4>
                     <div className="space-y-3">
-                      {order.paymentApprovals.map((approval) => (
+                      {order.paymentApprovals.map((approval: any) => (
                         <div key={approval.id} className="bg-gray-50 p-3 rounded-lg">
                           <div className="flex items-center justify-between">
                             <span className="font-medium text-sm">
@@ -461,7 +455,7 @@ export default async function OrderPage({ params }: OrderPageProps) {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {order.items.map((item) => (
+                  {order.items.map((item: any) => (
                     <div key={item.id} className="flex items-center space-x-3">
                       {item.product.images.length > 0 && (
                         <img 
