@@ -1,3 +1,4 @@
+// app/categories/[type]/page.tsx
 
 import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
@@ -22,7 +23,6 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
       products: {
         include: {
           product: {
-            where: { isActive: true },
             include: {
               seller: {
                 select: {
@@ -44,7 +44,9 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
     notFound()
   }
 
-  const products = category.products.map(pc => pc.product).filter(Boolean)
+  const products = category.products
+    .map(pc => pc.product)
+    .filter(p => p && p.isActive)
 
   return (
     <div className="container mx-auto px-4 py-8">
