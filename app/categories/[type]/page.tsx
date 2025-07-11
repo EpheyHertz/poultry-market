@@ -1,8 +1,7 @@
 // app/categories/[type]/page.tsx
 
 import { notFound } from 'next/navigation'
-import { prisma } from '@/lib/prisma'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { formatCurrency } from '@/lib/formatCurrency'
@@ -17,36 +16,16 @@ interface CategoryPageProps {
 }
 
 export default async function CategoryPage({ params }: CategoryPageProps) {
-  const category = await prisma.category.findUnique({
-    where: { slug: params.type },
-    include: {
-      products: {
-        include: {
-          product: {
-            include: {
-              seller: {
-                select: {
-                  id: true,
-                  name: true,
-                  role: true,
-                  tags: true
-                }
-              },
-              tags: true
-            }
-          }
-        }
-      }
-    }
-  })
+  const res = await fetch(`/api/categories/${params.type}`)
 
-  if (!category) {
+  if (!res.ok) {
     notFound()
   }
 
-  const products = category.products
-    .map(pc => pc.product)
-    .filter(p => p && p.isActive)
+  const data = await res.json()
+
+  const category = data.category
+  const products = data.products
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -58,7 +37,7 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {products.map((product) => (
+        {products.map((product: any) => (
           <Card key={product.id} className="hover:shadow-lg transition-shadow">
             <div className="relative aspect-square">
               <Image
