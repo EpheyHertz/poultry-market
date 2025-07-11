@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
       where: { email },
     })
 
-    if (!user || !await comparePassword(password, user.password)) {
+    if (!user || !await comparePassword(password, user.password as string)) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 })
     }
 
