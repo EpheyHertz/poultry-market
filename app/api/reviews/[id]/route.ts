@@ -52,10 +52,11 @@ export async function DELETE(
 }
 
 export async function PUT(
-  request: NextRequest,
-  { params }: { params: { id: string } }
+  request: NextRequest
+  // { params }: { params: { id: string } }
 ) {
   try {
+     const id = request.nextUrl.pathname.split('/').pop() || ''
     const user = await getCurrentUser()
     
     if (!user || user.role !== 'ADMIN') {
@@ -63,7 +64,7 @@ export async function PUT(
     }
 
     const { isVisible } = await request.json()
-    const reviewId = params.id
+    const reviewId = id
 
     const review = await prisma.review.update({
       where: { id: reviewId },
