@@ -1,6 +1,7 @@
-// app/categories/[type]/page.tsx
+'use client'
 
-import { notFound } from 'next/navigation'
+import { Suspense, useEffect, useState } from 'react'
+import { notFound, useParams } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -9,25 +10,28 @@ import StockAlert from '@/components/stock/stock-alert'
 import Link from 'next/link'
 import Image from 'next/image'
 
-export default async function CategoryPage({
-  params,
-}: {
-  params: { type: string }
-}) {
-  const res = await fetch(
-    `/api/categories/${params.type}`,
-    {
-      cache: 'no-store',
-    }
-  )
+function ProductGrid({ type }: { type: string }) {
+  const [category, setCategory] = useState<any>(null)
+  const [products, setProducts] = useState<any[]>([])
+  const [error, setError] = useState(false)
 
-  if (!res.ok) {
-    notFound()
-  }
+  useEffect(() => {
+    fetch(`/api/categories/${type}`)
+      .then(res => {
+        if (!res.ok) throw new Error('Category not found')
+        return res.json()
+      })
+      .then(data => {
+        setCategory(data.category)
+        setProducts(data.products)
+      })
+      .catch(() => {
+        setError(true)
+      })
+  }, [type])
 
-  const data = await res.json()
-  const category = data.category
-  const products = data.products
+  if (error) return notFound()
+  if (!category) return <p className="text-center py-12">Loading category...</p>
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -39,7 +43,7 @@ export default async function CategoryPage({
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {products.map((product: any) => (
+        {products.map((product) => (
           <Card key={product.id} className="hover:shadow-lg transition-shadow">
             <div className="relative aspect-square">
               <Image
@@ -81,5 +85,16 @@ export default async function CategoryPage({
         </div>
       )}
     </div>
+  )
+}
+
+export default function CategoryPage() {
+  const params = useParams()
+  const type = typeof params?.type === 'string' ? params.type : Array.isArray(params?.type) ? params.type[0] : ''
+
+  return (
+    <Suspense fallback={<p className="text-center py-12">Loading...</p>}>
+      <ProductGrid type={type} />
+    </Suspense>
   )
 }
