@@ -26,16 +26,16 @@ export async function POST(request: NextRequest) {
     const verificationTokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
 
     // Generate dashboard slug for sellers and companies
-   let dashboardSlug: string | null
+    let dashboardSlug: string | null = null
 
     if (role === 'SELLER' || role === 'COMPANY') {
-      dashboardSlug = name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-')
+      const baseSlug = name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-')
       
       // Ensure unique slug
       let counter = 1
-      let uniqueSlug = dashboardSlug
+      let uniqueSlug = baseSlug
       while (await prisma.user.findFirst({ where: { dashboardSlug: uniqueSlug } })) {
-        uniqueSlug = `${dashboardSlug}-${counter}`
+        uniqueSlug = `${baseSlug}-${counter}`
         counter++
       }
       dashboardSlug = uniqueSlug
