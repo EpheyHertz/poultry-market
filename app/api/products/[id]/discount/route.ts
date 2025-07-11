@@ -118,17 +118,18 @@ export async function PUT(
 }
 
 export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { id: string } }
+  request: NextRequest
+  // { params }: { params: { id: string } }
 ) {
   try {
+     const id = request.nextUrl.pathname.split('/').pop() || ''
     const user = await getCurrentUser()
     
     if (!user || !['SELLER', 'COMPANY', 'ADMIN'].includes(user.role)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { id } = await params
+    // const { id } = await params
 
     // Get the product first to verify ownership
     const product = await prisma.product.findUnique({
