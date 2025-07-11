@@ -5,8 +5,8 @@ import { getCurrentUser } from '@/lib/auth'
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
 ) {
+   const id = request.nextUrl.pathname.split('/').pop() || ''
   try {
     const user = await getCurrentUser()
     
@@ -22,7 +22,7 @@ export async function POST(
 
     // Check if delivery exists and is unassigned
     const delivery = await prisma.delivery.findUnique({
-      where: { id: params.id },
+      where: { id: id },
       include: {
         order: {
           include: {
@@ -42,7 +42,7 @@ export async function POST(
 
     // Update delivery with agent info
     const updatedDelivery = await prisma.delivery.update({
-      where: { id: params.id },
+      where: { id: id },
       data: {
         agentId: user.id,
         agentName: user.name,

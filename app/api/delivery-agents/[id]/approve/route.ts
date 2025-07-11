@@ -3,9 +3,9 @@ import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'
 
 export async function PUT(
-  request: NextRequest,
-  { params }: { params: { id: string } }
+  request: NextRequest
 ) {
+   const id = request.nextUrl.pathname.split('/').pop() || ''
   try {
     const user = await getCurrentUser()
     
@@ -17,7 +17,7 @@ export async function PUT(
 
     const agent = await prisma.user.findUnique({
       where: { 
-        id: params.id,
+        id: id,
         role: 'DELIVERY_AGENT'
       }
     })
@@ -27,7 +27,7 @@ export async function PUT(
     }
 
     const updatedAgent = await prisma.user.update({
-      where: { id: params.id },
+      where: { id: id },
       data: { 
         isApproved: approved,
         isActive: approved // Approved agents are automatically active

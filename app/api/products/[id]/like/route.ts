@@ -4,11 +4,11 @@ import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth';
 
 export async function POST(
-  request: NextRequest,
-  { params }: { params: { id: string } }
+  request: NextRequest
 ) {
+   const id = request.nextUrl.pathname.split('/').pop() || ''
   try {
-    const { id } = params;
+    // const { id } = params;
     const user = await getCurrentUser();
 
     if (!user) {

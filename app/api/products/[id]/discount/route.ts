@@ -5,9 +5,9 @@ import { getCurrentUser } from '@/lib/auth'
 import { DiscountType } from '@prisma/client'
 
 export async function PUT(
-  request: NextRequest,
-  { params }: { params: { id: string } }
+  request: NextRequest
 ) {
+   const id = request.nextUrl.pathname.split('/').pop() || ''
   try {
     const user = await getCurrentUser()
     
@@ -15,7 +15,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { id } = await params
+   
     
     const {
       hasDiscount,

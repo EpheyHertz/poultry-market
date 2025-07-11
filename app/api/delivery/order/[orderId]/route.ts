@@ -4,9 +4,9 @@ import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'
 
 export async function GET(
-  request: NextRequest,
-  { params }: { params: { orderId: string } }
+  request: NextRequest
 ) {
+   const orderId = request.nextUrl.pathname.split('/').pop() || ''
   try {
     const user = await getCurrentUser()
 
@@ -16,7 +16,7 @@ export async function GET(
 
     const delivery = await prisma.delivery.findUnique({
       where: {
-        orderId: params.orderId
+        orderId: orderId
       },
       include: {
         order: {

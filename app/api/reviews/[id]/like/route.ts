@@ -4,16 +4,17 @@ import { getCurrentUser } from '@/lib/auth'
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  // { params }: { params: { id: string } }
 ) {
   try {
+     const id = request.nextUrl.pathname.split('/').pop() || ''
     const user = await getCurrentUser()
     
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const reviewId = params.id
+    const reviewId = id
 
     // Check if review exists
     const review = await prisma.review.findUnique({

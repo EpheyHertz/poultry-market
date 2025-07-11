@@ -3,9 +3,10 @@ import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'
 
 export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { id: string } }
+  request: NextRequest
+  // { params }: { params: { id: string } }
 ) {
+   const id = request.nextUrl.pathname.split('/').pop() || ''
   try {
     const user = await getCurrentUser()
     
@@ -13,7 +14,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const reviewId = params.id
+    const reviewId =id
 
     // Get the review
     const review = await prisma.review.findUnique({

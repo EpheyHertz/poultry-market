@@ -5,9 +5,9 @@ import { createNotification, notificationTemplates } from '@/lib/notifications'
 import { DeliveryStatus, OrderStatus } from '@prisma/client'
 
 export async function PUT(
-  request: NextRequest,
-  { params }: { params: { id: string } }
+  request: NextRequest
 ) {
+   const id = request.nextUrl.pathname.split('/').pop() || ''
   try {
     const user = await getCurrentUser()
     
@@ -19,7 +19,7 @@ export async function PUT(
 
     const delivery = await prisma.delivery.findUnique({
       where: { 
-        id: params.id,
+        id: id,
         agentId: user.id // Ensure agent can only update their own deliveries
       },
       include: {
@@ -57,7 +57,7 @@ export async function PUT(
 
     // Update delivery
     const updatedDelivery = await prisma.delivery.update({
-      where: { id: params.id },
+      where: { id: id },
       data: updateData
     })
 

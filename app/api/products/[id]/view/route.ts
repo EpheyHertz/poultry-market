@@ -2,11 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
 export async function POST(
-  request: NextRequest,
-  { params }: { params: { id: string } }
+  request: NextRequest
 ) {
+   const id = request.nextUrl.pathname.split('/').pop() || ''
   try {
-    const { id } = params; // ✅ FIXED: removed unnecessary await
+    // const { id } = params; // ✅ FIXED: removed unnecessary await
 
     const product = await prisma.product.findFirst({
       where: {

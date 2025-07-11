@@ -4,9 +4,9 @@ import { getCurrentUser } from '@/lib/auth'
 import { createNotification, notificationTemplates } from '@/lib/notifications'
 
 export async function POST(
-  request: NextRequest,
-  { params }: { params: { id: string } }
+  request: NextRequest
 ) {
+   const id = request.nextUrl.pathname.split('/').pop() || ''
   try {
     const user = await getCurrentUser()
     
@@ -17,7 +17,7 @@ export async function POST(
     const { status } = await request.json()
 
     const payment = await prisma.payment.findUnique({
-      where: { id: params.id },
+      where: { id: id },
       include: {
         order: {
           include: {
@@ -32,7 +32,7 @@ export async function POST(
     }
 
     const updatedPayment = await prisma.payment.update({
-      where: { id: params.id },
+      where: { id: id },
       data: { status }
     })
 

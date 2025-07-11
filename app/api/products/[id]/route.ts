@@ -37,9 +37,10 @@ import { getCurrentUser } from '@/lib/auth'
 // }
 
 export async function PUT(
-  request: NextRequest,
-  { params }: { params: { id: string } }
+  request: NextRequest
+  // { params }: { params: { id: string } }
 ) {
+   const id = request.nextUrl.pathname.split('/').pop() || ''
   try {
     const user = await getCurrentUser()
     
@@ -48,7 +49,7 @@ export async function PUT(
     }
 
     const product = await prisma.product.findUnique({
-      where: { id: params.id }
+      where: { id: id }
     })
 
     if (!product) {
@@ -62,7 +63,7 @@ export async function PUT(
     const { name, description, price, stock, images } = await request.json()
 
     const updatedProduct = await prisma.product.update({
-      where: { id: params.id },
+      where: { id: id },
       data: {
         name,
         description,
@@ -93,9 +94,10 @@ export async function PUT(
 }
 
 export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { id: string } }
+  request: NextRequest
+  // { params }: { params: { id: string } }
 ) {
+   const id = request.nextUrl.pathname.split('/').pop() || ''
   try {
     const user = await getCurrentUser()
     
@@ -104,7 +106,7 @@ export async function DELETE(
     }
 
     const product = await prisma.product.findUnique({
-      where: { id: params.id }
+      where: { id: id }
     })
 
     if (!product) {
@@ -116,7 +118,7 @@ export async function DELETE(
     }
 
     await prisma.product.delete({
-      where: { id: params.id }
+      where: { id: id }
     })
 
     return NextResponse.json({ message: 'Product deleted successfully' })
@@ -127,11 +129,12 @@ export async function DELETE(
 
 
 export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
+  request: NextRequest
+  // { params }: { params: { id: string } }
 ) {
   try {
-    const { id } = params;
+     const id = request.nextUrl.pathname.split('/').pop() || ''
+    // const { id } = params;
     const user = await getCurrentUser();
 
     const product = await prisma.product.findFirst({

@@ -4,9 +4,10 @@ import { getCurrentUser } from '@/lib/auth'
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  // { params }: { params: { id: string } }
 ) {
   try {
+     const id = request.nextUrl.pathname.split('/').pop() || ''
     const user = await getCurrentUser()
     
     if (!user || (user.role !== 'SELLER' && user.role !== 'COMPANY' && user.role !== 'ADMIN')) {
@@ -14,7 +15,7 @@ export async function POST(
     }
 
     const { comment } = await request.json()
-    const reviewId = params.id
+    const reviewId =id
 
     // Get the review with product info
     const review = await prisma.review.findUnique({

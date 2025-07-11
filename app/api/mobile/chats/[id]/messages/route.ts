@@ -4,9 +4,9 @@ import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'
 
 export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
+  request: NextRequest
 ) {
+   const id = request.nextUrl.pathname.split('/').pop() || ''
   try {
     const user = await getCurrentUser()
     if (!user) {
@@ -25,7 +25,7 @@ export async function GET(
     // Verify user has access to this chat
     const chat = await prisma.chat.findFirst({
       where: {
-        id: params.id,
+        id: id,
         OR: [
           { participant1Id: user.id },
           { participant2Id: user.id }
@@ -42,7 +42,7 @@ export async function GET(
     }
 
     const messages = await prisma.chatMessage.findMany({
-      where: { chatId: params.id },
+      where: { chatId: id },
       include: {
         sender: {
           select: {
@@ -59,13 +59,13 @@ export async function GET(
     })
 
     const totalMessages = await prisma.chatMessage.count({
-      where: { chatId: params.id }
+      where: { chatId: id }
     })
 
     // Mark messages as read
     await prisma.chatMessage.updateMany({
       where: {
-        chatId: params.id,
+        chatId: id,
         senderId: { not: user.id },
         isRead: false
       },
@@ -96,9 +96,10 @@ export async function GET(
 }
 
 export async function POST(
-  request: NextRequest,
-  { params }: { params: { id: string } }
+  request: NextRequest
+  
 ) {
+   const id = request.nextUrl.pathname.split('/').pop() || ''
   try {
     const user = await getCurrentUser()
     if (!user) {
@@ -122,7 +123,7 @@ export async function POST(
     // Verify user has access to this chat
     const chat = await prisma.chat.findFirst({
       where: {
-        id: params.id,
+        id: id,
         OR: [
           { participant1Id: user.id },
           { participant2Id: user.id }
@@ -140,7 +141,7 @@ export async function POST(
 
     const message = await prisma.chatMessage.create({
       data: {
-        chatId: params.id,
+        chatId: id,
         senderId: user.id,
         content: content.trim(),
         type,
@@ -160,7 +161,7 @@ export async function POST(
 
     // Update chat last activity
     await prisma.chat.update({
-      where: { id: params.id },
+      where: { id: id },
       data: { 
         lastMessageAt: new Date(),
         lastMessage: content.substring(0, 100)

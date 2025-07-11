@@ -5,11 +5,11 @@ import { createNotification, notificationTemplates } from '@/lib/notifications'
 import { ApplicationStatus, UserRole } from '@prisma/client'
 
 export async function PUT(
-  request: NextRequest,
-  { params }: { params: { id: string } }
+  request: NextRequest
 ) {
   try {
     const user = await getCurrentUser()
+     const id = request.nextUrl.pathname.split('/').pop() || ''
     
     if (!user || user.role !== 'ADMIN') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -18,7 +18,7 @@ export async function PUT(
     const { status, reviewNotes } = await request.json()
 
     const application = await prisma.application.findUnique({
-      where: { id: params.id },
+      where: { id: id },
       include: { user: true }
     })
 
@@ -27,7 +27,7 @@ export async function PUT(
     }
 
     const updatedApplication = await prisma.application.update({
-      where: { id: params.id },
+      where: { id: id },
       data: {
         status: status as ApplicationStatus,
         reviewNotes,

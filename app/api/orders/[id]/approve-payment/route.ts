@@ -5,9 +5,9 @@ import { PaymentStatus, OrderStatus } from '@prisma/client'
 import { createNotification, notificationTemplates } from '@/lib/notifications'
 
 export async function POST(
-  request: NextRequest,
-  { params }: { params: { id: string } }
+  request: NextRequest
 ) {
+   const id = request.nextUrl.pathname.split('/').pop() || ''
   try {
     const user = await getCurrentUser()
     
@@ -19,7 +19,7 @@ export async function POST(
 
     // Get the order with items
     const order = await prisma.order.findUnique({
-      where: { id: params.id },
+      where: { id: id },
       include: {
         customer: true,
         items: {
@@ -51,7 +51,7 @@ export async function POST(
     const newOrderStatus = action === 'APPROVE' ? OrderStatus.CONFIRMED : order.status
 
     const updatedOrder = await prisma.order.update({
-      where: { id: params.id },
+      where: { id: id },
       data: {
         paymentStatus: newPaymentStatus,
         status: newOrderStatus
