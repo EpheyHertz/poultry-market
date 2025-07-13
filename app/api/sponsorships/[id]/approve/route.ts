@@ -56,9 +56,14 @@ export async function PUT(
     })
 
     // Notify company
-    const companyTemplate = action === 'APPROVE' 
-      ? notificationTemplates.sponsorshipApproved(sponsorship.seller.name)
-      : notificationTemplates.sponsorshipRejected(sponsorship.seller.name)
+    if (!sponsorship.seller) {
+  return NextResponse.json({ error: 'Seller not found' }, { status: 400 })
+}
+
+const companyTemplate = action === 'APPROVE' 
+  ? notificationTemplates.sponsorshipApproved(sponsorship.seller.name)
+  : notificationTemplates.sponsorshipRejected(sponsorship.seller.name)
+
     
     await createNotification({
       receiverId: sponsorship.companyId,
