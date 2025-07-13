@@ -96,6 +96,13 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to fetch orders' }, { status: 500 })
   }
 }
+type OrderItemInput = {
+  productId: string
+  quantity: number
+  price: number
+  discountApplied: number
+  sellerId: string
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -136,7 +143,8 @@ export async function POST(request: NextRequest) {
 
     // Calculate server-side amounts and validate products
     let serverSubtotal = 0
-    const orderItems = []
+
+    const orderItems: OrderItemInput[] = []
     const productTypes = new Set<ProductType>()
     const sellerIds = new Set<string>()
 
