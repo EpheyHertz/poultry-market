@@ -129,13 +129,13 @@ export default function ProductDetailPage() {
 
   const fetchProduct = async () => {
     try {
-      const response = await fetch(`/api/products/${params.slug}`);
+      const response = await fetch(`/api/products/${slug}`);
       if (response.ok) {
         const data = await response.json();
         setProduct(data);
 
         // Update view count
-        await fetch(`/api/products/${params.slug}/view`, { method: 'POST' });
+        await fetch(`/api/products/${slug}/view`, { method: 'POST' });
       }
     } catch (error) {
       console.error('Failed to fetch product:', error);
@@ -213,7 +213,7 @@ export default function ProductDetailPage() {
 
       // Store checkout data and redirect
       localStorage.setItem('directCheckout', JSON.stringify(checkoutData));
-      router.push('/customer/checkout?type=direct');
+      router.push(`/customer/checkout?type=${JSON.stringify(checkoutData)}`);
     } catch (error) {
       toast.error('Failed to proceed to checkout');
     } finally {
