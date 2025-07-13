@@ -148,6 +148,7 @@ export default function DashboardLayout({ children, user: propUser }: DashboardL
           { name: 'Track deliveries', href: '/customer/deliveries', icon: FileText },
           { name: 'Profile', href: '/customer/profile', icon: Settings },
           { name: 'Chats', href: '/customer/chats', icon: MessageCircle },
+          { name: 'Cart', href: '/customer/cart', icon: MessageCircle },
           { name: 'Vouchers', href: '/customer/vouchers', icon: Ticket },
         ];
       default:

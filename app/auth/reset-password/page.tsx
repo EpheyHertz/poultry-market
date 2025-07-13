@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Bird, Eye, EyeOff, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
-export default function ResetPasswordPage() {
+function ResetPasswordForm() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -25,14 +25,13 @@ export default function ResetPasswordPage() {
     lowercase: false,
     number: false,
   });
+
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams?.get('token');
 
   useEffect(() => {
-    if (!token) {
-      setError('Invalid reset link');
-    }
+    if (!token) setError('Invalid reset link');
   }, [token]);
 
   useEffect(() => {
@@ -80,7 +79,7 @@ export default function ResetPasswordPage() {
       } else {
         setError(data.error || 'Password reset failed');
       }
-    } catch (error) {
+    } catch {
       setError('An error occurred. Please try again.');
     } finally {
       setIsLoading(false);
@@ -115,13 +114,9 @@ export default function ResetPasswordPage() {
             <CardDescription>Your password has been successfully reset</CardDescription>
           </CardHeader>
           <CardContent className="text-center space-y-4">
-            <p className="text-gray-600">
-              You can now log in with your new password.
-            </p>
+            <p className="text-gray-600">You can now log in with your new password.</p>
             <Link href="/auth/login">
-              <Button className="w-full">
-                Continue to Login
-              </Button>
+              <Button className="w-full">Continue to Login</Button>
             </Link>
           </CardContent>
         </Card>
@@ -146,7 +141,7 @@ export default function ResetPasswordPage() {
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
-            
+
             <div className="space-y-2">
               <Label htmlFor="password">New Password</Label>
               <div className="relative">
@@ -165,35 +160,25 @@ export default function ResetPasswordPage() {
                   className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
                   onClick={() => setShowPassword(!showPassword)}
                 >
-                  {showPassword ? (
-                    <EyeOff className="h-4 w-4" />
-                  ) : (
-                    <Eye className="h-4 w-4" />
-                  )}
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </Button>
               </div>
-              
-              {/* Password Strength Indicator */}
+
               <div className="space-y-1 text-xs">
-                <div className={`flex items-center space-x-2 ${passwordStrength.length ? 'text-green-600' : 'text-gray-400'}`}>
-                  <div className={`w-2 h-2 rounded-full ${passwordStrength.length ? 'bg-green-600' : 'bg-gray-300'}`} />
-                  <span>At least 8 characters</span>
-                </div>
-                <div className={`flex items-center space-x-2 ${passwordStrength.uppercase ? 'text-green-600' : 'text-gray-400'}`}>
-                  <div className={`w-2 h-2 rounded-full ${passwordStrength.uppercase ? 'bg-green-600' : 'bg-gray-300'}`} />
-                  <span>One uppercase letter</span>
-                </div>
-                <div className={`flex items-center space-x-2 ${passwordStrength.lowercase ? 'text-green-600' : 'text-gray-400'}`}>
-                  <div className={`w-2 h-2 rounded-full ${passwordStrength.lowercase ? 'bg-green-600' : 'bg-gray-300'}`} />
-                  <span>One lowercase letter</span>
-                </div>
-                <div className={`flex items-center space-x-2 ${passwordStrength.number ? 'text-green-600' : 'text-gray-400'}`}>
-                  <div className={`w-2 h-2 rounded-full ${passwordStrength.number ? 'bg-green-600' : 'bg-gray-300'}`} />
-                  <span>One number</span>
-                </div>
+                {[
+                  { label: 'At least 8 characters', key: 'length' },
+                  { label: 'One uppercase letter', key: 'uppercase' },
+                  { label: 'One lowercase letter', key: 'lowercase' },
+                  { label: 'One number', key: 'number' },
+                ].map(({ label, key }) => (
+                  <div key={key} className={`flex items-center space-x-2 ${passwordStrength[key as keyof typeof passwordStrength] ? 'text-green-600' : 'text-gray-400'}`}>
+                    <div className={`w-2 h-2 rounded-full ${passwordStrength[key as keyof typeof passwordStrength] ? 'bg-green-600' : 'bg-gray-300'}`} />
+                    <span>{label}</span>
+                  </div>
+                ))}
               </div>
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="confirmPassword">Confirm Password</Label>
               <div className="relative">
@@ -212,24 +197,20 @@ export default function ResetPasswordPage() {
                   className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                 >
-                  {showConfirmPassword ? (
-                    <EyeOff className="h-4 w-4" />
-                  ) : (
-                    <Eye className="h-4 w-4" />
-                  )}
+                  {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </Button>
               </div>
             </div>
-            
-            <Button 
-              type="submit" 
-              className="w-full" 
+
+            <Button
+              type="submit"
+              className="w-full"
               disabled={isLoading || !isPasswordValid || password !== confirmPassword}
             >
               {isLoading ? 'Resetting...' : 'Reset Password'}
             </Button>
           </form>
-          
+
           <div className="mt-6 text-center">
             <Link href="/auth/login" className="text-sm text-green-600 hover:underline">
               Back to Login
@@ -238,5 +219,14 @@ export default function ResetPasswordPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+// ✅ Wrap the above component in Suspense
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={<div className="text-center py-8">Loading form...</div>}>
+      <ResetPasswordForm />
+    </Suspense>
   );
 }

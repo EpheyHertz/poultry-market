@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -23,6 +23,7 @@ import {
   Gift
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { Suspense } from 'react';
 
 interface Product {
   id: string;
@@ -57,7 +58,7 @@ interface CartItem {
   quantity: number;
 }
 
-export default function CheckoutPage() {
+function CheckoutContent() {
   const [user, setUser] = useState<any>(null);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [isLoading, setIsLoading] = useState({
@@ -345,7 +346,7 @@ export default function CheckoutPage() {
     toast.success('Delivery voucher removed');
   };
 
-const handlePlaceOrder = async (e: React.FormEvent) => {
+  const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!deliveryAddress.trim()) {
@@ -383,7 +384,6 @@ const handlePlaceOrder = async (e: React.FormEvent) => {
         paymentPhone: paymentDetails.phone,
         paymentReference: paymentDetails.reference,
         paymentDetails: paymentDetails.details,
-      
       };
 
       const response = await fetch('/api/orders', {
@@ -408,7 +408,7 @@ const handlePlaceOrder = async (e: React.FormEvent) => {
     }
   };
 
-if (isLoading.page || isLoading.validating || !user) {
+  if (isLoading.page || isLoading.validating || !user) {
     return (
       <DashboardLayout user={user}>
         <div className="flex justify-center items-center h-64">
@@ -773,134 +773,149 @@ if (isLoading.page || isLoading.validating || !user) {
 
               {/* Payment Method - Only M-Pesa */}
               <div className="space-y-4">
-            <div className="space-y-2">
-              <Label className="flex items-center space-x-2">
-                <CreditCard className="h-4 w-4" />
-                <span>Payment Method</span>
-              </Label>
-              <div className="flex items-center gap-2 p-3 border rounded-lg bg-gray-50">
-                <div className="bg-blue-100 p-2 rounded-full">
-                  <CreditCard className="h-5 w-5 text-blue-600" />
+                <div className="space-y-2">
+                  <Label className="flex items-center space-x-2">
+                    <CreditCard className="h-4 w-4" />
+                    <span>Payment Method</span>
+                  </Label>
+                  <div className="flex items-center gap-2 p-3 border rounded-lg bg-gray-50">
+                    <div className="bg-blue-100 p-2 rounded-full">
+                      <CreditCard className="h-5 w-5 text-blue-600" />
+                    </div>
+                    <span className="font-medium">M-Pesa</span>
+                    <Badge variant="secondary" className="ml-auto">
+                      Mobile Money
+                    </Badge>
+                  </div>
                 </div>
-                <span className="font-medium">M-Pesa</span>
-                <Badge variant="secondary" className="ml-auto">
-                  Mobile Money
-                </Badge>
-              </div>
-            </div>
 
-            {/* M-Pesa Payment Instructions */}
-            <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
-              <div className="flex">
-                <div className="flex-shrink-0">
-                  <AlertCircle className="h-5 w-5 text-yellow-400" />
-                </div>
-                <div className="ml-3">
-                  <h3 className="text-sm font-medium text-yellow-800">How to pay via M-Pesa Till</h3>
-                  <div className="mt-2 text-sm text-yellow-700">
-                    <ol className="list-decimal pl-5 space-y-1">
-                      <li>Open your M-Pesa app</li>
-                      <li>Select <strong>Lipa na M-Pesa</strong></li>
-                      <li>Select <strong>Pay Bill</strong></li>
-                      <li>Enter Till Number: <strong>123456</strong></li>
-                      <li>Enter Amount: <strong>Ksh {total.toFixed(2)}</strong></li>
-                      <li>Enter your M-Pesa PIN and confirm payment</li>
-                    </ol>
+                {/* M-Pesa Payment Instructions */}
+                <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <AlertCircle className="h-5 w-5 text-yellow-400" />
+                    </div>
+                    <div className="ml-3">
+                      <h3 className="text-sm font-medium text-yellow-800">How to pay via M-Pesa Till</h3>
+                      <div className="mt-2 text-sm text-yellow-700">
+                        <ol className="list-decimal pl-5 space-y-1">
+                          <li>Open your M-Pesa app</li>
+                          <li>Select <strong>Lipa na M-Pesa</strong></li>
+                          <li>Select <strong>Pay Bill</strong></li>
+                          <li>Enter Till Number: <strong>123456</strong></li>
+                          <li>Enter Amount: <strong>Ksh {total.toFixed(2)}</strong></li>
+                          <li>Enter your M-Pesa PIN and confirm payment</li>
+                        </ol>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          </div>
 
-          {/* M-Pesa Phone Number */}
-          <div className="space-y-2">
-            <Label htmlFor="phone" className="flex items-center space-x-2">
-              <Package className="h-4 w-4" />
-              <span>M-Pesa Phone Number</span>
-            </Label>
-            <Input
-              id="phone"
-              type="tel"
-              placeholder="e.g. 254712345678"
-              value={paymentDetails.phone}
-              onChange={(e) => setPaymentDetails({ ...paymentDetails, phone: e.target.value })}
-              required
-              disabled={isLoading.checkout}
-            />
-            <p className="text-xs text-gray-500">
-              The phone number you used to make the payment
-            </p>
-          </div>
+              {/* M-Pesa Phone Number */}
+              <div className="space-y-2">
+                <Label htmlFor="phone" className="flex items-center space-x-2">
+                  <Package className="h-4 w-4" />
+                  <span>M-Pesa Phone Number</span>
+                </Label>
+                <Input
+                  id="phone"
+                  type="tel"
+                  placeholder="e.g. 254712345678"
+                  value={paymentDetails.phone}
+                  onChange={(e) => setPaymentDetails({ ...paymentDetails, phone: e.target.value })}
+                  required
+                  disabled={isLoading.checkout}
+                />
+                <p className="text-xs text-gray-500">
+                  The phone number you used to make the payment
+                </p>
+              </div>
 
-          {/* M-Pesa Transaction Code */}
-          <div className="space-y-2">
-            <Label htmlFor="reference" className="flex items-center space-x-2">
-              <CreditCard className="h-4 w-4" />
-              <span>M-Pesa Transaction Code</span>
-            </Label>
-            <Input
-              id="reference"
-              type="text"
-              placeholder="e.g. OLA12H3K4L"
-              value={paymentDetails.reference}
-              onChange={(e) => setPaymentDetails({ ...paymentDetails, reference: e.target.value })}
-              required
-              disabled={isLoading.checkout}
-            />
-            <p className="text-xs text-gray-500">
-              The transaction code from your M-Pesa payment confirmation message
-            </p>
-          </div>
+              {/* M-Pesa Transaction Code */}
+              <div className="space-y-2">
+                <Label htmlFor="reference" className="flex items-center space-x-2">
+                  <CreditCard className="h-4 w-4" />
+                  <span>M-Pesa Transaction Code</span>
+                </Label>
+                <Input
+                  id="reference"
+                  type="text"
+                  placeholder="e.g. OLA12H3K4L"
+                  value={paymentDetails.reference}
+                  onChange={(e) => setPaymentDetails({ ...paymentDetails, reference: e.target.value })}
+                  required
+                  disabled={isLoading.checkout}
+                />
+                <p className="text-xs text-gray-500">
+                  The transaction code from your M-Pesa payment confirmation message
+                </p>
+              </div>
 
-          {/* M-Pesa Payment Details */}
-          <div className="space-y-2">
-            <Label htmlFor="details" className="flex items-center space-x-2">
-              <AlertCircle className="h-4 w-4" />
-              <span>M-Pesa Payment Message (Optional)</span>
-            </Label>
-            <Textarea
-              id="details"
-              placeholder="Paste the full M-Pesa confirmation message here..."
-              value={paymentDetails.details}
-              onChange={(e) => setPaymentDetails({ ...paymentDetails, details: e.target.value })}
-              rows={3}
-              disabled={isLoading.checkout}
-            />
-            <p className="text-xs text-gray-500">
-              Helps us verify your payment faster
-            </p>
-          </div>
+              {/* M-Pesa Payment Details */}
+              <div className="space-y-2">
+                <Label htmlFor="details" className="flex items-center space-x-2">
+                  <AlertCircle className="h-4 w-4" />
+                  <span>M-Pesa Payment Message (Optional)</span>
+                </Label>
+                <Textarea
+                  id="details"
+                  placeholder="Paste the full M-Pesa confirmation message here..."
+                  value={paymentDetails.details}
+                  onChange={(e) => setPaymentDetails({ ...paymentDetails, details: e.target.value })}
+                  rows={3}
+                  disabled={isLoading.checkout}
+                />
+                <p className="text-xs text-gray-500">
+                  Helps us verify your payment faster
+                </p>
+              </div>
 
-          {/* Place Order Button */}
-          <Button 
-            onClick={handlePlaceOrder} 
-            disabled={isLoading.checkout || !deliveryAddress || !paymentDetails.phone || !paymentDetails.reference}
-            className="w-full mt-4"
-            size="lg"
-          >
-            {isLoading.checkout ? (
-              <span className="flex items-center gap-2">
-                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Processing Order...
-              </span>
-            ) : (
-              <span className="flex items-center gap-2">
-                <CheckCircle className="h-4 w-4" />
-                Complete Order
-              </span>
-            )}
-          </Button>
+              {/* Place Order Button */}
+              <Button 
+                onClick={handlePlaceOrder} 
+                disabled={isLoading.checkout || !deliveryAddress || !paymentDetails.phone || !paymentDetails.reference}
+                className="w-full mt-4"
+                size="lg"
+              >
+                {isLoading.checkout ? (
+                  <span className="flex items-center gap-2">
+                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Processing Order...
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4" />
+                    Complete Order
+                  </span>
+                )}
+              </Button>
 
-          <p className="text-xs text-gray-500 text-center mt-2">
-            By placing your order, you agree to our Terms of Service
-          </p>
+              <p className="text-xs text-gray-500 text-center mt-2">
+                By placing your order, you agree to our Terms of Service
+              </p>
             </CardContent>
           </Card>
         </div>
       </div>
     </DashboardLayout>
+  );
+}
+
+export default function CheckoutPage() {
+  return (
+    <Suspense fallback={
+      <DashboardLayout user={null}>
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+          <p className="ml-4">Loading checkout page...</p>
+        </div>
+      </DashboardLayout>
+    }>
+      <CheckoutContent />
+    </Suspense>
   );
 }

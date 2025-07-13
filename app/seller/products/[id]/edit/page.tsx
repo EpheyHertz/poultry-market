@@ -1,74 +1,62 @@
-"use client"
+'use client';
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import DashboardLayout from '@/components/layout/dashboard-layout'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import ImageUpload from '@/components/ui/image-upload'
-import { ArrowLeft } from 'lucide-react'
-import Link from 'next/link'
-import { useParams } from 'next/navigation'
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useParams } from 'next/navigation';
+import DashboardLayout from '@/components/layout/dashboard-layout';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import ImageUpload from '@/components/ui/image-upload';
+import { ArrowLeft } from 'lucide-react';
+import Link from 'next/link';
 
-interface EditProductProps {
-  params: {
-    id: string
-  }
-}
+function EditProductContent() {
+  const params = useParams();
+  const id = typeof params?.id === 'string' ? params.id : '';
+  const router = useRouter();
 
-export default function EditProduct() {
-   const params = useParams()
-  const id = typeof params?.id === 'string' ? params.id : ''
-  const router = useRouter()
-  const [user, setUser] = useState<any>(null)
-  const [product, setProduct] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [user, setUser] = useState<any>(null);
+  const [product, setProduct] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        setLoading(true)
-        
-        // Fetch user data
-        const userResponse = await fetch('/api/auth/current-user')
-        if (!userResponse.ok) {
-          throw new Error('Failed to fetch user')
-        }
-        const userData = await userResponse.json()
-        setUser(userData)
+        setLoading(true);
+
+        const userResponse = await fetch('/api/auth/current-user');
+        if (!userResponse.ok) throw new Error('Failed to fetch user');
+        const userData = await userResponse.json();
+        setUser(userData);
 
         if (!userData || userData.role !== 'SELLER') {
-          router.push('/auth/login')
-          return
+          router.push('/auth/login');
+          return;
         }
 
-        // Fetch product data
-        const productResponse = await fetch(`/api/products/${id}?sellerId=${userData.id}`)
-        if (!productResponse.ok) {
-          throw new Error('Failed to fetch product')
-        }
-        const productData = await productResponse.json()
-        
+        const productResponse = await fetch(`/api/products/${id}?sellerId=${userData.id}`);
+        if (!productResponse.ok) throw new Error('Failed to fetch product');
+        const productData = await productResponse.json();
+
         if (!productData) {
-          setError('Product not found')
-          return
+          setError('Product not found');
+          return;
         }
 
-        setProduct(productData)
+        setProduct(productData);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'An unknown error occurred')
+        setError(err instanceof Error ? err.message : 'An unknown error occurred');
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
 
-    fetchData()
-  }, [id, router])
+    fetchData();
+  }, [id, router]);
 
   if (loading) {
     return (
@@ -79,7 +67,7 @@ export default function EditProduct() {
           </div>
         </div>
       </DashboardLayout>
-    )
+    );
   }
 
   if (error) {
@@ -91,7 +79,7 @@ export default function EditProduct() {
           </div>
         </div>
       </DashboardLayout>
-    )
+    );
   }
 
   if (!product) {
@@ -103,13 +91,12 @@ export default function EditProduct() {
           </div>
         </div>
       </DashboardLayout>
-    )
+    );
   }
 
   return (
     <DashboardLayout user={user}>
       <div className="max-w-4xl mx-auto space-y-8">
-        {/* Header */}
         <div className="flex items-center gap-4">
           <Link href="/seller/products">
             <Button variant="outline" size="sm">
@@ -123,25 +110,17 @@ export default function EditProduct() {
           </div>
         </div>
 
-        {/* Product Form */}
         <Card>
           <CardHeader>
             <CardTitle>Product Information</CardTitle>
-            <CardDescription>
-              Update your product details below.
-            </CardDescription>
+            <CardDescription>Update your product details below.</CardDescription>
           </CardHeader>
           <CardContent>
             <form className="space-y-6" action={`/api/products/${product.id}`} method="PUT">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <Label htmlFor="name">Product Name *</Label>
-                  <Input
-                    id="name"
-                    name="name"
-                    defaultValue={product.name}
-                    required
-                  />
+                  <Input id="name" name="name" defaultValue={product.name} required />
                 </div>
 
                 <div className="space-y-2">
@@ -203,25 +182,27 @@ export default function EditProduct() {
                   accept="image/*"
                   defaultImages={product.images}
                 />
-                <p className="text-sm text-gray-500">
-                  Upload up to 5 high-quality images of your product.
-                </p>
+                <p className="text-sm text-gray-500">Upload up to 5 high-quality images of your product.</p>
               </div>
 
               <div className="flex justify-end space-x-4">
                 <Link href="/seller/products">
-                  <Button type="button" variant="outline">
-                    Cancel
-                  </Button>
+                  <Button type="button" variant="outline">Cancel</Button>
                 </Link>
-                <Button type="submit">
-                  Update Product
-                </Button>
+                <Button type="submit">Update Product</Button>
               </div>
             </form>
           </CardContent>
         </Card>
       </div>
     </DashboardLayout>
-  )
+  );
+}
+
+export default function EditProduct() {
+  return (
+    <Suspense fallback={<div className="text-center py-12">Loading...</div>}>
+      <EditProductContent />
+    </Suspense>
+  );
 }

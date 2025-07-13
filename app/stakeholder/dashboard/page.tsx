@@ -191,7 +191,7 @@ export default async function StakeholderDashboard() {
 </div>
 
                     </div>
-                    <Badge className={getStatusColor(sponsorship.status)}>
+                    <Badge className={getStatusColor(sponsorship?.status)}>
                       {sponsorship.status}
                     </Badge>
                   </div>

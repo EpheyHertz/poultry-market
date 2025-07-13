@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
@@ -13,8 +13,9 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import ChatWidget from '@/components/chat/chat-widget'
+import { Suspense } from 'react'
 
-export default function CompanyPublicPage() {
+function CompanyPublicContent() {
   const params = useParams()
   const slug = typeof params?.slug === 'string' ? params.slug : ''
   const [company, setCompany] = useState<any>(null)
@@ -142,8 +143,8 @@ export default function CompanyPublicPage() {
                           <div className="flex justify-between items-start mb-2">
                             <h3 className="font-medium text-sm">{product.name}</h3>
                            <Badge className={`${getTypeColor(product.type)} text-xs px-2 py-0.5`}>
-  {product.type.replace('_', ' ')}
-</Badge>
+                              {product.type.replace('_', ' ')}
+                            </Badge>
                           </div>
                           <p className="text-xs text-gray-600 mb-2 line-clamp-2">
                             {product.description}
@@ -209,5 +210,15 @@ export default function CompanyPublicPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function CompanyPublicPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <p className="p-8 text-gray-500">Loading company information...</p>
+    </div>}>
+      <CompanyPublicContent />
+    </Suspense>
   )
 }

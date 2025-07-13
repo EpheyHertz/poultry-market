@@ -1,4 +1,4 @@
-"use client"
+'use client';
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
@@ -22,14 +22,9 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
+import { Suspense } from 'react'
 
-// interface OrderPageProps {
-//   params: {
-//     id: string
-//   }
-// }
-
-export default function OrderPage() {
+function OrderContent() {
   const params = useParams()
   const id = typeof params?.id === 'string' ? params.id : ''
   const router = useRouter()
@@ -560,5 +555,19 @@ export default function OrderPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function OrderPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <p>Loading order details...</p>
+        </div>
+      </div>
+    }>
+      <OrderContent />
+    </Suspense>
   )
 }

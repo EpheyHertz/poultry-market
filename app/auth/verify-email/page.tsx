@@ -8,8 +8,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Bird, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { Suspense } from 'react';
 
-export default function VerifyEmailPage() {
+function VerifyEmailContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [isVerified, setIsVerified] = useState(false);
   const [error, setError] = useState('');
@@ -113,5 +114,28 @@ export default function VerifyEmailPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function VerifyEmailPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <div className="flex justify-center mb-4">
+              <Bird className="h-12 w-12 text-green-600" />
+            </div>
+            <CardTitle className="text-2xl font-bold">Email Verification</CardTitle>
+            <CardDescription>Loading verification...</CardDescription>
+          </CardHeader>
+          <CardContent className="text-center">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto text-green-600" />
+          </CardContent>
+        </Card>
+      </div>
+    }>
+      <VerifyEmailContent />
+    </Suspense>
   );
 }

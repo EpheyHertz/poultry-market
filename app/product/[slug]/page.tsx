@@ -46,6 +46,7 @@ import Link from 'next/link';
 import { toast } from 'sonner';
 import ChatWidget from '@/components/chat/chat-widget';
 import { formatCurrency } from '@/lib/formatCurrency';
+import { Suspense } from 'react';
 
 const tagIcons = {
   VERIFIED: Shield,
@@ -75,7 +76,7 @@ const tagColors = {
   LIMITED_STOCK: 'bg-amber-100 text-amber-800 border-amber-200',
 };
 
-export default function ProductDetailPage() {
+function ProductDetailContent() {
   const params = useParams();
   const slug = typeof params?.slug === 'string' ? params.slug : '';
   const router = useRouter();
@@ -1025,5 +1026,20 @@ export default function ProductDetailPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function ProductDetailPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="animate-spin h-12 w-12 text-green-600 mx-auto mb-4" />
+          <p className="text-gray-600">Loading product details...</p>
+        </div>
+      </div>
+    }>
+      <ProductDetailContent />
+    </Suspense>
   );
 }
