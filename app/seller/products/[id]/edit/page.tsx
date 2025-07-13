@@ -72,7 +72,7 @@ export default function EditProduct() {
 
   if (loading) {
     return (
-      <DashboardLayout user={null}>
+      <DashboardLayout user={undefined}>
         <div className="max-w-4xl mx-auto space-y-8">
           <div className="flex items-center justify-center h-64">
             <p>Loading product data...</p>
