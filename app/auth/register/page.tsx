@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -29,12 +29,12 @@ export default function RegisterPage() {
   const searchParams = useSearchParams();
   
   // Set default role from URL params
-  useState(() => {
-    const roleParam = searchParams.get('role');
-    if (roleParam) {
-      setFormData(prev => ({ ...prev, role: roleParam.toUpperCase() }));
-    }
-  });
+useEffect(() => {
+  const roleParam = searchParams?.get('role');
+  if (roleParam) {
+    setFormData(prev => ({ ...prev, role: roleParam.toUpperCase() }));
+  }
+}, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
