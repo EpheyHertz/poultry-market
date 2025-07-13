@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'
-import { OrderStatus, PaymentMethod, PaymentStatus, PaymentType, ProductType, VoucherType } from '@prisma/client'
+import { OrderStatus, PaymentMethod, PaymentStatus, PaymentType, ProductType, VoucherType,Voucher } from '@prisma/client'
 import { createNotification, notificationTemplates } from '@/lib/notifications'
 export async function GET(request: NextRequest) {
   try {
@@ -216,7 +216,7 @@ if (
     // Validate and apply vouchers
     let serverDiscountAmount = 0
     let serverDeliveryDiscountAmount = 0
-    let validVoucher = null
+    let validVoucher: Voucher | null = null
     let validDeliveryVoucher = null
 
     if (voucherCode) {
