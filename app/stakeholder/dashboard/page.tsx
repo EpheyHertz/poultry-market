@@ -179,16 +179,17 @@ export default async function StakeholderDashboard() {
                     <div className="flex items-center space-x-4">
                       <HandHeart className="h-8 w-8 text-gray-400" />
                       <div>
-                        <p className="text-sm font-medium text-gray-900">
-                          {sponsorship.company.name} → {sponsorship.seller.name}
-                        </p>
-                        <p className="text-sm text-gray-500">
-                          ${sponsorship.amount.toFixed(2)} sponsorship
-                        </p>
-                        <p className="text-xs text-gray-400">
-                          {new Date(sponsorship.createdAt).toLocaleDateString()}
-                        </p>
-                      </div>
+  <p className="text-sm font-medium text-gray-900">
+    {sponsorship.company.name} → {sponsorship.seller?.name ?? 'Unknown Seller'}
+  </p>
+  <p className="text-sm text-gray-500">
+    Ksh{sponsorship.amount.toFixed(2)} sponsorship
+  </p>
+  <p className="text-xs text-gray-400">
+    {new Date(sponsorship.createdAt).toLocaleDateString()}
+  </p>
+</div>
+
                     </div>
                     <Badge className={getStatusColor(sponsorship.status)}>
                       {sponsorship.status}
