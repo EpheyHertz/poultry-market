@@ -141,9 +141,9 @@ export default function CompanyPublicPage() {
                         <div className="p-3">
                           <div className="flex justify-between items-start mb-2">
                             <h3 className="font-medium text-sm">{product.name}</h3>
-                            <Badge className={getTypeColor(product.type)} size="sm">
-                              {product.type.replace('_', ' ')}
-                            </Badge>
+                           <Badge className={`${getTypeColor(product.type)} text-xs px-2 py-0.5`}>
+  {product.type.replace('_', ' ')}
+</Badge>
                           </div>
                           <p className="text-xs text-gray-600 mb-2 line-clamp-2">
                             {product.description}
