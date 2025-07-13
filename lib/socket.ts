@@ -1,4 +1,3 @@
-
 import { Server as NetServer } from 'http'
 import { NextApiRequest, NextApiResponse } from 'next'
 import { Server as ServerIO, Socket } from 'socket.io'
@@ -52,16 +51,18 @@ export function initSocket(server: NetServer) {
         if (!token) {
           return next(new Error('Authentication error'))
         }
-        
-        const payload = await verifyToken(token)
+
+        // ✅ Type assertion added to resolve TypeScript error
+        const payload = await verifyToken(token) as { userId: string }
+
         const user = await prisma.user.findUnique({
           where: { id: payload.userId }
         })
-        
+
         if (!user) {
           return next(new Error('User not found'))
         }
-        
+
         socket.userId = user.id
         socket.userRole = user.role
         next()
@@ -80,7 +81,7 @@ export function initSocket(server: NetServer) {
       socket.on('send-message', async (data) => {
         try {
           const { chatId, content, type = 'text', images = [] } = data
-          
+
           if (!socket.userId) {
             socket.emit('error', { message: 'User not authenticated' })
             return
