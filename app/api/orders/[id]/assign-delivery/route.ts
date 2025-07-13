@@ -13,21 +13,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const order = await prisma.order.findUnique({
-      where: { id: id },
+const order = await prisma.order.findUnique({
+  where: { id: id },
+  include: {
+    items: {
       include: {
-        items: {
+        product: {
           include: {
-            product: {
-              include: {
-                seller: true
-              }
-            }
+            seller: true
           }
-        },
-        delivery: true
+        }
       }
-    })
+    },
+    delivery: true,
+    customer: true
+  }
+})
+
 
     if (!order) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 })
