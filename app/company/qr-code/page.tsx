@@ -16,6 +16,7 @@ export default function CompanyQRCode() {
   const [user, setUser] = useState<any>(null);
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [canShare, setCanShare] = useState(false);
   const [customData, setCustomData] = useState({
     title: '',
     description: '',
@@ -52,6 +53,11 @@ export default function CompanyQRCode() {
 
     fetchUser();
   }, [router]);
+  useEffect(() => {
+  if (typeof window !== 'undefined' && typeof navigator.share === 'function') {
+    setCanShare(true);
+  }
+}, []);
 
   const generateQRCode = async () => {
     if (!user) return;
@@ -269,12 +275,13 @@ export default function CompanyQRCode() {
                       Download QR Code
                     </Button>
                     
-                    {navigator.share && (
-                      <Button onClick={shareQRCode} variant="outline" className="w-full">
-                        <Share className="mr-2 h-4 w-4" />
-                        Share QR Code
-                      </Button>
-                    )}
+                    {canShare && (
+  <Button onClick={shareQRCode} variant="outline" className="w-full">
+    <Share className="mr-2 h-4 w-4" />
+    Share QR Code
+  </Button>
+)}
+
                   </div>
 
                   <div className="text-center text-sm text-gray-600">
@@ -292,7 +299,7 @@ export default function CompanyQRCode() {
                   <QrCode className="mx-auto h-16 w-16 text-gray-400" />
                   <h3 className="mt-2 text-sm font-medium text-gray-900">No QR code generated</h3>
                   <p className="mt-1 text-sm text-gray-500">
-                    Click "Generate QR Code" to create your company QR code
+                    Click &quot;Generate QR Code&quot; to create your company QR code
                   </p>
                 </div>
               )}
