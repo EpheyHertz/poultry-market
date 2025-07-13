@@ -245,10 +245,10 @@ export default function DashboardLayout({ children, user: propUser }: DashboardL
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                     <Avatar className="h-8 w-8">
-                      <AvatarImage src={user.avatar} alt={user.name} />
-                      <AvatarFallback>
-                        {user.name.split(' ').map(n => n[0]).join('').toUpperCase()}
-                      </AvatarFallback>
+                      <AvatarImage src={user?.avatar || undefined} alt={user?.name || 'User Avatar'} />
+                        <AvatarFallback>
+                          {user.name?.split(' ').map(n => n[0]).join('').toUpperCase()}
+                        </AvatarFallback>
                     </Avatar>
                   </Button>
                 </DropdownMenuTrigger>
