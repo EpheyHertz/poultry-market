@@ -119,11 +119,13 @@ export default function DashboardLayout({ children, user: propUser }: DashboardL
         return [
           ...baseItems,
           { name: 'Products', href: '/seller/products', icon: Package },
+          { name: 'Analytics', href: '/seller/analytics', icon: Package },
           { name: 'Orders', href: '/seller/orders', icon: ShoppingCart },
           { name: 'Vouchers', href: '/seller/vouchers', icon: Ticket },
           { name: 'Discounts', href: '/seller/discounts', icon: Percent },
           { name: 'Sponsorships', href: '/seller/sponsorships', icon: HandHeart },
           { name: 'Profile', href: '/seller/profile', icon: Settings },
+          { name: 'Share', href: '/seller/qr-code', icon: Settings },
           { name: 'Chats', href: '/seller/chats', icon: MessageCircle },
         ];
       case 'COMPANY':
