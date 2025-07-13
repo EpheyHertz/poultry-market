@@ -89,8 +89,9 @@ function ProductGrid({ type }: { type: string }) {
 }
 
 export default function CategoryPage() {
-  const params = useParams()
-  const type = typeof params?.type === 'string' ? params.type : Array.isArray(params?.type) ? params.type[0] : ''
+ const params = useParams() as { type?: string | string[] } | null
+
+  const type = typeof params?.type === 'string' ? params?.type : Array.isArray(params?.type) ? params?.type[0] : ''
 
   return (
     <Suspense fallback={<p className="text-center py-12">Loading...</p>}>
