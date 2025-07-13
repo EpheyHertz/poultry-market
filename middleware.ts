@@ -1,4 +1,3 @@
-// middleware.ts
 import { NextResponse, NextRequest } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 
@@ -10,22 +9,19 @@ export async function middleware(request: NextRequest) {
     '/auth/forgot-password',
   ];
 
-  // Check if current route is a protected auth route
-  const isProtectedAuthRoute = protectedAuthRoutes.some(route => 
+  const isProtectedAuthRoute = protectedAuthRoutes.some(route =>
     pathname.startsWith(route)
   );
 
   try {
     if (isProtectedAuthRoute) {
       const token = request.cookies.get('token')?.value;
-      
+
       if (token) {
         const user = await getCurrentUser();
 
         if (user) {
-          // Redirect to appropriate dashboard if authenticated
           let redirectPath = '/customer/dashboard';
-          
           switch (user.role) {
             case 'ADMIN':
               redirectPath = '/admin/dashboard';
@@ -44,23 +40,24 @@ export async function middleware(request: NextRequest) {
               break;
           }
 
-          return NextResponse.redirect(new URL(redirectPath, request.url));
+          // Avoid redirect loop
+          if (pathname !== redirectPath) {
+            return NextResponse.redirect(new URL(redirectPath, request.url));
+          }
         }
       }
     }
-    
+
     return NextResponse.next();
   } catch (error) {
     console.error('Authentication error:', error);
-    
-    // Create response that clears invalid token
+
     const response = NextResponse.redirect(new URL('/auth/login', request.url));
     response.cookies.delete('token');
-    
-    // Add error message to URL if needed
+
     const loginUrl = new URL('/auth/login', request.url);
     loginUrl.searchParams.set('error', 'session_expired');
-    
+
     return NextResponse.redirect(loginUrl);
   }
 }
