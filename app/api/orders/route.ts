@@ -165,15 +165,24 @@ export async function POST(request: NextRequest) {
       const now = new Date()
 
       // Apply product discounts if available
-      if (product.hasDiscount && product.discountStartDate && product.discountEndDate &&
-          product.discountStartDate <= now && product.discountEndDate >= now) {
-        if (product.discountType === 'PERCENTAGE') {
-          discountApplied = product.price * (product.discountAmount / 100)
-        } else if (product.discountType === 'FIXED_AMOUNT') {
-          discountApplied = product.discountAmount
-        }
-        itemPrice = Math.max(0, product.price - discountApplied)
-      }
+// Apply product discounts if available
+if (
+  product.hasDiscount &&
+  product.discountStartDate &&
+  product.discountEndDate &&
+  product.discountStartDate <= now &&
+  product.discountEndDate >= now
+) {
+  const discount = product.discountAmount ?? 0 // fallback to 0 if null
+
+  if (product.discountType === 'PERCENTAGE') {
+    discountApplied = product.price * (discount / 100)
+  } else if (product.discountType === 'FIXED_AMOUNT') {
+    discountApplied = discount
+  }
+
+  itemPrice = Math.max(0, product.price - discountApplied)
+}
 
       serverSubtotal += itemPrice * item.quantity
       orderItems.push({
