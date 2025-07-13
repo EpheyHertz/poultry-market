@@ -78,13 +78,17 @@ const companyTemplate = action === 'APPROVE'
       ? notificationTemplates.sponsorshipReceived(sponsorship.company.name)
       : notificationTemplates.sponsorshipDeclined(sponsorship.company.name)
     
-    await createNotification({
-      receiverId: sponsorship.sellerId,
-      senderId: user.id,
-      type: 'EMAIL',
-      title: sellerTemplate.title,
-      message: sellerTemplate.message
-    })
+    if (!sponsorship.sellerId) {
+  return NextResponse.json({ error: 'Missing seller ID' }, { status: 400 });
+}
+
+await createNotification({
+  receiverId: sponsorship.sellerId,
+  senderId: user.id,
+  type: 'EMAIL',
+  title: sellerTemplate.title,
+  message: sellerTemplate.message
+})
 
     return NextResponse.json(updatedSponsorship)
   } catch (error) {
