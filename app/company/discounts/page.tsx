@@ -212,10 +212,10 @@ export default function CompanyDiscountsPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          productIds: bulkDiscountForm.productIds,
-          hasDiscount: true,
-          ...bulkDiscountForm
-        }),
+  hasDiscount: true,
+  ...bulkDiscountForm
+}),
+
       })
 
       if (response.ok) {
