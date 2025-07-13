@@ -1,16 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'
+import { ProductType } from '@prisma/client'
 
 export async function POST(request: NextRequest) {
   try {
     const user = await getCurrentUser()
-    
+
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { code, orderTotal, productTypes } = await request.json()
+    const { code, orderTotal, productTypes: rawProductTypes, items } = await request.json()
 
     if (!code) {
       return NextResponse.json({ error: 'Voucher code is required' }, { status: 400 })
@@ -70,11 +71,27 @@ export async function POST(request: NextRequest) {
     }
 
     // Check product type restrictions
-    if (voucher.applicableProductTypes.length > 0 && productTypes) {
-      const hasApplicableProduct = productTypes.some((type: string) => 
+    let productTypes: ProductType[] = []
+
+    if (voucher.applicableProductTypes.length > 0) {
+      if (rawProductTypes && Array.isArray(rawProductTypes)) {
+        // If product types are passed in the request
+        productTypes = rawProductTypes as ProductType[]
+      } else if (items && Array.isArray(items)) {
+        // If not passed, try to fetch them based on product IDs
+        const products = await prisma.product.findMany({
+          where: {
+            id: { in: items.map((item: any) => item.productId) }
+          },
+          select: { type: true }
+        })
+        productTypes = products.map(p => p.type)
+      }
+
+      const hasApplicableProduct = productTypes.some((type) =>
         voucher.applicableProductTypes.includes(type)
       )
-      
+
       if (!hasApplicableProduct) {
         return NextResponse.json({ 
           error: 'Voucher not applicable for products in your cart',
@@ -85,7 +102,7 @@ export async function POST(request: NextRequest) {
 
     // Calculate discount amount
     let discountAmount = 0
-    
+
     if (voucher.discountType === 'PERCENTAGE') {
       discountAmount = (orderTotal * voucher.discountValue) / 100
     } else if (voucher.discountType === 'FIXED_AMOUNT') {
