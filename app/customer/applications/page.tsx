@@ -19,13 +19,20 @@ export default function CustomerApplications() {
   const [applications, setApplications] = useState<any[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [formData, setFormData] = useState({
-    requestedRole: '',
-    businessName: '',
-    businessType: '',
-    description: '',
-    documents: []
-  });
+  const [formData, setFormData] = useState<{
+  requestedRole: string;
+  businessName: string;
+  businessType: string;
+  description: string;
+  documents: string[];
+}>({
+  requestedRole: '',
+  businessName: '',
+  businessType: '',
+  description: '',
+  documents: []
+});
+
   const router = useRouter();
 
   useEffect(() => {
