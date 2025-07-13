@@ -30,7 +30,8 @@ import { useParams } from 'next/navigation'
 // }
 
 export default function OrderPage() {
-  const { id } = useParams()
+  const params = useParams()
+  const id = typeof params?.id === 'string' ? params.id : ''
   const router = useRouter()
   const [order, setOrder] = useState<any>(null)
   const [user, setUser] = useState<any>(null)

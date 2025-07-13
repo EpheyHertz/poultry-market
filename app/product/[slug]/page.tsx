@@ -77,7 +77,9 @@ const tagColors = {
 
 export default function ProductDetailPage() {
   const params = useParams();
+  const slug = typeof params?.slug === 'string' ? params.slug : '';
   const router = useRouter();
+
   const [product, setProduct] = useState<any>(null);
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -100,7 +102,7 @@ export default function ProductDetailPage() {
   useEffect(() => {
     fetchProduct();
     fetchUser();
-  }, [params.slug]);
+  }, [slug]);
 
   useEffect(() => {
     if (product?.hasDiscount && product?.discountEndDate) {

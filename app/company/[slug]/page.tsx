@@ -15,7 +15,8 @@ import Link from 'next/link'
 import ChatWidget from '@/components/chat/chat-widget'
 
 export default function CompanyPublicPage() {
-  const { slug } = useParams()
+  const params = useParams()
+  const slug = typeof params?.slug === 'string' ? params.slug : ''
   const [company, setCompany] = useState<any>(null)
   const [stats, setStats] = useState<any>(null)
   const [loading, setLoading] = useState(true)

@@ -19,7 +19,8 @@ interface StorePageProps {
 }
 
 export default function StorePage() {
-  const { slug } = useParams<StorePageProps['params']>()
+  const params = useParams<StorePageProps['params']>()
+  const slug = typeof params?.slug === 'string' ? params.slug : ''
   const router = useRouter()
   const [storeOwner, setStoreOwner] = useState<any>(null)
   const [loading, setLoading] = useState(true)

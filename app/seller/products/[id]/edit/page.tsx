@@ -21,7 +21,8 @@ interface EditProductProps {
 }
 
 export default function EditProduct() {
-   const { id } = useParams()
+   const params = useParams()
+  const id = typeof params?.id === 'string' ? params.id : ''
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
   const [product, setProduct] = useState<any>(null)

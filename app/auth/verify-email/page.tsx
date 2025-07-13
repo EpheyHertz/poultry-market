@@ -15,7 +15,7 @@ export default function VerifyEmailPage() {
   const [error, setError] = useState('');
   const router = useRouter();
   const searchParams = useSearchParams();
-  const token = searchParams.get('token');
+  const token = searchParams?.get('token');
 
   useEffect(() => {
     if (!token) {
