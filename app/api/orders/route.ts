@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'
-import { OrderStatus, PaymentMethod, PaymentStatus, PaymentType, ProductType, VoucherType,Voucher } from '@prisma/client'
+import { OrderStatus, PaymentMethod, PaymentStatus, PaymentType, ProductType, VoucherType, Voucher, DeliveryVoucher } from '@prisma/client'
 import { createNotification, notificationTemplates } from '@/lib/notifications'
 export async function GET(request: NextRequest) {
   try {
@@ -217,7 +217,7 @@ if (
     let serverDiscountAmount = 0
     let serverDeliveryDiscountAmount = 0
     let validVoucher: Voucher | null = null
-    let validDeliveryVoucher = null
+   let validDeliveryVoucher: DeliveryVoucher | null = null
 
     if (voucherCode) {
       validVoucher = await prisma.voucher.findFirst({
@@ -235,17 +235,19 @@ if (
       }
 
       // Check voucher applicability
-      if (validVoucher.applicableProductTypes?.length > 0) {
-        const applicable = Array.from(productTypes).some(type =>
-          validVoucher.applicableProductTypes.includes(type)
-        )
-        if (!applicable) {
-          return NextResponse.json(
-            { error: 'Voucher not applicable to cart items' },
-            { status: 400 }
-          )
-        }
-      }
+      if (validVoucher && validVoucher.applicableProductTypes?.length > 0) {
+  const applicableTypes = validVoucher.applicableProductTypes
+  const applicable = Array.from(productTypes).some(type =>
+    applicableTypes.includes(type)
+  )
+  if (!applicable) {
+    return NextResponse.json(
+      { error: 'Voucher not applicable to cart items' },
+      { status: 400 }
+    )
+  }
+}
+
 
       // Check minimum order amount
       if (validVoucher.minOrderAmount > 0 && serverSubtotal < validVoucher.minOrderAmount) {
