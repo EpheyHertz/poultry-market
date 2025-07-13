@@ -1,5 +1,5 @@
 import { NextResponse, NextRequest } from 'next/server';
-import { getCurrentUser } from '@/lib/auth';
+import { verifyToken } from '@/lib/auth'; // make sure this is edge-safe
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -18,11 +18,11 @@ export async function middleware(request: NextRequest) {
       const token = request.cookies.get('token')?.value;
 
       if (token) {
-        const user = await getCurrentUser();
+        const payload = await verifyToken(token);
 
-        if (user) {
+        if (payload) {
           let redirectPath = '/customer/dashboard';
-          switch (user.role) {
+          switch (payload.userRole) {
             case 'ADMIN':
               redirectPath = '/admin/dashboard';
               break;
@@ -40,7 +40,6 @@ export async function middleware(request: NextRequest) {
               break;
           }
 
-          // Avoid redirect loop
           if (pathname !== redirectPath) {
             return NextResponse.redirect(new URL(redirectPath, request.url));
           }
@@ -52,13 +51,15 @@ export async function middleware(request: NextRequest) {
   } catch (error) {
     console.error('Authentication error:', error);
 
-    const response = NextResponse.redirect(new URL('/auth/login', request.url));
-    response.cookies.delete('token');
+    if (pathname !== '/auth/login') {
+      const loginUrl = new URL('/auth/login', request.url);
+      loginUrl.searchParams.set('error', 'session_expired');
+      const response = NextResponse.redirect(loginUrl);
+      response.cookies.delete('token');
+      return response;
+    }
 
-    const loginUrl = new URL('/auth/login', request.url);
-    loginUrl.searchParams.set('error', 'session_expired');
-
-    return NextResponse.redirect(loginUrl);
+    return NextResponse.next();
   }
 }
 
