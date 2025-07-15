@@ -156,9 +156,106 @@ class ApiService {
     });
   }
 
+  // Store endpoints
+  async getStoreBySlug(slug: string) {
+    return this.request(`/store/${slug}`);
+  }
+
+  // Delivery endpoints
+  async getDeliveries() {
+    return this.request('/deliveries');
+  }
+
+  async updateDeliveryStatus(deliveryId: string, statusData: {
+    status: string;
+    location?: string;
+  }) {
+    return this.request(`/deliveries/${deliveryId}/status`, {
+      method: 'PUT',
+      body: JSON.stringify(statusData),
+    });
+  }
+
+  // Chat endpoints
+  async getChats() {
+    return this.request('/chats');
+  }
+
+  async getChatMessages(chatId: string) {
+    return this.request(`/chats/${chatId}/messages`);
+  }
+
+  async sendMessage(chatId: string, messageData: {
+    content: string;
+    type?: string;
+  }) {
+    return this.request(`/chats/${chatId}/messages`, {
+      method: 'POST',
+      body: JSON.stringify(messageData),
+    });
+  }
+
+  async createChat(participantId: string) {
+    return this.request('/chats', {
+      method: 'POST',
+      body: JSON.stringify({ participantId }),
+    });
+  }
+
+  // Voucher endpoints
+  async getVouchers() {
+    return this.request('/vouchers');
+  }
+
+  async createVoucher(voucherData: any) {
+    return this.request('/vouchers', {
+      method: 'POST',
+      body: JSON.stringify(voucherData),
+    });
+  }
+
+  async updateVoucher(voucherId: string, voucherData: any) {
+    return this.request(`/vouchers/${voucherId}`, {
+      method: 'PUT',
+      body: JSON.stringify(voucherData),
+    });
+  }
+
+  async deleteVoucher(voucherId: string) {
+    return this.request(`/vouchers/${voucherId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async validateVoucher(code: string) {
+    return this.request('/vouchers/validate', {
+      method: 'POST',
+      body: JSON.stringify({ code }),
+    });
+  }
+
+  // Analytics endpoints
+  async getAnalytics(params?: { period?: string }) {
+    const queryParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined) {
+          queryParams.append(key, value.toString());
+        }
+      });
+    }
+    
+    const endpoint = `/analytics${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    return this.request(endpoint);
+  }
+
   // Applications endpoints
   async getApplications() {
     return this.request('/applications');
+  }
+
+  async getApplication(id: string) {
+    return this.request(`/applications/${id}`);
   }
 
   async createApplication(applicationData: {
@@ -171,6 +268,18 @@ class ApiService {
     return this.request('/applications', {
       method: 'POST',
       body: JSON.stringify(applicationData),
+    });
+  }
+
+  // Sponsorship endpoints
+  async getSponsorships() {
+    return this.request('/sponsorships');
+  }
+
+  async createSponsorship(sponsorshipData: any) {
+    return this.request('/sponsorships', {
+      method: 'POST',
+      body: JSON.stringify(sponsorshipData),
     });
   }
 }
