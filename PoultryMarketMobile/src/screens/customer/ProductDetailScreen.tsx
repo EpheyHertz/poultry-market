@@ -195,7 +195,7 @@ export const ProductDetailScreen: React.FC<ProductDetailScreenProps> = ({ naviga
                       variant="outline"
                       size="sm"
                       onPress={() => setQuantity(Math.max(1, quantity - 1))}
-                      disabled={quantity <= 1}
+                      disable={quantity <= 1}
                     />
                     <StyledText className="text-xl font-semibold min-w-12 text-center">
                       {quantity}
@@ -226,4 +226,4 @@ export const ProductDetailScreen: React.FC<ProductDetailScreenProps> = ({ naviga
       </StyledView>
     </StyledSafeAreaView>
   );
-};
+};</b

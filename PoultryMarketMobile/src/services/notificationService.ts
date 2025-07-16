@@ -18,6 +18,7 @@ export class NotificationService {
       await Notifications.setNotificationChannelAsync('default', {
         name: 'default',
         importance: Notifications.AndroidImportance.MAX,
+        
         vibrationPattern: [0, 250, 250, 250],
         lightColor: '#FF231F7C',
       });
@@ -68,6 +69,7 @@ export class NotificationService {
       },
       OUT_FOR_DELIVERY: {
         title: 'Out for Delivery',
+        
         body: `Your order #${orderNumber} is on its way!`,
       },
       DELIVERED: {
