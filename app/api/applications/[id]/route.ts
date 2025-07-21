@@ -4,6 +4,48 @@ import { getCurrentUser } from '@/lib/auth'
 import { createNotification, notificationTemplates } from '@/lib/notifications'
 import { ApplicationStatus, UserRole } from '@prisma/client'
 
+
+export async function GET(
+  request: NextRequest
+) {
+  try {
+    const user = await getCurrentUser()
+     const id = request.nextUrl.pathname.split('/').pop() || ''
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const application = await prisma.application.findUnique({
+      where: { id: id },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true
+          }
+        }
+      }
+    })
+
+    if (!application) {
+      return NextResponse.json({ error: 'Application not found' }, { status: 404 })
+    }
+
+    // Check if user can access this application
+    if (user.role !== 'ADMIN' && application.userId !== user.id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    return NextResponse.json(application)
+  } catch (error) {
+    console.error('Application fetch error:', error)
+    return NextResponse.json({ error: 'Failed to fetch application' }, { status: 500 })
+  }
+}
+
+
 export async function PUT(
   request: NextRequest
 ) {

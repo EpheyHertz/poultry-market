@@ -16,7 +16,18 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate file type
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif','application/pdf'];
+    const allowedTypes = [
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/gif',
+  'image/svg+xml',
+  'image/bmp',
+  'application/pdf',                // ✅ PDFs
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // ✅ DOCX
+  'application/msword'              // ✅ DOC (older Word format)
+];
+
     if (!allowedTypes.includes(file.type)) {
       return NextResponse.json(
         { error: 'Invalid file type. Only images are allowed.' },

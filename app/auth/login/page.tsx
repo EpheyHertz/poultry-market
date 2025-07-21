@@ -74,7 +74,7 @@ export default function LoginPage() {
   const handleGoogleLogin = async (user) => {
     setIsGoogleLoading(true);
     setError('');
-    console.log('Google user:', user);
+    // console.log('Google user:', user);
 
     try {
       // In a real implementation, you would use Google OAuth
