@@ -337,6 +337,48 @@ export default function CustomerApplications() {
                           <p className="text-sm text-gray-600">{application.reviewNotes}</p>
                         </div>
                       )}
+                      {application.documents && application.documents.length > 0 && (
+                        <div className="mt-4">
+                          <p className="text-sm font-medium text-gray-700">Documents:</p>
+                          <ul className="list-disc list-inside text-sm text-gray-500">
+                            {application.documents.map((doc, index) => (
+                              <li key={index}>
+                                <a href={doc} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                                  {doc.split('/').pop()}
+                                </a>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      {application.reviewNotes && (
+                        <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                          <p className="text-sm font-medium text-gray-700">Review Notes:</p>
+                          <p className="text-sm text-gray-600">{application.reviewNotes}</p>
+                        </div>
+                      )}
+                      {application.documents && application.documents.length > 0 && (
+                        <div className="mt-4">
+                          <p className="text-sm font-medium text-gray-700">Documents:</p>
+                          <ul className="list-disc list-inside text-sm text-gray-500">
+                            {application.documents.map((doc, index) => (
+                              <li key={index}>
+                                <a href={doc} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                                  {doc.split('/').pop()}
+                                </a>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      <div className="mt-4 flex items-center space-x-2">
+                        <Button
+                          variant="outline"
+                          onClick={() => router.push(`/customer/applications/${application.id}`)}
+                        >
+                          View Details
+                        </Button>
+                      </div>
                     </div>
                   );
                 })}
