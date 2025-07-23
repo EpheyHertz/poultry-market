@@ -14,7 +14,7 @@ const nextConfig = {
         headers: [
           {
             key: 'Access-Control-Allow-Origin',
-            value: '*', // Or replace with specific origin like 'http://localhost:8081'
+            value: 'http://localhost:8081', // Or replace with specific origin like 'http://localhost:8081'
           },
           {
             key: 'Access-Control-Allow-Methods',
