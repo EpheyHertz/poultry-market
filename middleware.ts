@@ -1,8 +1,36 @@
 import { NextResponse, NextRequest } from 'next/server';
-import { verifyToken } from '@/lib/auth'; // make sure this is edge-safe
+import { verifyToken } from '@/lib/auth';
+
+const allowedOrigins = [
+  'http://localhost:8081',
+  'http://localhost:3000',
+  'https://poultrymarketke.vercel.app',
+];
+
+function getCorsHeaders(origin: string | null): Record<string, string> {
+  const isAllowed = origin && allowedOrigins.includes(origin);
+
+  return {
+    'Access-Control-Allow-Origin': isAllowed ? origin : '',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Allow-Credentials': 'true',
+  };
+}
 
 export async function middleware(request: NextRequest) {
+  const origin = request.headers.get('origin');
+  const corsHeaders = getCorsHeaders(origin);
   const { pathname } = request.nextUrl;
+
+  // Handle CORS preflight requests
+  if (request.method === 'OPTIONS') {
+    return new NextResponse(null, {
+      status: 204,
+      headers: corsHeaders,
+    });
+  }
+
   const protectedAuthRoutes = [
     '/auth/login',
     '/auth/register',
@@ -21,8 +49,10 @@ export async function middleware(request: NextRequest) {
         const payload = await verifyToken(token);
 
         if (payload) {
+          const role = payload.userRole;
           let redirectPath = '/customer/dashboard';
-          switch (payload.userRole) {
+
+          switch (role) {
             case 'ADMIN':
               redirectPath = '/admin/dashboard';
               break;
@@ -41,25 +71,42 @@ export async function middleware(request: NextRequest) {
           }
 
           if (pathname !== redirectPath) {
-            return NextResponse.redirect(new URL(redirectPath, request.url));
+            const response = NextResponse.redirect(new URL(redirectPath, request.url));
+            Object.entries(corsHeaders).forEach(([key, value]) =>
+              response.headers.set(key, value)
+            );
+            return response;
           }
         }
       }
     }
 
-    return NextResponse.next();
+    const response = NextResponse.next();
+    Object.entries(corsHeaders).forEach(([key, value]) =>
+      response.headers.set(key, value)
+    );
+    return response;
+
   } catch (error) {
-    console.error('Authentication error:', error);
+    console.error('Auth error in middleware:', error);
 
     if (pathname !== '/auth/login') {
       const loginUrl = new URL('/auth/login', request.url);
       loginUrl.searchParams.set('error', 'session_expired');
+
       const response = NextResponse.redirect(loginUrl);
       response.cookies.delete('token');
+      Object.entries(corsHeaders).forEach(([key, value]) =>
+        response.headers.set(key, value)
+      );
       return response;
     }
 
-    return NextResponse.next();
+    const response = NextResponse.next();
+    Object.entries(corsHeaders).forEach(([key, value]) =>
+      response.headers.set(key, value)
+    );
+    return response;
   }
 }
 
@@ -68,5 +115,6 @@ export const config = {
     '/auth/login',
     '/auth/register',
     '/auth/forgot-password',
+    '/api/:path*',
   ],
 };
