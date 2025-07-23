@@ -1,33 +1,33 @@
 import { NextResponse, NextRequest } from 'next/server';
-import { verifyToken } from '@/lib/auth';
+import { verifyToken } from '@/lib/auth'; // Ensure this works in Edge runtime
 
-const allowedOrigins = [
-  'http://localhost:8081',
-  'http://localhost:3000',
-  'https://poultrymarketke.vercel.app',
-];
+export const config = {
+  matcher: [
+    '/api/:path*',
+    '/auth/login',
+    '/auth/register',
+    '/auth/forgot-password',
+  ],
+};
 
-function getCorsHeaders(origin: string | null): Record<string, string> {
-  const isAllowed = origin && allowedOrigins.includes(origin);
-
-  return {
-    'Access-Control-Allow-Origin': isAllowed ? origin : '',
-    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    'Access-Control-Allow-Credentials': 'true',
-  };
-}
+const allowedOrigins =['http://localhost:3000', 'http://localhost:8081','https://poultrymarketke.vercel.app']
 
 export async function middleware(request: NextRequest) {
   const origin = request.headers.get('origin');
-  const corsHeaders = getCorsHeaders(origin);
+  const isAllowedOrigin = origin && allowedOrigins.includes(origin);
   const { pathname } = request.nextUrl;
 
-  // Handle CORS preflight requests
+  // Handle CORS preflight
   if (request.method === 'OPTIONS') {
-    return new NextResponse(null, {
-      status: 204,
-      headers: corsHeaders,
+    return new Response(null, {
+      status: 200,
+      headers: {
+        'Access-Control-Allow-Origin': isAllowedOrigin ? origin : 'null',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        'Access-Control-Allow-Credentials': 'true',
+        'Access-Control-Max-Age': '86400',
+      },
     });
   }
 
@@ -49,10 +49,9 @@ export async function middleware(request: NextRequest) {
         const payload = await verifyToken(token);
 
         if (payload) {
-          const role = payload.userRole;
           let redirectPath = '/customer/dashboard';
 
-          switch (role) {
+          switch (payload.userRole) {
             case 'ADMIN':
               redirectPath = '/admin/dashboard';
               break;
@@ -72,9 +71,10 @@ export async function middleware(request: NextRequest) {
 
           if (pathname !== redirectPath) {
             const response = NextResponse.redirect(new URL(redirectPath, request.url));
-            Object.entries(corsHeaders).forEach(([key, value]) =>
-              response.headers.set(key, value)
-            );
+            if (isAllowedOrigin) {
+              response.headers.set('Access-Control-Allow-Origin', origin);
+              response.headers.set('Access-Control-Allow-Credentials', 'true');
+            }
             return response;
           }
         }
@@ -82,9 +82,10 @@ export async function middleware(request: NextRequest) {
     }
 
     const response = NextResponse.next();
-    Object.entries(corsHeaders).forEach(([key, value]) =>
-      response.headers.set(key, value)
-    );
+    if (isAllowedOrigin) {
+      response.headers.set('Access-Control-Allow-Origin', origin);
+      response.headers.set('Access-Control-Allow-Credentials', 'true');
+    }
     return response;
 
   } catch (error) {
@@ -96,25 +97,19 @@ export async function middleware(request: NextRequest) {
 
       const response = NextResponse.redirect(loginUrl);
       response.cookies.delete('token');
-      Object.entries(corsHeaders).forEach(([key, value]) =>
-        response.headers.set(key, value)
-      );
+
+      if (isAllowedOrigin) {
+        response.headers.set('Access-Control-Allow-Origin', origin);
+        response.headers.set('Access-Control-Allow-Credentials', 'true');
+      }
       return response;
     }
 
     const response = NextResponse.next();
-    Object.entries(corsHeaders).forEach(([key, value]) =>
-      response.headers.set(key, value)
-    );
+    if (isAllowedOrigin) {
+      response.headers.set('Access-Control-Allow-Origin', origin);
+      response.headers.set('Access-Control-Allow-Credentials', 'true');
+    }
     return response;
   }
 }
-
-export const config = {
-  matcher: [
-    '/auth/login',
-    '/auth/register',
-    '/auth/forgot-password',
-    '/api/:path*',
-  ],
-};
