@@ -92,8 +92,6 @@ export async function POST(request: NextRequest) {
       phone: user?.phone,
       vehicleType: user?.vehicleType,
       vehicleNumber: user?.vehicleNumber,
-      tags: user?.tags,
-      agentId: user?.agentId,
       isVerified: user?.isVerified,
       createdAt: user?.createdAt,
       }
