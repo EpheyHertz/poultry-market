@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { comparePassword, signToken } from '@/lib/auth'
 import { cookies } from 'next/headers'
 
+
 export async function POST(request: NextRequest) {
   try {
     const { email, password } = await request.json()
@@ -33,12 +34,25 @@ export async function POST(request: NextRequest) {
     })
 
     return NextResponse.json({
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-      },
+      token,
+      user:{
+        id: user?.id,
+      email: user?.email,
+      name: user?.name,
+      role: user?.role,
+      avatar: user?.avatar,
+      dashboardSlug: user?.dashboardSlug,
+      customDomain: user?.customDomain,
+      isApproved: user?.isApproved,
+      isActive: user?.isActive,
+      phone: user?.phone,
+      vehicleType: user?.vehicleType,
+      vehicleNumber: user?.vehicleNumber,
+      tags: user?.tags,
+      agentId: user?.agentId,
+      isVerified: user?.isVerified,
+      createdAt: user?.createdAt,
+      }
     })
   } catch (error) {
     return NextResponse.json({ error: 'Login failed' }, { status: 500 })

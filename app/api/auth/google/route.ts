@@ -78,13 +78,24 @@ export async function POST(request: NextRequest) {
     // Create response with cookie
     const response = NextResponse.json({
       success: true,
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        avatar: user.avatar,
-        emailVerified: user.isVerified
+      token,
+      user:{
+      id: user?.id,
+      email: user?.email,
+      name: user?.name,
+      role: user?.role,
+      avatar: user?.avatar,
+      dashboardSlug: user?.dashboardSlug,
+      customDomain: user?.customDomain,
+      isApproved: user?.isApproved,
+      isActive: user?.isActive,
+      phone: user?.phone,
+      vehicleType: user?.vehicleType,
+      vehicleNumber: user?.vehicleNumber,
+      tags: user?.tags,
+      agentId: user?.agentId,
+      isVerified: user?.isVerified,
+      createdAt: user?.createdAt,
       }
     })
 
