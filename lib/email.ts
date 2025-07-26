@@ -213,7 +213,7 @@ export const emailTemplates = {
             <ul style="color: #1f2937; margin: 0; padding-left: 20px;">
               <li style="margin: 5px 0;">Our support team will review your message</li>
               <li style="margin: 5px 0;">You'll receive a personalized response within 24 hours</li>
-              <li style="margin: 5px 0;">For urgent matters, call us at +254 700 000 000</li>
+              <li style="margin: 5px 0;">For urgent matters, call us at +254 705 423 479</li>
             </ul>
           </div>
           
