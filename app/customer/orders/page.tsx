@@ -44,6 +44,7 @@ interface Order {
   discountAmount: number;
   voucherCode: string;
   paymentStatus: string;
+  deliveryFee:number;
   createdAt: string;
   updatedAt: string;
   items: OrderItem[];
@@ -276,6 +277,8 @@ export default function CustomerOrders() {
                             </div>
                           )}
                           <div className="flex justify-between font-semibold">
+                            <span>Delivery Fee:</span>
+                            <span>{formatCurrency(order.deliveryFee)}</span>
                             <span>Total:</span>
                             <span>{formatCurrency(order.total)}</span>
                           </div>

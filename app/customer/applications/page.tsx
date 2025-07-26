@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { Plus, FileText, Upload, Clock, CheckCircle, XCircle } from 'lucide-react';
+import { Plus, FileText, Upload, Clock, CheckCircle, XCircle, AlertTriangle, Loader2, X, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function CustomerApplications() {
@@ -102,6 +102,17 @@ export default function CustomerApplications() {
       toast.error('Upload failed');
     }
   };
+  const removeDocument = (index: number) => {
+  setFormData(prev => {
+    const updatedDocuments = [...prev.documents];
+    updatedDocuments.splice(index, 1);
+    return {
+      ...prev,
+      documents: updatedDocuments
+    };
+  });
+  toast.success('Document removed');
+};
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -177,113 +188,208 @@ export default function CustomerApplications() {
 
         {/* Application Form */}
         {showForm && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Submit Role Application</CardTitle>
-              <CardDescription>
-                Fill out the form below to apply for a new role
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="space-y-2">
-                  <Label htmlFor="requestedRole">Requested Role</Label>
-                  <Select value={formData.requestedRole} onValueChange={(value) => setFormData({ ...formData, requestedRole: value })}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select role to apply for" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="SELLER">Seller - Sell eggs & meat</SelectItem>
-                      <SelectItem value="COMPANY">Company - Sell feeds & chicks</SelectItem>
-                      <SelectItem value="STAKEHOLDER">Stakeholder - Investment partner</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+  <Card>
+    <CardHeader>
+      <CardTitle>Submit Role Application</CardTitle>
+      <CardDescription>
+        Fill out the form below to apply for a new role
+      </CardDescription>
+    </CardHeader>
+    <CardContent>
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="space-y-2">
+          <Label htmlFor="requestedRole">Requested Role</Label>
+          <Select 
+            value={formData.requestedRole} 
+            onValueChange={(value) => setFormData({ ...formData, requestedRole: value })}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select role to apply for" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="SELLER">Seller - Sell eggs & meat</SelectItem>
+              <SelectItem value="COMPANY">Company - Sell feeds & chicks</SelectItem>
+              <SelectItem value="STAKEHOLDER">Stakeholder - Investment partner</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="businessName">Business Name</Label>
-                  <Input
-                    id="businessName"
-                    value={formData.businessName}
-                    onChange={(e) => setFormData({ ...formData, businessName: e.target.value })}
-                    placeholder="Enter your business name"
-                    required
-                  />
-                </div>
+        {/* Dynamic Document Requirements Section */}
+        <div className="space-y-2">
+          <Label>Required Documents for {formData.requestedRole || 'selected role'}</Label>
+          <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+            {formData.requestedRole === 'SELLER' && (
+              <>
+                <h4 className="font-medium mb-2">Seller Requirements</h4>
+                <ul className="list-disc list-inside space-y-1 text-sm text-gray-600">
+                  <li>National ID or Passport (clear scan)</li>
+                  <li>Kenya Revenue Authority (KRA) PIN</li>
+                  <li>County Business Permit</li>
+                  <li>Health Certificate/Hygiene Permit (if applicable)</li>
+                  <li>KEBS Certificate (for processed goods)</li>
+                </ul>
+              </>
+            )}
+            
+            {formData.requestedRole === 'STAKEHOLDER' && (
+              <>
+                <h4 className="font-medium mb-2">Stakeholder Requirements</h4>
+                <ul className="list-disc list-inside space-y-1 text-sm text-gray-600">
+                  <li>National ID or Passport (clear scan)</li>
+                  <li>Kenya Revenue Authority (KRA) PIN</li>
+                  <li>County Business Permit</li>
+                  <li>Health Certificate/Hygiene Permit (if applicable)</li>
+                  <li>KEBS Certificate (for processed goods)</li>
+                  <li>Poultry Registration Document/Bird Register</li>
+                  <li>Breeder/Hatchery License</li>
+                  <li>Biosecurity Proof (vaccination logs)</li>
+                  <li>Association Membership (recommended)</li>
+                </ul>
+              </>
+            )}
+            
+            {formData.requestedRole === 'COMPANY' && (
+              <>
+                <h4 className="font-medium mb-2">Company Requirements</h4>
+                <ul className="list-disc list-inside space-y-1 text-sm text-gray-600">
+                  <li>National ID or Passport (clear scan)</li>
+                  <li>Kenya Revenue Authority (KRA) PIN</li>
+                  <li>County Business Permit</li>
+                  <li>Health Certificate/Hygiene Permit (if applicable)</li>
+                  <li>KEBS Certificate (for processed goods)</li>
+                  <li>Poultry Registration Document/Bird Register</li>
+                  <li>Breeder/Hatchery License</li>
+                  <li>Biosecurity Proof (vaccination logs)</li>
+                  <li>Association Membership (recommended)</li>
+                  <li>Certificate of Incorporation</li>
+                  <li>CR12 Form (recent: Must be 3 months from issue)</li>
+                  <li>Company KRA PIN & Tax Compliance</li>
+                  <li>Multi-County Permits (if applicable)</li>
+                  <li>EIA Approval (for large operations)</li>
+                </ul>
+              </>
+            )}
+            
+            {!formData.requestedRole && (
+              <p className="text-sm text-gray-500">Please select a role to see document requirements</p>
+            )}
+            
+            <div className="mt-3 text-xs text-gray-500">
+              <AlertCircle className="inline mr-1 h-4 w-4" />
+              Documents must be clear, unaltered, and match across all uploads.
+            </div>
+          </div>
+        </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="businessType">Business Type</Label>
-                  <Input
-                    id="businessType"
-                    value={formData.businessType}
-                    onChange={(e) => setFormData({ ...formData, businessType: e.target.value })}
-                    placeholder="e.g., Small Farm, Large Scale Operation"
-                    required
-                  />
-                </div>
+        <div className="space-y-2">
+          <Label htmlFor="businessName">Business Name</Label>
+          <Input
+            id="businessName"
+            value={formData.businessName}
+            onChange={(e) => setFormData({ ...formData, businessName: e.target.value })}
+            placeholder="Enter your business name"
+            required
+          />
+        </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="description">Description</Label>
-                  <Textarea
-                    id="description"
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    placeholder="Describe your business and why you want this role..."
-                    rows={4}
-                    required
-                  />
-                </div>
+        <div className="space-y-2">
+          <Label htmlFor="businessType">Business Type</Label>
+          <Input
+            id="businessType"
+            value={formData.businessType}
+            onChange={(e) => setFormData({ ...formData, businessType: e.target.value })}
+            placeholder="e.g., Small Farm, Large Scale Operation"
+            required
+          />
+        </div>
 
-                <div className="space-y-2">
-                  <Label>Supporting Documents</Label>
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
-                    <div className="text-center">
-                      <Upload className="mx-auto h-12 w-12 text-gray-400" />
-                      <div className="mt-4">
-                        <label htmlFor="file-upload" className="cursor-pointer">
-                          <span className="mt-2 block text-sm font-medium text-gray-900">
-                            Upload documents
-                          </span>
-                          <span className="mt-1 block text-sm text-gray-500">
-                            PDF, DOC, or image files up to 5MB
-                          </span>
-                        </label>
-                        <input
-                          id="file-upload"
-                          name="file-upload"
-                          type="file"
-                          className="sr-only"
-                          accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                          onChange={handleFileUpload}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  {formData.documents.length > 0 && (
-                    <div className="mt-2">
-                      <p className="text-sm text-gray-600">Uploaded documents:</p>
-                      <ul className="list-disc list-inside text-sm text-gray-500">
-                        {formData.documents.map((doc, index) => (
-                          <li key={index}>{doc.split('/').pop()}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
+        <div className="space-y-2">
+          <Label htmlFor="description">Description</Label>
+          <Textarea
+            id="description"
+            value={formData.description}
+            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+            placeholder="Describe your business and why you want this role..."
+            rows={4}
+            required
+          />
+        </div>
 
-                <div className="flex space-x-4">
-                  <Button type="submit" disabled={isLoading} className="flex-1">
-                    {isLoading ? 'Submitting...' : 'Submit Application'}
-                  </Button>
-                  <Button type="button" variant="outline" onClick={() => setShowForm(false)}>
-                    Cancel
-                  </Button>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
-        )}
+        <div className="space-y-2">
+          <Label>Supporting Documents</Label>
+          <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
+            <div className="text-center">
+              <Upload className="mx-auto h-12 w-12 text-gray-400" />
+              <div className="mt-4">
+                <label htmlFor="file-upload" className="cursor-pointer">
+                  <span className="mt-2 block text-sm font-medium text-gray-900">
+                    Upload documents
+                  </span>
+                  <span className="mt-1 block text-sm text-gray-500">
+                    PDF, DOC, or image files up to 5MB
+                  </span>
+                </label>
+                <input
+                  id="file-upload"
+                  name="file-upload"
+                  type="file"
+                  className="sr-only"
+                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                  onChange={handleFileUpload}
+                  multiple
+                />
+              </div>
+            </div>
+          </div>
+          
+          {formData.documents.length > 0 && (
+            <div className="mt-2">
+              <p className="text-sm text-gray-600">Uploaded documents:</p>
+              <ul className="list-disc list-inside text-sm text-gray-500">
+                {formData.documents.map((doc, index) => (
+                  <li key={index} className="flex items-center">
+                    <span>{doc.split('/').pop()}</span>
+                    <button 
+                      type="button" 
+                      onClick={() => removeDocument(index)}
+                      className="ml-2 text-red-500 hover:text-red-700"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
 
+        <div className="flex flex-col sm:flex-row sm:space-x-4 space-y-3 sm:space-y-0">
+          <Button type="submit" disabled={isLoading} className="flex-1">
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Submitting...
+              </>
+            ) : 'Submit Application'}
+          </Button>
+          <Button 
+            type="button" 
+            variant="outline" 
+            onClick={() => setShowForm(false)}
+            className="flex-1"
+          >
+            Cancel
+          </Button>
+        </div>
+        
+        <div className="text-xs text-gray-500 mt-4 p-3 bg-red-50 rounded border border-red-100">
+          <AlertTriangle className="inline mr-1 h-4 w-4 text-red-500" />
+          <span className="font-medium">Note:</span> Applicants found submitting forged documents will be banned and reported to authorities.Also ensure all documents are clear and unaltered.Submitting means you agree to our <a href="/terms" className="text-blue-600 hover:underline">Terms of Service</a>.
+        </div>
+      </form>
+    </CardContent>
+  </Card>
+)}
         {/* Applications List */}
         <Card>
           <CardHeader>

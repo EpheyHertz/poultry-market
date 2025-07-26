@@ -11,6 +11,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Bird, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
+import Loading from '@/components/loading';
 
 // ✅ Form UI moved inside Suspense-wrapped inner component
 function RegisterForm() {
@@ -85,7 +86,7 @@ function RegisterForm() {
             <Bird className="h-12 w-12 text-green-600" />
           </div>
           <CardTitle className="text-2xl font-bold">Create Account</CardTitle>
-          <CardDescription>Join PoultryMarket today</CardDescription>
+          <CardDescription>Join PoultryMarket today. For Seller, Company or StakeHolder account, Please create a customer account, then login to your account and send an application or  contact the admin.</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -138,8 +139,8 @@ function RegisterForm() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="CUSTOMER">Customer - Buy products</SelectItem>
-                  <SelectItem value="SELLER">Seller - Sell eggs & meat</SelectItem>
-                  <SelectItem value="COMPANY">Company - Sell feeds & chicks</SelectItem>
+                  {/* <SelectItem value="SELLER">Seller - Sell eggs & meat</SelectItem>
+                  <SelectItem value="COMPANY">Company - Sell feeds & chicks</SelectItem> */}
                 </SelectContent>
               </Select>
             </div>
@@ -212,7 +213,7 @@ function RegisterForm() {
 // ✅ Final Export (with Suspense boundary)
 export default function RegisterPage() {
   return (
-    <Suspense fallback={<div className="text-center py-8">Loading registration form...</div>}>
+    <Suspense fallback={<Loading text="Loading registration form..." />}>
       <RegisterForm />
     </Suspense>
   );

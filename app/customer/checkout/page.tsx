@@ -229,14 +229,26 @@ function CheckoutContent() {
     return product?.price;
   };
 
-  const subtotal = cartItems.reduce((sum, item) => {
-    const price = calculateItemPrice(item.product);
-    return sum + (price * item.quantity);
-  }, 0);
+// Helper rounding function
+const customRound = (value: number) => {
+  return value % 1 <= 0.4 ? Math.floor(value) : Math.ceil(value);
+};
 
-  const deliveryFee = selectedDeliveryFee ? selectedDeliveryFee.amount : 0;
-  const finalDeliveryFee = Math.max(0, deliveryFee - deliveryDiscountAmount);
-  const total = Math.max(0, subtotal - discountAmount + finalDeliveryFee);
+
+const subtotal = cartItems.reduce((sum, item) => {
+  const price = calculateItemPrice(item.product);
+  return sum + (price * item.quantity);
+}, 0);
+
+// Delivery fee adjustments
+const deliveryFee = selectedDeliveryFee ? selectedDeliveryFee.amount : 0;
+const rawFinalDeliveryFee = Math.max(0, deliveryFee - deliveryDiscountAmount);
+const finalDeliveryFee = customRound(rawFinalDeliveryFee);
+
+// Total after applying discount and delivery
+const rawTotal = Math.max(0, subtotal - discountAmount + finalDeliveryFee);
+const total = customRound(rawTotal);
+
 
   const applyVoucher = async () => {
     if (!voucherCode.trim()) {
@@ -538,7 +550,7 @@ function CheckoutContent() {
                         })
                         .slice(0, 4)
                         .map(voucher => (
-                          <div key={voucher.id} className="p-3 border rounded-lg hover:bg-gray-50">
+                          <div key={voucher.id} className="p-3 border rounded-lg hover:bg-gray-50 ">
                             <div className="flex justify-between items-start">
                               <div className="flex-1">
                                 <p className="font-mono font-bold text-sm">{voucher.code}</p>
@@ -802,7 +814,7 @@ function CheckoutContent() {
                           <li>Open your M-Pesa app</li>
                           <li>Select <strong>Lipa na M-Pesa</strong></li>
                           <li>Select <strong>Pay Bill</strong></li>
-                          <li>Enter Till Number: <strong>123456</strong></li>
+                          <li>Enter PAYBILL Number: <strong>200999</strong></li>
                           <li>Enter Amount: <strong>Ksh {total.toFixed(2)}</strong></li>
                           <li>Enter your M-Pesa PIN and confirm payment</li>
                         </ol>

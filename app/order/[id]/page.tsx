@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
+import Loader from "@/components/loading"
 import { 
   Package, 
   Truck, 
@@ -561,11 +562,7 @@ function OrderContent() {
 export default function OrderPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <p>Loading order details...</p>
-        </div>
-      </div>
+      <Loader text="Loading order..."/>
     }>
       <OrderContent />
     </Suspense>

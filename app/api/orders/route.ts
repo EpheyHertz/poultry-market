@@ -301,9 +301,18 @@ if (
       }
     }
 
-    // Calculate final amounts
-    const finalDeliveryFee = Math.max(0, serverDeliveryFee - serverDeliveryDiscountAmount)
-    const serverTotal = Math.max(0, serverSubtotal - serverDiscountAmount + finalDeliveryFee)
+// Calculate and round final delivery fee
+const rawDeliveryFee = Math.max(0, serverDeliveryFee - serverDeliveryDiscountAmount);
+const finalDeliveryFee = rawDeliveryFee % 1 <= 0.4
+  ? Math.floor(rawDeliveryFee)
+  : Math.ceil(rawDeliveryFee);
+
+// Calculate and round server total
+const rawTotal = Math.max(0, serverSubtotal - serverDiscountAmount + finalDeliveryFee);
+const serverTotal = rawTotal % 1 <= 0.4
+  ? Math.floor(rawTotal)
+  : Math.ceil(rawTotal);
+
 
     // Verify client calculations match server
     if (
@@ -332,6 +341,7 @@ if (
           status: initialStatus,
           paymentType: paymentType as PaymentType,
           paymentStatus: initialPaymentStatus,
+          deliveryFee:finalDeliveryFee,
           discountAmount: serverDiscountAmount,
           voucherCode: validVoucher?.code || null,
           paymentDetails:
@@ -347,7 +357,7 @@ if (
               create: {
                 address: deliveryAddress,
                 trackingId: `TRK${Date.now()}`,
-                status: 'ASSIGNED',
+                status: OrderStatus.PENDING,
                 fee: finalDeliveryFee,
                 deliveryNotes: deliveryVoucherCode
                   ? `Applied voucher: ${deliveryVoucherCode}`

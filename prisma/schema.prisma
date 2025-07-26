@@ -259,6 +259,7 @@ model Order {
   total      Float
   subtotal   Float @default(0)
   discountAmount Float   @default(0)
+  deliveryFee Float   @default(0)
   voucherCode    String?
   notes      String?
   rejectionReason String?

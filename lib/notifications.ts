@@ -1,5 +1,7 @@
 import { prisma } from './prisma'
 import { NotificationType } from '@prisma/client'
+import { sendEmail, emailTemplates } from './email'
+import  mainSendSMS  from './sms'
 
 interface NotificationData {
   receiverId: string
@@ -19,11 +21,22 @@ export async function createNotification(data: NotificationData) {
       }
     })
 
-    // Here you would integrate with actual email/SMS services
+    // Get user email for email notifications
     if (data.type === 'EMAIL') {
-      await sendEmail(data)
+      const user = await prisma.user.findUnique({
+        where: { id: data.receiverId },
+        select: { email: true, name: true }
+      })
+
+      if (user?.email) {
+        await sendEmailNotification(data, user.email, user.name)
+      }
     } else if (data.type === 'SMS') {
-      await sendSMS(data)
+        const user = await prisma.user.findUnique({
+        where: { id: data.receiverId },
+        select: { phone: true, name: true }
+      })
+      await sendSMS(data, user?.phone || '', user?.name || '')
     }
 
     return notification
@@ -33,24 +46,109 @@ export async function createNotification(data: NotificationData) {
   }
 }
 
-async function sendEmail(data: NotificationData) {
-  // Integration with email service (e.g., SendGrid, Resend, etc.)
-  console.log('Sending email:', data.title, 'to user:', data.receiverId)
+async function sendEmailNotification(data: NotificationData, userEmail: string, userName: string) {
+  try {
+    // Map notification types to email templates
+    let emailTemplate: string
 
-  // Example implementation:
-  // const emailService = new EmailService()
-  // await emailService.send({
-  //   to: user.email,
-  //   subject: data.title,
-  //   html: data.message
-  // })
+    switch (data.title) {
+      case 'Order Confirmed':
+        emailTemplate = emailTemplates.orderConfirmed(userName, data.message)
+        break
+      case 'New Order Received':
+        emailTemplate = emailTemplates.newOrder(userName, data.message)
+        break
+      case 'Payment Submitted for Approval':
+        emailTemplate = emailTemplates.paymentSubmitted(userName, data.message)
+        break
+      case 'Payment Approved':
+        emailTemplate = emailTemplates.paymentApproved(userName, data.message)
+        break
+      case 'Payment Rejected':
+        emailTemplate = emailTemplates.paymentRejected(userName, data.message)
+        break
+      case 'Order Packed':
+        emailTemplate = emailTemplates.orderPacked(userName, data.message)
+        break
+      case 'Order Dispatched':
+        emailTemplate = emailTemplates.orderDispatched(userName, data.message)
+        break
+      case 'Order Picked Up':
+        emailTemplate = emailTemplates.orderPickedUp(userName, data.message)
+        break
+      case 'Order In Transit':
+        emailTemplate = emailTemplates.orderInTransit(userName, data.message)
+        break
+      case 'Order Out for Delivery':
+        emailTemplate = emailTemplates.orderOutForDelivery(userName, data.message)
+        break
+      case 'Order Delivered':
+        emailTemplate = emailTemplates.orderDelivered(userName, data.message)
+        break
+      case 'Order Rejected':
+        emailTemplate = emailTemplates.orderRejected(userName, data.message)
+        break
+      case 'Application Approved':
+        emailTemplate = emailTemplates.applicationApproved(userName, data.message)
+        break
+      case 'Application Update':
+        emailTemplate = emailTemplates.applicationRejected(userName, data.message)
+        break
+      case 'Sponsorship Approved':
+        emailTemplate = emailTemplates.sponsorshipApproved(userName, data.message)
+        break
+      case 'Sponsorship Declined':
+        emailTemplate = emailTemplates.sponsorshipRejected(userName, data.message)
+        break
+      case 'New Sponsorship Offer':
+        emailTemplate = emailTemplates.sponsorshipReceived(userName, data.message)
+        break
+      case 'Sponsorship Declined':
+        emailTemplate = emailTemplates.sponsorshipDeclined(userName, data.message)
+        break
+      case 'New Review Received':
+        emailTemplate = emailTemplates.reviewReceived(userName, data.message)
+        break
+      case 'New Delivery Assignment':
+        emailTemplate = emailTemplates.deliveryAssigned(userName, data.message)
+        break
+      default:
+        // Generic notification template
+        emailTemplate = emailTemplates.genericNotification(userName, data.title, data.message)
+        break
+    }
+
+    await sendEmail({
+      to: userEmail,
+      subject: data.title,
+      html: emailTemplate
+    })
+
+    console.log(`Email notification sent to ${userEmail}: ${data.title}`)
+  } catch (error) {
+    console.error('Failed to send email notification:', error)
+  }
 }
 
-async function sendSMS(data: NotificationData) {
+async function sendSMS(data: NotificationData, userPhone: string, userName: string) {
   // Integration with SMS service (e.g., Twilio, Africa's Talking, etc.)
   console.log('Sending SMS:', data.title, 'to user:', data.receiverId)
+  try {
+    if (!userPhone) {
+      console.warn('No phone number provided for SMS notification')
+      return
+    }
+    const message = `${data.title}\n${data.message}`
 
-  // Example implementation:
+    // Example implementation for sending SMS
+    await mainSendSMS(userPhone, message)
+
+    console.log(`SMS notification sent to ${userPhone}: ${data.title}`)
+  } catch (error) {
+    console.error('Failed to send SMS notification:', error)
+  }
+
+  // Example implementation for Africa's Talking or Twilio:
   // const smsService = new SMSService()
   // await smsService.send({
   //   to: user.phone,

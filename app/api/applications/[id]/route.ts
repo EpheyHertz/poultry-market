@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'
 import { createNotification, notificationTemplates } from '@/lib/notifications'
 import { ApplicationStatus, UserRole } from '@prisma/client'
+import { randomUUID } from 'crypto'
 
 
 export async function GET(
@@ -91,7 +92,9 @@ export async function PUT(
     if (status === 'APPROVED') {
       await prisma.user.update({
         where: { id: application.userId },
-        data: { role: application.requestedRole }
+        data: { role: application.requestedRole,
+          dashboardSlug: application.userId.slice(0, 6)+ randomUUID().slice(0, 8) ,
+         }
       })
 
       // Create notification
