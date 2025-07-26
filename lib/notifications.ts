@@ -36,7 +36,9 @@ export async function createNotification(data: NotificationData) {
         where: { id: data.receiverId },
         select: { phone: true, name: true }
       })
+      if (user?.phone) {
       await sendSMS(data, user?.phone || '', user?.name || '')
+      }
     }
 
     return notification
