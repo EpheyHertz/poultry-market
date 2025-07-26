@@ -442,7 +442,7 @@ export default function HomePage() {
               <h3 className="font-bold mb-4">Quick Links</h3>
               <div className="space-y-2">
                 <Link href="/products" className="text-gray-400 hover:text-white transition-colors block">Products</Link>
-                <Link href="/categories" className="text-gray-400 hover:text-white transition-colors block">Categories</Link>
+                
                 <Link href="/contact" className="text-gray-400 hover:text-white transition-colors block">Contact</Link>
               </div>
             </div>
@@ -451,8 +451,8 @@ export default function HomePage() {
               <h3 className="font-bold mb-4">For Business</h3>
               <div className="space-y-2">
                 <Link href="/auth/register" className="text-gray-400 hover:text-white transition-colors block">Become Seller</Link>
-                <Link href="/delivery-agent" className="text-gray-400 hover:text-white transition-colors block">Delivery Partner</Link>
-                <Link href="/company" className="text-gray-400 hover:text-white transition-colors block">Company Solutions</Link>
+                <Link href="/auth/register" className="text-gray-400 hover:text-white transition-colors block">Delivery Partner</Link>
+                <Link href="/auth/register" className="text-gray-400 hover:text-white transition-colors block">Company Solutions</Link>
               </div>
             </div>
             
