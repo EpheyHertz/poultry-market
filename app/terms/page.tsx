@@ -85,7 +85,7 @@ export default function TermsPage() {
                   </CardTitle>
                   <div className="flex items-center space-x-2 text-sm text-gray-500">
                     <Clock className="h-4 w-4" />
-                    <span>Effective Date: January 1, 2025</span>
+                    <span>Effective Date: June 1, 2025</span>
                   </div>
                 </CardHeader>
                 <CardContent className="prose max-w-none">
@@ -183,7 +183,7 @@ export default function TermsPage() {
                   </CardTitle>
                   <div className="flex items-center space-x-2 text-sm text-gray-500">
                     <Clock className="h-4 w-4" />
-                    <span>Effective Date: January 1, 2025</span>
+                    <span>Effective Date: June 1, 2025</span>
                   </div>
                 </CardHeader>
                 <CardContent className="prose max-w-none">
@@ -278,11 +278,11 @@ export default function TermsPage() {
                       <div className="mt-4 p-4 bg-gray-50 rounded-lg">
                         <div className="flex items-center space-x-2 mb-2">
                           <Mail className="h-4 w-4 text-green-600" />
-                          <span className="text-gray-700">privacy@poultrymarket.co.ke</span>
+                          <span className="text-gray-700">epheynyaga@gmail.com</span>
                         </div>
                         <div className="flex items-center space-x-2">
                           <Phone className="h-4 w-4 text-green-600" />
-                          <span className="text-gray-700">+254 700 000 000</span>
+                          <span className="text-gray-700">+254 705 423 479</span>
                         </div>
                       </div>
                     </section>
