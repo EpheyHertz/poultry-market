@@ -357,7 +357,7 @@ const serverTotal = rawTotal % 1 <= 0.4
               create: {
                 address: deliveryAddress,
                 trackingId: `TRK${Date.now()}`,
-                status: OrderStatus.PENDING,
+                status:'ASSIGNED',
                 fee: finalDeliveryFee,
                 deliveryNotes: deliveryVoucherCode
                   ? `Applied voucher: ${deliveryVoucherCode}`
