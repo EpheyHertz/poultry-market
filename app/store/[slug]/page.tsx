@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -39,6 +40,7 @@ function StoreContent() {
         }
         const data = await response.json();
         setStoreOwner(data);
+        setIsFollowing(data.isFollowing || false);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An unknown error occurred');
       } finally {
@@ -54,9 +56,25 @@ function StoreContent() {
       const response = await fetch(`/api/stores/${storeOwner.id}/follow`, {
         method: 'POST',
       });
+      
       if (response.ok) {
-        setIsFollowing(!isFollowing);
-        toast.success(isFollowing ? 'Unfollowed store' : 'Following store');
+        const data = await response.json();
+        setIsFollowing(data.following);
+        toast.success(data.message || (data.following ? 'Following store' : 'Unfollowed store'));
+        
+        // Update follower count in the store data
+        if (storeOwner.stats) {
+          setStoreOwner(prev => ({
+            ...prev,
+            stats: {
+              ...prev.stats,
+              totalFollowers: prev.stats.totalFollowers + (data.following ? 1 : -1)
+            }
+          }));
+        }
+      } else {
+        const errorData = await response.json();
+        toast.error(errorData.error || 'Failed to update follow status');
       }
     } catch (error) {
       toast.error('Failed to update follow status');
@@ -146,19 +164,19 @@ function StoreContent() {
   }
 
   // Calculate store stats
-  const totalProducts = storeOwner.products?.length || 0;
-  const totalFollowers = storeOwner.followers?.length || 0;
-  const allProductReviews = storeOwner.products?.flatMap((product: any) => 
+  const totalProducts = storeOwner.stats?.totalProducts || storeOwner.products?.length || 0;
+  const totalFollowers = storeOwner.stats?.totalFollowers || storeOwner.followers?.length || 0;
+  const allProductReviews = storeOwner.allProductReviews || storeOwner.products?.flatMap((product: any) => 
     product.reviews?.map((review: any) => ({
       ...review,
       productId: product.id,
       productName: product.name,
     })) || []
   ) || [];
-  const totalReviews = allProductReviews.length;
-  const averageRating = totalReviews > 0 
+  const totalReviews = storeOwner.stats?.totalReviews || allProductReviews.length;
+  const averageRating = storeOwner.stats?.averageRating || (totalReviews > 0 
     ? allProductReviews.reduce((sum: number, review: any) => sum + review.rating, 0) / totalReviews
-    : 0;
+    : 0);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
@@ -313,10 +331,12 @@ function StoreContent() {
                     >
                       <div className="relative aspect-square overflow-hidden">
                         {product.images?.length > 0 ? (
-                          <img 
+                          <Image 
                             src={product.images[0]} 
                             alt={product.name}
-                            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                            fill
+                            className="object-cover transition-transform duration-300 group-hover:scale-105"
+                            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                           />
                         ) : (
                           <div className="w-full h-full bg-gray-100 flex items-center justify-center">
