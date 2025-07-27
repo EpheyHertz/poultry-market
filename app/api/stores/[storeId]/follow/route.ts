@@ -91,15 +91,16 @@ export async function POST(
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { storeId: string } }
+//   { params }: { params: { storeId: string } }
 ) {
   try {
+    const storeId  = request.nextUrl.pathname.split('/').pop() || '';
     const user = await getCurrentUser();
     if (!user) {
       return NextResponse.json({ following: false });
     }
 
-    const { storeId } = params;
+    // const { storeId } = params;
 
     const existingFollow = await prisma.follow.findUnique({
       where: {
