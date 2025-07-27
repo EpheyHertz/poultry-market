@@ -4,6 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/layout/dashboard-layout';
+import DeliveryAgentPhotos from '@/components/delivery-agent/delivery-agent-photos';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -288,9 +289,10 @@ export default function DeliveryAgentDashboard() {
 
         {/* Delivery Management */}
         <Tabs defaultValue="assigned" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="assigned">My Deliveries</TabsTrigger>
             <TabsTrigger value="available">Available Deliveries</TabsTrigger>
+            <TabsTrigger value="photos">Delivery Photos</TabsTrigger>
           </TabsList>
 
           <TabsContent value="assigned" className="space-y-4">
@@ -472,6 +474,10 @@ export default function DeliveryAgentDashboard() {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="photos" className="space-y-4">
+            <DeliveryAgentPhotos />
           </TabsContent>
         </Tabs>
 

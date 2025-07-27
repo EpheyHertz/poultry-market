@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import Loader from "@/components/loading"
+import DeliveryPhotoManager from '@/components/delivery/delivery-photo-manager'
 import { 
   Package, 
   Truck, 
@@ -463,6 +464,17 @@ function OrderContent() {
                       </div>
                     </div>
                   )}
+
+                  {/* Delivery Photos */}
+                  <div className="mt-6 pt-6 border-t">
+                    <DeliveryPhotoManager
+                      deliveryId={order.delivery.id}
+                      orderId={order.id}
+                      userRole={user?.role || 'CUSTOMER'}
+                      canUpload={['CUSTOMER', 'DELIVERY_AGENT'].includes(user?.role) && 
+                                ['OUT_FOR_DELIVERY', 'DELIVERED'].includes(order.delivery.status)}
+                    />
+                  </div>
                 </CardContent>
               </Card>
             )}

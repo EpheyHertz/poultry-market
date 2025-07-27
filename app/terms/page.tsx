@@ -47,7 +47,7 @@ export default function TermsPage() {
   const termsContent = {
     terms: {
       title: "Terms of Service",
-      lastUpdated: "January 1, 2025",
+      lastUpdated: "July 1, 2025",
       sections: [
         {
           title: "1. Acceptance of Terms",
@@ -85,7 +85,7 @@ export default function TermsPage() {
     },
     privacy: {
       title: "Privacy Policy",
-      lastUpdated: "January 1, 2025",
+      lastUpdated: "July 1, 2025",
       sections: [
         {
           title: "1. Information We Collect",
@@ -117,13 +117,13 @@ export default function TermsPage() {
         },
         {
           title: "8. Contact Information",
-          content: "If you have any questions about this Privacy Policy, please contact us at privacy@poultrymarket.co.ke or through our contact form."
+          content: "If you have any questions about this Privacy Policy, please contact us at support@comradehomes.me or epheynyaga@gmail.com or through our contact form."
         }
       ]
     },
     community: {
       title: "Community Guidelines",
-      lastUpdated: "January 1, 2025",
+      lastUpdated: "July 1, 2025",
       sections: [
         {
           title: "1. Respectful Communication",

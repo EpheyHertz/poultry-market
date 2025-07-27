@@ -127,7 +127,7 @@ export const emailTemplates = {
         <!-- Footer -->
         <div style="background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
           <p style="color: #6b7280; font-size: 14px; margin: 0;">
-            © 2024 PoultryMarket. All rights reserved.<br>
+            © 2025 PoultryMarket. All rights reserved.<br>
             If you have questions, contact our support team.
           </p>
         </div>
@@ -803,6 +803,143 @@ export const emailTemplates = {
     </html>
   `,
 
+  // Delivery photo notification templates
+  deliveryPhotoUploaded: (name: string, trackingId: string, uploaderName: string, uploaderRole: string, photoType: string) => `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Delivery Photo Uploaded - PoultryMarket</title>
+    </head>
+    <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f3f4f6;">
+      <div style="max-width: 600px; margin: 0 auto; background-color: white; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+        <!-- Header -->
+        <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 40px 20px; text-align: center;">
+          <h1 style="color: white; margin: 0; font-size: 28px; font-weight: bold;">📸 Delivery Photo Uploaded</h1>
+          <p style="color: #d1fae5; margin: 10px 0 0 0; font-size: 16px;">PoultryMarket</p>
+        </div>
+        
+        <!-- Content -->
+        <div style="padding: 40px 20px;">
+          <h2 style="color: #1f2937; margin: 0 0 20px 0; font-size: 24px;">Hello ${name}!</h2>
+          
+          <p style="color: #4b5563; line-height: 1.6; margin: 0 0 20px 0; font-size: 16px;">
+            A new delivery photo has been uploaded for your order.
+          </p>
+          
+          <!-- Delivery Info Card -->
+          <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 20px; margin: 20px 0;">
+            <h3 style="color: #15803d; margin: 0 0 15px 0; font-size: 18px; font-weight: bold;">📦 Delivery Details</h3>
+            <div style="color: #166534;">
+              <p style="margin: 5px 0;"><strong>Tracking ID:</strong> #${trackingId}</p>
+              <p style="margin: 5px 0;"><strong>Photo Type:</strong> ${photoType}</p>
+              <p style="margin: 5px 0;"><strong>Uploaded by:</strong> ${uploaderName} (${uploaderRole.replace('_', ' ')})</p>
+            </div>
+          </div>
+          
+          <p style="color: #4b5563; line-height: 1.6; margin: 0 0 30px 0; font-size: 16px;">
+            You can view this photo and track your delivery progress by clicking the button below.
+          </p>
+          
+          <!-- CTA Button -->
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${process.env.NEXTAUTH_URL}/order" 
+               style="display: inline-block; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; text-decoration: none; padding: 12px 30px; border-radius: 6px; font-weight: bold; font-size: 16px;">
+              View Delivery Photos
+            </a>
+          </div>
+          
+          <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0;">
+            <p style="color: #92400e; margin: 0; font-size: 14px;">
+              <strong>💡 Tip:</strong> Delivery photos help ensure transparency and provide proof of delivery condition.
+            </p>
+          </div>
+        </div>
+        
+        <!-- Footer -->
+        <div style="background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
+          <p style="color: #6b7280; font-size: 14px; margin: 0 0 10px 0;">
+            Thank you for choosing PoultryMarket for your fresh poultry needs!
+          </p>
+          <p style="color: #6b7280; font-size: 12px; margin: 0;">
+            © 2025 PoultryMarket. All rights reserved.
+          </p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `,
+
+  deliveryPhotoReminder: (name: string, trackingId: string, userRole: string) => `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Delivery Photo Reminder - PoultryMarket</title>
+    </head>
+    <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f3f4f6;">
+      <div style="max-width: 600px; margin: 0 auto; background-color: white; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+        <!-- Header -->
+        <div style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); padding: 40px 20px; text-align: center;">
+          <h1 style="color: white; margin: 0; font-size: 28px; font-weight: bold;">📸 Delivery Photo Reminder</h1>
+          <p style="color: #fef3c7; margin: 10px 0 0 0; font-size: 16px;">PoultryMarket</p>
+        </div>
+        
+        <!-- Content -->
+        <div style="padding: 40px 20px;">
+          <h2 style="color: #1f2937; margin: 0 0 20px 0; font-size: 24px;">Hello ${name}!</h2>
+          
+          <p style="color: #4b5563; line-height: 1.6; margin: 0 0 20px 0; font-size: 16px;">
+            ${userRole === 'DELIVERY_AGENT' 
+              ? 'Please remember to upload delivery photos for completed deliveries to maintain transparency with customers.'
+              : 'You can upload photos of your received delivery to provide feedback and help us improve our service.'
+            }
+          </p>
+          
+          <!-- Delivery Info Card -->
+          <div style="background-color: #fffbeb; border: 1px solid #fed7aa; border-radius: 8px; padding: 20px; margin: 20px 0;">
+            <h3 style="color: #ea580c; margin: 0 0 15px 0; font-size: 18px; font-weight: bold;">📦 Delivery Information</h3>
+            <div style="color: #c2410c;">
+              <p style="margin: 5px 0;"><strong>Tracking ID:</strong> #${trackingId}</p>
+              <p style="margin: 5px 0;"><strong>Action Required:</strong> Upload delivery photo</p>
+            </div>
+          </div>
+          
+          <!-- CTA Button -->
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${process.env.NEXTAUTH_URL}/order" 
+               style="display: inline-block; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; text-decoration: none; padding: 12px 30px; border-radius: 6px; font-weight: bold; font-size: 16px;">
+              Upload Photo Now
+            </a>
+          </div>
+          
+          <div style="background-color: #eff6ff; border-left: 4px solid #3b82f6; padding: 15px; margin: 20px 0;">
+            <p style="color: #1e40af; margin: 0; font-size: 14px;">
+              <strong>📋 Why upload photos?</strong><br>
+              • Provides proof of delivery condition<br>
+              • Helps resolve disputes quickly<br>
+              • Improves service quality<br>
+              • Builds trust in our platform
+            </p>
+          </div>
+        </div>
+        
+        <!-- Footer -->
+        <div style="background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
+          <p style="color: #6b7280; font-size: 14px; margin: 0 0 10px 0;">
+            Thank you for helping us maintain quality service!
+          </p>
+          <p style="color: #6b7280; font-size: 12px; margin: 0;">
+            © 2025 PoultryMarket. All rights reserved.
+          </p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `,
+
   // Generic notification template
   genericNotification: (name: string, title: string, message: string) => `
     <!DOCTYPE html>
@@ -823,6 +960,65 @@ export const emailTemplates = {
           <p style="color: #4b5563; line-height: 1.6; margin: 0 0 20px 0; font-size: 16px;">${message}</p>
         </div>
         <div style="background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
+          <p style="color: #6b7280; font-size: 14px; margin: 0;">© 2025 PoultryMarket. All rights reserved.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `,
+
+  // Delivery photo notification template
+  deliveryPhotoNotification: (name: string, trackingId: string, uploaderName: string, uploaderRole: string, photoType: string, viewUrl: string) => `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Delivery Photo Uploaded - PoultryMarket</title>
+    </head>
+    <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f3f4f6;">
+      <div style="max-width: 600px; margin: 0 auto; background-color: white; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+        <!-- Header -->
+        <div style="background: linear-gradient(135deg, #059669 0%, #047857 100%); padding: 40px 20px; text-align: center;">
+          <h1 style="color: white; margin: 0; font-size: 28px; font-weight: bold;">📸 Delivery Photo Uploaded</h1>
+          <p style="color: #d1fae5; margin: 10px 0 0 0; font-size: 16px;">PoultryMarket Delivery Update</p>
+        </div>
+        
+        <!-- Content -->
+        <div style="padding: 40px 20px;">
+          <h2 style="color: #1f2937; margin: 0 0 20px 0; font-size: 24px;">Hello ${name}!</h2>
+          <p style="color: #4b5563; line-height: 1.6; margin: 0 0 20px 0; font-size: 16px;">
+            A new delivery photo has been uploaded for your order.
+          </p>
+          
+          <!-- Order Info -->
+          <div style="background-color: #f3f4f6; border-radius: 8px; padding: 20px; margin: 20px 0;">
+            <h3 style="color: #1f2937; margin: 0 0 15px 0; font-size: 18px;">📦 Delivery Details</h3>
+            <div style="color: #4b5563; line-height: 1.6;">
+              <p style="margin: 0 0 10px 0;"><strong>Tracking ID:</strong> #${trackingId}</p>
+              <p style="margin: 0 0 10px 0;"><strong>Photo Type:</strong> ${photoType}</p>
+              <p style="margin: 0 0 10px 0;"><strong>Uploaded by:</strong> ${uploaderName} (${uploaderRole})</p>
+            </div>
+          </div>
+          
+          <!-- Call to Action -->
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${viewUrl}" 
+               style="display: inline-block; background: linear-gradient(135deg, #059669 0%, #047857 100%); color: white; text-decoration: none; padding: 15px 30px; border-radius: 8px; font-weight: bold; font-size: 16px;">
+              View Photo & Order Details
+            </a>
+          </div>
+          
+          <p style="color: #6b7280; font-size: 14px; line-height: 1.6; margin: 20px 0 0 0;">
+            This photo helps ensure transparency and quality in our delivery process. You can view all delivery photos and track your order progress in your dashboard.
+          </p>
+        </div>
+        
+        <!-- Footer -->
+        <div style="background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
+          <p style="color: #6b7280; font-size: 14px; margin: 0 0 10px 0;">
+            Need help? Contact our support team at <a href="mailto:epheynyaga@gmail.com" style="color: #059669;">epheynyaga@gmail.com</a>
+          </p>
           <p style="color: #6b7280; font-size: 14px; margin: 0;">© 2025 PoultryMarket. All rights reserved.</p>
         </div>
       </div>

@@ -199,6 +199,9 @@ model User {
   followers             Follow[] @relation("Followers")
   following             Follow[] @relation("Following")
 
+  // Delivery photo uploads
+  uploadedDeliveryPhotos DeliveryPhoto[]
+
   @@map("users")
 }
 
@@ -324,7 +327,31 @@ model Delivery {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
+  deliveryPhotos DeliveryPhoto[]
+
   @@map("deliveries")
+}
+
+model DeliveryPhoto {
+  id          String   @id @default(cuid())
+  deliveryId  String
+  delivery    Delivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  uploadedBy  String
+  uploader    User     @relation(fields: [uploadedBy], references: [id])
+  photoUrl    String
+  cloudinaryPublicId String?
+  caption     String?
+  photoType   DeliveryPhotoType @default(DELIVERY_PROOF)
+  createdAt   DateTime @default(now())
+
+  @@map("delivery_photos")
+}
+
+enum DeliveryPhotoType {
+  DELIVERY_PROOF
+  DAMAGE_REPORT
+  CUSTOMER_SATISFACTION
+  PICKUP_CONFIRMATION
 }
 
 model DeliveryVoucher {
