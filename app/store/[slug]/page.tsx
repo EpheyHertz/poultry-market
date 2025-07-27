@@ -34,6 +34,7 @@ function StoreContent() {
     const fetchStoreData = async () => {
       try {
         setLoading(true);
+        // const storeId=slug
         const response = await fetch(`/api/stores/${slug}`);
         if (!response.ok) {
           throw new Error('Failed to fetch store data');

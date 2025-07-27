@@ -7,8 +7,9 @@ export async function GET(
 //   { params }: { params: { slug: string } }
 ) {
   try {
-    const slug  = request.nextUrl.pathname.split('/').pop() || '';
+    const storeId  = request.nextUrl.pathname.split('/').pop() || '';
     const currentUser = await getCurrentUser();
+    const slug=storeId;
 
     // Find store owner by slug (could be dashboardSlug, customDomain, or id)
     const storeOwner = await prisma.user.findFirst({
