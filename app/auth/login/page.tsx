@@ -130,7 +130,7 @@ export default function LoginPage() {
           {/* Google Login Button */}
           <GoogleSignIn
             onSuccess={(user) => {
-              console.log('Google sign-in successful:', user)
+              // console.log('Google sign-in successful:', user)
               handleGoogleLogin(user)
             }}
             onError={(error) => {

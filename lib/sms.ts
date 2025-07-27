@@ -46,7 +46,7 @@ async function mainSendSMS(phone: string, message: string) {
     }
 
     const result = await response.json()
-    console.log("SMS Response:", result)
+    // console.log("SMS Response:", result)
 
     // FIXED THE TYPO HERE: Changed "respose-code" to "response-code"
     if (!result.responses || result.responses[0]["response-code"] !== 200) {
@@ -63,4 +63,5 @@ async function mainSendSMS(phone: string, message: string) {
     }
   }
 }
+
 export default mainSendSMS;

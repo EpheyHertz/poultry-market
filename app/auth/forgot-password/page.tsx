@@ -54,11 +54,11 @@ export default function ForgotPasswordPage() {
               <Mail className="h-12 w-12 text-green-600" />
             </div>
             <CardTitle className="text-2xl font-bold">Check Your Email</CardTitle>
-            <CardDescription>We've sent you a password reset link</CardDescription>
+            <CardDescription>We&apos;ve sent you a password reset link</CardDescription>
           </CardHeader>
           <CardContent className="text-center space-y-4">
             <p className="text-gray-600">
-              If an account with <strong>{email}</strong> exists, we've sent a password reset link to that email address.
+              If an account with <strong>{email}</strong> exists, we&apos;ve sent a password reset link to that email address.
             </p>
             <p className="text-sm text-gray-500">
               The link will expire in 1 hour for security reasons.

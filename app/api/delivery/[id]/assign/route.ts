@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'
+import { createNotification } from '@/lib/notifications'
 
 export async function POST(
   request: NextRequest,
@@ -51,17 +52,25 @@ export async function POST(
         status: 'ASSIGNED'
       }
     })
-
     // Create notification for customer
-    await prisma.notification.create({
-      data: {
-        receiverId: delivery.order.customer.id,
-        type: 'EMAIL',
-        title: 'Delivery Agent Assigned',
-        message: `Your delivery has been assigned to ${user.name}. Tracking ID: ${delivery.trackingId}`,
-        orderId: delivery.orderId
-      }
-    })
+    await createNotification({
+            senderId: user.id,
+            receiverId: delivery.order.customer.id,
+            type: 'EMAIL',
+            title: 'Delivery Agent Assigned',
+            message: `Your delivery has been assigned to ${user.name}. Tracking ID: ${delivery.trackingId}`,
+            orderId: delivery.orderId
+          })
+    
+    // await prisma.notification.create({
+    //   data: {
+    //     receiverId: delivery.order.customer.id,
+    //     type: 'EMAIL',
+    //     title: 'Delivery Agent Assigned',
+    //     message: `Your delivery has been assigned to ${user.name}. Tracking ID: ${delivery.trackingId}`,
+    //     orderId: delivery.orderId
+    //   }
+    // })
 
     return NextResponse.json({ delivery: updatedDelivery })
   } catch (error) {

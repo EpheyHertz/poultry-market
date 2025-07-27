@@ -24,6 +24,7 @@ import {
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { Suspense } from 'react'
+import { toast } from 'sonner';
 
 function OrderContent() {
   const params = useParams()
@@ -75,6 +76,28 @@ function OrderContent() {
 
     fetchData()
   }, [id, router])
+
+  const downloadInvoice = async (orderId: string) => {
+      try {
+        const response = await fetch(`/api/invoices/${orderId}`);
+        if (response.ok) {
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `invoice-${orderId}.pdf`;
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+          toast.success('Invoice downloaded successfully!');
+        } else {
+          toast.error('Failed to download invoice');
+        }
+      } catch (error) {
+        toast.error('An error occurred while downloading invoice');
+      }
+    };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -517,7 +540,10 @@ function OrderContent() {
                 )}
                 
                 {order.status === 'DELIVERED' && order.payment && (
-                  <Button variant="outline" className="w-full">
+                  <Button
+                  onClick={()=>downloadInvoice(order.id)} 
+                  variant="outline" 
+                  className="w-full">
                     <Download className="h-4 w-4 mr-2" />
                     Download Invoice
                   </Button>
@@ -546,7 +572,10 @@ function OrderContent() {
                 <p className="text-sm text-gray-600 mb-3">
                   If you have any questions about your order, feel free to contact us.
                 </p>
-                <Button variant="outline" className="w-full">
+                <Button
+                onClick={()=> router.push("/contact")}
+                variant="outline"
+                 className="w-full">
                   <MessageCircle className="h-4 w-4 mr-2" />
                   Contact Support
                 </Button>

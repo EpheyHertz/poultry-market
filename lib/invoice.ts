@@ -99,7 +99,7 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<string> {
   // Footer
   doc.fontSize(8)
     .text('Thank you for your business!', 50, doc.page.height - 100)
-    .text('Poultry Marketplace - Fresh Farm Products', 50, doc.page.height - 85)
+    .text('Poultry Marketplace - Fresh Poultry Farm Products', 50, doc.page.height - 85)
 
   doc.end()
 

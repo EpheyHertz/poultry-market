@@ -140,7 +140,7 @@ async function sendSMS(data: NotificationData, userPhone: string, userName: stri
       console.warn('No phone number provided for SMS notification')
       return
     }
-    const message = `${data.title}\n${data.message}`
+    const message = `Hello ${userName}. Here is your message from PoultryMarket${data.title}\n${data.message}`
 
     // Example implementation for sending SMS
     await mainSendSMS(userPhone, message)

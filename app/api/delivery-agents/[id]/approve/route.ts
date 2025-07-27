@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'
+import { createNotification } from '@/lib/notifications'
 
 export async function PUT(
   request: NextRequest
@@ -48,7 +49,13 @@ export async function PUT(
         createdAt: true
       }
     })
-
+      await createNotification({
+        receiverId: updatedAgent.id,
+        senderId: user.id,
+        type: 'EMAIL',
+        title: "Delivery Account Approval Successful!",
+        message:`Hello ${updatedAgent.name}, your Delivery Agent account for PoultryMarket has been successfully approved. Login to ypur account to start getting Deliveries.`
+      })
     return NextResponse.json(updatedAgent)
   } catch (error) {
     console.error('Agent approval error:', error)
