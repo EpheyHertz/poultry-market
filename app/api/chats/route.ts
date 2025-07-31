@@ -47,13 +47,15 @@ export async function GET(request: NextRequest) {
             status: true
           }
         },
-        messages: {
-          where: {
-            senderId: { not: user.id },
-            isRead: false
-          },
+        _count: {
           select: {
-            id: true
+            messages: {
+              where: {
+                senderId: { not: user.id },
+                isRead: false,
+                isDeleted: false
+              }
+            }
           }
         }
       },
@@ -64,8 +66,9 @@ export async function GET(request: NextRequest) {
 
     const chatsWithUnreadCount = chats.map(chat => ({
       ...chat,
-      unreadCount: chat.messages.length,
-      otherParticipant: chat.participant1Id === user.id ? chat.participant2 : chat.participant1
+      unreadCount: chat._count.messages,
+      messages: undefined, // Remove messages array from response
+      _count: undefined // Remove count object from response
     }))
 
     return NextResponse.json(chatsWithUnreadCount)

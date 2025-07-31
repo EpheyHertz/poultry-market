@@ -99,6 +99,22 @@ enum NotificationType {
   PUSH
 }
 
+enum AnnouncementType {
+  SALE
+  DISCOUNT
+  SLAUGHTER_SCHEDULE
+  PRODUCT_LAUNCH
+  GENERAL
+  URGENT
+}
+
+enum AnnouncementStatus {
+  DRAFT
+  PUBLISHED
+  EXPIRED
+  ARCHIVED
+}
+
 enum DeliveryStatus {
   ASSIGNED
   PICKED_UP
@@ -202,6 +218,11 @@ model User {
   // Delivery photo uploads
   uploadedDeliveryPhotos DeliveryPhoto[]
 
+  // Announcements
+  announcements         Announcement[]
+  announcementViews     AnnouncementView[]
+  announcementReactions AnnouncementReaction[]
+
   @@map("users")
 }
 
@@ -239,6 +260,7 @@ model Product {
   categories ProductCategory[]
   collections ProductCollection[]
   chats      Chat[]
+  announcements Announcement[]
 
   @@map("products")
 }
@@ -663,16 +685,27 @@ model Chat {
 }
 
 model ChatMessage {
-  id        String   @id @default(cuid())
-  chatId    String
-  chat      Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
-  senderId  String
-  sender    User     @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
-  content   String
-  type      String   @default("text") // text, image
-  images    String[]
-  isRead    Boolean  @default(false)
-  createdAt DateTime @default(now())
+  id            String   @id @default(cuid())
+  chatId        String
+  chat          Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  senderId      String
+  sender        User     @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  content       String
+  type          String   @default("text") // text, image, file
+  images        String[]
+  files         String[]
+  isRead        Boolean  @default(false)
+  isEdited      Boolean  @default(false)
+  isDeleted     Boolean  @default(false)
+  deletedAt     DateTime?
+  editedAt      DateTime?
+  replyToId     String?
+  replyTo       ChatMessage? @relation("MessageReplies", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies       ChatMessage[] @relation("MessageReplies")
+  readAt        DateTime?
+  deliveredAt   DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   @@map("chat_messages")
 }
@@ -756,4 +789,68 @@ model Invoice {
   generatedAt     DateTime @default(now())
 
   @@map("invoices")
+}
+
+model Announcement {
+  id              String            @id @default(cuid())
+  title           String
+  content         String
+  type            AnnouncementType
+  status          AnnouncementStatus @default(DRAFT)
+  authorId        String
+  author          User              @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  
+  // Optional associations
+  productId       String?
+  product         Product?          @relation(fields: [productId], references: [id], onDelete: Cascade)
+  
+  // Audience targeting
+  targetRoles     String[]          // JSON array of roles to target
+  isGlobal        Boolean           @default(false) // Visible to all users
+  
+  // Scheduling
+  publishAt       DateTime?         // When to auto-publish
+  expiresAt       DateTime?         // When announcement expires
+  
+  // Media
+  imageUrl        String?
+  attachmentUrl   String?
+  
+  // Stats
+  viewCount       Int               @default(0)
+  
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  publishedAt     DateTime?
+
+  // Relations
+  views           AnnouncementView[]
+  reactions       AnnouncementReaction[]
+
+  @@map("announcements")
+}
+
+model AnnouncementView {
+  id             String       @id @default(cuid())
+  announcementId String
+  announcement   Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  viewedAt       DateTime     @default(now())
+
+  @@unique([announcementId, userId])
+  @@map("announcement_views")
+}
+
+model AnnouncementReaction {
+  id             String       @id @default(cuid())
+  announcementId String
+  announcement   Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reaction       String       // 👍, 👎, ❤️, 😮, 😂, etc.
+  createdAt      DateTime     @default(now())
+
+  @@unique([announcementId, userId])
+  @@map("announcement_reactions")
 }
