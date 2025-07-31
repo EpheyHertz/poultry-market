@@ -26,16 +26,32 @@ export interface Chat {
   unreadCount: number;
 }
 
+export interface MessageReaction {
+  emoji: string;
+  count: number;
+  users: string[];
+}
+
+export interface MessageFile {
+  id: string;
+  name: string;
+  url: string;
+  type: string;
+  size: number;
+  mimeType: string;
+}
+
 export interface Message {
   id: string;
   chatId?: string; // Optional for compatibility
   content: string;
   type: string;
   images: string[];
-  files: string[];
+  files: MessageFile[];
   isRead: boolean;
   isEdited: boolean;
   isDeleted: boolean;
+  reactions: MessageReaction[];
   replyTo?: {
     id: string;
     content: string;

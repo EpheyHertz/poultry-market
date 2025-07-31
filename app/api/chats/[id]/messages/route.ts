@@ -52,10 +52,27 @@ export async function GET(
               }
             }
           }
+        },
+        files: true,
+        reactions: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true
+              }
+            }
+          }
         }
       },
       orderBy: { createdAt: 'asc' }
     })
+
+    // Format messages with reactions
+    const formattedMessages = messages.map(message => ({
+      ...message,
+      reactions: formatReactions(message.reactions)
+    }));
 
     // Mark messages as read and delivered
     await prisma.chatMessage.updateMany({
@@ -130,9 +147,17 @@ export async function POST(
         content: content.trim(),
         type,
         images,
-        files,
         replyToId,
-        deliveredAt: new Date()
+        deliveredAt: new Date(),
+        files: {
+          create: files.map((file: any) => ({
+            name: file.name,
+            url: file.url,
+            type: file.type,
+            size: file.size,
+            mimeType: file.mimeType
+          }))
+        }
       },
       include: {
         sender: {
@@ -153,9 +178,26 @@ export async function POST(
               }
             }
           }
+        },
+        files: true,
+        reactions: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true
+              }
+            }
+          }
         }
       }
     })
+
+    // Format reactions for response
+    const formattedMessage = {
+      ...message,
+      reactions: formatReactions(message.reactions)
+    };
 
     // Update chat with last message
     await prisma.chat.update({
@@ -166,11 +208,33 @@ export async function POST(
       }
     })
 
-    return NextResponse.json(message, { status: 201 })
+    return NextResponse.json(formattedMessage, { status: 201 })
   } catch (error) {
     console.error('Error creating message:', error)
     return NextResponse.json({ error: 'Failed to send message' }, { status: 500 })
   }
+}
+
+// Helper function to format reactions
+function formatReactions(reactions: any[]) {
+  const reactionMap = new Map();
+
+  reactions.forEach(reaction => {
+    const emoji = reaction.emoji;
+    if (reactionMap.has(emoji)) {
+      const existing = reactionMap.get(emoji);
+      existing.count += 1;
+      existing.users.push(reaction.user.id);
+    } else {
+      reactionMap.set(emoji, {
+        emoji,
+        count: 1,
+        users: [reaction.user.id]
+      });
+    }
+  });
+
+  return Array.from(reactionMap.values());
 }
 
 // export async function GET(

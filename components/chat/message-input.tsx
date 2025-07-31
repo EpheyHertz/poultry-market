@@ -15,10 +15,10 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import type { Message } from '@/types/chat';
+import type { Message, MessageFile } from '@/types/chat';
 
 interface MessageInputProps {
-  onSend: (content: string, images?: string[], files?: string[]) => void;
+  onSend: (content: string, images?: string[], files?: MessageFile[]) => void;
   onTyping: (isTyping: boolean) => void;
   editingMessage?: Message | null;
   onEditCancel: () => void;
@@ -35,7 +35,7 @@ export default function MessageInput({
   const [message, setMessage] = useState('');
   const [attachments, setAttachments] = useState<{
     images: { file: File; preview: string; url?: string }[];
-    files: { file: File; name: string; url?: string }[];
+    files: { file: File; name: string; size: number; type: string; url?: string }[];
   }>({
     images: [],
     files: []
@@ -137,7 +137,9 @@ export default function MessageInput({
         ...prev,
         files: [...prev.files, {
           file,
-          name: file.name
+          name: file.name,
+          size: file.size,
+          type: file.type
         }]
       }));
     });
@@ -167,7 +169,7 @@ export default function MessageInput({
 
       // Upload attachments
       const imageUrls: string[] = [];
-      const fileUrls: string[] = [];
+      const messageFiles: MessageFile[] = [];
 
       // Upload images
       for (const imageAttachment of attachments.images) {
@@ -184,7 +186,14 @@ export default function MessageInput({
       for (const fileAttachment of attachments.files) {
         try {
           const url = await uploadFile(fileAttachment.file);
-          fileUrls.push(url);
+          messageFiles.push({
+            id: `${Date.now()}-${Math.random()}`, // Temporary ID, server will assign proper ID
+            name: fileAttachment.name,
+            url: url,
+            type: fileAttachment.type,
+            size: fileAttachment.size,
+            mimeType: fileAttachment.type
+          });
         } catch (error) {
           console.error('Error uploading file:', error);
           toast.error(`Failed to upload file: ${fileAttachment.name}`);
@@ -195,7 +204,7 @@ export default function MessageInput({
       if (editingMessage) {
         await onEditSave(editingMessage.id, message.trim());
       } else {
-        await onSend(message.trim(), imageUrls, fileUrls);
+        await onSend(message.trim(), imageUrls, messageFiles);
       }
 
       // Reset form

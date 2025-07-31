@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'
 import { OrderStatus, PaymentMethod, PaymentStatus, PaymentType, ProductType, VoucherType, Voucher, DeliveryVoucher } from '@prisma/client'
 import { createNotification, notificationTemplates } from '@/lib/notifications'
+import { COUNTY_TO_PROVINCE } from '@/lib/kenya-locations'
 export async function GET(request: NextRequest) {
   try {
     const user = await getCurrentUser()
@@ -117,8 +118,9 @@ export async function POST(request: NextRequest) {
     const {
       items,
       deliveryAddress,
-      paymentType = PaymentMethod.MPESA,
+      paymentType ,
       paymentDetails,
+      paymentPreference,
       voucherCode,
       discountAmount: clientDiscountAmount = 0,
       subtotal: clientSubtotal,
@@ -127,7 +129,7 @@ export async function POST(request: NextRequest) {
       total: clientTotal,
       notes
     } = body
-    // console.log('Order creation request:', body)
+    console.log('Order creation request:', body)
 
     if (!items?.length) {
       return NextResponse.json({ error: 'No items in order' }, { status: 400 })
@@ -206,12 +208,17 @@ if (
 
     // Calculate delivery fee
     let serverDeliveryFee = 0
-    if (deliveryAddress) {
-      const defaultFee = await prisma.deliveryFee.findFirst({ 
-        where: { isDefault: true } 
-      })
-      serverDeliveryFee = defaultFee?.amount || 0
+    const freeDeliveryEligible = body?.deliveryOptions?.[0]?.freeDeliveryEligible
+
+    if (!body?.canDeliver && !body?.deliveryAvailable && freeDeliveryEligible) {
+      if (deliveryAddress) {
+        const defaultFee = await prisma.deliveryFee.findFirst({
+          where: { isDefault: true }
+        })
+        serverDeliveryFee = defaultFee?.amount || 0
+      }
     }
+    
 
     // Validate and apply vouchers
     let serverDiscountAmount = 0
@@ -317,8 +324,8 @@ const serverTotal = rawTotal % 1 <= 0.4
     // Verify client calculations match server
     if (
       Math.abs(serverSubtotal - clientSubtotal) > 1 ||
-      Math.abs(serverDiscountAmount - clientDiscountAmount) > 1 ||
-      Math.abs(serverTotal - clientTotal) > 1
+      Math.abs(serverDiscountAmount - clientDiscountAmount) > 1 
+      // Math.abs(serverTotal - clientTotal) > 1
     ) {
       return NextResponse.json(
         { error: 'Client/server mismatch in amounts' },
@@ -339,15 +346,15 @@ const serverTotal = rawTotal % 1 <= 0.4
           total: serverTotal,
           subtotal: serverSubtotal,
           status: initialStatus,
-          paymentType: paymentType as PaymentType,
+          paymentType: paymentPreference as PaymentType,
           paymentStatus: initialPaymentStatus,
           deliveryFee:finalDeliveryFee,
           discountAmount: serverDiscountAmount,
           voucherCode: validVoucher?.code || null,
           paymentDetails:
             (deliveryVoucherCode || voucherCode ? `Delivery Voucher: ${deliveryVoucherCode}. Voucher Code: ${voucherCode}` : `${body?.paymentDetails}`) || null,
-          paymentPhone: body?.paymentPhone || null,
-          paymentReference: body?.paymentReference || null,
+          paymentPhone: body?.paymentDetails?.phone || null,
+          paymentReference: body?.paymentDetails?.reference || null,
           notes: notes || null,
           items: {
             create: orderItems.map(({ sellerId, ...item }) => item)
@@ -376,10 +383,10 @@ const serverTotal = rawTotal % 1 <= 0.4
           amount: serverTotal,
           method:  PaymentMethod.MPESA,
           status: PaymentStatus.PENDING,
-          phoneNumber: body?.paymentPhone || null,
-          transactionCode: body?.paymentReference || null,
+          phoneNumber: body?.paymentDetails?.phone || null,
+          transactionCode: body?.paymentDetails?.reference || null,
           referenceNumber: `PAY-${Date.now()}`,
-          mpesaMessage: body?.paymentDetails|| null,
+          mpesaMessage: body?.paymentDetails?.details|| null,
           description:
             
             (validVoucher ? `Applied voucher: ${validVoucher.code}` : '') +

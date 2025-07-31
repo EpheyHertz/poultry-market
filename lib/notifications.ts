@@ -220,7 +220,7 @@ export const notificationTemplates = {
 
   newOrder: (orderNumber: string, paymentType: string) => ({
     title: 'New Order Received',
-    message: `You have received a new order #${orderNumber}. Payment type: ${paymentType.replace('_', ' ').toLowerCase()}.`
+    message: `You have received a new order #${orderNumber}. Payment type: ${paymentType}.`
   }),
 
   paymentSubmitted: (orderNumber: string) => ({

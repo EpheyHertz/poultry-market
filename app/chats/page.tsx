@@ -26,6 +26,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
 import ChatSidebar from '@/components/chat/chat-sidebar';
 import ChatWindow from '@/components/chat/chat-window';
+import DashboardLayout from '@/components/layout/dashboard-layout';
 import { Suspense } from 'react';
 import type { Chat, Message } from '@/types/chat';
 
@@ -185,79 +186,83 @@ function ChatContent() {
            chat.lastMessage?.toLowerCase().includes(searchQuery.toLowerCase());
   });
 
-  if (loading) {
+  if (loading || !user) {
     return (
-      <div className="flex h-screen bg-gray-50">
-        <div className="w-full max-w-sm border-r bg-white p-4">
-          <div className="animate-pulse space-y-4">
-            <div className="h-10 bg-gray-200 rounded"></div>
-            {[...Array(8)].map((_, i) => (
-              <div key={i} className="flex space-x-3">
-                <div className="h-12 w-12 bg-gray-200 rounded-full"></div>
-                <div className="flex-1 space-y-2">
-                  <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-                  <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+      <DashboardLayout>
+        <div className="flex h-[calc(100vh-80px)] bg-gray-50">
+          <div className="w-full max-w-sm border-r bg-white p-4">
+            <div className="animate-pulse space-y-4">
+              <div className="h-10 bg-gray-200 rounded"></div>
+              {[...Array(8)].map((_, i) => (
+                <div key={i} className="flex space-x-3">
+                  <div className="h-12 w-12 bg-gray-200 rounded-full"></div>
+                  <div className="flex-1 space-y-2">
+                    <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                    <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
+          </div>
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mx-auto mb-4"></div>
+              <p className="text-gray-600">Loading chats...</p>
+            </div>
           </div>
         </div>
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading chats...</p>
-          </div>
-        </div>
-      </div>
+      </DashboardLayout>
     );
   }
 
   return (
-    <div className="flex h-screen bg-gray-50 overflow-hidden">
-      {/* Chat Sidebar */}
-      <div className={`${isMobile && selectedChat ? 'hidden' : ''} w-full max-w-sm border-r bg-white flex flex-col`}>
-        <ChatSidebar
-          chats={filteredChats}
-          selectedChat={selectedChat}
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          onChatSelect={handleChatSelect}
-          user={user}
-        />
-      </div>
-
-      {/* Chat Window */}
-      <div className={`${isMobile && !selectedChat ? 'hidden' : ''} flex-1 flex flex-col`}>
-        {selectedChat ? (
-          <ChatWindow
-            chat={selectedChat}
-            messages={messages}
+    <DashboardLayout user={user}>
+      <div className="flex h-[calc(100vh-80px)] bg-gray-50 overflow-hidden">
+        {/* Chat Sidebar */}
+        <div className={`${isMobile && selectedChat ? 'hidden' : ''} w-full max-w-sm border-r bg-white flex flex-col`}>
+          <ChatSidebar
+            chats={filteredChats}
+            selectedChat={selectedChat}
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            onChatSelect={handleChatSelect}
             user={user}
-            socket={socket}
-            onBack={() => {
-              setSelectedChat(null);
-              const params = new URLSearchParams(searchParams?.toString());
-              params.delete('chat');
-              router.push(`?${params.toString()}`);
-            }}
-            onMessagesUpdate={setMessages}
-            isMobile={isMobile}
           />
-        ) : (
-          <div className="flex-1 flex items-center justify-center bg-gray-50">
-            <div className="text-center">
-              <div className="w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center mb-4 mx-auto">
-                <Search className="w-12 h-12 text-gray-400" />
+        </div>
+
+        {/* Chat Window */}
+        <div className={`${isMobile && !selectedChat ? 'hidden' : ''} flex-1 flex flex-col`}>
+          {selectedChat ? (
+            <ChatWindow
+              chat={selectedChat}
+              messages={messages}
+              user={user}
+              socket={socket}
+              onBack={() => {
+                setSelectedChat(null);
+                const params = new URLSearchParams(searchParams?.toString());
+                params.delete('chat');
+                router.push(`?${params.toString()}`);
+              }}
+              onMessagesUpdate={setMessages}
+              isMobile={isMobile}
+            />
+          ) : (
+            <div className="flex-1 flex items-center justify-center bg-gray-50">
+              <div className="text-center">
+                <div className="w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center mb-4 mx-auto">
+                  <Search className="w-12 h-12 text-gray-400" />
+                </div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No chat selected</h3>
+                <p className="text-gray-500 max-w-md">
+                  Choose a conversation from the sidebar to start chatting, or search for someone to message.
+                </p>
               </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No chat selected</h3>
-              <p className="text-gray-500 max-w-md">
-                Choose a conversation from the sidebar to start chatting, or search for someone to message.
-              </p>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
-    </div>
+    </DashboardLayout>
   );
 }
 

@@ -31,7 +31,7 @@ import { cn } from '@/lib/utils';
 import Image from 'next/image';
 import MessageItem from '@/components/chat/message-item';
 import MessageInput from '@/components/chat/message-input';
-import type { Chat, Message } from '@/types/chat';
+import type { Chat, Message, MessageFile } from '@/types/chat';
 
 interface ChatWindowProps {
   chat: Chat;
@@ -60,13 +60,22 @@ export default function ChatWindow({
 
   const otherParticipant = chat.participant1.id === user?.id ? chat.participant2 : chat.participant1;
 
+  // Join chat room when component mounts
+  useEffect(() => {
+    if (socket && chat.id) {
+      socket.emit('join-chat', chat.id);
+      // Mark messages as read when opening chat
+      socket.emit('mark-read', chat.id);
+    }
+  }, [socket, chat.id]);
+
   // Auto scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
   // Handle new message
-  const handleSendMessage = async (content: string, images: string[] = [], files: string[] = []) => {
+  const handleSendMessage = async (content: string, images: string[] = [], files: MessageFile[] = []) => {
     if (!content.trim() && images.length === 0 && files.length === 0) return;
 
     try {
@@ -182,6 +191,79 @@ export default function ChatWindow({
     } catch (error) {
       console.error('Error deleting message:', error);
       toast.error('Failed to delete message');
+    }
+  };
+
+  // Handle message reactions
+  const handleReaction = async (messageId: string, emoji: string) => {
+    try {
+      const response = await fetch(`/api/chats/${chat.id}/messages/${messageId}/reactions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ emoji })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to add reaction');
+      }
+
+      const updatedMessage = await response.json();
+      
+      // Update messages list
+      onMessagesUpdate(messages.map(msg => 
+        msg.id === messageId ? updatedMessage : msg
+      ));
+
+      // Emit to socket
+      if (socket) {
+        socket.emit('message-reaction', {
+          chatId: chat.id,
+          message: updatedMessage,
+          recipientId: otherParticipant.id
+        });
+      }
+
+    } catch (error) {
+      console.error('Error adding reaction:', error);
+      toast.error('Failed to add reaction');
+    }
+  };
+
+  const handleRemoveReaction = async (messageId: string, emoji: string) => {
+    try {
+      const response = await fetch(`/api/chats/${chat.id}/messages/${messageId}/reactions`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ emoji })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to remove reaction');
+      }
+
+      const updatedMessage = await response.json();
+      
+      // Update messages list
+      onMessagesUpdate(messages.map(msg => 
+        msg.id === messageId ? updatedMessage : msg
+      ));
+
+      // Emit to socket
+      if (socket) {
+        socket.emit('message-reaction', {
+          chatId: chat.id,
+          message: updatedMessage,
+          recipientId: otherParticipant.id
+        });
+      }
+
+    } catch (error) {
+      console.error('Error removing reaction:', error);
+      toast.error('Failed to remove reaction');
     }
   };
 
@@ -306,6 +388,7 @@ export default function ChatWindow({
                 key={message.id}
                 message={message}
                 isOwn={message.sender.id === user?.id}
+                currentUserId={user?.id || ''}
                 showAvatar={
                   index === 0 || 
                   messages[index - 1].sender.id !== message.sender.id ||
@@ -314,6 +397,8 @@ export default function ChatWindow({
                 onReply={setReplyingTo}
                 onEdit={setEditingMessage}
                 onDelete={handleDeleteMessage}
+                onReact={handleReaction}
+                onRemoveReaction={handleRemoveReaction}
               />
             ))
           )}

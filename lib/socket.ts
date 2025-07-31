@@ -138,6 +138,16 @@ export function initSocket(server: NetServer) {
         }
       })
 
+      socket.on('typing', (data) => {
+        const { chatId, userId, isTyping, recipientId } = data
+        socket.to(`chat-${chatId}`).emit('user-typing', { chatId, userId, isTyping })
+      })
+
+      socket.on('message-updated', (data) => {
+        const { chatId, message, recipientId } = data
+        socket.to(`chat-${chatId}`).emit('message-updated', message)
+      })
+
       socket.on('disconnect', () => {
         console.log(`User ${socket.userId} disconnected`)
       })

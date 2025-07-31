@@ -217,6 +217,7 @@ model User {
 
   // Chat relationships
   sentMessages          ChatMessage[] @relation("SentMessages")
+  messageReactions      MessageReaction[] @relation("MessageReactions")
   chatsAsParticipant1   Chat[] @relation("ChatParticipant1")
   chatsAsParticipant2   Chat[] @relation("ChatParticipant2")
 
@@ -305,6 +306,11 @@ model Order {
   paymentPhone   String?
   paymentReference String?
 
+  // Enhanced delivery fields
+  deliveryCounty    String?
+  deliveryProvince  String?
+  sellerHandlesDelivery Boolean @default(false)
+
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
 
@@ -348,6 +354,11 @@ model Delivery {
   actualDelivery    DateTime?
   pickupTime        DateTime?
   dispatchTime      DateTime?
+  
+  // Enhanced delivery location and handling
+  county            String?
+  province          String?
+  sellerHandlesDelivery Boolean @default(false)
   deliveryNotes     String?
 
   // Agent details
@@ -702,7 +713,7 @@ model ChatMessage {
   content       String
   type          String   @default("text") // text, image, file
   images        String[]
-  files         String[]
+  files         MessageFile[]
   isRead        Boolean  @default(false)
   isEdited      Boolean  @default(false)
   isDeleted     Boolean  @default(false)
@@ -711,12 +722,40 @@ model ChatMessage {
   replyToId     String?
   replyTo       ChatMessage? @relation("MessageReplies", fields: [replyToId], references: [id], onDelete: SetNull)
   replies       ChatMessage[] @relation("MessageReplies")
+  reactions     MessageReaction[]
   readAt        DateTime?
   deliveredAt   DateTime?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
   @@map("chat_messages")
+}
+
+model MessageFile {
+  id        String      @id @default(cuid())
+  messageId String
+  message   ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  name      String
+  url       String
+  type      String
+  size      Int
+  mimeType  String
+  createdAt DateTime    @default(now())
+
+  @@map("message_files")
+}
+
+model MessageReaction {
+  id        String      @id @default(cuid())
+  messageId String
+  message   ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User        @relation("MessageReactions", fields: [userId], references: [id], onDelete: Cascade)
+  emoji     String
+  createdAt DateTime    @default(now())
+
+  @@unique([messageId, userId, emoji])
+  @@map("message_reactions")
 }
 
 model Category {

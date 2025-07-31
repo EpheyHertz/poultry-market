@@ -108,7 +108,7 @@ export async function DELETE(
         deletedAt: new Date(),
         content: '', // Clear content for privacy
         images: [], // Clear attachments
-        files: []
+        files: { set: [] }
       },
       include: {
         sender: {
