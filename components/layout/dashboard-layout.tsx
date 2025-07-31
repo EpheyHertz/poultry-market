@@ -114,6 +114,7 @@ export default function DashboardLayout({ children, user: propUser }: DashboardL
           { name: 'Delivery', href: '/admin/delivery-agents', icon: BarChart3 },
           { name: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
           { name: 'Support Chats', href: '/admin/chats', icon: MessageCircle },
+          { name: 'Manage Chats', href: '/chats', icon: MessageCircle },
         ];
       case 'SELLER':
         return [
@@ -127,6 +128,7 @@ export default function DashboardLayout({ children, user: propUser }: DashboardL
           { name: 'Profile', href: '/seller/profile', icon: Settings },
           { name: 'Share', href: '/seller/qr-code', icon: Settings },
           { name: 'Chats', href: '/seller/chats', icon: MessageCircle },
+          { name: 'Manage Chats', href: '/chats', icon: MessageCircle },
         ];
       case 'COMPANY':
         return [
@@ -140,6 +142,7 @@ export default function DashboardLayout({ children, user: propUser }: DashboardL
           { name: 'QR Code', href: '/company/qr-code', icon: QrCode },
           { name: 'Profile', href: '/company/profile', icon: Settings },
           { name: 'Chats', href: '/company/chats', icon: MessageCircle },
+          { name: 'Manage Chats', href: '/chats', icon: MessageCircle },
         ];
       case 'CUSTOMER':
         return [
@@ -152,6 +155,7 @@ export default function DashboardLayout({ children, user: propUser }: DashboardL
           { name: 'Chats', href: '/customer/chats', icon: MessageCircle },
           { name: 'Cart', href: '/customer/cart', icon: MessageCircle },
           { name: 'Vouchers', href: '/customer/vouchers', icon: Ticket },
+          { name: 'Manage Chats', href: '/chats', icon: MessageCircle },
         ];
       default:
         return baseItems;
