@@ -172,6 +172,15 @@ model User {
   coverageArea    String?
   isApproved      Boolean   @default(false)
 
+  // Seller/Company delivery settings
+  offersDelivery      Boolean   @default(false)
+  offersPayAfterDelivery Boolean @default(false)
+  offersFreeDelivery  Boolean   @default(false)
+  deliveryProvinces   String[]  @default([]) // Array of provinces they deliver to
+  deliveryCounties    String[]  @default([]) // Array of counties they deliver to
+  minOrderForFreeDelivery Float? // Minimum order amount for free delivery
+  deliveryFeePerKm    Float?    @default(0) // Delivery fee per km if not free
+
   // Customer relationships
   orders          Order[]
   hatchingRequests HatchingRequest[]

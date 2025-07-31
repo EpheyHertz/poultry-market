@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import ImageUpload from '@/components/ui/image-upload';
+import DeliverySettings from '@/components/delivery/delivery-settings';
 
 const tagIcons = {
   VERIFIED: Shield,
@@ -161,6 +162,7 @@ export default function SellerProfile() {
         <Tabs defaultValue="profile" className="space-y-6">
           <TabsList>
             <TabsTrigger value="profile">Profile Information</TabsTrigger>
+            <TabsTrigger value="delivery">Delivery Settings</TabsTrigger>
             <TabsTrigger value="store">Store Settings</TabsTrigger>
             <TabsTrigger value="account">Account Settings</TabsTrigger>
           </TabsList>
@@ -368,6 +370,10 @@ export default function SellerProfile() {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="delivery">
+            <DeliverySettings user={user} />
           </TabsContent>
 
           <TabsContent value="store">
