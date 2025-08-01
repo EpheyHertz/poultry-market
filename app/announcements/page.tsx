@@ -13,6 +13,7 @@ import { formatDistanceToNow } from 'date-fns';
 import AnnouncementCard from '@/components/announcement/announcement-card';
 import CreateAnnouncementDialog from '@/components/announcement/create-announcement-dialog';
 import { Announcement, AnnouncementType, AnnouncementStatus } from '@/types/announcement';
+import DashboardLayout from '@/components/layout/dashboard-layout';
 
 export default function AnnouncementsPage() {
   const [user, setUser] = useState<any>(null);
@@ -131,6 +132,7 @@ export default function AnnouncementsPage() {
   );
 
   return (
+    <DashboardLayout user={user}>
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-4 py-8 max-w-7xl">
         {/* Header */}
@@ -262,5 +264,6 @@ export default function AnnouncementsPage() {
         )}
       </div>
     </div>
+   </DashboardLayout>
   );
 }
