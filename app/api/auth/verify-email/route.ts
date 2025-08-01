@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { createNotification } from '@/lib/notifications'
 
 export async function POST(request: NextRequest) {
   try {
@@ -34,6 +35,12 @@ export async function POST(request: NextRequest) {
         verificationTokenExpiry: null,
       }
     })
+          createNotification({
+            receiverId: user.id,
+            title: 'Welcome to PoultryMarket',
+            message: `Welcome to PoultryMarket, ${user.name}! Your account has been successfully created. Start exploring fresh poultry products from verified sellers across Kenya.`,
+            type: 'EMAIL',
+          })
 
     return NextResponse.json({ 
       message: 'Email verified successfully! You can now log in.' 

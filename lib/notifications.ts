@@ -54,6 +54,9 @@ async function sendEmailNotification(data: NotificationData, userEmail: string, 
     let emailTemplate: string
 
     switch (data.title) {
+      case 'Welcome to PoultryMarket':
+        emailTemplate = emailTemplates.welcome(userName, data.message)
+        break
       case 'Order Confirmed':
         emailTemplate = emailTemplates.orderConfirmed(userName, data.message)
         break
@@ -140,25 +143,64 @@ async function sendSMS(data: NotificationData, userPhone: string, userName: stri
       console.warn('No phone number provided for SMS notification')
       return
     }
-    const message = `Hello ${userName}. Here is your message from PoultryMarket${data.title}\n${data.message}`
 
-    // Example implementation for sending SMS
+    // Create appropriate SMS message based on notification type
+    let message: string
+
+    switch (data.title) {
+      case 'Welcome to PoultryMarket':
+        message = `🎉 Welcome to PoultryMarket, ${userName}! Your account has been created successfully. Start exploring fresh poultry products from trusted sellers. Download our app for the best experience.`
+        break
+      case 'Order Confirmed':
+        message = `✅ Hi ${userName}, your order has been confirmed! ${data.message} Track your order in the app.`
+        break
+      case 'New Order Received':
+        message = `🛒 New order alert! ${userName}, ${data.message} Check your seller dashboard to process it.`
+        break
+      case 'Order Delivered':
+        message = `📦 Great news ${userName}! ${data.message} Please rate your experience in the app.`
+        break
+      case 'Payment Approved':
+        message = `💰 Payment approved! Hi ${userName}, ${data.message} Your order will be processed shortly.`
+        break
+      case 'Payment Rejected':
+        message = `❌ Payment issue: ${userName}, ${data.message} Please contact support for assistance.`
+        break
+      case 'Order Dispatched':
+        message = `🚚 Your order is on the way! ${userName}, ${data.message} You can track it in real-time.`
+        break
+      case 'Order Out for Delivery':
+        message = `🏃‍♂️ Almost there! ${userName}, ${data.message} Get ready to receive your order.`
+        break
+      case 'Application Approved':
+        message = `🎊 Congratulations ${userName}! ${data.message} Welcome to the PoultryMarket family.`
+        break
+      case 'New Review Received':
+        message = `⭐ Review alert! ${userName}, ${data.message} Thank your customer and keep up the great work!`
+        break
+      case 'New Delivery Assignment':
+        message = `📍 New delivery job! ${userName}, ${data.message} Check the app for pickup details.`
+        break
+      default:
+        message = `Hi ${userName}, ${data.title}: ${data.message} - PoultryMarket`
+        break
+    }
+
+    // Send SMS with enhanced formatting
     await mainSendSMS(userPhone, message)
 
     console.log(`SMS notification sent to ${userPhone}: ${data.title}`)
   } catch (error) {
     console.error('Failed to send SMS notification:', error)
   }
-
-  // Example implementation for Africa's Talking or Twilio:
-  // const smsService = new SMSService()
-  // await smsService.send({
-  //   to: user.phone,
-  //   message: data.message
-  // })
 }
 
 export const notificationTemplates = {
+  welcome: (userName: string) => ({
+    title: 'Welcome to PoultryMarket',
+    message: `Welcome to PoultryMarket, ${userName}! Your account has been successfully created. Start exploring fresh poultry products from verified sellers across Kenya.`
+  }),
+
   orderConfirmed: (orderId: string) => ({
     title: 'Order Confirmed',
     message: `Your order #${orderId} has been confirmed and is being processed.`
@@ -257,4 +299,113 @@ export const notificationTemplates = {
     title: 'New Delivery Assignment',
     message: `You have been assigned to deliver order #${orderNumber} for ${customerName}.`
   })
+}
+
+// Send welcome notification to new users
+export async function sendWelcomeNotification(
+  user: {
+    id: string
+    name: string
+    email: string
+    phone?: string
+    role: string
+  }
+) {
+  try {
+    console.log(`Sending welcome notification to ${user.name} (${user.email})`)
+
+    // Create in-app notification
+    await prisma.notification.create({
+      data: {
+        receiverId: user.id,
+        title: 'Welcome to PoultryMarket',
+        message: `Welcome to PoultryMarket, ${user.name}! Your account has been successfully created. Start exploring fresh poultry products from verified sellers across Kenya.`,
+        type: 'EMAIL',
+        isRead: false
+      }
+    })
+
+    // Send welcome email
+    await sendEmailNotification(
+      {
+        receiverId: user.id,
+        type: 'EMAIL',
+        title: 'Welcome to PoultryMarket',
+        message: `Your account has been successfully created! Start exploring fresh poultry products from verified sellers across Kenya.`
+      },
+      user.email,
+      user.name
+    )
+
+    // Send welcome SMS if phone number is available
+    if (user.phone) {
+      await sendSMS(
+        {
+          receiverId: user.id,
+          type: 'SMS',
+          title: 'Welcome to PoultryMarket',
+          message: `Your account has been successfully created! Start exploring fresh poultry products from verified sellers across Kenya.`
+        },
+        user.phone,
+        user.name
+      )
+    }
+
+    console.log(`Welcome notification sent successfully to ${user.name}`)
+  } catch (error) {
+    console.error('Failed to send welcome notification:', error)
+  }
+}
+
+// Send comprehensive order notification with enhanced details
+export async function sendOrderNotificationWithDetails(
+  orderId: string,
+  orderDetails: {
+    items: Array<{ name: string; quantity: number; price: number }>
+    total: number
+    deliveryAddress: string
+    estimatedDelivery: string
+  }
+) {
+  try {
+    const order = await prisma.order.findUnique({
+      where: { id: orderId }
+    })
+
+    if (!order) {
+      throw new Error('Order not found')
+    }
+
+    // Get customer details
+    const customer = await prisma.user.findUnique({
+      where: { id: order.customerId }
+    })
+
+    if (!customer) {
+      throw new Error('Customer not found')
+    }
+
+    // Enhanced order confirmation with details
+    const orderSummary = orderDetails.items
+      .map(item => `${item.quantity}x ${item.name}`)
+      .join(', ')
+
+    const message = `Order confirmed! Items: ${orderSummary}. Total: KES ${orderDetails.total}. Delivery to: ${orderDetails.deliveryAddress}. Expected: ${orderDetails.estimatedDelivery}.`
+
+    // Send to customer
+    await sendEmailNotification(
+      {
+        receiverId: customer.id,
+        type: 'EMAIL',
+        title: 'Order Confirmed',
+        message: message
+      },
+      customer.email,
+      customer.name || 'Customer'
+    )
+
+    console.log(`Enhanced order notifications sent for order ${orderId}`)
+  } catch (error) {
+    console.error('Failed to send order notification with details:', error)
+  }
 }

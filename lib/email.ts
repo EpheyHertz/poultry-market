@@ -32,6 +32,82 @@ export async function sendEmail({
 }
 
 export const emailTemplates = {
+  welcome: (name: string, message: string) => `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Welcome to PoultryMarket - Start Shopping Fresh!</title>
+    </head>
+    <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f3f4f6;">
+      <div style="max-width: 600px; margin: 0 auto; background-color: white; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+        <!-- Header -->
+        <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 40px 20px; text-align: center;">
+          <h1 style="color: white; margin: 0; font-size: 32px; font-weight: bold;">🎉 Welcome to PoultryMarket!</h1>
+          <p style="color: #d1fae5; margin: 10px 0 0 0; font-size: 18px;">Fresh Farm Products at Your Fingertips</p>
+        </div>
+        
+        <!-- Content -->
+        <div style="padding: 40px 20px;">
+          <h2 style="color: #1f2937; margin: 0 0 20px 0; font-size: 28px;">Welcome aboard, ${name}! 🐔</h2>
+          
+          <p style="color: #4b5563; line-height: 1.8; margin: 0 0 25px 0; font-size: 16px;">
+            ${message}
+          </p>
+          
+          <div style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); padding: 25px; border-radius: 12px; margin: 30px 0; border-left: 4px solid #10b981;">
+            <h3 style="color: #166534; margin: 0 0 15px 0; font-size: 20px;">🚀 What You Can Do Now:</h3>
+            <ul style="color: #374151; line-height: 1.6; margin: 0; padding-left: 20px;">
+              <li style="margin-bottom: 8px;">Browse fresh eggs, chicken meat, and feed from verified sellers</li>
+              <li style="margin-bottom: 8px;">Find trusted local farmers and suppliers in Kenya</li>
+              <li style="margin-bottom: 8px;">Enjoy secure payments and reliable delivery services</li>
+              <li style="margin-bottom: 8px;">Track your orders in real-time</li>
+              <li>Connect directly with sellers through our chat system</li>
+            </ul>
+          </div>
+          
+          <div style="text-align: center; margin: 35px 0;">
+            <a href="${process.env.NEXTAUTH_URL}/products" style="display: inline-block; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 16px 32px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 18px; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);">
+              🛒 Start Shopping Now
+            </a>
+          </div>
+          
+          <div style="background-color: #fef3c7; padding: 20px; border-radius: 8px; margin: 25px 0; border-left: 4px solid #f59e0b;">
+            <h4 style="color: #92400e; margin: 0 0 10px 0; font-size: 16px;">💡 Pro Tips for New Users:</h4>
+            <p style="color: #78350f; margin: 0; font-size: 14px; line-height: 1.5;">
+              • Use filters to find products near you for faster delivery<br>
+              • Check seller ratings and reviews before ordering<br>
+              • Join our WhatsApp community for exclusive deals and updates<br>
+              • Download our mobile app for the best shopping experience
+            </p>
+          </div>
+          
+          <div style="text-align: center; margin: 30px 0 20px 0;">
+            <p style="color: #6b7280; font-size: 16px; margin: 0 0 15px 0;">Follow us for daily updates and special offers:</p>
+            <div style="margin: 15px 0;">
+              <a href="#" style="display: inline-block; margin: 0 10px; padding: 10px; background-color: #1877f2; color: white; text-decoration: none; border-radius: 50%; width: 40px; height: 40px; text-align: center; line-height: 20px;">📘</a>
+              <a href="#" style="display: inline-block; margin: 0 10px; padding: 10px; background-color: #1da1f2; color: white; text-decoration: none; border-radius: 50%; width: 40px; height: 40px; text-align: center; line-height: 20px;">🐦</a>
+              <a href="#" style="display: inline-block; margin: 0 10px; padding: 10px; background-color: #25d366; color: white; text-decoration: none; border-radius: 50%; width: 40px; height: 40px; text-align: center; line-height: 20px;">📱</a>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Footer -->
+        <div style="background-color: #f9fafb; padding: 30px 20px; text-align: center; border-top: 1px solid #e5e7eb;">
+          <p style="color: #6b7280; font-size: 14px; margin: 0 0 10px 0;">
+            © 2025 PoultryMarket. All rights reserved.<br>
+            Supporting Kenyan farmers and delivering fresh products to your door.
+          </p>
+          <p style="color: #9ca3af; font-size: 12px; margin: 0;">
+            Need help? Contact us at support@poultrymarket.co.ke or call +254 700 000 000
+          </p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `,
+
   verification: (name: string, verificationUrl: string) => `
     <!DOCTYPE html>
     <html>
@@ -245,24 +321,57 @@ export const emailTemplates = {
     </head>
     <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f3f4f6;">
       <div style="max-width: 600px; margin: 0 auto; background-color: white; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+        <!-- Header -->
         <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 40px 20px; text-align: center;">
-          <h1 style="color: white; margin: 0; font-size: 28px; font-weight: bold;">🎉 Order Confirmed</h1>
-          <p style="color: #d1fae5; margin: 10px 0 0 0; font-size: 16px;">PoultryMarket</p>
+          <h1 style="color: white; margin: 0; font-size: 32px; font-weight: bold;">🎉 Order Confirmed!</h1>
+          <p style="color: #d1fae5; margin: 10px 0 0 0; font-size: 18px;">Thank you for choosing PoultryMarket</p>
         </div>
+        
+        <!-- Content -->
         <div style="padding: 40px 20px;">
-          <h2 style="color: #1f2937; margin: 0 0 20px 0; font-size: 24px;">Hello ${name}!</h2>
-          <p style="color: #4b5563; line-height: 1.6; margin: 0 0 20px 0; font-size: 16px;">${message}</p>
-          <div style="background-color: #f0f9ff; padding: 20px; border-radius: 8px; border-left: 4px solid #10b981; margin: 20px 0;">
-            <p style="color: #1f2937; margin: 0; font-size: 16px;"><strong>Next Steps:</strong></p>
-            <ul style="color: #4b5563; margin: 10px 0 0 0; padding-left: 20px;">
-              <li>Your order is being prepared</li>
-              <li>You'll receive updates on delivery progress</li>
-              <li>Estimated delivery within 24-48 hours</li>
+          <h2 style="color: #1f2937; margin: 0 0 20px 0; font-size: 28px;">Hello ${name}! 🛒</h2>
+          
+          <p style="color: #4b5563; line-height: 1.8; margin: 0 0 25px 0; font-size: 16px;">
+            Great news! ${message}
+          </p>
+          
+          <div style="background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); padding: 25px; border-radius: 12px; margin: 30px 0; border-left: 4px solid #10b981;">
+            <h3 style="color: #166534; margin: 0 0 15px 0; font-size: 20px;">📋 What Happens Next:</h3>
+            <ul style="color: #374151; line-height: 1.7; margin: 0; padding-left: 20px; font-size: 15px;">
+              <li style="margin-bottom: 10px;">📦 <strong>Order Processing:</strong> Your order is being prepared by our sellers</li>
+              <li style="margin-bottom: 10px;">🔔 <strong>Status Updates:</strong> You'll receive SMS and email notifications</li>
+              <li style="margin-bottom: 10px;">🚚 <strong>Delivery:</strong> Expected within 24-48 hours in Nairobi, 2-3 days elsewhere</li>
+              <li style="margin-bottom: 10px;">📱 <strong>Track Order:</strong> Monitor progress in real-time through our app</li>
+              <li>💬 <strong>Support:</strong> Chat directly with sellers for any questions</li>
             </ul>
           </div>
+          
+          <div style="background-color: #fef3c7; padding: 20px; border-radius: 8px; margin: 25px 0; border-left: 4px solid #f59e0b;">
+            <h4 style="color: #92400e; margin: 0 0 10px 0; font-size: 16px;">💡 Delivery Tips:</h4>
+            <p style="color: #78350f; margin: 0; font-size: 14px; line-height: 1.5;">
+              • Ensure someone is available at the delivery address<br>
+              • Have your phone accessible for delivery agent contact<br>
+              • Fresh products are best consumed within 24-48 hours<br>
+              • Rate your experience to help us serve you better
+            </p>
+          </div>
+          
+          <div style="text-align: center; margin: 35px 0;">
+            <a href="${process.env.NEXT_PUBLIC_BASE_URL}/customer/orders" style="display: inline-block; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 16px 32px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 18px; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);">
+              📋 Track Your Order
+            </a>
+          </div>
         </div>
-        <div style="background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
-          <p style="color: #6b7280; font-size: 14px; margin: 0;">© 2025 PoultryMarket. All rights reserved.</p>
+        
+        <!-- Footer -->
+        <div style="background-color: #f9fafb; padding: 30px 20px; text-align: center; border-top: 1px solid #e5e7eb;">
+          <p style="color: #6b7280; font-size: 14px; margin: 0 0 10px 0;">
+            © 2025 PoultryMarket. All rights reserved.<br>
+            Supporting Kenyan farmers and delivering fresh products to your door.
+          </p>
+          <p style="color: #9ca3af; font-size: 12px; margin: 0;">
+            Questions? Contact us at support@poultrymarket.co.ke or call +254 700 000 000
+          </p>
         </div>
       </div>
     </body>
@@ -279,24 +388,57 @@ export const emailTemplates = {
     </head>
     <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f3f4f6;">
       <div style="max-width: 600px; margin: 0 auto; background-color: white; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+        <!-- Header -->
         <div style="background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); padding: 40px 20px; text-align: center;">
-          <h1 style="color: white; margin: 0; font-size: 28px; font-weight: bold;">🛒 New Order</h1>
-          <p style="color: #bfdbfe; margin: 10px 0 0 0; font-size: 16px;">PoultryMarket Seller Portal</p>
+          <h1 style="color: white; margin: 0; font-size: 32px; font-weight: bold;">🛒 New Order Alert!</h1>
+          <p style="color: #bfdbfe; margin: 10px 0 0 0; font-size: 18px;">You have a new customer order</p>
         </div>
+        
+        <!-- Content -->
         <div style="padding: 40px 20px;">
-          <h2 style="color: #1f2937; margin: 0 0 20px 0; font-size: 24px;">Hello ${name}!</h2>
-          <p style="color: #4b5563; line-height: 1.6; margin: 0 0 20px 0; font-size: 16px;">${message}</p>
-          <div style="background-color: #fef3c7; padding: 20px; border-radius: 8px; border-left: 4px solid #f59e0b; margin: 20px 0;">
-            <p style="color: #1f2937; margin: 0; font-size: 16px;"><strong>Action Required:</strong></p>
-            <ul style="color: #4b5563; margin: 10px 0 0 0; padding-left: 20px;">
-              <li>Review the order details in your dashboard</li>
-              <li>Confirm availability of products</li>
-              <li>Prepare items for packaging</li>
+          <h2 style="color: #1f2937; margin: 0 0 20px 0; font-size: 28px;">Hello ${name}! 🎯</h2>
+          
+          <p style="color: #4b5563; line-height: 1.8; margin: 0 0 25px 0; font-size: 16px;">
+            Excellent! ${message}
+          </p>
+          
+          <div style="background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); padding: 25px; border-radius: 12px; margin: 30px 0; border-left: 4px solid #3b82f6;">
+            <h3 style="color: #1e40af; margin: 0 0 15px 0; font-size: 20px;">⚡ Action Required:</h3>
+            <ul style="color: #374151; line-height: 1.7; margin: 0; padding-left: 20px; font-size: 15px;">
+              <li style="margin-bottom: 10px;">✅ <strong>Review Order:</strong> Check order details in your seller dashboard</li>
+              <li style="margin-bottom: 10px;">📦 <strong>Confirm Stock:</strong> Ensure products are available and fresh</li>
+              <li style="margin-bottom: 10px;">⏰ <strong>Process Quickly:</strong> Aim to pack within 2-4 hours</li>
+              <li style="margin-bottom: 10px;">📞 <strong>Contact Customer:</strong> Use our chat system for any clarifications</li>
+              <li>🚚 <strong>Arrange Delivery:</strong> Schedule pickup or delivery as per your settings</li>
             </ul>
           </div>
+          
+          <div style="background-color: #dcfce7; padding: 20px; border-radius: 8px; margin: 25px 0; border-left: 4px solid #22c55e;">
+            <h4 style="color: #166534; margin: 0 0 10px 0; font-size: 16px;">💰 Seller Success Tips:</h4>
+            <p style="color: #166534; margin: 0; font-size: 14px; line-height: 1.5;">
+              • Fast processing leads to better customer ratings<br>
+              • Good packaging ensures product quality during delivery<br>
+              • Proactive communication builds customer trust<br>
+              • Consistent quality increases repeat orders
+            </p>
+          </div>
+          
+          <div style="text-align: center; margin: 35px 0;">
+            <a href="${process.env.NEXT_PUBLIC_BASE_URL}/seller/orders" style="display: inline-block; background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); color: white; padding: 16px 32px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 18px; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);">
+              📋 Process Order Now
+            </a>
+          </div>
         </div>
-        <div style="background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
-          <p style="color: #6b7280; font-size: 14px; margin: 0;">© 2025 PoultryMarket. All rights reserved.</p>
+        
+        <!-- Footer -->
+        <div style="background-color: #f9fafb; padding: 30px 20px; text-align: center; border-top: 1px solid #e5e7eb;">
+          <p style="color: #6b7280; font-size: 14px; margin: 0 0 10px 0;">
+            © 2025 PoultryMarket. All rights reserved.<br>
+            Empowering sellers to reach more customers across Kenya.
+          </p>
+          <p style="color: #9ca3af; font-size: 12px; margin: 0;">
+            Need help? Contact seller support at seller-support@poultrymarket.co.ke
+          </p>
         </div>
       </div>
     </body>
