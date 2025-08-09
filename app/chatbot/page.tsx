@@ -3,7 +3,7 @@
 import React from "react";
 import { useMemo, useRef, useState, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
-import { ArrowRight, Loader2, Search, Bot, ChevronDown, ChevronRight, Database, Globe, Mail, MessageSquare, User, RotateCcw, AlertCircle } from "lucide-react";
+import { ArrowRight, Loader2, Search, Bot, ChevronDown, ChevronRight, Database, Globe, Mail, MessageSquare, User, RotateCcw, AlertCircle, Copy, Send } from "lucide-react";
 
 type EventMsg = {
   type: "status" | "tool_start" | "tool_result" | "final" | "error" | "info";
@@ -247,6 +247,15 @@ export default function ChatPage() {
     sendMessage(originalMessage);
   };
 
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      // You could add a toast notification here if desired
+    } catch (err) {
+      console.error('Failed to copy text: ', err);
+    }
+  };
+
   const toggleToolExpansion = (messageId: string, toolIndex: number) => {
     setMessages(prev => prev.map(msg => {
       if (msg.id === messageId && msg.tools) {
@@ -289,7 +298,7 @@ export default function ChatPage() {
         <main className="grid grid-rows-[1fr,auto] gap-4 h-[calc(100vh-8rem)]">
           <div className="relative bg-slate-900/30 backdrop-blur-xl rounded-2xl border border-white/10 overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-br from-white/[0.08] to-transparent"></div>
-            <ChatArea messages={messages} onToggleTool={toggleToolExpansion} isThinking={isThinking} onRetry={retryMessage} />
+            <ChatArea messages={messages} onToggleTool={toggleToolExpansion} isThinking={isThinking} onRetry={retryMessage} onCopy={copyToClipboard} />
           </div>
 
           <div className="relative bg-slate-900/30 backdrop-blur-xl rounded-2xl border border-white/10 p-4">
@@ -308,11 +317,12 @@ export default function ChatPage() {
   );
 }
 
-function ChatArea({ messages, onToggleTool, isThinking, onRetry }: { 
+function ChatArea({ messages, onToggleTool, isThinking, onRetry, onCopy }: { 
   messages: ChatMessage[]; 
   onToggleTool: (messageId: string, toolIndex: number) => void;
   isThinking: boolean;
   onRetry: (originalMessage: string) => void;
+  onCopy: (text: string) => Promise<void>;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -343,6 +353,7 @@ function ChatArea({ messages, onToggleTool, isThinking, onRetry }: {
           message={msg} 
           onToggleTool={(toolIndex) => onToggleTool(msg.id, toolIndex)}
           onRetry={onRetry}
+          onCopy={onCopy}
         />
       ))}
 
@@ -356,10 +367,11 @@ function ChatArea({ messages, onToggleTool, isThinking, onRetry }: {
   );
 }
 
-function MessageBubble({ message, onToggleTool, onRetry }: { 
+function MessageBubble({ message, onToggleTool, onRetry, onCopy }: { 
   message: ChatMessage; 
   onToggleTool: (toolIndex: number) => void;
   onRetry: (originalMessage: string) => void;
+  onCopy: (text: string) => Promise<void>;
 }) {
   const isUser = message.type === "user";
   const isError = message.type === "error";
@@ -437,6 +449,33 @@ function MessageBubble({ message, onToggleTool, onRetry }: {
               </div>
             )}
           </div>
+        </div>
+        
+        {/* Action buttons */}
+        <div className={`flex items-center gap-2 mt-2 ${isUser ? "justify-end" : "justify-start"}`}>
+          {isUser ? (
+            // Resend button for user messages
+            <button
+              onClick={() => onRetry(message.content)}
+              className="group relative inline-flex items-center gap-1 px-2 py-1 bg-slate-700/30 hover:bg-slate-600/40 border border-white/10 rounded text-[10px] text-slate-400 hover:text-slate-200 transition-all duration-200"
+              title="Resend message"
+            >
+              <Send className="w-3 h-3" />
+              <span>Resend</span>
+            </button>
+          ) : (
+            // Copy button for AI messages
+            !isError && message.content && (
+              <button
+                onClick={() => onCopy(message.content)}
+                className="group relative inline-flex items-center gap-1 px-2 py-1 bg-slate-700/30 hover:bg-slate-600/40 border border-white/10 rounded text-[10px] text-slate-400 hover:text-slate-200 transition-all duration-200"
+                title="Copy message"
+              >
+                <Copy className="w-3 h-3" />
+                <span>Copy</span>
+              </button>
+            )
+          )}
         </div>
         
         <div className={`text-xs ${isError ? "text-rose-400" : "text-slate-500"} mt-1 ${isUser ? "text-right" : "text-left"}`}>
