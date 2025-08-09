@@ -458,6 +458,14 @@ const serverTotal = rawTotal % 1 <= 0.4
         title: template.title,
         message: template.message
       })
+      await createNotification({
+        receiverId: sellerId,
+        senderId: user.id,
+        orderId: order.id,
+        type: 'SMS',
+        title: template.title,
+        message: template.message
+      })
     }
 
     return NextResponse.json({

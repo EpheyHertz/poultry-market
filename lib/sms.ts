@@ -70,7 +70,6 @@ async function mainSendSMS(phone: string, message: string): Promise<SMSResponse>
       headers: { 
         "Content-Type": "application/json",
         "Accept": "application/json",
-        "User-Agent": "PoultryMarket/1.0"
       },
       body: JSON.stringify(requestBody),
       signal: controller.signal
