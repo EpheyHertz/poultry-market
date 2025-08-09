@@ -442,6 +442,7 @@ export default function HomePage() {
               <h3 className="font-bold mb-4">Quick Links</h3>
               <div className="space-y-2">
                 <Link href="/products" className="text-gray-400 hover:text-white transition-colors block">Products</Link>
+                <Link href="/chatbot" className="text-gray-400 hover:text-white transition-colors block">Chat with AI</Link>
                 
                 <Link href="/contact" className="text-gray-400 hover:text-white transition-colors block">Contact</Link>
               </div>

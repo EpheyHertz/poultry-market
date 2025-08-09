@@ -33,7 +33,8 @@ import {
   QrCode,
   Bell,
   CreditCard,
-  Speech
+  Speech,
+  SearchCode
 } from 'lucide-react';
 import { toast } from 'sonner';
 import AdminSupportChat from './admin-support-chat';
@@ -117,6 +118,7 @@ export default function DashboardLayout({ children, user: propUser }: DashboardL
           { name: 'Support Chats', href: '/admin/chats', icon: MessageCircle },
           { name: 'Manage Chats', href: '/chats', icon: MessageCircle },
           { name: 'Announcements', href: '/admin/announcements', icon: Speech },
+          { name: 'Use AI', href: '/chatbot', icon: SearchCode },
         ];
       case 'SELLER':
         return [
@@ -132,6 +134,7 @@ export default function DashboardLayout({ children, user: propUser }: DashboardL
           { name: 'Chats', href: '/seller/chats', icon: MessageCircle },
           { name: 'Manage Chats', href: '/chats', icon: MessageCircle },
           { name: 'Announcements', href: '/announcements', icon: Speech },
+          { name: 'Use AI', href: '/chatbot', icon: SearchCode },
         ];
       case 'COMPANY':
         return [
@@ -147,6 +150,7 @@ export default function DashboardLayout({ children, user: propUser }: DashboardL
           { name: 'Chats', href: '/company/chats', icon: MessageCircle },
           { name: 'Manage Chats', href: '/chats', icon: MessageCircle },
           { name: 'Announcements', href: '/announcements', icon: Speech },
+          { name: 'Use AI', href: '/chatbot', icon: SearchCode },
         ];
       case 'CUSTOMER':
         return [
@@ -161,6 +165,7 @@ export default function DashboardLayout({ children, user: propUser }: DashboardL
           { name: 'Vouchers', href: '/customer/vouchers', icon: Ticket },
           { name: 'Manage Chats', href: '/chats', icon: MessageCircle },
           { name: 'Announcements', href: '/announcements', icon: Speech },
+                    { name: 'Use AI', href: '/chatbot', icon: SearchCode },
         ];
       default:
         return baseItems;
