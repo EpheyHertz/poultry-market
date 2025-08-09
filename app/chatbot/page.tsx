@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { useMemo, useRef, useState, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import { ArrowRight, Loader2, Search, Bot, ChevronDown, ChevronRight, Database, Globe, Mail, MessageSquare, User, RotateCcw, AlertCircle } from "lucide-react";
@@ -17,7 +18,7 @@ type EventMsg = {
 type ChatMessage = {
   id: string;
   type: "user" | "assistant" | "error";
-  content: string;
+  content: string; // Ensure this is always a string
   tools?: ToolExecution[];
   isStreaming?: boolean;
   timestamp: Date;
@@ -43,8 +44,10 @@ export default function ChatPage() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const saved = window.localStorage.getItem("thread_id") || undefined;
-    if (saved) setThreadId(saved);
+    const saved = window.localStorage.getItem("thread_id");
+    if (saved && typeof saved === 'string') {
+      setThreadId(saved);
+    }
   }, []);
 
   const doNewConversation = () => {
@@ -62,15 +65,29 @@ export default function ChatPage() {
   };
 
   const sendMessage = async (messageText?: string) => {
-    const textToSend = messageText || message.trim();
+    // Handle case where an event object is passed instead of text
+    let rawText: string;
+    if (typeof messageText === 'string') {
+      rawText = messageText;
+    } else if (messageText && typeof messageText === 'object' && 'target' in messageText) {
+      // It's an event object, ignore it and use the input value
+      rawText = message.trim();
+    } else {
+      rawText = message.trim();
+    }
+    
+    const textToSend = typeof rawText === 'string' ? rawText : String(rawText);
+    console.log('sendMessage - rawText:', rawText, 'textToSend:', textToSend, 'type:', typeof textToSend);
     if (!textToSend || isThinking) return;
     
     const userMsg: ChatMessage = {
       id: Date.now().toString(),
       type: "user",
-      content: textToSend,
+      content: textToSend, // This should already be a string now
       timestamp: new Date(),
     };
+    
+    console.log('userMsg created:', userMsg);
     
     setMessages(prev => [...prev, userMsg]);
     if (!messageText) setMessage(""); // Only clear input if sending new message
@@ -118,7 +135,10 @@ export default function ChatPage() {
       }, 30000); // 30 second timeout
 
       ws.onopen = () => {
-        const payload = { message: textToSend, thread_id: threadId };
+        const payload = { 
+          message: typeof textToSend === 'string' ? textToSend : String(textToSend), 
+          thread_id: typeof threadId === 'string' ? threadId : undefined 
+        };
         ws.send(JSON.stringify(payload));
       };
 
@@ -130,9 +150,10 @@ export default function ChatPage() {
           const data: EventMsg = JSON.parse(ev.data);
           
           if (data.thread_id && !threadId) {
-            setThreadId(data.thread_id);
+            const cleanThreadId = typeof data.thread_id === 'string' ? data.thread_id : String(data.thread_id);
+            setThreadId(cleanThreadId);
             if (typeof window !== "undefined") {
-              window.localStorage.setItem("thread_id", data.thread_id);
+              window.localStorage.setItem("thread_id", cleanThreadId);
             }
           }
 
@@ -168,9 +189,10 @@ export default function ChatPage() {
           }
 
           if (data.type === "final") {
+            const finalContent = typeof data.message === 'string' ? data.message : String(data.message || "");
             setMessages(prev => prev.map(msg => 
               msg.id === assistantId 
-                ? { ...msg, content: data.message || "", isStreaming: false }
+                ? { ...msg, content: finalContent, isStreaming: false }
                 : msg
             ));
             setIsThinking(false);
@@ -371,7 +393,14 @@ function MessageBubble({ message, onToggleTool, onRetry }: {
           <div className="relative">
             {message.content && (
               <div className={`prose prose-sm max-w-none ${isUser ? "prose-invert" : isError ? "prose-rose" : "prose-slate"}`}>
-                <ReactMarkdown>{message.content}</ReactMarkdown>
+                {/* {console.log('Rendering message content:', message.content, 'type:', typeof message.content)} */}
+                <ReactMarkdown>{
+                  typeof message.content === 'string' 
+                    ? message.content 
+                    : typeof message.content === 'object'
+                      ? JSON.stringify(message.content, null, 2)
+                      : String(message.content)
+                }</ReactMarkdown>
               </div>
             )}
 
@@ -607,7 +636,11 @@ function ChatInput({ value, onChange, onSend, disabled, isThinking }: {
           className="w-full bg-slate-800/50 backdrop-blur-xl border border-white/10 rounded-xl px-4 py-3 pr-12 text-slate-100 placeholder-slate-400 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200"
           placeholder={isThinking ? "AI is processing..." : "Ask me anything about poultry..."}
           value={value}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={(e) => {
+            const inputValue = e.target.value;
+            const cleanValue = typeof inputValue === 'string' ? inputValue : String(inputValue);
+            onChange(cleanValue);
+          }}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey && !disabled) {
               e.preventDefault();
@@ -622,7 +655,7 @@ function ChatInput({ value, onChange, onSend, disabled, isThinking }: {
       </div>
       
       <button
-        onClick={onSend}
+        onClick={() => onSend()}
         disabled={disabled || !value.trim()}
         className="group relative px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-medium transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed hover:from-blue-500 hover:to-purple-500 disabled:hover:from-blue-600 disabled:hover:to-purple-600"
       >
