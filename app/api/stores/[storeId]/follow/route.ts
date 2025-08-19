@@ -73,6 +73,15 @@ export async function POST(
           title: 'New Follower',
           message: `${user.name} is now following your store. This helps increase your store's visibility and reach!`
         });
+
+        // Send SMS notification as well
+        await createNotification({
+          receiverId: storeId,
+          senderId: user.id,
+          type: 'EMAIL',
+          title: 'New Follower',
+          message: `${user.name} is now following your store. This helps increase your store's visibility and reach!`
+        });
       } catch (notificationError) {
         console.error('Failed to send follow notification:', notificationError);
         // Don't fail the follow action if notification fails

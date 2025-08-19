@@ -468,6 +468,23 @@ const serverTotal = rawTotal % 1 <= 0.4
       })
     }
 
+    // Send order confirmation notification to buyer
+    const buyerTemplate = notificationTemplates.orderConfirmed(order.id.slice(-8))
+    await createNotification({
+      receiverId: user.id,
+      orderId: order.id,
+      type: 'EMAIL',
+      title: buyerTemplate.title,
+      message: buyerTemplate.message
+    })
+    await createNotification({
+      receiverId: user.id,
+      orderId: order.id,
+      type: 'SMS',
+      title: buyerTemplate.title,
+      message: buyerTemplate.message
+    })
+
     return NextResponse.json({
       success: true,
       order,

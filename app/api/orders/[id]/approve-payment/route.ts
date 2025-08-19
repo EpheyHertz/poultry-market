@@ -82,6 +82,31 @@ export async function POST(
       message: template.message
     })
 
+    // Send notification to SMS as well
+    await createNotification({
+      receiverId: order.customerId,
+      senderId: user.id,
+      orderId: order.id,
+      type: 'SMS',
+      title: template.title,
+      message: template.message
+    })
+
+    // If payment approved, notify sellers to prepare order
+    if (action === 'APPROVE') {
+      const sellerIds = [...new Set(order.items.map(item => item.product.sellerId))]
+      for (const sellerId of sellerIds) {
+        await createNotification({
+          receiverId: sellerId,
+          senderId: user.id,
+          orderId: order.id,
+          type: 'EMAIL',
+          title: 'Payment Approved - Prepare Order',
+          message: `Payment has been approved for order #${order.id.slice(-8)}. Please prepare the order for dispatch.`
+        })
+      }
+    }
+
     return NextResponse.json(updatedOrder)
   } catch (error) {
     console.error('Payment approval error:', error)

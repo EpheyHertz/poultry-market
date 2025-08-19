@@ -69,6 +69,15 @@ export async function POST(
       })
     }
 
+    // Notify buyer about payment submission confirmation
+    await createNotification({
+      receiverId: order.customerId,
+      orderId: order.id,
+      type: 'EMAIL',
+      title: 'Payment Submitted',
+      message: `Your payment for order #${order.id.slice(-8)} has been submitted successfully. We'll notify you once it's verified.`
+    })
+
     return NextResponse.json(updatedOrder)
   } catch (error) {
     console.error('Payment submission error:', error)

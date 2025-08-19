@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { hashPassword } from '@/lib/auth'
 import { sendEmail, emailTemplates } from '@/lib/email'
+import { sendWelcomeNotification } from '@/lib/notifications'
 import { UserRole } from '@prisma/client'
 import crypto from 'crypto'
 
@@ -72,6 +73,20 @@ export async function POST(request: NextRequest) {
       subject: 'Verify your email - PoultryMarket',
       html: emailTemplates.verification(name, verificationUrl),
     })
+
+    // Send welcome notification
+    // try {
+    //   await sendWelcomeNotification({
+    //     id: user.id,
+    //     name: user.name,
+    //     email: user.email,
+    //     phone: phone,
+    //     role: user.role
+    //   })
+    // } catch (notificationError) {
+    //   console.error('Failed to send welcome notification:', notificationError)
+    //   // Don't fail registration if notification fails
+    // }
 
     return NextResponse.json({
       message: 'User created successfully. Please check your email to verify your account.',

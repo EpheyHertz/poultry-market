@@ -73,6 +73,15 @@ const companyTemplate = action === 'APPROVE'
       message: companyTemplate.message
     })
 
+    // Send SMS to company as well
+    await createNotification({
+      receiverId: sponsorship.companyId,
+      senderId: user.id,
+      type: 'SMS',
+      title: companyTemplate.title,
+      message: companyTemplate.message
+    })
+
     // Notify seller
     const sellerTemplate = action === 'APPROVE'
       ? notificationTemplates.sponsorshipReceived(sponsorship.company.name)
@@ -86,6 +95,15 @@ await createNotification({
   receiverId: sponsorship.sellerId,
   senderId: user.id,
   type: 'EMAIL',
+  title: sellerTemplate.title,
+  message: sellerTemplate.message
+})
+
+// Send SMS to seller as well
+await createNotification({
+  receiverId: sponsorship.sellerId,
+  senderId: user.id,
+  type: 'SMS',
   title: sellerTemplate.title,
   message: sellerTemplate.message
 })

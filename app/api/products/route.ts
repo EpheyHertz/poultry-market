@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'
+import { createNotification } from '@/lib/notifications'
 import { ProductType } from '@prisma/client'
 
 export async function GET(request: NextRequest) {
@@ -122,6 +123,27 @@ export async function POST(request: NextRequest) {
         }
       }
     })
+
+    // Notify admin about new product
+    try {
+      const adminUsers = await prisma.user.findMany({
+        where: { role: 'ADMIN' },
+        select: { id: true }
+      })
+
+      for (const admin of adminUsers) {
+        await createNotification({
+          receiverId: admin.id,
+          senderId: user.id,
+          type: 'EMAIL',
+          title: 'New Product Created',
+          message: `A new product "${name}" has been created by ${user.name}. Please review it in the admin panel.`
+        })
+      }
+    } catch (notificationError) {
+      console.error('Failed to send admin notification:', notificationError)
+      // Don't fail product creation if notification fails
+    }
 
     return NextResponse.json(product)
   } catch (error) {

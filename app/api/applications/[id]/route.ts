@@ -106,12 +106,30 @@ export async function PUT(
         title: template.title,
         message: template.message
       })
+      
+      // Send SMS notification as well
+      await createNotification({
+        receiverId: application.userId,
+        senderId: user.id,
+        type: 'SMS',
+        title: template.title,
+        message: template.message
+      })
     } else if (status === 'REJECTED') {
       const template = notificationTemplates.applicationRejected(application.requestedRole.toLowerCase())
       await createNotification({
         receiverId: application.userId,
         senderId: user.id,
         type: 'EMAIL',
+        title: template.title,
+        message: template.message
+      })
+      
+      // Send SMS notification as well
+      await createNotification({
+        receiverId: application.userId,
+        senderId: user.id,
+        type: 'SMS',
         title: template.title,
         message: template.message
       })

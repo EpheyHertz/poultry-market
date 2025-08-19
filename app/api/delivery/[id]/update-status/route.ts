@@ -114,6 +114,44 @@ export async function PUT(
         title: template.title,
         message: template.message
       })
+
+      // Send SMS notification as well
+      await createNotification({
+        receiverId: delivery.order.customerId,
+        senderId: user.id,
+        orderId: delivery.orderId,
+        type: 'SMS',
+        title: template.title,
+        message: template.message
+      })
+
+      // Notify sellers about delivery status updates
+      if (status === 'DELIVERED') {
+        const order = await prisma.order.findUnique({
+          where: { id: delivery.orderId },
+          include: {
+            items: {
+              include: {
+                product: true
+              }
+            }
+          }
+        })
+
+        if (order) {
+          const sellerIds = [...new Set(order.items.map(item => item.product.sellerId))]
+          for (const sellerId of sellerIds) {
+            await createNotification({
+              receiverId: sellerId,
+              senderId: user.id,
+              orderId: delivery.orderId,
+              type: 'EMAIL',
+              title: 'Order Delivered Successfully',
+              message: `Order #${delivery.order.id.slice(-8)} has been delivered successfully to the customer.`
+            })
+          }
+        }
+      }
     }
 
     return NextResponse.json(updatedDelivery)

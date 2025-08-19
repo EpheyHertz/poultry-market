@@ -41,8 +41,8 @@ const order = await prisma.order.findUnique({
       }, { status: 400 })
     }
 
-    const sellerIds = order.items.map(item => item.product.sellerId)
-    const canAssign = user.role === 'ADMIN' || sellerIds.includes(user.id)
+    const initialSellerIds = order.items.map(item => item.product.sellerId)
+    const canAssign = user.role === 'ADMIN' || initialSellerIds.includes(user.id)
 
     if (!canAssign) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -126,6 +126,29 @@ const order = await prisma.order.findUnique({
       message: template.message
     })
 
+    // Send SMS notification to customer
+    await createNotification({
+      receiverId: order.customerId,
+      senderId: user.id,
+      orderId: order.id,
+      type: 'SMS',
+      title: template.title,
+      message: template.message
+    })
+
+    // Notify sellers that order has been dispatched
+    const uniqueSellerIds = [...new Set(order.items.map(item => item.product.sellerId))]
+    for (const sellerId of uniqueSellerIds) {
+      await createNotification({
+        receiverId: sellerId,
+        senderId: user.id,
+        orderId: order.id,
+        type: 'EMAIL',
+        title: 'Order Dispatched',
+        message: `Your order #${order.id.slice(-8)} has been dispatched to the customer. Tracking ID: ${delivery.trackingId}`
+      })
+    }
+
     const agentTemplate = notificationTemplates.deliveryAssigned(
       order.id.slice(-8),
       order.customer.name
@@ -135,6 +158,16 @@ const order = await prisma.order.findUnique({
       senderId: user.id,
       orderId: order.id,
       type: 'EMAIL',
+      title: agentTemplate.title,
+      message: agentTemplate.message
+    })
+
+    // Send SMS to delivery agent
+    await createNotification({
+      receiverId: assignedAgent.id,
+      senderId: user.id,
+      orderId: order.id,
+      type: 'SMS',
       title: agentTemplate.title,
       message: agentTemplate.message
     })

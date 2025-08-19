@@ -115,7 +115,7 @@ export default function DashboardLayout({ children, user: propUser }: DashboardL
           { name: 'Sponsorships', href: '/admin/sponsorships', icon: HandHeart },
           { name: 'Delivery', href: '/admin/delivery-agents', icon: BarChart3 },
           { name: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
-          { name: 'Support Chats', href: '/admin/chats', icon: MessageCircle },
+          // { name: 'Support Chats', href: '/admin/chats', icon: MessageCircle },
           { name: 'Manage Chats', href: '/chats', icon: MessageCircle },
           { name: 'Announcements', href: '/admin/announcements', icon: Speech },
           { name: 'Use AI', href: '/chatbot', icon: SearchCode },

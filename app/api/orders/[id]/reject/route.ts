@@ -69,6 +69,16 @@ export async function POST(
       message: template.message
     })
 
+    // Send SMS notification as well
+    await createNotification({
+      receiverId: order.customerId,
+      senderId: user.id,
+      orderId: order.id,
+      type: 'SMS',
+      title: template.title,
+      message: template.message
+    })
+
     return NextResponse.json(updatedOrder)
   } catch (error) {
     console.error('Order rejection error:', error)
