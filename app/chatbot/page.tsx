@@ -3,7 +3,7 @@
 import React from "react";
 import { useMemo, useRef, useState, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
-import { ArrowRight, Loader2, Search, Bot, ChevronDown, ChevronRight, Database, Globe, Mail, MessageSquare, User, RotateCcw, AlertCircle, Copy, Send, Plus } from "lucide-react";
+import { ArrowRight, Loader2, Search, Bot, ChevronDown, ChevronRight, Database, Globe, Mail, MessageSquare, User, RotateCcw, AlertCircle, Copy, Send, Plus, X, Download, Eye } from "lucide-react";
 
 type EventMsg = {
   type: "status" | "tool_start" | "tool_result" | "final" | "error" | "info" | "image_uploaded" | "image_error" | "vision_analysis";
@@ -206,17 +206,34 @@ export default function ChatPage() {
     });
   };
 
+  const fileToDataURL = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
     const imageFiles = files.filter((file: File) => file.type.startsWith('image/'));
     
-    const newImages: SelectedImage[] = imageFiles.map((file: File) => ({
-      file,
-      preview: URL.createObjectURL(file),
-      id: crypto.randomUUID()
-    }));
-    
-    setSelectedImages(prev => [...prev, ...newImages]);
+    // Process each image file
+    Promise.all(
+      imageFiles.map(async (file: File) => {
+        const dataURL = await fileToDataURL(file);
+        return {
+          file,
+          preview: dataURL, // Use data URL instead of blob URL
+          id: crypto.randomUUID()
+        };
+      })
+    ).then((newImages: SelectedImage[]) => {
+      setSelectedImages(prev => [...prev, ...newImages]);
+    }).catch((error) => {
+      console.error("Error processing images:", error);
+    });
     
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
@@ -224,11 +241,7 @@ export default function ChatPage() {
   };
 
   const removeImage = (id: string) => {
-    setSelectedImages(prev => {
-      const img = prev.find(i => i.id === id);
-      if (img) URL.revokeObjectURL(img.preview);
-      return prev.filter(i => i.id !== id);
-    });
+    setSelectedImages(prev => prev.filter(i => i.id !== id));
   };
 
   const loadConversationHistory = async (thread_id: string) => {
@@ -372,12 +385,9 @@ export default function ChatPage() {
     
     setMessages(prev => [...prev, userMsg]);
     
-    // Clear input and images
+    // Clear input but keep the data URLs - they don't need cleanup
     setMessage("");
-    setSelectedImages(prev => {
-      prev.forEach(img => URL.revokeObjectURL(img.preview));
-      return [];
-    });
+    setSelectedImages([]);
     setIsThinking(true);
     currentToolsRef.current = [];
 
@@ -560,6 +570,7 @@ export default function ChatPage() {
       ws.onclose = (event) => {
         console.log('🔌 WebSocket Closed:', { code: event.code, reason: event.reason });
         clearTimeout(responseTimeout);
+        
         if (!hasReceivedResponse && event.code !== 1000) {
           // console.log('❌ WebSocket closed unexpectedly, handling as error');
           handleConnectionError(assistantId, textToSend);
@@ -775,7 +786,7 @@ function ChatArea({
         <div className="px-6 py-6">
           {messages.map((msg) => (
             <MessageBubble 
-              key={msg.id} 
+              key={msg.id}
               message={msg} 
               onToggleTool={(toolIndex) => onToggleTool(msg.id, toolIndex)}
               onRetry={onRetry}
@@ -905,15 +916,23 @@ function MessageBubble({ message, onToggleTool, onRetry, onCopy }: {
         <div className={`flex-1 min-w-0 ${isUser ? 'text-right' : 'text-left'}`}>
           {/* Images (if any) */}
           {message.images && message.images.length > 0 && (
-            <div className={`mb-3 ${isUser ? 'flex flex-wrap gap-2 justify-end' : 'flex flex-wrap gap-2'}`}>
+            <div className={`mb-3 ${isUser ? 'flex flex-wrap gap-3 justify-end' : 'flex flex-wrap gap-3'}`}>
               {message.images.map((imageUrl, idx) => (
-                <div key={idx} className="relative group">
-                  <img
-                    src={imageUrl}
-                    alt={`Attached image ${idx + 1}`}
-                    className="max-w-[200px] max-h-[200px] object-cover rounded-lg border border-white/20 bg-white/5"
+                isUser ? (
+                  <UserImagePreview 
+                    key={`user-img-${idx}`}
+                    imageUrl={imageUrl} 
+                    alt={`Image ${idx + 1}`}
+                    index={idx + 1}
                   />
-                </div>
+                ) : (
+                  <ImagePreview 
+                    key={`ai-img-${idx}`}
+                    imageUrl={imageUrl} 
+                    alt={`Image ${idx + 1}`}
+                    index={idx + 1}
+                  />
+                )
               ))}
             </div>
           )}
@@ -1038,11 +1057,255 @@ function MessageBubble({ message, onToggleTool, onRetry, onCopy }: {
   );
 }
 
+function UserImagePreview({ imageUrl, alt, index, ...props }: { 
+  imageUrl: string; 
+  alt: string;
+  index: number;
+} & React.HTMLAttributes<HTMLDivElement>) {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isImageLoading, setIsImageLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
+
+  const handleImageLoad = () => {
+    setIsImageLoading(false);
+  };
+
+  const handleImageError = () => {
+    setIsImageLoading(false);
+    setHasError(true);
+  };
+
+  const handleSaveImage = async () => {
+    try {
+      const response = await fetch(imageUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `my-image-${index}-${Date.now()}.jpg`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Failed to save image:', error);
+    }
+  };
+
+  if (hasError) {
+    return (
+      <div className="relative group">
+        <div className="w-[140px] h-[140px] bg-blue-500/10 backdrop-blur-sm border border-blue-400/30 rounded-2xl flex items-center justify-center">
+          <div className="text-center text-blue-200/70">
+            <AlertCircle className="w-5 h-5 mx-auto mb-1" />
+            <span className="text-xs">Failed to load</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="relative group cursor-pointer" onClick={() => setIsModalOpen(true)}>
+        {/* User image styling with blue theme to match user message bubble */}
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-500/30 to-blue-600/30 rounded-2xl blur opacity-0 group-hover:opacity-100 transition-all duration-300 -inset-1"></div>
+        
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-500/20 to-blue-600/20 backdrop-blur-sm border border-blue-400/30 group-hover:border-blue-300/50 transition-all duration-300 shadow-lg">
+          {/* Loading state */}
+          {isImageLoading && (
+            <div className="absolute inset-0 flex items-center justify-center bg-blue-500/10">
+              <Loader2 className="w-5 h-5 text-blue-300 animate-spin" />
+            </div>
+          )}
+          
+          <img
+            src={imageUrl}
+            alt={alt}
+            onLoad={handleImageLoad}
+            onError={handleImageError}
+            className="w-[140px] h-[140px] object-cover group-hover:scale-105 transition-transform duration-300"
+            crossOrigin="anonymous"
+          />
+          
+          {/* Overlay with preview hint - blue theme */}
+          <div className="absolute inset-0 bg-blue-900/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+            <div className="text-white text-xs font-medium bg-blue-500/30 backdrop-blur-sm px-2 py-1 rounded-lg border border-blue-300/40">
+              Click to view
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Modal for full-size image - same as regular ImagePreview */}
+      {isModalOpen && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+          onClick={() => setIsModalOpen(false)}
+        >
+          <div 
+            className="relative max-w-4xl max-h-full"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Close button */}
+            <button
+              onClick={() => setIsModalOpen(false)}
+              className="absolute -top-12 right-0 w-10 h-10 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full text-white hover:bg-white/20 transition-all duration-200 flex items-center justify-center z-10"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* Save button */}
+            <button
+              onClick={handleSaveImage}
+              className="absolute -top-12 right-12 w-10 h-10 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full text-white hover:bg-white/20 transition-all duration-200 flex items-center justify-center z-10"
+              title="Save image"
+            >
+              <Download className="w-5 h-5" />
+            </button>
+
+            {/* Full size image */}
+            <div className="relative bg-white/5 backdrop-blur-xl border border-white/20 rounded-2xl overflow-hidden shadow-2xl">
+              <img
+                src={imageUrl}
+                alt={alt}
+                className="max-w-full max-h-[80vh] object-contain"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+function ImagePreview({ imageUrl, alt, index, ...props }: { 
+  imageUrl: string; 
+  alt: string;
+  index: number;
+} & React.HTMLAttributes<HTMLDivElement>) {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isImageLoading, setIsImageLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
+
+  const handleImageLoad = () => {
+    setIsImageLoading(false);
+  };
+
+  const handleImageError = () => {
+    setIsImageLoading(false);
+    setHasError(true);
+  };
+
+  const handleSaveImage = async () => {
+    try {
+      const response = await fetch(imageUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `image-${index}-${Date.now()}.jpg`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Failed to save image:', error);
+    }
+  };
+
+  if (hasError) {
+    return (
+      <div className="relative group">
+        <div className="w-[150px] h-[150px] bg-white/5 backdrop-blur-sm border border-white/20 rounded-xl flex items-center justify-center">
+          <div className="text-center text-white/50">
+            <AlertCircle className="w-6 h-6 mx-auto mb-2" />
+            <span className="text-xs">Failed to load</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="relative group cursor-pointer" onClick={() => setIsModalOpen(true)}>
+        {/* Hover glow effect */}
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-xl blur opacity-0 group-hover:opacity-100 transition-all duration-300 -inset-1"></div>
+        
+        <div className="relative overflow-hidden rounded-xl bg-white/5 backdrop-blur-sm border border-white/20 group-hover:border-white/40 transition-all duration-300">
+          {/* Loading state */}
+          {isImageLoading && (
+            <div className="absolute inset-0 flex items-center justify-center bg-white/5">
+              <Loader2 className="w-6 h-6 text-white/50 animate-spin" />
+            </div>
+          )}
+          
+          <img
+            src={imageUrl}
+            alt={alt}
+            onLoad={handleImageLoad}
+            onError={handleImageError}
+            className="w-[150px] h-[150px] object-cover group-hover:scale-105 transition-transform duration-300"
+          />
+          
+          {/* Overlay with preview hint */}
+          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+            <div className="text-white text-sm font-medium bg-white/20 backdrop-blur-sm px-3 py-1 rounded-lg border border-white/30">
+              Click to view
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Modal for full-size image */}
+      {isModalOpen && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+          onClick={() => setIsModalOpen(false)}
+        >
+          <div 
+            className="relative max-w-4xl max-h-full"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Close button */}
+            <button
+              onClick={() => setIsModalOpen(false)}
+              className="absolute -top-12 right-0 w-10 h-10 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full text-white hover:bg-white/20 transition-all duration-200 flex items-center justify-center z-10"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* Save button */}
+            <button
+              onClick={handleSaveImage}
+              className="absolute -top-12 right-12 w-10 h-10 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full text-white hover:bg-white/20 transition-all duration-200 flex items-center justify-center z-10"
+              title="Save image"
+            >
+              <Download className="w-5 h-5" />
+            </button>
+
+            {/* Full size image */}
+            <div className="relative bg-white/5 backdrop-blur-xl border border-white/20 rounded-2xl overflow-hidden shadow-2xl">
+              <img
+                src={imageUrl}
+                alt={alt}
+                className="max-w-full max-h-[80vh] object-contain"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
 function ToolCallDisplay({ tool, onToggle }: { 
   tool: ToolExecution; 
   onToggle: () => void;
 }) {
   const getToolIcon = (name: string) => {
+    if (name.includes("vision") || name.includes("image")) return Eye; // Use Eye icon for vision analysis
     if (name.includes("search") || name.includes("web")) return Globe;
     if (name.includes("email") || name.includes("subscription")) return Mail;
     if (name.includes("rag") || name.includes("document")) return Database;
@@ -1129,11 +1392,11 @@ function ToolCallDisplay({ tool, onToggle }: {
             </div>
             <div>
               <span className="text-base font-medium text-white/90 capitalize">
-                {tool.name.replace(/_/g, ' ')}
+                {tool.name === 'vision_analysis' ? 'AI Vision Analysis' : tool.name.replace(/_/g, ' ')}
               </span>
               {tool.isRunning ? (
                 <div className="text-sm text-blue-300 mt-1 flex items-center gap-2">
-                  <span>Running...</span>
+                  <span>{tool.name === 'vision_analysis' ? 'Analyzing images...' : 'Running...'}</span>
                   <div className="flex space-x-1">
                     <div className="w-1 h-1 bg-blue-400 rounded-full animate-pulse"></div>
                     <div className="w-1 h-1 bg-blue-400 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
@@ -1141,7 +1404,9 @@ function ToolCallDisplay({ tool, onToggle }: {
                   </div>
                 </div>
               ) : (
-                <div className="text-sm text-green-300 mt-1">Completed</div>
+                <div className="text-sm text-green-300 mt-1">
+                  {tool.name === 'vision_analysis' ? 'Analysis complete' : 'Completed'}
+                </div>
               )}
             </div>
           </div>
@@ -1242,6 +1507,37 @@ function ToolCallDisplay({ tool, onToggle }: {
                         </div>
                       );
                     })}
+                  </div>
+                ) : tool.name === 'vision_analysis' ? (
+                  // Special styling for vision analysis results with markdown support
+                  <div className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 backdrop-blur-sm rounded-lg p-4 border border-purple-400/20 max-h-96 overflow-y-auto">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Eye className="w-4 h-4 text-purple-300" />
+                      <span className="text-purple-200 text-sm font-medium">Vision Analysis Results</span>
+                    </div>
+                    <div className="prose prose-sm prose-invert max-w-none">
+                      <ReactMarkdown
+                        components={{
+                          p: ({ children }) => <p className="mb-3 last:mb-0 text-white/90 leading-relaxed text-sm">{children}</p>,
+                          h1: ({ children }) => <h1 className="text-lg font-semibold mb-3 text-purple-200">{children}</h1>,
+                          h2: ({ children }) => <h2 className="text-base font-semibold mb-2 text-purple-200">{children}</h2>,
+                          h3: ({ children }) => <h3 className="text-sm font-semibold mb-2 text-purple-200">{children}</h3>,
+                          ul: ({ children }) => <ul className="list-disc pl-4 mb-3 space-y-1 text-white/90">{children}</ul>,
+                          ol: ({ children }) => <ol className="list-decimal pl-4 mb-3 space-y-1 text-white/90">{children}</ol>,
+                          li: ({ children }) => <li className="text-white/90 text-sm">{children}</li>,
+                          code: ({ children, node, ...props }) => 
+                            (node && (node as any).inline)
+                              ? <code className="bg-purple-500/20 px-1 py-0.5 rounded text-xs font-mono text-purple-200" {...props}>{children}</code>
+                              : <code className="block bg-purple-500/10 p-3 rounded text-xs font-mono text-white/90 overflow-x-auto mb-3" {...props}>{children}</code>,
+                          pre: ({ children }) => <pre className="bg-purple-500/10 p-3 rounded overflow-x-auto mb-3">{children}</pre>,
+                          blockquote: ({ children }) => <blockquote className="border-l-4 border-purple-400/50 pl-3 italic text-white/70 mb-3">{children}</blockquote>,
+                          strong: ({ children }) => <strong className="font-semibold text-purple-200">{children}</strong>,
+                          em: ({ children }) => <em className="italic text-white/90">{children}</em>,
+                        }}
+                      >
+                        {parsedResult.content}
+                      </ReactMarkdown>
+                    </div>
                   </div>
                 ) : parsedResult.type === 'json' ? (
                   <div className="bg-white/5 backdrop-blur-sm rounded-lg p-4 border border-white/10 max-h-64 overflow-y-auto">
