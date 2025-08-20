@@ -269,23 +269,23 @@ export async function POST(request: NextRequest) {
     try {
 
       // Send notifications using the new professional announcement system
-      let roles: string[] = [];
+      let roles: (UserRole | 'ALL')[] = [];
       
       if (announcement.isGlobal) {
-        roles = ['ALL'];
+        roles = ['ALL' as const];
       } else if (announcement.targetRoles && announcement.targetRoles.length > 0) {
-        roles = announcement.targetRoles as string[];
+        roles = announcement.targetRoles as (UserRole | 'ALL')[];
       } else {
         // Map announcement type to target roles
-        const roleMapping: Record<string, string[]> = {
-          'SALE': ['CUSTOMER', 'DELIVERY_AGENT'],
-          'DISCOUNT': ['CUSTOMER'],
-          'SLAUGHTER_SCHEDULE': ['CUSTOMER', 'SELLER'],
-          'PRODUCT_LAUNCH': ['CUSTOMER'],
-          'GENERAL': ['CUSTOMER', 'SELLER', 'COMPANY', 'DELIVERY_AGENT'],
-          'URGENT': ['CUSTOMER', 'SELLER', 'COMPANY', 'DELIVERY_AGENT', 'ADMIN']
+        const roleMapping: Record<string, (UserRole | 'ALL')[]> = {
+          'SALE': ['CUSTOMER', 'DELIVERY_AGENT'] as (UserRole)[],
+          'DISCOUNT': ['CUSTOMER'] as (UserRole)[],
+          'SLAUGHTER_SCHEDULE': ['CUSTOMER', 'SELLER'] as (UserRole)[],
+          'PRODUCT_LAUNCH': ['CUSTOMER'] as (UserRole)[],
+          'GENERAL': ['CUSTOMER', 'SELLER', 'COMPANY', 'DELIVERY_AGENT'] as (UserRole)[],
+          'URGENT': ['CUSTOMER', 'SELLER', 'COMPANY', 'DELIVERY_AGENT', 'ADMIN'] as (UserRole)[]
         };
-        roles = roleMapping[announcement.type] || ['CUSTOMER'];
+        roles = roleMapping[announcement.type] || ['CUSTOMER' as UserRole];
       }
 
       // Use the new professional announcement notification system
