@@ -6,13 +6,21 @@ import ReactMarkdown from "react-markdown";
 import { ArrowRight, Loader2, Search, Bot, ChevronDown, ChevronRight, Database, Globe, Mail, MessageSquare, User, RotateCcw, AlertCircle, Copy, Send, Plus } from "lucide-react";
 
 type EventMsg = {
-  type: "status" | "tool_start" | "tool_result" | "final" | "error" | "info";
+  type: "status" | "tool_start" | "tool_result" | "final" | "error" | "info" | "image_uploaded" | "image_error" | "vision_analysis";
   message?: string;
   name?: string;
   args?: any;
   output?: any;
   thread_id?: string;
   final?: boolean;
+  filename?: string;
+  url?: string;
+  index?: number;
+  images?: string[];
+  analysis?: string;
+  vision_analysis?: boolean;
+  uploaded_images?: string[];
+  images_processed?: number;
 };
 
 type ChatMessage = {
@@ -24,6 +32,7 @@ type ChatMessage = {
   timestamp: Date;
   canRetry?: boolean;
   originalUserMessage?: string;
+  images?: string[]; // Add images to chat messages
 };
 
 type ToolExecution = {
@@ -36,13 +45,69 @@ type ToolExecution = {
 
 type ConversationHistory = {
   thread_id: string;
+  title?: string;
+  summary?: string;
+  message_count?: number;
+  last_activity?: string;
+  topics?: string[];
   messages: Array<{
+    id: string;
     role: "user" | "assistant";
     content: string;
     timestamp: string;
+    metadata?: any;
+    images?: Array<{
+      id: string;
+      url: string;
+      filename: string;
+      size?: number;
+      mime_type?: string;
+      width?: number;
+      height?: number;
+      cloudinary_public_id?: string;
+      upload_folder?: string;
+      analysis?: any;
+      created_at?: string;
+      is_processed?: boolean;
+    }>;
+    search_links?: Array<{
+      id: string;
+      search_type: "web_search" | "rag_search";
+      query: string;
+      results: any;
+      relevance_score?: number;
+      search_influence?: any;
+      created_at?: string;
+      metadata?: any;
+    }>;
   }>;
-  summary?: string;
+  search_history?: Array<{
+    id: string;
+    search_type: "web_search" | "rag_search";
+    query: string;
+    results: any;
+    result_count?: number;
+    relevance_score?: number;
+    created_at?: string;
+    metadata?: any;
+  }>;
+  thread_context?: Array<{
+    id: string;
+    context_type: string;
+    content: string;
+    relevance_score?: number;
+    metadata?: any;
+    created_at?: string;
+    last_used?: string;
+    expires_at?: string;
+  }>;
 };
+
+interface SelectedImage {
+  file: File;
+  preview: string;
+  id: string;
+}
 
 export default function ChatPage() {
   const [message, setMessage] = useState("");
@@ -50,8 +115,10 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isThinking, setIsThinking] = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [selectedImages, setSelectedImages] = useState<SelectedImage[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
   const currentToolsRef = useRef<ToolExecution[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     // Add global CSS for hiding scrollbars and enhanced tool display
@@ -87,10 +154,12 @@ export default function ChatPage() {
     `;
     document.head.appendChild(style);
     
+    // Cleanup image previews on unmount
     return () => {
       document.head.removeChild(style);
+      selectedImages.forEach(img => URL.revokeObjectURL(img.preview));
     };
-  }, []);
+  }, [selectedImages]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -119,6 +188,49 @@ export default function ChatPage() {
     }
   }, []);
 
+  // Image handling functions
+  const fileToImageObject = (file: File): Promise<{data: string, filename: string, mime_type: string}> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        const base64 = result.split(',')[1];
+        resolve({
+          data: base64,
+          filename: file.name,
+          mime_type: file.type
+        });
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    const imageFiles = files.filter((file: File) => file.type.startsWith('image/'));
+    
+    const newImages: SelectedImage[] = imageFiles.map((file: File) => ({
+      file,
+      preview: URL.createObjectURL(file),
+      id: crypto.randomUUID()
+    }));
+    
+    setSelectedImages(prev => [...prev, ...newImages]);
+    
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const removeImage = (id: string) => {
+    setSelectedImages(prev => {
+      const img = prev.find(i => i.id === id);
+      if (img) URL.revokeObjectURL(img.preview);
+      return prev.filter(i => i.id !== id);
+    });
+  };
+
   const loadConversationHistory = async (thread_id: string) => {
     if (!thread_id) return;
     
@@ -137,20 +249,39 @@ export default function ChatPage() {
         
         // Updated to handle the new backend response structure
         const conversationData = data.data;
-        // console.log('📋 Parsed Conversation Data:', conversationData);
+        console.log('📋 Parsed Conversation Data:', conversationData);
         
         // Check if we have the messages array (new backend structure)
         if (conversationData && conversationData.messages && Array.isArray(conversationData.messages)) {
-          const historyMessages: ChatMessage[] = conversationData.messages.map((msg: any, index: number) => ({
-            id: `history-${index}-${Date.now()}`,
-            type: msg.role === "user" ? "user" : "assistant",
-            content: msg.content || "",
-            timestamp: new Date(msg.timestamp || Date.now()),
-            tools: [],
-            isStreaming: false,
-          }));
+          const historyMessages: ChatMessage[] = conversationData.messages.map((msg: any, index: number) => {
+            // Create tools array from search links if present
+            const tools: ToolExecution[] = [];
+            
+            if (msg.search_links && Array.isArray(msg.search_links)) {
+              msg.search_links.forEach((searchLink: any) => {
+                const toolName = searchLink.search_type === "web_search" ? "web_search" : "document_search";
+                tools.push({
+                  name: toolName,
+                  args: { query: searchLink.query },
+                  result: searchLink.results,
+                  isRunning: false,
+                  expanded: false
+                });
+              });
+            }
+            
+            return {
+              id: msg.id || `history-${index}-${Date.now()}`,
+              type: msg.role === "user" ? "user" : "assistant",
+              content: msg.content || "",
+              timestamp: new Date(msg.timestamp || Date.now()),
+              tools: tools,
+              isStreaming: false,
+              images: msg.images?.map((img: any) => img.url) || [], // Extract image URLs
+            };
+          });
           
-          // console.log('📋 Converted History Messages:', historyMessages);
+          console.log('📋 Converted History Messages:', historyMessages);
           setMessages(historyMessages);
           
           // Log additional conversation metadata
@@ -160,16 +291,22 @@ export default function ChatPage() {
           if (conversationData.topics) {
             console.log('📋 Recent Topics:', conversationData.topics);
           }
+          if (conversationData.search_history) {
+            console.log('📋 Search History:', conversationData.search_history);
+          }
+          if (conversationData.thread_context) {
+            console.log('📋 Thread Context:', conversationData.thread_context);
+          }
         } else {
           console.warn('📋 No messages found in conversation history');
           setMessages([]);
         }
       } else {
-        // console.warn('Failed to load conversation history:', response.status);
+        console.warn('Failed to load conversation history:', response.status);
         setMessages([]);
       }
     } catch (error) {
-      // console.error('Error loading conversation history:', error);
+      console.error('Error loading conversation history:', error);
       setMessages([]);
     } finally {
       setIsLoadingHistory(false);
@@ -206,22 +343,41 @@ export default function ChatPage() {
     }
     
     const textToSend = typeof rawText === 'string' ? rawText : String(rawText);
-    if (!textToSend || isThinking) return;
+    if ((!textToSend && selectedImages.length === 0) || isThinking) return;
     
     // console.log('📤 Sending message:', textToSend);
     // console.log('📤 Current thread ID:', threadId);
+    // console.log('📤 Selected images:', selectedImages.length);
+    
+    // Process images for upload
+    let images: {data: string, filename: string, mime_type: string}[] = [];
+    if (selectedImages.length > 0) {
+      try {
+        images = await Promise.all(
+          selectedImages.map(img => fileToImageObject(img.file))
+        );
+      } catch (error) {
+        console.error("Error converting images:", error);
+        return;
+      }
+    }
     
     const userMsg: ChatMessage = {
       id: Date.now().toString(),
       type: "user",
       content: textToSend,
       timestamp: new Date(),
+      images: selectedImages.map(img => img.preview), // Use preview URLs for display
     };
     
     setMessages(prev => [...prev, userMsg]);
     
-    // Always clear the input field after sending (whether it's a retry or new message)
+    // Clear input and images
     setMessage("");
+    setSelectedImages(prev => {
+      prev.forEach(img => URL.revokeObjectURL(img.preview));
+      return [];
+    });
     setIsThinking(true);
     currentToolsRef.current = [];
 
@@ -273,7 +429,8 @@ export default function ChatPage() {
       ws.onopen = () => {
         const payload = { 
           message: typeof textToSend === 'string' ? textToSend : String(textToSend), 
-          thread_id: typeof threadId === 'string' ? threadId : undefined 
+          thread_id: typeof threadId === 'string' ? threadId : undefined,
+          images: images // Include images in the payload
         };
         // console.log('🔌 WebSocket Connected - Sending payload:', payload);
         ws.send(JSON.stringify(payload));
@@ -361,6 +518,32 @@ export default function ChatPage() {
                 : msg
             ));
             setIsThinking(false);
+          }
+
+          if (data.type === "image_uploaded") {
+            // console.log('🖼️ Image uploaded:', data);
+            setMessages(prev => prev.map(msg => 
+              msg.id === assistantId 
+                ? { 
+                    ...msg, 
+                    content: msg.content + `\n\n📸 Image uploaded: ${data.filename}`,
+                    isStreaming: true 
+                  }
+                : msg
+            ));
+          }
+
+          if (data.type === "vision_analysis") {
+            // console.log('👁️ Vision analysis received:', data);
+            setMessages(prev => prev.map(msg => 
+              msg.id === assistantId 
+                ? { 
+                    ...msg, 
+                    content: msg.content + `\n\n🔍 **Vision Analysis:**\n${data.analysis || data.message}`,
+                    isStreaming: true 
+                  }
+                : msg
+            ));
           }
 
           if (data.type === "error") {
@@ -500,6 +683,10 @@ export default function ChatPage() {
                   onSend={sendMessage} 
                   disabled={isThinking}
                   isThinking={isThinking}
+                  selectedImages={selectedImages}
+                  onImageSelect={handleFileSelect}
+                  onImageRemove={removeImage}
+                  fileInputRef={fileInputRef}
                 />
               </div>
             </div>
@@ -716,6 +903,21 @@ function MessageBubble({ message, onToggleTool, onRetry, onCopy }: {
 
         {/* Content */}
         <div className={`flex-1 min-w-0 ${isUser ? 'text-right' : 'text-left'}`}>
+          {/* Images (if any) */}
+          {message.images && message.images.length > 0 && (
+            <div className={`mb-3 ${isUser ? 'flex flex-wrap gap-2 justify-end' : 'flex flex-wrap gap-2'}`}>
+              {message.images.map((imageUrl, idx) => (
+                <div key={idx} className="relative group">
+                  <img
+                    src={imageUrl}
+                    alt={`Attached image ${idx + 1}`}
+                    className="max-w-[200px] max-h-[200px] object-cover rounded-lg border border-white/20 bg-white/5"
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+
           {/* Message content with different styling for user vs bot */}
           {(displayedContent || message.content) && (
             <div className={`leading-relaxed ${
@@ -1063,12 +1265,26 @@ function ToolCallDisplay({ tool, onToggle }: {
   );
 }
 
-function ChatInput({ value, onChange, onSend, disabled, isThinking }: { 
+function ChatInput({ 
+  value, 
+  onChange, 
+  onSend, 
+  disabled, 
+  isThinking,
+  selectedImages,
+  onImageSelect,
+  onImageRemove,
+  fileInputRef
+}: { 
   value: string; 
   onChange: (value: string) => void; 
   onSend: () => void; 
   disabled: boolean;
   isThinking: boolean;
+  selectedImages: SelectedImage[];
+  onImageSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onImageRemove: (id: string) => void;
+  fileInputRef: React.RefObject<HTMLInputElement>;
 }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -1090,6 +1306,28 @@ function ChatInput({ value, onChange, onSend, disabled, isThinking }: {
 
   return (
     <div className="relative">
+      {/* Image previews */}
+      {selectedImages.length > 0 && (
+        <div className="mb-3 flex flex-wrap gap-2">
+          {selectedImages.map((img) => (
+            <div key={img.id} className="relative group">
+              <img
+                src={img.preview}
+                alt="Selected"
+                className="w-16 h-16 object-cover rounded-xl border border-white/20 bg-white/5"
+              />
+              <button
+                onClick={() => onImageRemove(img.id)}
+                className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center hover:bg-red-600 transition-colors opacity-0 group-hover:opacity-100"
+                type="button"
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
       <div className="relative flex items-end gap-3 bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl shadow-xl focus-within:border-white/30 focus-within:shadow-2xl transition-all duration-300">
         {/* Gradient border effect */}
         <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 via-purple-500/20 to-pink-500/20 rounded-2xl blur opacity-0 focus-within:opacity-100 transition-opacity duration-300 -z-10"></div>
@@ -1106,9 +1344,30 @@ function ChatInput({ value, onChange, onSend, disabled, isThinking }: {
           style={{ minHeight: '44px', maxHeight: '120px' }}
         />
         
+        {/* Image upload button */}
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          disabled={disabled}
+          className="flex-shrink-0 p-2.5 m-1.5 bg-white/10 backdrop-blur-sm text-white/70 rounded-xl hover:bg-white/20 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200"
+          title="Add images"
+          type="button"
+        >
+          <Plus className="w-4 h-4" />
+        </button>
+
+        {/* Hidden file input */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          accept="image/*"
+          onChange={onImageSelect}
+          className="hidden"
+        />
+        
         <button
           onClick={onSend}
-          disabled={disabled || !value.trim()}
+          disabled={disabled || (!value.trim() && selectedImages.length === 0)}
           className="flex-shrink-0 p-2.5 m-1.5 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl hover:from-blue-600 hover:to-purple-600 disabled:from-white/10 disabled:to-white/10 disabled:text-white/30 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl"
           title="Send message"
         >
