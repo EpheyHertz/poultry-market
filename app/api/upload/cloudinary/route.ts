@@ -45,6 +45,8 @@ export async function POST(request: NextRequest) {
 
     const imageUrl = await uploadToCloudinary(file, folder);
 
+    console.log('Cloudinary upload successful:', imageUrl);
+
     return NextResponse.json({
       success: true,
       url: imageUrl

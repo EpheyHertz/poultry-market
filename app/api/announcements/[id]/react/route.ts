@@ -2,18 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import {  getCurrentUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
-interface Params {
-  id: string;
-}
-
 // POST /api/announcements/[id]/react - Add or update reaction
 export async function POST(
-  request: NextRequest,
-//   { params }: { params: Params }
+  request: NextRequest
 ) {
   try {
-    const user = await getCurrentUser()
-    const id = request.nextUrl.pathname.split('/').pop() || ''
+    const user = await getCurrentUser();
+    const id = request.nextUrl.pathname.split('/')[3] || ''; // Get announcement ID from URL
+    
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -30,7 +26,7 @@ export async function POST(
 
     // Check if announcement exists
     const announcement = await prisma.announcement.findUnique({
-      where: { id:id }
+      where: { id }
     });
 
     if (!announcement) {
@@ -66,12 +62,12 @@ export async function POST(
 
 // DELETE /api/announcements/[id]/react - Remove reaction
 export async function DELETE(
-  request: NextRequest,
-//   { params }: { params: Params }
+  request: NextRequest
 ) {
   try {
-    const user = await getCurrentUser()
-     const id = request.nextUrl.pathname.split('/').pop() || ''
+    const user = await getCurrentUser();
+    const id = request.nextUrl.pathname.split('/')[3] || ''; // Get announcement ID from URL
+    
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

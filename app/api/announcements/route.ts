@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { AnnouncementType, AnnouncementStatus, UserRole } from '@prisma/client';
 import { getCurrentUser } from '@/lib/auth';
+import { sendAnnouncementNotifications } from '@/lib/notifications';
 
 // GET /api/announcements - Get announcements with filtering
 export async function GET(request: NextRequest) {
@@ -16,6 +17,7 @@ export async function GET(request: NextRequest) {
     const type = searchParams.get('type') as AnnouncementType | null;
     const status = searchParams.get('status') as AnnouncementStatus | null;
     const authorId = searchParams.get('authorId');
+    const search = searchParams.get('search');
     const limit = parseInt(searchParams.get('limit') || '20');
     const offset = parseInt(searchParams.get('offset') || '0');
     
@@ -51,6 +53,20 @@ export async function GET(request: NextRequest) {
     }
     if (authorId && (userRole === 'ADMIN' || authorId === user.id)) {
       whereClause.authorId = authorId;
+    }
+
+    // Add search functionality
+    if (search) {
+      whereClause.OR = [
+        ...(whereClause.OR || []),
+        { title: { contains: search, mode: 'insensitive' } },
+        { content: { contains: search, mode: 'insensitive' } },
+        { 
+          author: { 
+            name: { contains: search, mode: 'insensitive' } 
+          }
+        }
+      ];
     }
 
     const announcements = await prisma.announcement.findMany({
@@ -107,7 +123,7 @@ export async function GET(request: NextRequest) {
       }, {} as Record<string, number>);
 
       const userReaction = announcement.reactions.find(r => r.userId === user.id)?.reaction;
-
+   
       return {
         ...announcement,
         isViewed: announcement.views.length > 0,
@@ -118,6 +134,7 @@ export async function GET(request: NextRequest) {
         _count: undefined
       };
     });
+    //  console.log("all an?nouncements:", formattedAnnouncements);
 
     return NextResponse.json({
       announcements: formattedAnnouncements,
@@ -163,6 +180,16 @@ export async function POST(request: NextRequest) {
       attachmentUrl
     } = body;
 
+    console.log('Creating announcement with data:', {
+      title,
+      content,
+      type,
+      imageUrl,
+      attachmentUrl,
+      isGlobal,
+      targetRoles
+    });
+
     // Validate required fields
     if (!title || !content || !type) {
       return NextResponse.json(
@@ -197,22 +224,26 @@ export async function POST(request: NextRequest) {
     }
 
     // Create announcement
+    const announcementData = {
+      title,
+      content,
+      type: type as AnnouncementType,
+      authorId: user.id,
+      productId,
+      targetRoles: targetRoles || [],
+      isGlobal: isGlobal || false,
+      publishAt: publishAt ? new Date(publishAt) : undefined,
+      expiresAt: expiresAt ? new Date(expiresAt) : undefined,
+      imageUrl: imageUrl || '',
+      attachmentUrl: attachmentUrl || '',
+      status: publishAt ? 'DRAFT' as AnnouncementStatus : 'PUBLISHED' as AnnouncementStatus,
+      publishedAt: publishAt ? undefined : new Date()
+    };
+
+    console.log('Creating announcement in database with data:', announcementData);
+
     const announcement = await prisma.announcement.create({
-      data: {
-        title,
-        content,
-        type: type as AnnouncementType,
-        authorId: user.id,
-        productId,
-        targetRoles: targetRoles || [],
-        isGlobal: isGlobal || false,
-        publishAt: publishAt ? new Date(publishAt) : undefined,
-        expiresAt: expiresAt ? new Date(expiresAt) : undefined,
-        imageUrl,
-        attachmentUrl,
-        status: publishAt ? 'DRAFT' : 'PUBLISHED',
-        publishedAt: publishAt ? undefined : new Date()
-      },
+      data: announcementData,
       include: {
         author: {
           select: {
@@ -233,6 +264,42 @@ export async function POST(request: NextRequest) {
         }
       }
     });
+
+    // Send email notifications to relevant users based on announcement type
+    try {
+
+      // Send notifications using the new professional announcement system
+      let roles: string[] = [];
+      
+      if (announcement.isGlobal) {
+        roles = ['ALL'];
+      } else if (announcement.targetRoles && announcement.targetRoles.length > 0) {
+        roles = announcement.targetRoles as string[];
+      } else {
+        // Map announcement type to target roles
+        const roleMapping: Record<string, string[]> = {
+          'SALE': ['CUSTOMER', 'DELIVERY_AGENT'],
+          'DISCOUNT': ['CUSTOMER'],
+          'SLAUGHTER_SCHEDULE': ['CUSTOMER', 'SELLER'],
+          'PRODUCT_LAUNCH': ['CUSTOMER'],
+          'GENERAL': ['CUSTOMER', 'SELLER', 'COMPANY', 'DELIVERY_AGENT'],
+          'URGENT': ['CUSTOMER', 'SELLER', 'COMPANY', 'DELIVERY_AGENT', 'ADMIN']
+        };
+        roles = roleMapping[announcement.type] || ['CUSTOMER'];
+      }
+
+      // Use the new professional announcement notification system
+      const notificationResult = await sendAnnouncementNotifications(
+        announcement.id,
+        user.id,
+        roles
+      );
+
+      console.log(`Professional announcement notifications sent:`, notificationResult);
+    } catch (notificationError) {
+      console.error('Failed to send announcement notifications:', notificationError);
+      // Don't fail the announcement creation if notifications fail
+    }
 
     return NextResponse.json(announcement);
 
