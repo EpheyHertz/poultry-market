@@ -51,7 +51,19 @@ export const metadata: Metadata = {
   alternates: seoConfig.alternates,
   
   // Robots
-  robots: seoConfig.robots,
+  robots: {
+    index: seoConfig.robots.index,
+    follow: seoConfig.robots.follow,
+    nocache: seoConfig.robots.nocache,
+    googleBot: {
+      index: seoConfig.robots.googleBot.index,
+      follow: seoConfig.robots.googleBot.follow,
+      noimageindex: seoConfig.robots.googleBot.noimageindex,
+      'max-video-preview': seoConfig.robots.googleBot['max-video-preview'],
+      'max-image-preview': 'large', // Use one of the allowed values: "none", "large", or "standard"
+      'max-snippet': seoConfig.robots.googleBot['max-snippet'],
+    },
+  },
   
   // Icons
   icons: {

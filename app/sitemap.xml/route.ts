@@ -21,7 +21,9 @@ const getDynamicRoutes = async () => {
     const products = await prisma.product.findMany({
       where: { 
         isActive: true,
-        store: { isVerified: true }
+        seller: {
+          isVerified: true
+        }
       },
       select: { 
         slug: true, 
@@ -33,18 +35,27 @@ const getDynamicRoutes = async () => {
 
     // Get all categories
     const categories = await prisma.category.findMany({
+      where: { isActive: true },
       select: { 
-        type: true, 
+        name: true,
+        slug: true, 
         updatedAt: true 
       }
     });
 
-    // Get all stores
-    const stores = await prisma.store.findMany({
-      where: { isVerified: true },
+    // Get all verified sellers (acting as stores)
+    const sellers = await prisma.user.findMany({
+      where: { 
+        isVerified: true,
+        role: { in: ['SELLER', 'COMPANY'] },
+        products: {
+          some: { isActive: true }
+        }
+      },
       select: { 
-        slug: true, 
-        id: true, 
+        id: true,
+        name: true,
+        dashboardSlug: true,
         updatedAt: true 
       },
       take: 500
@@ -64,7 +75,7 @@ const getDynamicRoutes = async () => {
     return {
       products,
       categories,
-      stores,
+      sellers,
       announcements
     };
   } catch (error) {
@@ -72,7 +83,7 @@ const getDynamicRoutes = async () => {
     return {
       products: [],
       categories: [],
-      stores: [],
+      sellers: [],
       announcements: []
     };
   }
@@ -122,16 +133,16 @@ export async function GET() {
       
       // Category pages
       ...dynamicData.categories.map(category => ({
-        url: `/categories/${category.type.toLowerCase()}`,
+        url: `/categories/${category.slug}`,
         lastModified: category.updatedAt,
         priority: 0.8,
         changeFrequency: 'weekly'
       })),
       
-      // Store pages
-      ...dynamicData.stores.map(store => ({
-        url: `/store/${store.slug || store.id}`,
-        lastModified: store.updatedAt,
+      // Seller/Store pages
+      ...dynamicData.sellers.map(seller => ({
+        url: `/seller/${seller.dashboardSlug || seller.id}`,
+        lastModified: seller.updatedAt,
         priority: 0.7,
         changeFrequency: 'weekly'
       })),
