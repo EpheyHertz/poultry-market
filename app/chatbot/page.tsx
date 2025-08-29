@@ -240,6 +240,30 @@ export default function ChatPage() {
     }
   };
 
+  // Helper function to clean image URLs from message content
+  const cleanImageUrlsFromContent = (content: string): string => {
+    if (!content) return content;
+    
+    let cleaned = content;
+    
+    // Remove cloudinary URLs
+    cleaned = cleaned.replace(/https:\/\/res\.cloudinary\.com\/[^\s]+/g, '').trim();
+    
+    // Remove "Image X URL:" patterns
+    cleaned = cleaned.replace(/Image \d+ URL:\s*/g, '');
+    
+    // Remove "Please analyze these images" patterns that might include URLs
+    cleaned = cleaned.replace(/Please analyze these images in the context of poultry farming:\s*/g, '');
+    
+    // Remove standalone URLs that might be image references
+    cleaned = cleaned.replace(/^https?:\/\/[^\s]+$/gm, '');
+    
+    // Clean up extra whitespace
+    cleaned = cleaned.replace(/\n\s*\n\s*\n/g, '\n\n').trim();
+    
+    return cleaned;
+  };
+
   const removeImage = (id: string) => {
     setSelectedImages(prev => prev.filter(i => i.id !== id));
   };
@@ -283,14 +307,38 @@ export default function ChatPage() {
               });
             }
             
+            // Clean image URLs from content since they should be displayed as images, not text
+            let cleanContent = cleanImageUrlsFromContent(msg.content || "");
+            
+            // Debug: Log image data for this message
+            if (msg.images && msg.images.length > 0) {
+              console.log(`📸 Message ${msg.id} has ${msg.images.length} images:`, msg.images);
+            }
+            
+            const processedImages = msg.images?.map((img: any) => {
+              // Handle both URL string and image object formats
+              if (typeof img === 'string') {
+                console.log('📸 Processing string image:', img);
+                return img; // Already a URL
+              } else if (img && img.url) {
+                console.log('📸 Processing image object:', img);
+                return img.url; // Image object with URL property
+              } else {
+                console.log('📸 Invalid image data:', img);
+                return null; // Invalid image data
+              }
+            }).filter(Boolean) || []; // Remove null values
+            
+            console.log(`📸 Final processed images for message ${msg.id}:`, processedImages);
+            
             return {
               id: msg.id || `history-${index}-${Date.now()}`,
               type: msg.role === "user" ? "user" : "assistant",
-              content: msg.content || "",
+              content: cleanContent,
               timestamp: new Date(msg.timestamp || Date.now()),
               tools: tools,
               isStreaming: false,
-              images: msg.images?.map((img: any) => img.url) || [], // Extract image URLs
+              images: processedImages,
             };
           });
           
@@ -473,11 +521,12 @@ export default function ChatPage() {
           if (data.type === "status" && data.message) {
             // console.log('💬 Status Message:', data.message);
             // Enhanced streaming: handle real-time astream content updates
+            const cleanedMessage = cleanImageUrlsFromContent(data.message || "");
             setMessages(prev => prev.map(msg => 
               msg.id === assistantId 
                 ? { 
                     ...msg, 
-                    content: data.message || "", 
+                    content: cleanedMessage, 
                     isStreaming: true,
                     // Update timestamp to show activity
                     timestamp: new Date()
@@ -521,10 +570,11 @@ export default function ChatPage() {
 
           if (data.type === "final") {
             const finalContent = typeof data.message === 'string' ? data.message : String(data.message || "");
-            // console.log('✅ Final Message:', finalContent);
+            const cleanedContent = cleanImageUrlsFromContent(finalContent);
+            // console.log('✅ Final Message:', cleanedContent);
             setMessages(prev => prev.map(msg => 
               msg.id === assistantId 
-                ? { ...msg, content: finalContent, isStreaming: false }
+                ? { ...msg, content: cleanedContent, isStreaming: false }
                 : msg
             ));
             setIsThinking(false);
