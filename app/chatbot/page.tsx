@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { useMemo, useRef, useState, useEffect } from "react";
+import { useMemo, useRef, useState, useEffect, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
 import { ArrowRight, Loader2, Search, Bot, ChevronDown, ChevronRight, Database, Globe, Mail, MessageSquare, User, RotateCcw, AlertCircle, Copy, Send, Plus, X, Download, Eye } from "lucide-react";
 
@@ -33,6 +33,14 @@ type ChatMessage = {
   canRetry?: boolean;
   originalUserMessage?: string;
   images?: string[]; // Add images to chat messages
+  retryCount?: number; // Track how many times this message has been retried
+  originalMessageId?: string; // Link to the original message this is a retry of
+  retryHistory?: {
+    attempt: number;
+    timestamp: Date;
+    tools?: ToolExecution[];
+    images?: string[];
+  }[]; // Track history of retry attempts
 };
 
 type ToolExecution = {
@@ -41,6 +49,13 @@ type ToolExecution = {
   result?: any;
   isRunning?: boolean;
   expanded?: boolean;
+  retryAttempt?: number; // Which retry attempt this tool execution is from
+  metadata?: {
+    search_id?: number;
+    processing_time?: number;
+    relevance_score?: number;
+    results_count?: number;
+  };
 };
 
 type ConversationHistory = {
@@ -104,9 +119,10 @@ type ConversationHistory = {
 };
 
 interface SelectedImage {
-  file: File;
+  file: File | null;
   preview: string;
   id: string;
+  isRetry?: boolean; // Flag to indicate this is a retry image
 }
 
 export default function ChatPage() {
@@ -294,15 +310,40 @@ export default function ChatPage() {
             // Create tools array from search links if present
             const tools: ToolExecution[] = [];
             
-            if (msg.search_links && Array.isArray(msg.search_links)) {
-              msg.search_links.forEach((searchLink: any) => {
-                const toolName = searchLink.search_type === "web_search" ? "web_search" : "document_search";
+            // For assistant messages, also check the previous user message for search links
+            let searchLinksToProcess = msg.search_links || [];
+            
+            // If this is an assistant message, check if the previous message (user) has search links
+            if (msg.role === "assistant" && index > 0) {
+              const previousMsg = conversationData.messages[index - 1];
+              if (previousMsg && previousMsg.role === "user" && previousMsg.search_links && Array.isArray(previousMsg.search_links)) {
+                // Add the search links from the previous user message to this assistant message
+                searchLinksToProcess = [...searchLinksToProcess, ...previousMsg.search_links];
+                console.log(`🔄 Moving search links from user message ${previousMsg.id} to assistant message ${msg.id}`);
+              }
+            }
+            
+            if (searchLinksToProcess && Array.isArray(searchLinksToProcess) && searchLinksToProcess.length > 0) {
+              console.log(`🔍 Processing search links for message ${msg.id} (${msg.role}):`, searchLinksToProcess);
+              searchLinksToProcess.forEach((searchLink: any) => {
+                // Support both web_search and rag_search
+                const toolName = searchLink.search_type === "web_search" ? "web_search" : 
+                                searchLink.search_type === "rag_search" ? "rag_search" : "document_search";
+                // Use results_data field from backend, fallback to results for compatibility
+                const searchResults = searchLink.results_data || searchLink.results;
+                console.log(`🔍 Adding tool: ${toolName} with ${searchResults?.length || 0} results`);
                 tools.push({
                   name: toolName,
                   args: { query: searchLink.query },
-                  result: searchLink.results,
+                  result: searchResults,
                   isRunning: false,
-                  expanded: false
+                  expanded: false,
+                  metadata: {
+                    search_id: searchLink.id,
+                    processing_time: searchLink.processing_time,
+                    relevance_score: searchLink.relevance_score,
+                    results_count: searchLink.results_count
+                  }
                 });
               });
             }
@@ -393,7 +434,12 @@ export default function ChatPage() {
     }
   };
 
-  const sendMessage = async (messageText?: string) => {
+  const sendMessage = async (messageText?: string, retryContext?: {
+    isRetry: boolean;
+    retryCount: number;
+    originalMessageId: string;
+    originalImages: string[];
+  }) => {
     let rawText: string;
     if (typeof messageText === 'string') {
       rawText = messageText;
@@ -412,11 +458,24 @@ export default function ChatPage() {
     
     // Process images for upload
     let images: {data: string, filename: string, mime_type: string}[] = [];
+    let retryImageUrls: string[] = [];
+    
     if (selectedImages.length > 0) {
       try {
-        images = await Promise.all(
-          selectedImages.map(img => fileToImageObject(img.file))
-        );
+        // Separate retry images from new images
+        const newImages = selectedImages.filter(img => !img.isRetry && img.file);
+        const retryImages = selectedImages.filter(img => img.isRetry);
+        
+        // Process new images for upload
+        if (newImages.length > 0) {
+          images = await Promise.all(
+            newImages.map(img => fileToImageObject(img.file!))
+          );
+        }
+        
+        // Collect retry image URLs
+        retryImageUrls = retryImages.map(img => img.preview);
+        
       } catch (error) {
         console.error("Error converting images:", error);
         return;
@@ -429,7 +488,14 @@ export default function ChatPage() {
       content: textToSend,
       timestamp: new Date(),
       images: selectedImages.map(img => img.preview), // Use preview URLs for display
+      retryCount: retryContext?.retryCount || 0,
+      originalMessageId: retryContext?.originalMessageId || undefined,
     };
+    
+    // Log retry information
+    if (retryContext?.isRetry) {
+      console.log(`🔄 Creating retry message (attempt ${retryContext.retryCount}) with ${selectedImages.length} images`);
+    }
     
     setMessages(prev => [...prev, userMsg]);
     
@@ -480,16 +546,31 @@ export default function ChatPage() {
       const responseTimeout = setTimeout(() => {
         if (!hasReceivedResponse) {
           ws.close();
-          handleConnectionError(assistantId, textToSend);
+          handleConnectionError(assistantId, textToSend, selectedImages.map(img => img.preview));
         }
       }, 30000);
 
       ws.onopen = () => {
-        const payload = { 
+        const payload: any = { 
           message: typeof textToSend === 'string' ? textToSend : String(textToSend), 
-          thread_id: typeof threadId === 'string' ? threadId : undefined,
-          images: images // Include images in the payload
+          thread_id: typeof threadId === 'string' ? threadId : undefined
         };
+        
+        // Include new images for upload if any
+        if (images.length > 0) {
+          payload.images = images;
+        }
+        
+        // Include retry image URLs if any
+        if (retryImageUrls.length > 0) {
+          payload.existing_image_urls = retryImageUrls;
+          console.log('🔄 Retry payload with existing images:', {
+            message: payload.message,
+            existing_image_urls: retryImageUrls,
+            total_retry_images: retryImageUrls.length
+          });
+        }
+        
         // console.log('🔌 WebSocket Connected - Sending payload:', payload);
         ws.send(JSON.stringify(payload));
       };
@@ -608,12 +689,12 @@ export default function ChatPage() {
 
           if (data.type === "error") {
             // console.error('❌ WebSocket Error Message:', data);
-            handleConnectionError(assistantId, textToSend);
+            handleConnectionError(assistantId, textToSend, selectedImages.map(img => img.preview));
           }
         } catch (err) {
           // console.error("WebSocket message parsing error:", err);
           // console.error("Raw message that failed to parse:", ev.data);
-          handleConnectionError(assistantId, textToSend);
+          handleConnectionError(assistantId, textToSend, selectedImages.map(img => img.preview));
         }
       };
 
@@ -623,7 +704,7 @@ export default function ChatPage() {
         
         if (!hasReceivedResponse && event.code !== 1000) {
           // console.log('❌ WebSocket closed unexpectedly, handling as error');
-          handleConnectionError(assistantId, textToSend);
+          handleConnectionError(assistantId, textToSend, selectedImages.map(img => img.preview));
         } else {
           // console.log('✅ WebSocket closed normally');
           setIsThinking(false);
@@ -638,14 +719,14 @@ export default function ChatPage() {
       ws.onerror = (error) => {
         // console.error('❌ WebSocket Error:', error);
         clearTimeout(responseTimeout);
-        handleConnectionError(assistantId, textToSend);
+        handleConnectionError(assistantId, textToSend, selectedImages.map(img => img.preview));
       };
     } catch (error) {
-      handleConnectionError(assistantId, textToSend);
+      handleConnectionError(assistantId, textToSend, selectedImages.map(img => img.preview));
     }
   };
 
-  const handleConnectionError = (assistantId: string, originalMessage: string) => {
+  const handleConnectionError = (assistantId: string, originalMessage: string, originalImages?: string[]) => {
     // console.error('🚨 Handling connection error for assistant:', assistantId);
     setIsThinking(false);
     setMessages(prev => prev.map(msg => {
@@ -657,6 +738,7 @@ export default function ChatPage() {
           isStreaming: false,
           canRetry: true,
           originalUserMessage: originalMessage,
+          images: originalImages, // Store original images for retry
           timestamp: new Date()
         };
       }
@@ -664,9 +746,72 @@ export default function ChatPage() {
     }));
   };
 
-  const retryMessage = (originalMessage: string) => {
-    sendMessage(originalMessage);
-  };
+  const retryMessage = useCallback((originalMessage: string, originalImages?: string[]) => {
+    console.log('🔄 retryMessage called with:', {
+      message: originalMessage,
+      originalImages: originalImages,
+      imageCount: originalImages?.length || 0
+    });
+    
+    // Find if this is a retry of an existing message
+    const existingMessageIndex = messages.findIndex(m => 
+      m.type === "user" && m.content === originalMessage
+    );
+    
+    let retryCount = 0;
+    let originalMessageId = "";
+    
+    if (existingMessageIndex !== -1) {
+      const existingMessage = messages[existingMessageIndex];
+      retryCount = (existingMessage.retryCount || 0) + 1;
+      originalMessageId = existingMessage.originalMessageId || existingMessage.id;
+      
+      // Update the existing message's retry count
+      setMessages(prev => prev.map((msg, index) => 
+        index === existingMessageIndex 
+          ? { 
+              ...msg, 
+              retryCount,
+              originalMessageId,
+              timestamp: new Date() // Update timestamp for retry
+            }
+          : msg
+      ));
+      
+      console.log(`🔄 Retrying message (attempt ${retryCount}) - Original ID: ${originalMessageId}`);
+    }
+    
+    // Set the message text first
+    setMessage(originalMessage);
+    
+    // If we have original images, we need to populate selectedImages with them
+    if (originalImages && originalImages.length > 0) {
+      // Convert image URLs back to SelectedImage objects for retry
+      const retryImages: SelectedImage[] = originalImages.map((url, index) => ({
+        id: `retry-${Date.now()}-${index}`,
+        file: null, // We don't have the original file, but we have the URL
+        preview: url,
+        isRetry: true // Flag to indicate this is a retry image
+      }));
+      setSelectedImages(retryImages);
+      console.log(`🖼️ Restored ${retryImages.length} images for retry`);
+    } else {
+      setSelectedImages([]);
+    }
+    
+    // Store retry context for use in sendMessage
+    const retryContext = {
+      isRetry: true,
+      retryCount,
+      originalMessageId,
+      originalImages: originalImages || []
+    };
+    
+    // Use setTimeout to ensure state is updated before sending
+    setTimeout(() => {
+      sendMessage(undefined, retryContext);
+    }, 10);
+  }, [messages]);
 
   const copyToClipboard = async (text: string) => {
     try {
@@ -769,7 +914,7 @@ function ChatArea({
   messages: ChatMessage[]; 
   onToggleTool: (messageId: string, toolIndex: number) => void;
   isThinking: boolean;
-  onRetry: (originalMessage: string) => void;
+  onRetry: (originalMessage: string, originalImages?: string[]) => void;
   onCopy: (text: string) => Promise<void>;
   isLoadingHistory: boolean;
 }) {
@@ -835,13 +980,14 @@ function ChatArea({
 
         <div className="px-6 py-6">
           {messages.map((msg) => (
-            <MessageBubble 
-              key={msg.id}
-              message={msg} 
-              onToggleTool={(toolIndex) => onToggleTool(msg.id, toolIndex)}
-              onRetry={onRetry}
-              onCopy={onCopy}
-            />
+            <div key={msg.id}>
+              <MessageBubble 
+                message={msg} 
+                onToggleTool={(toolIndex) => onToggleTool(msg.id, toolIndex)}
+                onRetry={onRetry}
+                onCopy={onCopy}
+              />
+            </div>
           ))}
 
           {isThinking && (
@@ -884,7 +1030,7 @@ function ChatArea({
 function MessageBubble({ message, onToggleTool, onRetry, onCopy }: { 
   message: ChatMessage; 
   onToggleTool: (toolIndex: number) => void;
-  onRetry: (originalMessage: string) => void;
+  onRetry: (originalMessage: string, originalImages?: string[]) => void;
   onCopy: (text: string) => Promise<void>;
 }) {
   const [displayedContent, setDisplayedContent] = useState("");
@@ -892,6 +1038,11 @@ function MessageBubble({ message, onToggleTool, onRetry, onCopy }: {
   const isUser = message.type === "user";
   const isError = message.type === "error";
   const hasTools = message.tools && message.tools.length > 0;
+  
+  // Debug logging for tools
+  if (message.tools && message.tools.length > 0) {
+    console.log(`🔧 Message ${message.id} (${message.type}) has ${message.tools.length} tools:`, message.tools);
+  }
 
   // Enhanced streaming text effect for assistant messages - optimized for astream
   useEffect(() => {
@@ -1052,13 +1203,53 @@ function MessageBubble({ message, onToggleTool, onRetry, onCopy }: {
           {/* Tools (only for bot messages) */}
           {!isUser && hasTools && (
             <div className="mt-4 space-y-3">
-              {message.tools!.map((tool, index) => (
-                <ToolCallDisplay 
-                  key={`${tool.name}-${index}`}
-                  tool={tool}
-                  onToggle={() => onToggleTool(index)}
-                />
-              ))}
+              {/* Group tools by retry attempt if message has retries */}
+              {(() => {
+                // Check if any tools have retry attempt info
+                const hasRetryInfo = message.tools?.some(tool => tool.retryAttempt !== undefined);
+                
+                if (hasRetryInfo) {
+                  // Group tools by retry attempt
+                  const groupedTools = message.tools!.reduce((groups, tool, index) => {
+                    const attempt = tool.retryAttempt || 1;
+                    if (!groups[attempt]) groups[attempt] = [];
+                    groups[attempt].push({ tool, index });
+                    return groups;
+                  }, {} as Record<number, { tool: ToolExecution; index: number }[]>);
+                  
+                  return Object.entries(groupedTools)
+                    .sort(([a], [b]) => Number(a) - Number(b))
+                    .map(([attempt, toolsGroup]) => (
+                      <div key={`attempt-${attempt}`} className="space-y-2">
+                        {Number(attempt) > 1 && (
+                          <div className="text-xs text-white/50 border-t border-white/10 pt-2">
+                            🔄 Retry Attempt #{attempt}
+                          </div>
+                        )}
+                        {toolsGroup.map(({ tool, index }) => (
+                          <div key={`${tool.name}-${index}-${attempt}`}>
+                            <ToolCallDisplay 
+                              tool={tool}
+                              onToggle={() => onToggleTool(index)}
+                              retryAttempt={Number(attempt)}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    ));
+                } else {
+                  // Regular display without retry grouping
+                  return message.tools!.map((tool, index) => (
+                    <div key={`${tool.name}-${index}`}>
+                      <ToolCallDisplay 
+                        tool={tool}
+                        onToggle={() => onToggleTool(index)}
+                        retryAttempt={message.retryCount || 1}
+                      />
+                    </div>
+                  ));
+                }
+              })()}
             </div>
           )}
 
@@ -1066,7 +1257,12 @@ function MessageBubble({ message, onToggleTool, onRetry, onCopy }: {
           {isError && message.canRetry && message.originalUserMessage && (
             <div className="mt-4 pt-4 border-t border-white/10">
               <button
-                onClick={() => onRetry(message.originalUserMessage!)}
+                onClick={() => {
+                  // Use the images stored in the error message, or fall back to finding the original
+                  const imagesToRetry = message.images || [];
+                  console.log(`🔄 Retrying error message with ${imagesToRetry.length} images`);
+                  onRetry(message.originalUserMessage!, imagesToRetry);
+                }}
                 className="inline-flex items-center gap-2 px-3 py-2 bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 rounded-lg text-sm text-red-200 hover:text-red-100 transition-all backdrop-blur-sm"
               >
                 <RotateCcw className="w-3 h-3" />
@@ -1080,7 +1276,7 @@ function MessageBubble({ message, onToggleTool, onRetry, onCopy }: {
             {isUser ? (
               // Resend button for user messages
               <button
-                onClick={() => onRetry(message.content)}
+                onClick={() => onRetry(message.content, message.images)}
                 className="inline-flex items-center gap-1 px-2 py-1 text-xs text-white/50 hover:text-white/70 hover:bg-white/5 rounded transition-all backdrop-blur-sm"
                 title="Resend message"
               >
@@ -1350,15 +1546,16 @@ function ImagePreview({ imageUrl, alt, index, ...props }: {
   );
 }
 
-function ToolCallDisplay({ tool, onToggle }: { 
+function ToolCallDisplay({ tool, onToggle, retryAttempt }: { 
   tool: ToolExecution; 
   onToggle: () => void;
+  retryAttempt?: number;
 }) {
   const getToolIcon = (name: string) => {
     if (name.includes("vision") || name.includes("image")) return Eye; // Use Eye icon for vision analysis
-    if (name.includes("search") || name.includes("web")) return Globe;
+    if (name.includes("web_search") || name.includes("web")) return Globe;
+    if (name.includes("rag_search") || name.includes("document")) return Database;
     if (name.includes("email") || name.includes("subscription")) return Mail;
-    if (name.includes("rag") || name.includes("document")) return Database;
     return Search;
   };
 
@@ -1366,6 +1563,11 @@ function ToolCallDisplay({ tool, onToggle }: {
 
   // Enhanced parsing for structured tool results
   const parseToolResult = (result: any) => {
+    // Check if it's already an array of search results
+    if (Array.isArray(result) && result.length > 0 && result[0].title && result[0].content) {
+      return { type: 'search_results', content: result };
+    }
+    
     if (typeof result === 'string') {
       // Try to parse structured search results
       if (result.includes('Title:') && result.includes('URL:') && result.includes('Score:')) {
@@ -1441,9 +1643,30 @@ function ToolCallDisplay({ tool, onToggle }: {
               </div>
             </div>
             <div>
-              <span className="text-base font-medium text-white/90 capitalize">
-                {tool.name === 'vision_analysis' ? 'AI Vision Analysis' : tool.name.replace(/_/g, ' ')}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-base font-medium text-white/90 capitalize">
+                  {tool.name === 'vision_analysis' ? 'AI Vision Analysis' : tool.name.replace(/_/g, ' ')}
+                </span>
+                
+                {/* Search type badge */}
+                {(tool.name === 'web_search' || tool.name === 'rag_search') && (
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                    tool.name === 'web_search' 
+                      ? 'bg-blue-500/20 text-blue-300 border border-blue-400/30'
+                      : 'bg-purple-500/20 text-purple-300 border border-purple-400/30'
+                  }`}>
+                    {tool.name === 'web_search' ? '🌐 Web' : '📚 Documents'}
+                  </span>
+                )}
+                
+                {/* Retry attempt badge */}
+                {retryAttempt && retryAttempt > 1 && (
+                  <span className="px-2 py-1 bg-orange-500/20 text-orange-300 border border-orange-400/30 rounded-full text-xs font-medium">
+                    🔄 Retry #{retryAttempt}
+                  </span>
+                )}
+              </div>
+              
               {tool.isRunning ? (
                 <div className="text-sm text-blue-300 mt-1 flex items-center gap-2">
                   <span>{tool.name === 'vision_analysis' ? 'Analyzing images...' : 'Running...'}</span>
@@ -1455,7 +1678,21 @@ function ToolCallDisplay({ tool, onToggle }: {
                 </div>
               ) : (
                 <div className="text-sm text-green-300 mt-1">
-                  {tool.name === 'vision_analysis' ? 'Analysis complete' : 'Completed'}
+                  <span>{tool.name === 'vision_analysis' ? 'Analysis complete' : 'Completed'}</span>
+                  {/* Show metadata if available */}
+                  {tool.metadata && (
+                    <div className="flex items-center gap-3 mt-1 text-xs text-white/50">
+                      {tool.metadata.processing_time && (
+                        <span>⏱️ {tool.metadata.processing_time.toFixed(2)}s</span>
+                      )}
+                      {tool.metadata.results_count && (
+                        <span>📊 {tool.metadata.results_count} results</span>
+                      )}
+                      {tool.metadata.relevance_score && (
+                        <span>🎯 {Math.round(tool.metadata.relevance_score * 100)}% relevance</span>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -1501,6 +1738,24 @@ function ToolCallDisplay({ tool, onToggle }: {
                 
                 {parsedResult.type === 'search_results' ? (
                   <div className="space-y-4">
+                    {/* Search summary header */}
+                    <div className="flex items-center justify-between pb-3 border-b border-white/10">
+                      <div className="flex items-center gap-2">
+                        <Globe className="w-4 h-4 text-blue-300" />
+                        <span className="text-white/80 text-sm">
+                          Found {parsedResult.content.length} result{parsedResult.content.length !== 1 ? 's' : ''}
+                        </span>
+                        {tool.args?.query && (
+                          <span className="text-white/60 text-xs">
+                            for &quot;{tool.args.query}&quot;
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-white/50 text-xs">
+                        {parsedResult.content.filter((r: any) => r.score >= 0.8).length} high relevance
+                      </div>
+                    </div>
+                    
                     {parsedResult.content.map((result: any, index: number) => {
                       const { percentage, color } = formatScore(result.score);
                       return (
@@ -1511,10 +1766,19 @@ function ToolCallDisplay({ tool, onToggle }: {
                             {/* Header with title and score */}
                             <div className="flex items-start justify-between mb-3">
                               <div className="flex-1 min-w-0">
-                                <h4 className="text-white/90 font-medium text-sm leading-snug">
-                                  {result.title || 'Untitled'}
-                                </h4>
-                                {result.url && (
+                                <div className="flex items-center gap-2 mb-1">
+                                  {/* Special icon for AI Answer */}
+                                  {result.title === "AI Answer" && (
+                                    <div className="w-4 h-4 bg-gradient-to-r from-blue-400 to-purple-400 rounded-full flex items-center justify-center">
+                                      <Bot className="w-2.5 h-2.5 text-white" />
+                                    </div>
+                                  )}
+                                  <h4 className="text-white/90 font-medium text-sm leading-snug">
+                                    {result.title || 'Untitled'}
+                                  </h4>
+                                </div>
+                                
+                                {result.url && result.url.trim() !== '' && (
                                   <a 
                                     href={result.url} 
                                     target="_blank" 
@@ -1526,6 +1790,14 @@ function ToolCallDisplay({ tool, onToggle }: {
                                       {result.url.replace(/^https?:\/\//, '').replace(/^www\./, '')}
                                     </span>
                                   </a>
+                                )}
+                                
+                                {/* Show source type if no URL */}
+                                {(!result.url || result.url.trim() === '') && result.title === "AI Answer" && (
+                                  <div className="text-purple-300 text-xs mt-1 inline-flex items-center gap-1">
+                                    <Bot className="w-3 h-3" />
+                                    <span>AI Generated Summary</span>
+                                  </div>
                                 )}
                               </div>
                               
@@ -1545,12 +1817,97 @@ function ToolCallDisplay({ tool, onToggle }: {
                             {/* Content preview */}
                             {result.content && (
                               <div className="text-white/70 text-xs leading-relaxed bg-white/5 rounded-md p-3 border border-white/5">
-                                <p className="line-clamp-3">
-                                  {result.content.length > 200 
-                                    ? `${result.content.substring(0, 200)}...` 
-                                    : result.content
+                                {(() => {
+                                  let content = result.content;
+                                  
+                                  // Try to parse and format JSON content nicely
+                                  if (typeof content === 'string' && content.trim().startsWith('{')) {
+                                    try {
+                                      const parsed = JSON.parse(content);
+                                      
+                                      // Special formatting for weather API data
+                                      if (parsed.location && parsed.current) {
+                                        return (
+                                          <div className="space-y-2">
+                                            <div className="text-white/90 font-medium">
+                                              📍 {parsed.location.name}, {parsed.location.region}, {parsed.location.country}
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-2 text-xs">
+                                              <div>🌡️ Temperature: {parsed.current.temp_c}°C ({parsed.current.temp_f}°F)</div>
+                                              <div>☁️ Condition: {parsed.current.condition?.text}</div>
+                                              <div>💨 Wind: {parsed.current.wind_kph} km/h {parsed.current.wind_dir}</div>
+                                              <div>💧 Humidity: {parsed.current.humidity}%</div>
+                                              <div>👁️ Visibility: {parsed.current.vis_km} km</div>
+                                              <div>🌡️ Feels like: {parsed.current.feelslike_c}°C</div>
+                                            </div>
+                                            <div className="text-white/60 text-xs">
+                                              Last updated: {parsed.current.last_updated}
+                                            </div>
+                                          </div>
+                                        );
+                                      }
+                                      
+                                      // General JSON formatting for other types
+                                      return (
+                                        <div className="space-y-1">
+                                          {Object.entries(parsed).slice(0, 5).map(([key, value]: [string, any]) => (
+                                            <div key={key} className="flex gap-2">
+                                              <span className="text-blue-300 font-medium capitalize min-w-0">
+                                                {key.replace(/_/g, ' ')}:
+                                              </span>
+                                              <span className="text-white/80 flex-1">
+                                                {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                                              </span>
+                                            </div>
+                                          ))}
+                                          {Object.keys(parsed).length > 5 && (
+                                            <div className="text-white/50 text-xs italic">
+                                              ... and {Object.keys(parsed).length - 5} more fields
+                                            </div>
+                                          )}
+                                        </div>
+                                      );
+                                    } catch (e) {
+                                      // If JSON parsing fails, fall back to regular text
+                                      content = content;
+                                    }
                                   }
-                                </p>
+                                  
+                                  // Regular text content with better formatting
+                                  return (
+                                    <div className="line-clamp-4 break-words">
+                                      {/* Handle very long content */}
+                                      {content.length > 300 ? (
+                                        <div>
+                                          <p className="whitespace-pre-wrap">
+                                            {content.substring(0, 300)}...
+                                          </p>
+                                          <button 
+                                            className="mt-2 text-blue-300 hover:text-blue-200 text-xs underline"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              // Toggle full content display
+                                              const element = e.currentTarget.previousElementSibling as HTMLElement;
+                                              if (element) {
+                                                if (element.textContent?.includes('...')) {
+                                                  element.textContent = content;
+                                                  e.currentTarget.textContent = 'Show less';
+                                                } else {
+                                                  element.textContent = content.substring(0, 300) + '...';
+                                                  e.currentTarget.textContent = 'Show more';
+                                                }
+                                              }
+                                            }}
+                                          >
+                                            Show more
+                                          </button>
+                                        </div>
+                                      ) : (
+                                        <p className="whitespace-pre-wrap">{content}</p>
+                                      )}
+                                    </div>
+                                  );
+                                })()}
                               </div>
                             )}
                           </div>
