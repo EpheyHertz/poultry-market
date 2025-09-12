@@ -4,7 +4,8 @@ import { prisma } from '@/lib/prisma';
 export async function POST(
   request: NextRequest
 ) {
-   const id = request.nextUrl.pathname.split('/').pop() || ''
+const pathParts = request.nextUrl.pathname.split('/')
+const id = pathParts[pathParts.length - 2]
   try {
     // const { id } = params; // ✅ FIXED: removed unnecessary await
 

@@ -7,7 +7,8 @@ import { DiscountType } from '@prisma/client'
 export async function PUT(
   request: NextRequest
 ) {
-   const id = request.nextUrl.pathname.split('/').pop() || ''
+const pathParts = request.nextUrl.pathname.split('/')
+const id = pathParts[pathParts.length - 2]
   try {
     const user = await getCurrentUser()
     

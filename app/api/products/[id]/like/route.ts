@@ -6,13 +6,19 @@ import { getCurrentUser } from '@/lib/auth';
 export async function POST(
   request: NextRequest
 ) {
-   const id = request.nextUrl.pathname.split('/').pop() || ''
+const pathParts = request.nextUrl.pathname.split('/')
+const id = pathParts[pathParts.length - 2]
   try {
     // const { id } = params;
     const user = await getCurrentUser();
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    console.log("Id to be liked or unliked:", id);
+
+    if (!id) {
+      return NextResponse.json({ error: 'Product ID is required' }, { status: 400 });
     }
 
     const product = await prisma.product.findUnique({
