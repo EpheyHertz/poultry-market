@@ -357,7 +357,7 @@ export const emailTemplates = {
           </div>
           
           <div style="text-align: center; margin: 35px 0;">
-            <a href="${process.env.NEXT_PUBLIC_BASE_URL}/customer/orders" style="display: inline-block; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 16px 32px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 18px; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);">
+            <a href="${process.env.NEXTAUTH_URL}/customer/orders" style="display: inline-block; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 16px 32px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 18px; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);">
               📋 Track Your Order
             </a>
           </div>
@@ -370,7 +370,7 @@ export const emailTemplates = {
             Supporting Kenyan farmers and delivering fresh products to your door.
           </p>
           <p style="color: #9ca3af; font-size: 12px; margin: 0;">
-            Questions? Contact us at support@poultrymarket.co.ke or call +254 700 000 000
+            Questions? Contact us at support@comradehomes.me| epheynyaga@gmail.com or call +254 705 423 479
           </p>
         </div>
       </div>
@@ -424,7 +424,7 @@ export const emailTemplates = {
           </div>
           
           <div style="text-align: center; margin: 35px 0;">
-            <a href="${process.env.NEXT_PUBLIC_BASE_URL}/seller/orders" style="display: inline-block; background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); color: white; padding: 16px 32px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 18px; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);">
+            <a href="${process.env.NEXTAUTH_URL}/seller/orders" style="display: inline-block; background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); color: white; padding: 16px 32px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 18px; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);">
               📋 Process Order Now
             </a>
           </div>
@@ -437,7 +437,7 @@ export const emailTemplates = {
             Empowering sellers to reach more customers across Kenya.
           </p>
           <p style="color: #9ca3af; font-size: 12px; margin: 0;">
-            Need help? Contact seller support at seller-support@poultrymarket.co.ke
+            Need help? Contact seller support at seller-support@comradehomes.com || epheynyaga@gmail.com
           </p>
         </div>
       </div>

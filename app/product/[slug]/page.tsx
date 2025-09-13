@@ -231,24 +231,23 @@ function ProductDetailContent() {
 
     setBuyingNow(true);
     try {
-      // Create a temporary order for direct checkout
-      const checkoutData = {
-        items: [{
+      const response = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           productId: product.id,
           quantity,
-          price: getCurrentPrice(),
-          productName: product.name,
-          productImage: product.images[0] || '',
-          sellerId: product.sellerId,
-          sellerName: product.seller.name
-        }],
-        voucherCode: appliedVoucher?.code,
-        total: getCurrentPrice() * quantity
-      };
+          paymentType: 'BEFORE_DELIVERY'
+        })
+      });
 
-      // Store checkout data and redirect
-      localStorage.setItem('directCheckout', JSON.stringify(checkoutData));
-      router.push(`/customer/checkout?type=${JSON.stringify(checkoutData)}`);
+      if (response.ok) {
+        const { sessionId } = await response.json();
+        router.push(`/customer/checkout?session=${sessionId}`);
+      } else {
+        const error = await response.json();
+        toast.error(error.error || 'Failed to create checkout session');
+      }
     } catch (error) {
       toast.error('Failed to proceed to checkout');
     } finally {
@@ -286,28 +285,36 @@ function ProductDetailContent() {
   };
 
   // Helper function for direct checkout of any product
-  const handleDirectCheckout = (targetProduct: any, productQuantity: number = 1) => {
+  const handleDirectCheckout = async (targetProduct: any, productQuantity: number = 1) => {
     if (!user) {
       toast.error('Please login to purchase');
       router.push('/auth/login');
       return;
     }
 
-    const checkoutData = {
-      items: [{
-        productId: targetProduct.id,
-        quantity: productQuantity,
-        price: targetProduct.price,
-        productName: targetProduct.name,
-        productImage: targetProduct.images?.[0] || '',
-        sellerId: targetProduct.sellerId,
-        sellerName: targetProduct.seller?.name || 'Unknown Seller'
-      }],
-      total: targetProduct.price * productQuantity
-    };
+    try {
+      const response = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          items: [{
+            productId: targetProduct.id,
+            quantity: productQuantity,
+            productName: targetProduct.name
+          }],
+          type: 'direct'
+        })
+      });
 
-    localStorage.setItem('directCheckout', JSON.stringify(checkoutData));
-    router.push(`/customer/checkout?type=${JSON.stringify(checkoutData)}`);
+      const data = await response.json();
+      if (response.ok) {
+        router.push(`/customer/checkout/${data.sessionId}`);
+      } else {
+        toast.error(data.error || 'Failed to proceed to checkout');
+      }
+    } catch (error) {
+      toast.error('Failed to proceed to checkout');
+    }
   };
 
   const handleLike = async () => {

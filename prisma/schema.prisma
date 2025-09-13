@@ -233,6 +233,9 @@ model User {
   announcementViews     AnnouncementView[]
   announcementReactions AnnouncementReaction[]
 
+  // Checkout sessions
+  checkoutSessions      CheckoutSession[]
+
   @@map("users")
 }
 
@@ -271,6 +274,7 @@ model Product {
   collections ProductCollection[]
   chats      Chat[]
   announcements Announcement[]
+  checkoutSessions CheckoutSession[]
 
   @@map("products")
 }
@@ -901,4 +905,29 @@ model AnnouncementReaction {
 
   @@unique([announcementId, userId])
   @@map("announcement_reactions")
+}
+
+model CheckoutSession {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId    String
+  product      Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  quantity     Int      @default(1)
+  totalAmount  Float
+  paymentType  PaymentType @default(BEFORE_DELIVERY)
+  
+  // Delivery information
+  deliveryAddress String?
+  deliveryCounty  String?
+  deliveryProvince String?
+  deliveryFee     Float @default(0)
+  
+  // Session status
+  isCompleted  Boolean  @default(false)
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("checkout_sessions")
 }

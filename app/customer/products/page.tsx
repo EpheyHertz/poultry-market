@@ -139,14 +139,37 @@ export default function CustomerProducts() {
     ));
   };
 
-  const proceedToCheckout = () => {
+  const proceedToCheckout = async () => {
     if (cart.length === 0) {
       toast.error('Your cart is empty');
       return;
     }
+
+    // For now, handle single item checkout (first item in cart)
+    // TODO: Implement multi-item cart checkout sessions
+    const firstItem = cart[0];
     
-    const cartData = encodeURIComponent(JSON.stringify(cart));
-    router.push(`/customer/checkout?items=${cartData}`);
+    try {
+      const response = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          productId: firstItem.id,
+          quantity: firstItem.quantity,
+          paymentType: 'BEFORE_DELIVERY'
+        })
+      });
+
+      if (response.ok) {
+        const { sessionId } = await response.json();
+        router.push(`/customer/checkout?session=${sessionId}`);
+      } else {
+        const error = await response.json();
+        toast.error(error.error || 'Failed to create checkout session');
+      }
+    } catch (error) {
+      toast.error('Failed to proceed to checkout');
+    }
   };
 
   const filteredProducts = products.filter(product => {

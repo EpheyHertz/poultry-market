@@ -159,22 +159,37 @@ export default function CustomerCart() {
     return cartItems.reduce((total, item) => total + (item.product.price * item.quantity), 0);
   };
 
-  const proceedToCheckout = () => {
+  const proceedToCheckout = async () => {
     if (cartItems.length === 0) {
       toast.error('Your cart is empty');
       return;
     }
+
+    // For now, we'll handle single item checkout (first item in cart)
+    // TODO: Implement multi-item cart checkout sessions
+    const firstItem = cartItems[0];
     
-    const checkoutItems = cartItems.map(item => ({
-      id: item.product.id,
-      name: item.product.name,
-      price: item.product.price,
-      quantity: item.quantity,
-      images: item.product.images,
-    }));
-    
-    const cartData = encodeURIComponent(JSON.stringify(checkoutItems));
-    router.push(`/customer/checkout?items=${cartData}`);
+    try {
+      const response = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          productId: firstItem.product.id,
+          quantity: firstItem.quantity,
+          paymentType: 'BEFORE_DELIVERY'
+        })
+      });
+
+      if (response.ok) {
+        const { sessionId } = await response.json();
+        router.push(`/customer/checkout?session=${sessionId}`);
+      } else {
+        const error = await response.json();
+        toast.error(error.error || 'Failed to create checkout session');
+      }
+    } catch (error) {
+      toast.error('Failed to proceed to checkout');
+    }
   };
 
   const getTypeColor = (type: string) => {
