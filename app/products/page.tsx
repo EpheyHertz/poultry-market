@@ -92,7 +92,6 @@ export default function PublicProductsPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [cartItems, setCartItems] = useState<any[]>([]);
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
-  const [filtersOpen, setFiltersOpen] = useState(false);
 
   // Check authentication status
   useEffect(() => {
@@ -146,6 +145,8 @@ export default function PublicProductsPage() {
       const params = new URLSearchParams();
       if (searchTerm) params.append('search', searchTerm);
       if (selectedType && selectedType !== 'all') params.append('type', selectedType);
+      if (selectedCategory && selectedCategory !== 'all') params.append('category', selectedCategory);
+      if (selectedLocation && selectedLocation !== 'all') params.append('location', selectedLocation);
       if (selectedTags.length > 0) params.append('tags', selectedTags.join(','));
       if (priceRange[0] > 0) params.append('minPrice', priceRange[0].toString());
       if (priceRange[1] < 10000) params.append('maxPrice', priceRange[1].toString());
@@ -166,7 +167,7 @@ export default function PublicProductsPage() {
     } finally {
       setLoading(false);
     }
-  }, [searchTerm, selectedType, selectedTags, priceRange, sortBy, sortOrder, currentPage]);
+  }, [searchTerm, selectedType, selectedCategory, selectedLocation, selectedTags, priceRange, sortBy, sortOrder, currentPage]);
 
   useEffect(() => {
     fetchProducts();
@@ -272,11 +273,11 @@ export default function PublicProductsPage() {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
       whileHover={{ y: -4, scale: 1.01 }}
-      transition={{ duration: 0.3, type: "spring", stiffness: 300 }}
+      transition={{ duration: 0.2, type: "spring", stiffness: 400 }}
       className="h-full"
     >
-      <Card className="h-full flex flex-col overflow-hidden hover:shadow-xl transition-all duration-300 group bg-white rounded-xl border border-gray-100 hover:border-emerald-200">
-        <div className="relative aspect-[4/3] overflow-hidden">
+      <Card className="h-full flex flex-col overflow-hidden hover:shadow-lg transition-all duration-300 group bg-white rounded-xl border border-gray-100 hover:border-emerald-200">
+        <div className="relative aspect-[4/3] sm:aspect-square overflow-hidden">
           {product.images && product.images.length > 0 ? (
             <div className="relative w-full h-full">
               <Image
@@ -290,7 +291,7 @@ export default function PublicProductsPage() {
           ) : (
             <div className="w-full h-full bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 flex items-center justify-center">
               <div className="text-center">
-                <Package className="h-12 w-12 text-emerald-300 mx-auto mb-1" />
+                <Package className="h-8 w-8 sm:h-12 sm:w-12 text-emerald-300 mx-auto mb-1" />
                 <span className="text-emerald-600 text-xs font-medium">No Image</span>
               </div>
             </div>
@@ -352,39 +353,39 @@ export default function PublicProductsPage() {
         </div>
         
         {/* Compact Card Content */}
-        <div className="flex-1 flex flex-col p-4">
+        <div className="flex-1 flex flex-col p-3 sm:p-4">
           {/* Product Header - Compact */}
-          <div className="mb-3">
+          <div className="mb-2 sm:mb-3">
             <div className="flex items-start justify-between mb-1">
-              <h3 className="font-semibold text-sm text-gray-900 line-clamp-2 group-hover:text-emerald-600 transition-colors duration-300 leading-tight">
+              <h3 className="font-semibold text-sm sm:text-base text-gray-900 line-clamp-2 group-hover:text-emerald-600 transition-colors duration-300 leading-tight">
                 {product.name}
               </h3>
               {product.reviewCount > 0 && (
-                <div className="flex items-center space-x-1 bg-yellow-50 px-1 py-0.5 rounded-md ml-2 flex-shrink-0">
+                <div className="flex items-center space-x-1 bg-yellow-50 px-1.5 py-0.5 rounded-md ml-2 flex-shrink-0">
                   <Star className="h-3 w-3 text-yellow-500 fill-current" />
-                  <span className="text-xs font-medium text-yellow-700">
+                  <span className="text-xs font-semibold text-yellow-700">
                     {(product.averageRating || 0).toFixed(1)}
                   </span>
                 </div>
               )}
             </div>
-            <p className="text-gray-600 text-xs line-clamp-1 leading-relaxed">
+            <p className="text-gray-600 text-xs sm:text-sm line-clamp-2 leading-relaxed">
               {product.description}
             </p>
           </div>
 
           {/* Compact Tags */}
           {product.tags && product.tags.length > 0 && (
-            <div className="mb-3">
+            <div className="mb-2 sm:mb-3">
               <div className="flex flex-wrap gap-1">
                 {product.tags.slice(0, 2).map((tagData: any) => {
                   const TagIcon = tagIcons[tagData.tag as keyof typeof tagIcons] || Star;
                   return (
                     <div
                       key={tagData.tag}
-                      className={`flex items-center space-x-1 px-2 py-0.5 rounded-md text-xs font-medium ${tagColors[tagData.tag as keyof typeof tagColors] || 'text-gray-700 bg-gray-50'}`}
+                      className={`flex items-center space-x-1 px-2 py-0.5 rounded-md text-xs font-medium shadow-sm ${tagColors[tagData.tag as keyof typeof tagColors] || 'text-gray-700 bg-gray-50'}`}
                     >
-                      <TagIcon className="w-2 h-2" />
+                      <TagIcon className="w-2.5 h-2.5" />
                       <span>{tagData.tag}</span>
                     </div>
                   );
@@ -395,56 +396,40 @@ export default function PublicProductsPage() {
 
           {/* Compact Seller Info */}
           {product.seller && (
-            <div className="mb-3 p-2 bg-gray-50 rounded-lg">
+            <div className="mb-2 sm:mb-3 p-2 bg-gray-50 rounded-lg">
               <div className="flex items-center space-x-2">
-                <div className="w-6 h-6 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-full flex items-center justify-center shadow-sm">
+                <div className="w-6 h-6 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-full flex items-center justify-center shadow-sm flex-shrink-0">
                   <span className="text-xs font-bold text-white">
                     {product.seller.name.charAt(0).toUpperCase()}
                   </span>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-gray-800 text-xs truncate">{product.seller.name}</p>
-                  {product.seller.tags && (
-                    <div className="flex space-x-1 mt-0.5">
-                      {product.seller.tags.slice(0, 1).map((tagData: any) => {
-                        const TagIcon = tagIcons[tagData.tag as keyof typeof tagIcons] || Star;
-                        return (
-                          <div 
-                            key={tagData.tag} 
-                            className="flex items-center space-x-1 bg-white px-1 py-0.5 rounded text-xs font-medium text-gray-600"
-                          >
-                            <TagIcon className="w-2 h-2 text-emerald-500" />
-                            <span className="text-xs">{tagData.tag}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
+                  <p className="font-medium text-gray-800 text-xs sm:text-sm truncate">{product.seller.name}</p>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Compact Pricing */}
-          <div className="mb-3">
+          {/* Compact Pricing Section */}
+          <div className="mb-2 sm:mb-3">
             <div className="flex items-center justify-between">
               <div className="flex flex-col">
                 {product.isDiscounted && product.originalPrice ? (
                   <div className="space-y-0.5">
-                    <span className="text-lg font-bold text-emerald-600">
+                    <span className="text-lg sm:text-xl font-bold text-emerald-600">
                       {formatPrice(product.price)}
                     </span>
                     <div className="flex items-center space-x-1">
                       <span className="text-xs text-gray-500 line-through">
                         {formatPrice(product.originalPrice)}
                       </span>
-                      <span className="text-xs font-bold text-red-600 bg-red-50 px-1 py-0.5 rounded">
+                      <span className="text-xs font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded-md">
                         Save {formatPrice(product.originalPrice - product.price)}
                       </span>
                     </div>
                   </div>
                 ) : (
-                  <span className="text-lg font-bold text-gray-900">
+                  <span className="text-lg sm:text-xl font-bold text-gray-900">
                     {formatPrice(product.price)}
                   </span>
                 )}
@@ -477,12 +462,12 @@ export default function PublicProductsPage() {
           <div className="mt-auto">
             {user ? (
               getCartQuantity(product.id) > 0 ? (
-                <div className="flex items-center justify-between bg-emerald-50 rounded-lg px-3 py-2 border border-emerald-100">
+                <div className="flex items-center justify-between bg-gradient-to-r from-emerald-50 to-teal-50 rounded-lg px-3 py-2 border border-emerald-100">
                   <div className="flex items-center space-x-2">
-                    <div className="w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center">
+                    <div className="w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center">
                       <ShoppingCart className="w-3 h-3 text-white" />
                     </div>
-                    <span className="text-emerald-700 font-medium text-xs">
+                    <span className="text-emerald-700 font-medium text-sm">
                       {getCartQuantity(product.id)} in cart
                     </span>
                   </div>
@@ -490,29 +475,33 @@ export default function PublicProductsPage() {
                     size="sm"
                     onClick={() => addToCart(product.id, 1)}
                     disabled={product.stock === 0}
-                    className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg h-6 w-6 p-0"
+                    className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg shadow-sm hover:shadow-md transition-all duration-300 h-7 w-7 p-0"
                   >
                     <Plus className="w-3 h-3" />
                   </Button>
                 </div>
               ) : (
                 <Button 
-                  className="w-full h-9 text-xs font-medium bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white rounded-lg shadow-md hover:shadow-lg transition-all duration-300 disabled:from-gray-300 disabled:to-gray-400"
+                  className="w-full h-9 text-xs sm:text-sm font-medium bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white rounded-lg shadow-md hover:shadow-lg transition-all duration-300 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed"
                   disabled={product.stock === 0}
                   onClick={() => addToCart(product.id, 1)}
                 >
-                  <ShoppingCart className="w-3 h-3 mr-1" />
-                  <span>{product.stock === 0 ? 'Out of Stock' : 'Add to Cart'}</span>
+                  <ShoppingCart className="w-4 h-4 mr-2 flex-shrink-0" />
+                  <span className="truncate">
+                    {product.stock === 0 ? 'Out of Stock' : 'Add to Cart'}
+                  </span>
                 </Button>
               )
             ) : (
               <Link href="/auth/login" className="block">
                 <Button 
-                  className="w-full h-9 text-xs font-medium bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white rounded-lg shadow-md hover:shadow-lg transition-all duration-300"
+                  className="w-full h-9 text-xs sm:text-sm font-medium bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white rounded-lg shadow-md hover:shadow-lg transition-all duration-300 disabled:from-gray-300 disabled:to-gray-400"
                   disabled={product.stock === 0}
                 >
-                  <ShoppingCart className="w-3 h-3 mr-1" />
-                  <span>{product.stock === 0 ? 'Out of Stock' : 'Login to Add'}</span>
+                  <ShoppingCart className="w-4 h-4 mr-2 flex-shrink-0" />
+                  <span className="truncate">
+                    {product.stock === 0 ? 'Out of Stock' : 'Login to Add to Cart'}
+                  </span>
                 </Button>
               </Link>
             )}
@@ -532,46 +521,46 @@ export default function PublicProductsPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 scroll-smooth">
-      {/* Enhanced Header with Glassmorphism */}
+      {/* Mobile-Optimized Header */}
       <motion.div 
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         className="bg-white/90 backdrop-blur-lg shadow-sm border-b border-gray-100 sticky top-0 z-50"
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8">
+          <div className="flex justify-between items-center h-14 sm:h-16">
             <motion.div 
               whileHover={{ scale: 1.05 }}
-              className="flex items-center space-x-3"
+              className="flex items-center space-x-2 sm:space-x-3"
             >
-              <Link href="/" className="flex items-center space-x-2">
-                <div className="w-10 h-10 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-lg">
-                  <Package className="h-6 w-6 text-white" />
+              <Link href="/" className="flex items-center space-x-1 sm:space-x-2">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-lg sm:rounded-xl flex items-center justify-center shadow-lg">
+                  <Package className="h-4 w-4 sm:h-6 sm:w-6 text-white" />
                 </div>
-                <span className="text-2xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
+                <span className="text-lg sm:text-2xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
                   PoultryHub
                 </span>
               </Link>
             </motion.div>
 
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2 sm:space-x-4">
               {user ? (
                 <motion.div 
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
-                  className="flex items-center space-x-4"
+                  className="flex items-center space-x-2 sm:space-x-4"
                 >
                   <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
                     <Link 
                       href="/customer/cart" 
-                      className="relative p-3 text-gray-600 hover:text-emerald-600 transition-all duration-300 rounded-xl hover:bg-emerald-50"
+                      className="relative p-2 sm:p-3 text-gray-600 hover:text-emerald-600 transition-all duration-300 rounded-lg sm:rounded-xl hover:bg-emerald-50"
                     >
-                      <ShoppingCart className="w-6 h-6" />
+                      <ShoppingCart className="w-5 h-5 sm:w-6 sm:h-6" />
                       {cartItems.length > 0 && (
                         <motion.span 
                           initial={{ scale: 0 }}
                           animate={{ scale: 1 }}
-                          className="absolute -top-1 -right-1 bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center font-semibold shadow-lg"
+                          className="absolute -top-1 -right-1 bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs rounded-full w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center font-semibold shadow-lg"
                         >
                           {cartItems.reduce((sum, item) => sum + item.quantity, 0)}
                         </motion.span>
@@ -579,23 +568,23 @@ export default function PublicProductsPage() {
                     </Link>
                   </motion.div>
                   
-                  <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
+                  <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }} className="hidden sm:block">
                     <Link 
                       href="/customer/favorites" 
-                      className="p-3 text-gray-600 hover:text-emerald-600 transition-all duration-300 rounded-xl hover:bg-emerald-50"
+                      className="p-2 sm:p-3 text-gray-600 hover:text-emerald-600 transition-all duration-300 rounded-lg sm:rounded-xl hover:bg-emerald-50"
                     >
-                      <Heart className="w-6 h-6" />
+                      <Heart className="w-5 h-5 sm:w-6 sm:h-6" />
                     </Link>
                   </motion.div>
                   
                   <motion.div 
                     whileHover={{ scale: 1.05 }}
-                    className="flex items-center space-x-3 bg-gradient-to-r from-emerald-50 to-teal-50 px-4 py-2 rounded-xl border border-emerald-100"
+                    className="flex items-center space-x-2 sm:space-x-3 bg-gradient-to-r from-emerald-50 to-teal-50 px-2 sm:px-4 py-1 sm:py-2 rounded-lg sm:rounded-xl border border-emerald-100"
                   >
-                    <div className="w-8 h-8 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-full flex items-center justify-center text-white text-sm font-bold shadow-md">
+                    <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-full flex items-center justify-center text-white text-xs sm:text-sm font-bold shadow-md">
                       {user.name?.charAt(0).toUpperCase()}
                     </div>
-                    <span className="text-sm font-medium text-gray-700">Hi, {user.name}</span>
+                    <span className="text-xs sm:text-sm font-medium text-gray-700 hidden sm:block">Hi, {user.name}</span>
                   </motion.div>
                 </motion.div>
               ) : (
@@ -624,11 +613,11 @@ export default function PublicProductsPage() {
         </div>
       </motion.div>
 
-      {/* Enhanced Hero Section */}
+      {/* Mobile-Optimized Hero Section */}
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 text-white py-20 relative overflow-hidden"
+        className="bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 text-white py-12 sm:py-16 lg:py-20 relative overflow-hidden"
       >
         <div className="absolute inset-0 bg-black/20"></div>
         <div className="absolute inset-0 opacity-20">
@@ -643,7 +632,7 @@ export default function PublicProductsPage() {
             initial={{ y: 30, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.2 }}
-            className="text-5xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-white to-cyan-100 bg-clip-text text-transparent"
+            className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4 sm:mb-6 bg-gradient-to-r from-white to-cyan-100 bg-clip-text text-transparent"
           >
             Premium Poultry Products
           </motion.h1>
@@ -651,7 +640,7 @@ export default function PublicProductsPage() {
             initial={{ y: 30, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.4 }}
-            className="text-xl md:text-2xl text-cyan-100 mb-8 max-w-3xl mx-auto"
+            className="text-base sm:text-lg md:text-xl lg:text-2xl text-cyan-100 mb-6 sm:mb-8 max-w-3xl mx-auto px-4"
           >
             Discover fresh, high-quality poultry products from trusted local farmers and suppliers
           </motion.p>
@@ -659,86 +648,79 @@ export default function PublicProductsPage() {
             initial={{ y: 30, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.6 }}
-            className="flex flex-wrap justify-center gap-6 text-sm"
+            className="flex flex-wrap justify-center gap-3 sm:gap-6 text-xs sm:text-sm px-4"
           >
-            <div className="flex items-center space-x-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-full">
-              <Shield className="w-5 h-5" />
+            <div className="flex items-center space-x-1 sm:space-x-2 bg-white/10 backdrop-blur-sm px-3 sm:px-4 py-2 rounded-full">
+              <Shield className="w-4 h-4 sm:w-5 sm:h-5" />
               <span>Quality Assured</span>
             </div>
-            <div className="flex items-center space-x-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-full">
-              <Truck className="w-5 h-5" />
+            <div className="flex items-center space-x-1 sm:space-x-2 bg-white/10 backdrop-blur-sm px-3 sm:px-4 py-2 rounded-full">
+              <Truck className="w-4 h-4 sm:w-5 sm:h-5" />
               <span>Fast Delivery</span>
             </div>
-            <div className="flex items-center space-x-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-full">
-              <Star className="w-5 h-5" />
+            <div className="flex items-center space-x-1 sm:space-x-2 bg-white/10 backdrop-blur-sm px-3 sm:px-4 py-2 rounded-full">
+              <Star className="w-4 h-4 sm:w-5 sm:h-5" />
               <span>Trusted Suppliers</span>
             </div>
           </motion.div>
         </div>
       </motion.div>
 
-      {/* Enhanced Filters Section - Collapsible */}
+      {/* Mobile-Optimized Collapsible Filters Section */}
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.8 }}
-        className="bg-white/90 backdrop-blur-lg shadow-md border-b border-gray-100 sticky top-16 z-40"
+        className="bg-white/90 backdrop-blur-lg shadow-lg border-b border-gray-100 sticky top-14 sm:top-16 z-40"
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Filter Toggle Button */}
-          <div className="flex items-center justify-between py-4">
-            <div className="flex items-center space-x-4">
-              <Button
-                onClick={() => setFiltersOpen(!filtersOpen)}
-                variant="outline"
-                className="flex items-center space-x-2 bg-white/80 hover:bg-white border-gray-200 hover:border-emerald-300"
-              >
-                <Filter className="h-4 w-4" />
-                <span>Filters</span>
-                <motion.div
-                  animate={{ rotate: filtersOpen ? 180 : 0 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <ChevronDown className="h-4 w-4" />
-                </motion.div>
-              </Button>
-              
-              {/* Quick Search */}
-              <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <Input
-                  type="text"
-                  placeholder="Search products..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 pr-4 h-10 border-gray-200 focus:border-emerald-300 focus:ring-emerald-200 rounded-lg bg-white/80 backdrop-blur-sm"
-                />
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-3 sm:py-4">
+          {/* Mobile Filter Toggle */}
+          <div className="block lg:hidden mb-4">
+            <Button
+              onClick={() => setShowFilters(!showFilters)}
+              variant="outline"
+              className="w-full flex items-center justify-between py-3 border-gray-200 hover:border-emerald-300 hover:bg-emerald-50 rounded-xl bg-white/80 backdrop-blur-sm transition-all duration-300 hover:shadow-md"
+            >
+              <div className="flex items-center space-x-2">
+                <Filter className="h-4 w-4 text-gray-500" />
+                <span className="font-medium">Filters & Search</span>
               </div>
+              <ChevronDown className={`h-4 w-4 transition-transform ${showFilters ? 'rotate-180' : ''}`} />
+            </Button>
+          </div>
+              
+          {/* Desktop Filters Bar */}
+          <div className="hidden lg:flex items-center space-x-4 mb-4">
+            {/* Quick Search */}
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Input
+                type="text"
+                placeholder="Search products..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 pr-4 h-10 border-gray-200 focus:border-emerald-300 focus:ring-emerald-200 rounded-lg bg-white/80 backdrop-blur-sm"
+              />
             </div>
-
+            
             {/* Active filters count */}
             {(searchTerm || selectedCategory !== 'all' || selectedType !== 'all' || selectedLocation !== 'all') && (
               <Badge variant="secondary" className="bg-emerald-100 text-emerald-800">
-                {[
-                  searchTerm ? 1 : 0,
-                  selectedCategory !== 'all' ? 1 : 0,
-                  selectedType !== 'all' ? 1 : 0,
-                  selectedLocation !== 'all' ? 1 : 0
-                ].reduce((a, b) => a + b, 0)} filter{[searchTerm, selectedCategory !== 'all', selectedType !== 'all', selectedLocation !== 'all'].filter(Boolean).length !== 1 ? 's' : ''} active
+                Active filters
               </Badge>
             )}
           </div>
 
           {/* Collapsible Filters */}
-          <Collapsible open={filtersOpen} onOpenChange={setFiltersOpen}>
-            <CollapsibleContent>
+          <Collapsible open={showFilters} onOpenChange={setShowFilters}>
+            <CollapsibleContent className="CollapsibleContent">
               <motion.div
                 initial={{ height: 0, opacity: 0 }}
                 animate={{ height: 'auto', opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}
-                className="pb-6"
+                className="overflow-hidden"
               >
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4 lg:pt-0">
                   {/* Category Filter */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
@@ -906,17 +888,17 @@ export default function PublicProductsPage() {
           </div>
         </div>
 
-        {/* Products Grid - Optimized for scrolling */}
+        {/* Products Grid - Mobile-Optimized for scrolling */}
         {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6 gap-4 sm:gap-5">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 sm:gap-4 lg:gap-5">
             {[...Array(24)].map((_, i) => (
-              <Card key={i} className="overflow-hidden animate-pulse h-80">
-                <div className="aspect-[4/3] bg-gray-200"></div>
-                <div className="p-4">
-                  <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-                  <div className="h-3 bg-gray-200 rounded w-1/2 mb-3"></div>
-                  <div className="h-6 bg-gray-200 rounded w-1/3 mb-3"></div>
-                  <div className="h-8 bg-gray-200 rounded"></div>
+              <Card key={i} className="overflow-hidden animate-pulse h-64 sm:h-72 lg:h-80">
+                <div className="aspect-[4/3] sm:aspect-square bg-gray-200"></div>
+                <div className="p-2 sm:p-3 lg:p-4">
+                  <div className="h-3 sm:h-4 bg-gray-200 rounded w-3/4 mb-1 sm:mb-2"></div>
+                  <div className="h-2 sm:h-3 bg-gray-200 rounded w-1/2 mb-2 sm:mb-3"></div>
+                  <div className="h-4 sm:h-6 bg-gray-200 rounded w-1/3 mb-2 sm:mb-3"></div>
+                  <div className="h-6 sm:h-8 bg-gray-200 rounded"></div>
                 </div>
               </Card>
             ))}
@@ -939,9 +921,9 @@ export default function PublicProductsPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.3 }}
-            className={`grid gap-4 sm:gap-5 ${
+            className={`grid gap-3 sm:gap-4 lg:gap-5 ${
               viewMode === 'grid' 
-                ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6' 
+                ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6' 
                 : 'grid-cols-1 max-w-4xl mx-auto'
             }`}
           >

@@ -1,0 +1,187 @@
+/* Dashboard Responsive Utilities */
+
+/* Responsive spacing utilities */
+.dashboard-spacing {
+  @apply space-y-4 sm:space-y-6 lg:space-y-8;
+}
+
+.dashboard-padding {
+  @apply p-3 sm:p-4 md:p-6 lg:p-8;
+}
+
+.dashboard-margin {
+  @apply m-3 sm:m-4 md:m-6 lg:m-8;
+}
+
+/* Responsive grid utilities */
+.dashboard-grid-auto {
+  @apply grid gap-4 sm:gap-5 lg:gap-6;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+}
+
+.dashboard-grid-responsive {
+  @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5 lg:gap-6;
+}
+
+.dashboard-grid-stats {
+  @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 sm:gap-5 lg:gap-6;
+}
+
+/* Card responsive utilities */
+.dashboard-card {
+  @apply bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200;
+  @apply p-4 sm:p-6 lg:p-8;
+}
+
+.dashboard-card-compact {
+  @apply bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200;
+  @apply p-3 sm:p-4 lg:p-6;
+}
+
+/* Text responsive utilities */
+.dashboard-title {
+  @apply text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 tracking-tight;
+}
+
+.dashboard-subtitle {
+  @apply text-lg sm:text-xl lg:text-2xl font-semibold text-gray-800;
+}
+
+.dashboard-description {
+  @apply text-sm sm:text-base text-gray-600 leading-relaxed;
+}
+
+/* Layout utilities */
+.dashboard-container {
+  @apply max-w-full mx-auto;
+}
+
+.dashboard-content-wrapper {
+  @apply space-y-4 sm:space-y-6 lg:space-y-8;
+}
+
+/* Responsive table utilities */
+.dashboard-table-wrapper {
+  @apply overflow-x-auto -mx-3 sm:-mx-4 md:-mx-6 lg:-mx-8;
+}
+
+.dashboard-table {
+  @apply min-w-full divide-y divide-gray-200;
+}
+
+.dashboard-table-cell {
+  @apply px-3 sm:px-4 lg:px-6 py-3 sm:py-4 text-sm sm:text-base;
+}
+
+/* Button responsive utilities */
+.dashboard-button {
+  @apply px-3 sm:px-4 lg:px-6 py-2 sm:py-2.5 text-sm sm:text-base;
+}
+
+.dashboard-button-compact {
+  @apply px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm;
+}
+
+/* Form responsive utilities */
+.dashboard-form-group {
+  @apply space-y-2 sm:space-y-3;
+}
+
+.dashboard-form-grid {
+  @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6;
+}
+
+.dashboard-input {
+  @apply w-full px-3 sm:px-4 py-2 sm:py-2.5 text-sm sm:text-base;
+}
+
+/* Responsive visibility utilities */
+.show-mobile-only {
+  @apply block sm:hidden;
+}
+
+.show-tablet-up {
+  @apply hidden sm:block;
+}
+
+.show-desktop-only {
+  @apply hidden lg:block;
+}
+
+/* Responsive flexbox utilities */
+.dashboard-flex-responsive {
+  @apply flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 lg:gap-6;
+}
+
+.dashboard-flex-center {
+  @apply flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4;
+}
+
+.dashboard-flex-between {
+  @apply flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4;
+}
+
+/* Mobile-specific optimizations */
+@media (max-width: 640px) {
+  .dashboard-mobile-full {
+    @apply w-full;
+  }
+  
+  .dashboard-mobile-center {
+    @apply text-center;
+  }
+  
+  .dashboard-mobile-stack {
+    @apply flex-col space-y-2;
+  }
+}
+
+/* Tablet optimizations */
+@media (min-width: 640px) and (max-width: 1024px) {
+  .dashboard-tablet-grid {
+    @apply grid-cols-2;
+  }
+}
+
+/* Desktop optimizations */
+@media (min-width: 1024px) {
+  .dashboard-desktop-grid {
+    @apply grid-cols-3;
+  }
+  
+  .dashboard-desktop-wide {
+    @apply grid-cols-4;
+  }
+}
+
+/* Animation utilities for dashboard */
+.dashboard-fade-in {
+  @apply opacity-0 translate-y-4;
+  animation: dashboardFadeIn 0.3s ease-out forwards;
+}
+
+@keyframes dashboardFadeIn {
+  to {
+    @apply opacity-100 translate-y-0;
+  }
+}
+
+.dashboard-slide-in {
+  @apply opacity-0 -translate-x-4;
+  animation: dashboardSlideIn 0.3s ease-out forwards;
+}
+
+@keyframes dashboardSlideIn {
+  to {
+    @apply opacity-100 translate-x-0;
+  }
+}
+
+/* Scale-responsive utilities */
+.dashboard-scale-content {
+  @apply transform-gpu transition-transform duration-200 hover:scale-[1.02];
+}
+
+.dashboard-scale-hover {
+  @apply transform-gpu transition-all duration-200 hover:scale-105 hover:shadow-lg;
+}

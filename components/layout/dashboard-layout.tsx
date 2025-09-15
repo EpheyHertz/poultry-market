@@ -34,11 +34,19 @@ import {
   Bell,
   CreditCard,
   Speech,
-  SearchCode
+  SearchCode,
+  ChevronLeft,
+  ChevronRight,
+  X
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { motion, AnimatePresence } from 'framer-motion';
 import AdminSupportChat from './admin-support-chat';
 import ChatNotifications from './chat-notifications';
+import { useResponsive } from '@/hooks/use-responsive';
+
+// Import responsive utilities
+import '../../styles/dashboard-responsive.css';
 
 interface User {
   id: string;
@@ -56,10 +64,21 @@ interface DashboardLayoutProps {
 export default function DashboardLayout({ children, user: propUser }: DashboardLayoutProps) {
   const [user, setUser] = useState<User | null>(propUser || null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(!propUser); // Only loading if user wasn't provided
+  const [isLoading, setIsLoading] = useState(!propUser);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   const router = useRouter();
   const pathname = usePathname();
+  const { isMobile, isTablet, isDesktop } = useResponsive();
+
+  // Auto-collapse sidebar on smaller screens
+  useEffect(() => {
+    if (isTablet && !isMobile) {
+      setIsSidebarCollapsed(true);
+    } else if (isDesktop) {
+      setIsSidebarCollapsed(false);
+    }
+  }, [isMobile, isTablet, isDesktop]);
 
   // Fetch user if not provided
   useEffect(() => {
@@ -174,131 +193,353 @@ export default function DashboardLayout({ children, user: propUser }: DashboardL
 
   const navigationItems = getNavigationItems();
 
-  const NavigationContent = () => (
-    <div className="flex flex-col h-full">
-      <div className="flex items-center space-x-2 p-6 border-b">
-        <Bird className="h-8 w-8 text-green-600" />
-        <span className="text-xl font-bold">PoultryMarket</span>
+  const NavigationContent = ({ isMobile = false }: { isMobile?: boolean }) => (
+    <motion.div 
+      className="flex flex-col h-full bg-gradient-to-br from-white via-gray-50 to-white"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.3 }}
+    >
+      {/* Logo Section */}
+      <div className={`flex items-center space-x-3 p-6 border-b border-gray-100 bg-gradient-to-r from-emerald-500 to-teal-600 text-white ${
+        isSidebarCollapsed && !isMobile ? 'justify-center px-3' : ''
+      }`}>
+        <motion.div
+          whileHover={{ scale: 1.1, rotate: 10 }}
+          transition={{ type: "spring", stiffness: 400, damping: 10 }}
+        >
+          <Bird className="h-8 w-8 drop-shadow-md" />
+        </motion.div>
+        <AnimatePresence>
+          {(!isSidebarCollapsed || isMobile) && (
+            <motion.span 
+              initial={{ opacity: 0, width: 0 }}
+              animate={{ opacity: 1, width: 'auto' }}
+              exit={{ opacity: 0, width: 0 }}
+              className="text-xl font-bold tracking-wide drop-shadow-sm"
+            >
+              PoultryHub
+            </motion.span>
+          )}
+        </AnimatePresence>
+        
+        {/* Mobile Close Button */}
+        {isMobile && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setIsMobileMenuOpen(false)}
+            className="ml-auto text-white hover:bg-white/20 p-1"
+          >
+            <X className="h-5 w-5" />
+          </Button>
+        )}
       </div>
-      <nav className="flex-1 p-4 space-y-2">
-        {navigationItems.map((item) => {
+
+      {/* Navigation Items */}
+      <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+        {navigationItems.map((item, index) => {
           const isActive = pathname === item.href;
           return (
-            <Link
+            <motion.div
               key={item.name}
-              href={item.href}
-              className={`flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors ${
-                isActive
-                  ? 'bg-green-100 text-green-700'
-                  : 'text-gray-600 hover:bg-gray-100'
-              }`}
-              onClick={() => setIsMobileMenuOpen(false)}
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: index * 0.1 }}
             >
-              <item.icon className="h-5 w-5" />
-              <span>{item.name}</span>
-            </Link>
+              <Link
+                href={item.href}
+                className={`group relative flex items-center space-x-3 px-3 py-3 rounded-xl transition-all duration-300 ${
+                  isActive
+                    ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/30'
+                    : 'text-gray-600 hover:bg-gradient-to-r hover:from-emerald-50 hover:to-teal-50 hover:text-emerald-700 hover:shadow-md'
+                } ${isSidebarCollapsed && !isMobile ? 'justify-center px-2' : ''}`}
+                onClick={() => isMobile && setIsMobileMenuOpen(false)}
+              >
+                <motion.div
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="relative"
+                >
+                  <item.icon className={`h-5 w-5 ${isActive ? 'drop-shadow-sm' : 'group-hover:scale-110 transition-transform'}`} />
+                  {isActive && (
+                    <motion.div
+                      layoutId="activeIndicator"
+                      className="absolute -inset-1 bg-white/20 rounded-lg"
+                      initial={false}
+                      transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                    />
+                  )}
+                </motion.div>
+                
+                <AnimatePresence>
+                  {(!isSidebarCollapsed || isMobile) && (
+                    <motion.span 
+                      initial={{ opacity: 0, width: 0 }}
+                      animate={{ opacity: 1, width: 'auto' }}
+                      exit={{ opacity: 0, width: 0 }}
+                      className={`font-medium truncate ${isActive ? 'drop-shadow-sm' : ''}`}
+                    >
+                      {item.name}
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+
+                {/* Active indicator */}
+                {isActive && (
+                  <motion.div
+                    layoutId="activeTab"
+                    className="absolute right-2 w-2 h-2 bg-white rounded-full shadow-sm"
+                    initial={false}
+                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                  />
+                )}
+              </Link>
+            </motion.div>
           );
         })}
       </nav>
-    </div>
+
+      {/* User Info Section */}
+      <div className={`p-4 border-t border-gray-100 bg-gradient-to-r from-gray-50 to-white ${
+        isSidebarCollapsed && !isMobile ? 'px-2' : ''
+      }`}>
+        <div className={`flex items-center space-x-3 p-3 rounded-xl bg-white shadow-sm border border-gray-100 ${
+          isSidebarCollapsed && !isMobile ? 'justify-center' : ''
+        }`}>
+          <Avatar className="h-8 w-8 ring-2 ring-emerald-200">
+            <AvatarImage src={user?.avatar || undefined} alt={user?.name || 'User Avatar'} />
+            <AvatarFallback className="bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-semibold">
+              {user?.name?.split(' ').map(n => n[0]).join('').toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+          <AnimatePresence>
+            {(!isSidebarCollapsed || isMobile) && (
+              <motion.div 
+                initial={{ opacity: 0, width: 0 }}
+                animate={{ opacity: 1, width: 'auto' }}
+                exit={{ opacity: 0, width: 0 }}
+                className="flex-1 min-w-0"
+              >
+                <p className="text-sm font-semibold text-gray-900 truncate">{user?.name}</p>
+                <p className="text-xs text-gray-500 truncate capitalize">{user?.role?.toLowerCase()}</p>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
+    </motion.div>
   );
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50">
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+          className="w-12 h-12 border-4 border-emerald-200 border-t-emerald-600 rounded-full"
+        />
       </div>
     );
   }
 
   if (!user) {
-    return null; // or redirect to login
+    return null;
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 overflow-hidden">
       {/* Desktop Sidebar */}
-      <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col">
-        <div className="flex flex-col flex-grow bg-white border-r border-gray-200 overflow-y-auto">
+      <div className={`hidden lg:fixed lg:inset-y-0 lg:flex lg:flex-col z-30 transition-all duration-300 ${
+        isSidebarCollapsed ? 'lg:w-16' : 'lg:w-64'
+      }`}>
+        <div className="flex flex-col flex-grow bg-white/80 backdrop-blur-xl border-r border-gray-200/50 shadow-2xl shadow-emerald-500/10 overflow-hidden relative">
           <NavigationContent />
+          
+          {/* Collapse Toggle Button */}
+          <motion.button
+            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+            className="absolute -right-3 top-1/2 transform -translate-y-1/2 bg-white border border-gray-200 rounded-full p-1.5 shadow-lg hover:shadow-xl transition-all duration-300 hover:bg-emerald-50 hover:border-emerald-200 z-40"
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+          >
+            <motion.div
+              animate={{ rotate: isSidebarCollapsed ? 180 : 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              <ChevronLeft className="h-4 w-4 text-gray-600" />
+            </motion.div>
+          </motion.button>
         </div>
       </div>
 
       {/* Mobile Sidebar */}
       <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
-        <SheetContent side="left" className="p-0 w-64">
-          <NavigationContent />
+        <SheetContent 
+          side="left" 
+          className="p-0 w-72 sm:w-80 bg-white/95 backdrop-blur-xl border-r border-gray-200/50 overflow-hidden"
+        >
+          <NavigationContent isMobile={true} />
         </SheetContent>
       </Sheet>
 
-      {/* Main Content */}
-      <div className="lg:pl-64">
-        {/* Top Header */}
-        <header className="bg-white border-b border-gray-200 px-4 py-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between">
+      {/* Main Content Area - Enhanced Responsiveness */}
+      <div className={`flex flex-col transition-all duration-300 min-h-screen ${
+        // Only apply margin on desktop screens
+        'lg:ml-64'
+      } ${
+        // Dynamic margin only on desktop when sidebar is collapsed
+        isSidebarCollapsed ? 'lg:ml-16' : 'lg:ml-64'
+      }`}>
+        {/* Enhanced Top Header */}
+        <motion.header 
+          initial={{ y: -20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          className="flex-shrink-0 bg-white/80 backdrop-blur-xl border-b border-gray-200/50 px-3 sm:px-4 lg:px-6 xl:px-8 py-3 sm:py-4 shadow-sm sticky top-0 z-20"
+        >
+          <div className="flex items-center justify-between min-h-[2.5rem] sm:min-h-[3rem]">
             <div className="flex items-center space-x-4">
-              <Sheet>
-                <SheetTrigger asChild>
-                  <Button variant="ghost" size="sm" className="lg:hidden">
-                    <Menu className="h-5 w-5" />
-                  </Button>
-                </SheetTrigger>
-                <SheetContent side="left" className="p-0 w-64">
-                  <NavigationContent />
-                </SheetContent>
-              </Sheet>
-              <h1 className="text-2xl font-semibold text-gray-900 capitalize">
-                {user.role.toLowerCase()} Dashboard
-              </h1>
+              {/* Mobile Menu Button */}
+              <motion.div whileTap={{ scale: 0.95 }}>
+                <Sheet>
+                  <SheetTrigger asChild>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="lg:hidden hover:bg-emerald-50 hover:text-emerald-600 transition-colors duration-300 rounded-xl"
+                    >
+                      <Menu className="h-5 w-5" />
+                    </Button>
+                  </SheetTrigger>
+                  <SheetContent 
+                    side="left" 
+                    className="p-0 w-80 bg-white/95 backdrop-blur-xl border-r border-gray-200/50"
+                  >
+                    <NavigationContent isMobile={true} />
+                  </SheetContent>
+                </Sheet>
+              </motion.div>
+
+              {/* Page Title */}
+              <motion.h1 
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="text-lg sm:text-xl lg:text-2xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent capitalize"
+              >
+                <span className="hidden sm:inline">{user.role.toLowerCase()} Dashboard</span>
+                <span className="sm:hidden">Dashboard</span>
+              </motion.h1>
             </div>
 
-            <div className="flex items-center space-x-4">
-              <ChatNotifications />
-              <Button variant="ghost" size="sm">
-                <Bell className="h-5 w-5" />
-              </Button>
+            {/* Header Actions */}
+            <div className="flex items-center space-x-1 sm:space-x-2 lg:space-x-4">
+              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="hidden sm:block">
+                <ChatNotifications />
+              </motion.div>
+              
+              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="relative hover:bg-emerald-50 hover:text-emerald-600 transition-colors duration-300 rounded-xl p-2"
+                >
+                  <Bell className="h-4 w-4 sm:h-5 sm:w-5" />
+                  <motion.span 
+                    animate={{ scale: [1, 1.2, 1] }}
+                    transition={{ repeat: Infinity, duration: 2, delay: 1 }}
+                    className="absolute -top-1 -right-1 h-2 w-2 sm:h-3 sm:w-3 bg-red-500 rounded-full"
+                  />
+                </Button>
+              </motion.div>
 
+              {/* Enhanced User Menu */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                    <Avatar className="h-8 w-8">
-                      <AvatarImage src={user?.avatar || undefined} alt={user?.name || 'User Avatar'} />
-                        <AvatarFallback>
+                  <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                    <Button variant="ghost" className="relative h-8 w-8 sm:h-10 sm:w-10 rounded-full ring-2 ring-transparent hover:ring-emerald-200 transition-all duration-300 p-0">
+                      <Avatar className="h-8 w-8 sm:h-10 sm:w-10">
+                        <AvatarImage src={user?.avatar || undefined} alt={user?.name || 'User Avatar'} />
+                        <AvatarFallback className="bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-semibold text-xs sm:text-sm">
                           {user.name?.split(' ').map(n => n[0]).join('').toUpperCase()}
                         </AvatarFallback>
-                    </Avatar>
-                  </Button>
+                      </Avatar>
+                    </Button>
+                  </motion.div>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56" align="end" forceMount>
-                  <div className="flex flex-col space-y-1 p-2">
-                    <p className="text-sm font-medium leading-none">{user.name}</p>
-                    <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
-                  </div>
+                <DropdownMenuContent className="w-64 bg-white/95 backdrop-blur-xl border border-gray-200/50 shadow-xl" align="end" forceMount>
+                  <motion.div 
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="flex flex-col space-y-2 p-4"
+                  >
+                    <div className="flex items-center space-x-3">
+                      <Avatar className="h-12 w-12 ring-2 ring-emerald-200">
+                        <AvatarImage src={user?.avatar || undefined} alt={user?.name || 'User Avatar'} />
+                        <AvatarFallback className="bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-semibold">
+                          {user.name?.split(' ').map(n => n[0]).join('').toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="text-sm font-semibold text-gray-900">{user.name}</p>
+                        <p className="text-xs text-gray-500">{user.email}</p>
+                        <p className="text-xs text-emerald-600 font-medium capitalize">{user.role.toLowerCase()}</p>
+                      </div>
+                    </div>
+                  </motion.div>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link href={`/${user.role.toLowerCase()}/profile`}>
-                      <Settings className="mr-2 h-4 w-4" />
-                      Settings
+                  <DropdownMenuItem asChild className="focus:bg-emerald-50 focus:text-emerald-700">
+                    <Link href={`/${user.role.toLowerCase()}/profile`} className="flex items-center">
+                      <Settings className="mr-3 h-4 w-4" />
+                      Settings & Profile
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleLogout}>
-                    <LogOut className="mr-2 h-4 w-4" />
-                    Log out
+                  <DropdownMenuItem 
+                    onClick={handleLogout}
+                    className="focus:bg-red-50 focus:text-red-700 text-red-600"
+                  >
+                    <LogOut className="mr-3 h-4 w-4" />
+                    Sign out
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
           </div>
-        </header>
+        </motion.header>
 
-        {/* Page Content */}
-        <main className="p-4 sm:p-6 lg:p-8">
-          {children}
-        </main>
+        {/* Enhanced Page Content */}
+        <motion.main 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="flex-1 overflow-hidden"
+        >
+          {/* Responsive Container */}
+          <div className="h-full overflow-auto">
+            <div className="min-h-full">
+              {/* Responsive Content Wrapper */}
+              <div className="dashboard-content-responsive dashboard-spacing-responsive">
+                <div className="dashboard-container-responsive">
+                  {/* Enhanced Children Container */}
+                  <div className="w-full dashboard-section-responsive">
+                    {children}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </motion.main>
 
-        {/* Admin Support Chat - Show for all users except admin */}
-        {user.role !== 'ADMIN' && <AdminSupportChat />}
+        {/* Admin Support Chat - Enhanced positioning */}
+        {user.role !== 'ADMIN' && (
+          <motion.div
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ delay: 0.5, type: "spring", stiffness: 300 }}
+          >
+            <AdminSupportChat />
+          </motion.div>
+        )}
       </div>
     </div>
   );

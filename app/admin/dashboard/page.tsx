@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { getCurrentUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import DashboardLayout from '@/components/layout/dashboard-layout';
+import { DashboardContent, DashboardGrid, DashboardCard, DashboardSection } from '@/components/layout/dashboard-content';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -159,61 +160,61 @@ export default async function AdminDashboard() {
 
   return (
     <DashboardLayout user={user}>
-      <div className="space-y-8">
+      <DashboardContent>
         {/* Welcome Section */}
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
+        <DashboardSection>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Admin Dashboard</h1>
           <p className="text-gray-600 mt-2">Monitor and manage the entire marketplace</p>
-        </div>
+        </DashboardSection>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+        <DashboardGrid cols={{ sm: 1, md: 2, lg: 5 }} gap="lg">
           {stats.map((stat) => (
-            <Card key={stat.title}>
+            <DashboardCard key={stat.title}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
                 <stat.icon className={`h-4 w-4 ${stat.color}`} />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{stat.value}</div>
+                <div className="text-xl sm:text-2xl font-bold">{stat.value}</div>
                 <p className="text-xs text-muted-foreground">{stat.description}</p>
               </CardContent>
-            </Card>
+            </DashboardCard>
           ))}
-        </div>
+        </DashboardGrid>
 
         {/* User Distribution */}
-        <Card>
+        <DashboardCard>
           <CardHeader>
             <CardTitle>User Distribution</CardTitle>
             <CardDescription>Users by role</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <DashboardGrid cols={{ sm: 2, md: 4 }} gap="md">
               {usersByRole.map((roleData) => (
-                <div key={roleData.role} className="text-center p-4 border rounded-lg">
-                  <div className="text-2xl font-bold text-gray-900">{roleData._count.role}</div>
-                  <div className="text-sm text-gray-600 capitalize">
+                <div key={roleData.role} className="text-center p-3 sm:p-4 border rounded-lg">
+                  <div className="text-xl sm:text-2xl font-bold text-gray-900">{roleData._count.role}</div>
+                  <div className="text-xs sm:text-sm text-gray-600 capitalize">
                     {roleData.role.toLowerCase()}s
                   </div>
                 </div>
               ))}
-            </div>
+            </DashboardGrid>
           </CardContent>
-        </Card>
+        </DashboardCard>
 
         {/* Quick Actions */}
-        <Card>
+        <DashboardCard>
           <CardHeader>
             <CardTitle>Quick Actions</CardTitle>
             <CardDescription>Common administrative tasks</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <DashboardGrid cols={{ sm: 1, md: 2, lg: 4 }} gap="md">
               <Link href="/admin/applications">
                 <Button className="w-full" variant="outline">
                   <FileText className="mr-2 h-4 w-4" />
-                  Review Applications
+                  <span className="hidden sm:inline">Review </span>Applications
                   {pendingApplications > 0 && (
                     <Badge className="ml-2 bg-red-500">{pendingApplications}</Badge>
                   )}
@@ -222,13 +223,13 @@ export default async function AdminDashboard() {
               <Link href="/admin/users">
                 <Button className="w-full" variant="outline">
                   <Users className="mr-2 h-4 w-4" />
-                  Manage Users
+                  <span className="hidden sm:inline">Manage </span>Users
                 </Button>
               </Link>
               <Link href="/admin/orders">
                 <Button className="w-full" variant="outline">
                   <ShoppingCart className="mr-2 h-4 w-4" />
-                  View Orders
+                  <span className="hidden sm:inline">View </span>Orders
                 </Button>
               </Link>
               <Link href="/admin/analytics">
@@ -237,36 +238,36 @@ export default async function AdminDashboard() {
                   Analytics
                 </Button>
               </Link>
-            </div>
+            </DashboardGrid>
           </CardContent>
-        </Card>
+        </DashboardCard>
 
         {/* Recent Applications */}
-        <Card>
+        <DashboardCard>
           <CardHeader>
             <CardTitle>Recent Applications</CardTitle>
             <CardDescription>Latest role change requests</CardDescription>
           </CardHeader>
           <CardContent>
             {recentApplications.length === 0 ? (
-              <div className="text-center py-8">
-                <FileText className="mx-auto h-12 w-12 text-gray-400" />
+              <div className="text-center py-6 sm:py-8">
+                <FileText className="mx-auto h-10 w-10 sm:h-12 sm:w-12 text-gray-400" />
                 <h3 className="mt-2 text-sm font-medium text-gray-900">No applications</h3>
-                <p className="mt-1 text-sm text-gray-500">No pending applications to review.</p>
+                <p className="mt-1 text-xs sm:text-sm text-gray-500">No pending applications to review.</p>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-3 sm:space-y-4">
                 {recentApplications.map((application) => {
                   const StatusIcon = getStatusIcon(application.status);
                   return (
-                    <div key={application.id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center space-x-4">
-                        <StatusIcon className="h-8 w-8 text-gray-400" />
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">
+                    <div key={application.id} className="flex items-center justify-between p-3 sm:p-4 border rounded-lg">
+                      <div className="flex items-center space-x-3 sm:space-x-4">
+                        <StatusIcon className="h-6 w-6 sm:h-8 sm:w-8 text-gray-400 shrink-0" />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium text-gray-900 truncate">
                             {application.user.name}
                           </p>
-                          <p className="text-sm text-gray-500">
+                          <p className="text-xs sm:text-sm text-gray-500">
                             Wants to become: {application.requestedRole.toLowerCase()}
                           </p>
                           <p className="text-xs text-gray-400">
@@ -295,18 +296,18 @@ export default async function AdminDashboard() {
               </div>
             )}
           </CardContent>
-        </Card>
+        </DashboardCard>
 
         {/* Recent Orders */}
-        <Card>
+        <DashboardCard>
           <CardHeader>
             <CardTitle>Recent Orders</CardTitle>
             <CardDescription>Latest orders in the system</CardDescription>
           </CardHeader>
           <CardContent>
             {recentOrders.length === 0 ? (
-              <div className="text-center py-8">
-                <ShoppingCart className="mx-auto h-12 w-12 text-gray-400" />
+              <div className="text-center py-6 sm:py-8">
+                <ShoppingCart className="mx-auto h-10 w-10 sm:h-12 sm:w-12 text-gray-400" />
                 <h3 className="mt-2 text-sm font-medium text-gray-900">No orders</h3>
                 <p className="mt-1 text-sm text-gray-500">No orders have been placed yet.</p>
               </div>
@@ -344,8 +345,8 @@ export default async function AdminDashboard() {
               </div>
             )}
           </CardContent>
-        </Card>
-      </div>
+        </DashboardCard>
+      </DashboardContent>
     </DashboardLayout>
   );
 }
