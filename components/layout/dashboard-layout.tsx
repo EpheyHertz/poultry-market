@@ -385,17 +385,14 @@ export default function DashboardLayout({ children, user: propUser }: DashboardL
 
       {/* Main Content Area - Enhanced Responsiveness */}
       <div className={`flex flex-col transition-all duration-300 min-h-screen ${
-        // Only apply margin on desktop screens
-        'lg:ml-64'
-      } ${
-        // Dynamic margin only on desktop when sidebar is collapsed
+        // Dynamic margin adjustment for collapsed/expanded sidebar
         isSidebarCollapsed ? 'lg:ml-16' : 'lg:ml-64'
       }`}>
         {/* Enhanced Top Header */}
         <motion.header 
           initial={{ y: -20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          className="flex-shrink-0 bg-white/80 backdrop-blur-xl border-b border-gray-200/50 px-3 sm:px-4 lg:px-6 xl:px-8 py-3 sm:py-4 shadow-sm sticky top-0 z-20"
+          className="flex-shrink-0 bg-white/80 backdrop-blur-xl border-b border-gray-200/50 px-4 sm:px-6 lg:px-8 xl:px-12 py-3 sm:py-4 shadow-sm sticky top-0 z-20"
         >
           <div className="flex items-center justify-between min-h-[2.5rem] sm:min-h-[3rem]">
             <div className="flex items-center space-x-4">
@@ -519,7 +516,7 @@ export default function DashboardLayout({ children, user: propUser }: DashboardL
             <div className="min-h-full">
               {/* Responsive Content Wrapper */}
               <div className="dashboard-content-responsive dashboard-spacing-responsive">
-                <div className="dashboard-container-responsive">
+                <div className="dashboard-container-responsive px-4 sm:px-6 lg:px-8 xl:px-12 py-6 sm:py-8">
                   {/* Enhanced Children Container */}
                   <div className="w-full dashboard-section-responsive">
                     {children}
