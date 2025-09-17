@@ -24,7 +24,8 @@ import {
   Leaf,
   MapPin,
   TrendingUp,
-  Loader2
+  Loader2,
+  Eye
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -367,77 +368,77 @@ export default function CustomerProducts() {
                 transition={{ duration: 0.3, delay: index * 0.05 }}
                 whileHover={{ y: -5 }}
               >
-                <Card className="group overflow-hidden hover:shadow-2xl transition-all duration-300 border-gray-200 h-full flex flex-col bg-white/80 backdrop-blur-sm hover:bg-white">
-                  <div className="aspect-square relative overflow-hidden">
+                <Card className="group relative overflow-hidden hover:shadow-2xl transition-all duration-500 border-2 border-gray-200 hover:border-emerald-400 h-full flex flex-col bg-white hover:bg-gradient-to-br hover:from-white hover:to-emerald-50/40 rounded-2xl shadow-lg hover:shadow-emerald-500/20">
+                  <div className="aspect-square relative overflow-hidden rounded-t-2xl">
                     {product.images && product.images.length > 0 ? (
                       <Image
                         src={product.images[0]}
                         alt={product.name || 'Product image'}
                         fill
-                        className="object-cover group-hover:scale-110 transition-transform duration-500"
+                        className="object-cover group-hover:scale-110 transition-transform duration-700"
                       />
                     ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-gray-100 via-gray-50 to-gray-200 flex items-center justify-center">
-                        <Package className="h-12 w-12 sm:h-16 sm:w-16 text-gray-400" />
+                      <div className="w-full h-full bg-gradient-to-br from-emerald-100 via-emerald-50 to-white flex items-center justify-center">
+                        <Package className="h-16 w-16 sm:h-20 sm:w-20 text-emerald-400" />
                       </div>
                     )}
                     
-                    {/* Overlay gradient for better text readability */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                    {/* Enhanced overlay gradient */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                     
                     {/* Product Type Badge */}
-                    <Badge className={`absolute top-3 left-3 ${getTypeColor(product.type)} shadow-lg font-medium z-10`}>
+                    <Badge className={`absolute top-4 left-4 ${getTypeColor(product.type)} shadow-lg font-semibold text-xs px-3 py-1.5 z-10 border border-white/50 backdrop-blur-sm`}>
                       {product.type.replace('_', ' ')}
                     </Badge>
 
                     {/* Stock indicator */}
                     {(product.stock || 0) <= 5 && (product.stock || 0) > 0 && (
-                      <Badge className="absolute top-3 right-3 bg-orange-500 text-white shadow-lg font-medium z-10">
-                        Low Stock
+                      <Badge className="absolute top-4 right-4 bg-orange-500 text-white shadow-lg font-semibold text-xs px-3 py-1.5 z-10 border border-white/50 backdrop-blur-sm">
+                        ⚠️ Low Stock
                       </Badge>
                     )}
                     {(product.stock || 0) === 0 && (
-                      <Badge className="absolute top-3 right-3 bg-red-500 text-white shadow-lg font-medium z-10">
-                        Out of Stock
+                      <Badge className="absolute top-4 right-4 bg-red-500 text-white shadow-lg font-semibold text-xs px-3 py-1.5 z-10 border border-white/50 backdrop-blur-sm">
+                        ❌ Out of Stock
                       </Badge>
                     )}
 
-                    {/* View Product overlay button */}
-                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 z-10">
+                    {/* Enhanced View Product overlay button */}
+                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-500 z-20">
                       <Button 
-                        variant="secondary"
-                        className="bg-white/90 backdrop-blur-sm text-gray-900 hover:bg-white shadow-xl border-2 border-white/50 font-semibold px-6 py-2"
+                        size="lg"
+                        className="bg-white text-gray-900 hover:bg-emerald-600 hover:text-white shadow-2xl border-3 border-white font-bold px-8 py-3 text-base rounded-full transform hover:scale-105 transition-all duration-300 backdrop-blur-sm"
                         onClick={(e) => {
                           e.stopPropagation();
                           router.push(`/product/${product.id}`);
                         }}
                       >
-                        View Product
+                        👁️ View Product
                       </Button>
                     </div>
                   </div>
                   
-                  <CardHeader className="pb-3 p-4 sm:p-6 bg-gradient-to-b from-white to-gray-50/50">
-                    <div className="space-y-2">
-                      <CardTitle className="text-lg sm:text-xl font-bold line-clamp-1 text-gray-900 group-hover:text-emerald-700 transition-colors">
+                  <CardHeader className="pb-4 p-6 bg-gradient-to-b from-white via-gray-50/30 to-transparent border-b border-gray-100">
+                    <div className="space-y-3">
+                      <CardTitle className="text-xl sm:text-2xl font-black line-clamp-2 text-gray-900 group-hover:text-emerald-700 transition-colors duration-300 leading-tight">
                         {product.name || 'Untitled Product'}
                       </CardTitle>
-                      <CardDescription className="line-clamp-2 text-sm text-gray-600 leading-relaxed">
+                      <CardDescription className="line-clamp-3 text-sm text-gray-600 leading-relaxed font-medium">
                         {product.description || 'No description available'}
                       </CardDescription>
                     </div>
                   </CardHeader>
                   
-                  <CardContent className="p-4 sm:p-6 pt-0 flex-1 flex flex-col justify-between space-y-4">
-                    <div className="space-y-4">
-                      {/* Seller Info with Tags */}
-                      <div className="bg-gray-50/80 rounded-lg p-3 border border-gray-100">
-                        <p className="text-sm text-gray-700 mb-2">
-                          <span className="text-gray-500">Sold by:</span> 
-                          <span className="font-semibold text-gray-900 ml-1">{product.seller?.name || 'Unknown Seller'}</span>
+                  <CardContent className="p-6 pt-0 flex-1 flex flex-col justify-between space-y-5 bg-gradient-to-b from-transparent to-gray-50/50">
+                    <div className="space-y-5">
+                      {/* Enhanced Seller Info with Tags */}
+                      <div className="bg-gradient-to-r from-emerald-50 to-blue-50 rounded-xl p-4 border border-emerald-200 shadow-sm">
+                        <p className="text-sm text-gray-700 mb-3 flex items-center">
+                          <span className="text-gray-500 font-medium">🏪 Sold by:</span> 
+                          <span className="font-bold text-gray-900 ml-2">{product.seller?.name || 'Unknown Seller'}</span>
                         </p>
                         {product.seller?.tags && product.seller.tags.length > 0 && (
-                          <div className="flex flex-wrap gap-1.5">
+                          <div className="flex flex-wrap gap-2">
                             {product.seller.tags.map((tagData: any, index: number) => {
                               // Safety checks for nested properties
                               if (!tagData || !tagData.tag || !tagData.tag.tag) {
@@ -449,7 +450,7 @@ export default function CustomerProducts() {
                               return (
                                 <Badge 
                                   key={`${product.seller.id}-${tagName}-${index}`} 
-                                  className={`text-xs ${tagColors[tagName as keyof typeof tagColors]} px-2 py-1 font-medium shadow-sm border border-opacity-20`}
+                                  className={`text-xs ${tagColors[tagName as keyof typeof tagColors]} px-3 py-1.5 font-bold shadow-md border border-opacity-30 hover:scale-105 transition-transform duration-200`}
                                 >
                                   {TagIcon && <TagIcon className="w-3 h-3 mr-1.5" />}
                                   <span className="hidden sm:inline">{tagName}</span>
@@ -461,19 +462,19 @@ export default function CustomerProducts() {
                         )}
                       </div>
                       
-                      {/* Price and Stock */}
-                      <div className="flex justify-between items-center bg-emerald-50/80 rounded-lg p-3 border border-emerald-100">
+                      {/* Enhanced Price and Stock */}
+                      <div className="flex justify-between items-center bg-gradient-to-r from-emerald-50 to-emerald-100 rounded-xl p-4 border-2 border-emerald-200 shadow-md">
                         <div className="flex flex-col">
-                          <span className="text-sm text-gray-600 font-medium">Price</span>
-                          <span className="text-xl sm:text-2xl font-bold text-emerald-600">
+                          <span className="text-sm text-emerald-700 font-bold mb-1">💰 Price</span>
+                          <span className="text-2xl sm:text-3xl font-black text-emerald-700">
                             Ksh {(product.price || 0).toFixed(2)}
                           </span>
                         </div>
                         <div className="text-right">
-                          <span className="text-sm text-gray-600 font-medium block">Stock</span>
-                          <span className={`text-sm font-bold ${
-                            (product.stock || 0) === 0 ? 'text-red-600' : 
-                            (product.stock || 0) <= 5 ? 'text-orange-600' : 'text-green-600'
+                          <span className="text-sm text-emerald-700 font-bold block mb-1">📦 Stock</span>
+                          <span className={`text-lg font-black px-3 py-1 rounded-lg ${
+                            (product.stock || 0) === 0 ? 'text-red-700 bg-red-100' : 
+                            (product.stock || 0) <= 5 ? 'text-orange-700 bg-orange-100' : 'text-green-700 bg-green-100'
                           }`}>
                             {product.stock || 0} units
                           </span>
@@ -481,25 +482,30 @@ export default function CustomerProducts() {
                       </div>
                     </div>
                       
-                    {/* Action Buttons */}
-                    <div className="grid grid-cols-2 gap-3 pt-2">
+                    {/* Enhanced Action Buttons */}
+                    <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-200">
                       <Button 
                         variant="outline"
                         onClick={(e) => {
                           e.stopPropagation();
                           router.push(`/product/${product.id}`);
                         }}
-                        className="h-10 text-sm font-semibold border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:border-emerald-300 transition-all duration-200"
+                        className="h-12 text-sm font-bold border-2 border-emerald-500 text-emerald-700 hover:bg-emerald-500 hover:text-white hover:border-emerald-600 transition-all duration-300 shadow-md hover:shadow-lg transform hover:scale-105"
                       >
+                        <Eye className="w-4 h-4 mr-2" />
                         View Details
                       </Button>
                       <Button 
                         onClick={() => addToCart(product)}
                         disabled={(product.stock || 0) === 0}
-                        className="h-10 text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-md hover:shadow-lg transition-all duration-200 disabled:bg-gray-300 disabled:text-gray-500"
+                        className={`h-12 text-sm font-bold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 ${
+                          (product.stock || 0) === 0 
+                            ? 'bg-gray-400 hover:bg-gray-400 text-gray-600 cursor-not-allowed shadow-none transform-none' 
+                            : 'bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white'
+                        }`}
                       >
                         <ShoppingCart className="w-4 h-4 mr-2" />
-                        {(product.stock || 0) === 0 ? 'Sold Out' : 'Add to Cart'}
+                        {(product.stock || 0) === 0 ? '❌ Sold Out' : '🛒 Add to Cart'}
                       </Button>
                     </div>
                   </CardContent>
