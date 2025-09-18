@@ -235,6 +235,12 @@ model User {
 
   // Checkout sessions
   checkoutSessions      CheckoutSession[]
+  
+  // Blog relationships
+  blogPosts             BlogPost[]
+  blogComments          BlogComment[]
+  moderatedComments     BlogComment[] @relation("CommentModerator")
+  approvedBlogPosts     BlogPost[]    @relation("BlogPostApprovedBy")
 
   @@map("users")
 }
@@ -930,4 +936,172 @@ model CheckoutSession {
   updatedAt    DateTime @updatedAt
 
   @@map("checkout_sessions")
+}
+
+// Blog System Enums
+enum BlogPostStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+  PUBLISHED
+  ARCHIVED
+}
+
+enum BlogPostCategory {
+  FARMING_TIPS
+  POULTRY_HEALTH
+  FEED_NUTRITION
+  EQUIPMENT_GUIDES
+  MARKET_TRENDS
+  SUCCESS_STORIES
+  INDUSTRY_NEWS
+  SEASONAL_ADVICE
+  BEGINNER_GUIDES
+  ADVANCED_TECHNIQUES
+}
+
+// Blog Models
+model BlogPost {
+  id              String            @id @default(cuid())
+  title           String
+  slug            String            @unique
+  content         String            @db.Text
+  excerpt         String?           @db.Text
+  featuredImage   String?
+  thumbnail       String?
+  images          String[]          // Array of up to 3 image URLs
+  metaDescription String?
+  metaKeywords    String?
+  
+  // SEO fields
+  ogTitle         String?
+  ogDescription   String?
+  ogImage         String?
+  twitterTitle    String?
+  twitterDescription String?
+  twitterImage    String?
+  
+  // Content organization
+  category        BlogPostCategory
+  status          BlogPostStatus    @default(DRAFT)
+  featured        Boolean           @default(false)
+  publishedAt     DateTime?
+  scheduledAt     DateTime?
+  
+  // Approval workflow
+  submittedAt     DateTime?         // When submitted for approval
+  approvedAt      DateTime?         // When approved by admin
+  rejectedAt      DateTime?         // When rejected by admin
+  approvedBy      String?           // Admin who approved/rejected
+  approvedByUser  User?             @relation("BlogPostApprovedBy", fields: [approvedBy], references: [id])
+  rejectionReason String?           // Reason for rejection
+  submissionNotes String?           // Notes from submitter
+  
+  // Engagement metrics
+  viewCount       Int               @default(0)
+  shareCount      Int               @default(0)
+  likes           Int               @default(0)
+  views           Int               @default(0)
+  readingTime     Int?              // in minutes
+  
+  // Author information
+  authorId        String
+  author          User              @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  
+  // Relationships
+  tags            BlogPostTag[]
+  comments        BlogComment[]
+  
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  
+  @@map("blog_posts")
+  @@index([status, publishedAt])
+  @@index([category])
+  @@index([slug])
+}
+
+model BlogTag {
+  id          String        @id @default(cuid())
+  name        String        @unique
+  slug        String        @unique
+  description String?
+  color       String?       // Hex color for UI
+  
+  // Relationships
+  posts       BlogPostTag[]
+  
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  
+  @@map("blog_tags")
+}
+
+model BlogPostTag {
+  id        String   @id @default(cuid())
+  postId    String
+  tagId     String
+  
+  post      BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tag       BlogTag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  
+  @@unique([postId, tagId])
+  @@map("blog_post_tags")
+}
+
+model BlogComment {
+  id        String   @id @default(cuid())
+  content   String   @db.Text
+  images    String[] // Array of image URLs for comments
+  isApproved Boolean @default(false)
+  isEdited  Boolean  @default(false)
+  editedAt  DateTime?
+  
+  // Moderation fields
+  moderatedAt     DateTime?
+  moderatedBy     String?
+  moderatedByUser User?    @relation("CommentModerator", fields: [moderatedBy], references: [id], onDelete: SetNull)
+  moderationReason String?
+  
+  // Author information
+  authorId  String?
+  author    User?    @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  
+  // Guest comment fields
+  guestName  String?
+  guestEmail String?
+  
+  // Relationships
+  postId    String
+  post      BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  
+  // Reply system
+  parentId  String?
+  parent    BlogComment? @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies   BlogComment[] @relation("CommentReplies")
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("blog_comments")
+  @@index([postId])
+  @@index([isApproved])
+}
+
+model BlogSubscriber {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  isActive  Boolean  @default(true)
+  
+  // Subscription preferences
+  weeklyDigest    Boolean @default(true)
+  newPostAlerts   Boolean @default(true)
+  categoryUpdates String? // JSON array of subscribed categories
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("blog_subscribers")
 }

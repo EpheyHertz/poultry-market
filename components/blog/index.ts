@@ -1,0 +1,1 @@
+export { default } from './blog-submission-form';
