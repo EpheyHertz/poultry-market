@@ -59,17 +59,24 @@ interface BlogPost {
 }
 
 interface Category {
-  id: string;
+  id?: string;
+  key: string;
   name: string;
   slug: string;
-  _count: { posts: number };
+  description?: string;
+  icon?: string;
+  color?: string;
+  postCount: number;
+  count: number;
 }
 
 interface Tag {
   id: string;
   name: string;
   slug: string;
-  _count: { posts: number };
+  description?: string;
+  color?: string;
+  postCount?: number;
 }
 
 export default function MobileBlogContent() {
@@ -110,8 +117,8 @@ export default function MobileBlogContent() {
   const fetchMetadata = useCallback(async () => {
     try {
       const [categoriesRes, tagsRes] = await Promise.all([
-        fetch('/api/blog/categories'),
-        fetch('/api/blog/tags')
+        fetch('/api/blog/categories?withCounts=true'),
+        fetch('/api/blog/tags?withCounts=true')
       ]);
 
       if (categoriesRes.ok) {
@@ -268,7 +275,7 @@ export default function MobileBlogContent() {
                       }`}
                     >
                       <span className="truncate">{category.name}</span>
-                      <span className="text-gray-400 ml-2">({category._count.posts})</span>
+                      <span className="text-gray-400 ml-2">({category.postCount || 0})</span>
                     </button>
                   ))}
                 </div>

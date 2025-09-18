@@ -39,17 +39,17 @@ interface BlogPost {
   title: string;
   slug: string;
   content: string;
-  excerpt?: string;
-  featuredImage?: string;
+  excerpt?: string | null;
+  featuredImage?: string | null;
   category: string;
   viewCount: number;
-  readingTime?: number;
-  publishedAt: string;
+  readingTime?: number | null;
+  publishedAt: string | Date | null;
   author: {
     id: string;
     name: string;
-    avatar?: string;
-    bio?: string;
+    avatar?: string | null;
+    bio?: string | null;
     _count?: {
       followers: number;
       blogPosts: number;
@@ -71,16 +71,23 @@ interface Props {
   params: Promise<{
     slug: string;
   }>;
+  initialPost?: BlogPost;
 }
 
-export default function MobileBlogPost({ params }: Props) {
+export default function MobileBlogPost({ params, initialPost }: Props) {
   const resolvedParams = use(params);
   const router = useRouter();
-  const [post, setPost] = useState<BlogPost | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [post, setPost] = useState<BlogPost | null>(initialPost || null);
+  const [loading, setLoading] = useState(!initialPost);
   const [showShareMenu, setShowShareMenu] = useState(false);
 
   const fetchPost = useCallback(async () => {
+    // Only fetch if we don't have initial data
+    if (initialPost) {
+      setLoading(false);
+      return;
+    }
+    
     try {
       setLoading(true);
       const response = await fetch(`/api/blog/posts/${resolvedParams.slug}`);
@@ -96,7 +103,7 @@ export default function MobileBlogPost({ params }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [resolvedParams.slug, router]);
+  }, [resolvedParams.slug, router, initialPost]);
 
   useEffect(() => {
     fetchPost();
@@ -310,7 +317,7 @@ export default function MobileBlogPost({ params }: Props) {
           <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500 mt-4">
             <div className="flex items-center gap-1">
               <Calendar className="h-4 w-4" />
-              <span>{format(new Date(post.publishedAt), 'MMM d, yyyy')}</span>
+              <span>{post.publishedAt ? format(new Date(post.publishedAt), 'MMM d, yyyy') : 'Date not available'}</span>
             </div>
             {post.readingTime && (
               <div className="flex items-center gap-1">
@@ -482,7 +489,7 @@ export default function MobileBlogPost({ params }: Props) {
                     </p>
                     <div className="flex items-center justify-between text-xs text-gray-500">
                       <span>{relatedPost.author.name}</span>
-                      <span>{format(new Date(relatedPost.publishedAt), 'MMM d')}</span>
+                      <span>{relatedPost.publishedAt ? format(new Date(relatedPost.publishedAt), 'MMM d') : 'Date N/A'}</span>
                     </div>
                   </CardContent>
                 </Card>

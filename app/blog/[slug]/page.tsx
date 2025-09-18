@@ -125,6 +125,7 @@ async function getBlogPost(slug: string) {
 
     return {
       ...post,
+      publishedAt: post.publishedAt ? post.publishedAt.toISOString() : null,
       _count: {
         likes: post._count.likedBy,
         comments: post._count.comments
@@ -132,7 +133,13 @@ async function getBlogPost(slug: string) {
       tags: post.tags.map(t => t.tag),
       relatedPosts: relatedPosts.map(p => ({
         ...p,
-        tags: p.tags.map(t => t.tag)
+        publishedAt: p.publishedAt ? p.publishedAt.toISOString() : null,
+        tags: p.tags.map(t => t.tag),
+        relatedPosts: [], // Related posts for related posts are empty
+        _count: {
+          likes: 0, // We don't need like counts for related posts in this context
+          comments: 0 // We don't need comment counts for related posts in this context
+        }
       }))
     };
   } catch (error) {
@@ -183,7 +190,7 @@ export default async function BlogPostPage({ params }: Props) {
   return (
     <div className="min-h-screen bg-white">
       <PublicNavbar />
-      <MobileBlogPost params={params} />
+      <MobileBlogPost params={params} initialPost={post} />
     </div>
   );
 }
