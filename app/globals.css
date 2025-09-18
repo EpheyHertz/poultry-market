@@ -80,3 +80,46 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Enhanced Blog Card Animations */
+@layer components {
+  .blog-card-enter {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  
+  .blog-card-enter-active {
+    transform: translateY(0);
+    opacity: 1;
+    transition: all 0.4s ease-out;
+  }
+  
+  .blog-card-hover {
+    transform: translateY(-2px);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  }
+  
+  .author-avatar {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  .author-avatar:hover {
+    transform: scale(1.05);
+    box-shadow: 0 8px 25px rgba(16, 185, 129, 0.3);
+  }
+  
+  .scroll-smooth {
+    scroll-behavior: smooth;
+  }
+  
+  /* Performance optimizations for transforms */
+  .will-change-transform {
+    will-change: transform;
+  }
+  
+  .gpu-acceleration {
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    perspective: 1000px;
+  }
+}

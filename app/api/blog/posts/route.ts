@@ -146,7 +146,7 @@ export async function GET(request: NextRequest) {
       skip: (page - 1) * limit,
       take: limit,
     });
-console.log("Posts:",posts)
+// console.log("Posts:",posts)
     const totalPages = Math.ceil(totalPosts / limit);
 
     return NextResponse.json({
