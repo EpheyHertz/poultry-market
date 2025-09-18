@@ -1,5 +1,6 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
+import { prisma } from '@/lib/prisma';
 import PublicNavbar from '@/components/layout/public-navbar';
 import MobileBlogPost from './mobile-blog-post';
 
@@ -11,15 +12,129 @@ interface Props {
 
 async function getBlogPost(slug: string) {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-    const response = await fetch(`${baseUrl}/api/blog/posts/${slug}`, {
-      cache: 'no-store'
+    const post = await prisma.blogPost.findUnique({
+      where: { slug },
+      include: {
+        author: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            avatar: true,
+            role: true,
+            bio: true,
+            _count: {
+              select: {
+                blogPosts: true,
+                followers: true,
+                following: true
+              }
+            }
+          }
+        },
+        tags: {
+          include: {
+            tag: true
+          }
+        },
+        comments: {
+          where: {
+            isApproved: true,
+            parentId: null // Only top-level comments
+          },
+          include: {
+            author: {
+              select: {
+                id: true,
+                name: true,
+                avatar: true
+              }
+            },
+            replies: {
+              where: {
+                isApproved: true
+              },
+              include: {
+                author: {
+                  select: {
+                    id: true,
+                    name: true,
+                    avatar: true
+                  }
+                }
+              },
+              orderBy: {
+                createdAt: 'asc'
+              }
+            }
+          },
+          orderBy: {
+            createdAt: 'desc'
+          }
+        },
+        _count: {
+          select: {
+            likedBy: true,
+            comments: true
+          }
+        }
+      }
     });
-    if (!response.ok) {
+
+    if (!post) {
       return null;
     }
-    const data = await response.json();
-    return data; // The API returns the post data directly, not wrapped in { post: ... }
+
+    // Check if post should be visible (only published posts for public access)
+    if (post.status !== 'PUBLISHED') {
+      return null;
+    }
+
+    // Increment view count for published posts
+    await prisma.blogPost.update({
+      where: { slug },
+      data: { viewCount: { increment: 1 } }
+    });
+
+    // Get related posts (same category, excluding current post)
+    const relatedPosts = await prisma.blogPost.findMany({
+      where: {
+        category: post.category,
+        status: 'PUBLISHED',
+        id: { not: post.id }
+      },
+      include: {
+        author: {
+          select: {
+            id: true,
+            name: true,
+            avatar: true
+          }
+        },
+        tags: {
+          include: {
+            tag: true
+          }
+        }
+      },
+      orderBy: {
+        publishedAt: 'desc'
+      },
+      take: 3
+    });
+
+    return {
+      ...post,
+      _count: {
+        likes: post._count.likedBy,
+        comments: post._count.comments
+      },
+      tags: post.tags.map(t => t.tag),
+      relatedPosts: relatedPosts.map(p => ({
+        ...p,
+        tags: p.tags.map(t => t.tag)
+      }))
+    };
   } catch (error) {
     console.error('Error fetching blog post:', error);
     return null;
@@ -45,7 +160,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       description: post.excerpt || post.title,
       images: post.featuredImage ? [post.featuredImage] : [],
       type: 'article',
-      publishedTime: post.publishedAt,
+      publishedTime: post.publishedAt ? new Date(post.publishedAt).toISOString() : undefined,
       authors: [post.author.name],
     },
     twitter: {
