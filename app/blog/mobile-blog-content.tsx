@@ -38,7 +38,7 @@ interface BlogPost {
     id: string;
     name: string;
     avatar?: string;
-    _count: { followers: number };
+    _count?: { followers: number };
   };
   category?: {
     id: string;
@@ -102,7 +102,7 @@ export default function MobileBlogContent() {
       if (selectedTag) params.set('tag', selectedTag);
       if (sortBy) params.set('sort', sortBy);
       
-      const response = await fetch(`/api/blog?${params}`);
+      const response = await fetch(`/api/blog/posts?${params}`);
       if (response.ok) {
         const data = await response.json();
         setPosts(data.posts || []);
@@ -263,7 +263,7 @@ export default function MobileBlogContent() {
                   </button>
                   {categories.slice(0, 8).map((category) => (
                     <button
-                      key={category.id}
+                      key={category.key || category.slug || category.id}
                       onClick={() => {
                         setSelectedCategory(category.slug);
                         updateURL('category', category.slug);
@@ -313,7 +313,7 @@ export default function MobileBlogContent() {
             ) : posts.length === 0 ? (
               <Card className="p-8 text-center">
                 <h3 className="font-semibold mb-2">No articles found</h3>
-                <p className="text-gray-600 text-sm mb-4">Try different filters</p>
+                <p className="text-gray-600 text-sm mb-4">Try different filters or check back later</p>
                 <Button onClick={clearFilters} size="sm">
                   Clear Filters
                 </Button>
@@ -390,7 +390,7 @@ export default function MobileBlogContent() {
                                   
                                   <Link href={`/blog/author/${post.author.id}`}>
                                     <Badge variant="outline" className="text-xs hover:bg-emerald-50">
-                                      {post.author._count.followers} followers
+                                      {post.author._count?.followers || 0} followers
                                     </Badge>
                                   </Link>
                                 </div>
@@ -491,7 +491,7 @@ export default function MobileBlogContent() {
                                   
                                   <Link href={`/blog/author/${post.author.id}`}>
                                     <Badge variant="outline" className="text-xs hover:bg-emerald-50">
-                                      {post.author._count.followers} followers
+                                      {post.author._count?.followers || 0} followers
                                     </Badge>
                                   </Link>
                                 </div>

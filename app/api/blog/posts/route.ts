@@ -113,7 +113,13 @@ export async function GET(request: NextRequest) {
             name: true,
             email: true,
             avatar: true,
-            role: true
+            role: true,
+            _count: {
+              select: {
+                followers: true,
+                blogPosts: true
+              }
+            }
           }
         },
         tags: {
