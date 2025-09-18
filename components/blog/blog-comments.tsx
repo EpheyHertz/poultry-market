@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import BlogImageUpload from '@/components/blog/blog-image-upload';
+import CommentLikeButton from '@/components/blog/comment-like-button';
 import { toast } from 'sonner';
 import Image from 'next/image';
 import {
@@ -379,6 +380,10 @@ export default function BlogComments({ postId, comments: initialComments, onComm
             )}
 
             <div className="flex items-center space-x-2">
+              <CommentLikeButton 
+                commentId={comment.id} 
+                userAuthenticated={!!user} 
+              />
               <Button
                 variant="ghost"
                 size="sm"

@@ -12,6 +12,8 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { generateBlogMetadata, generateBlogStructuredData, generateBlogBreadcrumbData } from '@/components/blog/blog-seo';
 import BlogComments from '@/components/blog/blog-comments';
+import LikeButton from '@/components/blog/like-button';
+import FollowButton from '@/components/blog/follow-button';
 import PublicNavbar from '@/components/layout/public-navbar';
 import { 
   Calendar,
@@ -357,28 +359,41 @@ export default function BlogPostPage({ params }: Props) {
               </p>
             )}
 
-            {/* Author */}
-            <div className="flex items-center space-x-4 mb-8">
-              <div className="flex-shrink-0">
-                {post.author.avatar ? (
-                  <Image
-                    src={post.author.avatar}
-                    alt={post.author.name}
-                    width={48}
-                    height={48}
-                    className="w-12 h-12 rounded-full object-cover"
-                  />
-                ) : (
-                  <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center">
-                    <User className="h-6 w-6 text-emerald-600" />
-                  </div>
-                )}
+            {/* Author with Social Features */}
+            <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center space-x-4">
+                <div className="flex-shrink-0">
+                  {post.author.avatar ? (
+                    <Image
+                      src={post.author.avatar}
+                      alt={post.author.name}
+                      width={48}
+                      height={48}
+                      className="w-12 h-12 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center">
+                      <User className="h-6 w-6 text-emerald-600" />
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <Link 
+                    href={`/blog/author/${post.author.id}`}
+                    className="font-semibold text-gray-900 hover:text-emerald-600 transition-colors"
+                  >
+                    {post.author.name}
+                  </Link>
+                  {post.author.bio && (
+                    <p className="text-sm text-gray-600">{post.author.bio}</p>
+                  )}
+                </div>
               </div>
-              <div>
-                <p className="font-semibold text-gray-900">{post.author.name}</p>
-                {post.author.bio && (
-                  <p className="text-sm text-gray-600">{post.author.bio}</p>
-                )}
+              
+              {/* Social Action Buttons */}
+              <div className="flex items-center space-x-3">
+                <LikeButton slug={post.slug} />
+                <FollowButton authorId={post.author.id} />
               </div>
             </div>
 

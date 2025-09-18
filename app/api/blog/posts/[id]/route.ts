@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth';
-import { use } from 'react';
 
 interface RouteParams {
   params: Promise<{
@@ -11,8 +10,7 @@ interface RouteParams {
 
 // DELETE - Delete a blog post (only if user owns it)
 export async function DELETE(
-  request: NextRequest,
-  { params }: RouteParams
+  request: NextRequest
 ) {
   try {
     const user = await getCurrentUser();
@@ -24,8 +22,9 @@ export async function DELETE(
       );
     }
 
-    const resolvedParams = use(params);
-    const { id } = resolvedParams;
+    // Get the ID from URL path
+    const pathParts = request.nextUrl.pathname.split('/');
+    const id = pathParts[pathParts.length - 1] || ''; // Get the last part (id)
 
     // Check if the blog post exists and belongs to the user
     const blogPost = await prisma.blogPost.findUnique({
@@ -80,8 +79,7 @@ export async function DELETE(
 
 // GET - Get a specific blog post (for editing)
 export async function GET(
-  request: NextRequest,
-  { params }: RouteParams
+  request: NextRequest
 ) {
   try {
     const user = await getCurrentUser();
@@ -93,8 +91,9 @@ export async function GET(
       );
     }
 
-    const resolvedParams = use(params);
-    const { id } = resolvedParams;
+    // Get the ID from URL path
+    const pathParts = request.nextUrl.pathname.split('/');
+    const id = pathParts[pathParts.length - 1] || ''; // Get the last part (id)
 
     const blogPost = await prisma.blogPost.findUnique({
       where: { id },

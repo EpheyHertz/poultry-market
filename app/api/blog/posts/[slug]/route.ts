@@ -59,11 +59,12 @@ interface Props {
 
 // GET - Fetch single blog post by slug
 export async function GET(
-  request: NextRequest,
-  { params }: Props
+  request: NextRequest
 ) {
   try {
-    const { slug } = await params;
+    // Get the slug from URL path
+    const pathParts = request.nextUrl.pathname.split('/');
+    const slug = pathParts[pathParts.length - 1] || ''; // Get the last part (slug)
     
     const post = await prisma.blogPost.findUnique({
       where: { slug },
@@ -195,8 +196,7 @@ export async function GET(
 
 // PUT - Update blog post
 export async function PUT(
-  request: NextRequest,
-  { params }: Props
+  request: NextRequest
 ) {
   try {
     const user = await getCurrentUser();
@@ -208,7 +208,9 @@ export async function PUT(
       );
     }
 
-    const { slug } = await params;
+    // Get the slug from URL path
+    const pathParts = request.nextUrl.pathname.split('/');
+    const slug = pathParts[pathParts.length - 1] || ''; // Get the last part (slug)
     
     // Find existing post
     const existingPost = await prisma.blogPost.findUnique({
@@ -350,8 +352,7 @@ export async function PUT(
 
 // DELETE - Delete blog post
 export async function DELETE(
-  request: NextRequest,
-  { params }: Props
+  request: NextRequest
 ) {
   try {
     const user = await getCurrentUser();
@@ -363,7 +364,9 @@ export async function DELETE(
       );
     }
 
-    const { slug } = await params;
+    // Get the slug from URL path
+    const pathParts = request.nextUrl.pathname.split('/');
+    const slug = pathParts[pathParts.length - 1] || ''; // Get the last part (slug)
     
     // Find existing post
     const existingPost = await prisma.blogPost.findUnique({

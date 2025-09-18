@@ -6,7 +6,8 @@ import { createNotification } from '@/lib/notifications'
 export async function PUT(
   request: NextRequest
 ) {
-   const id = request.nextUrl.pathname.split('/').pop() || ''
+  const pathParts = request.nextUrl.pathname.split('/')
+  const id = pathParts[pathParts.length - 2] || '' // Get the ID (second to last part)
   try {
     const user = await getCurrentUser()
     

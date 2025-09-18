@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
-import { use } from 'react';
 
 const moderateCommentSchema = z.object({
   action: z.enum(['approve', 'reject']),
@@ -15,11 +14,13 @@ interface Props {
   }>;
 }
 
-export async function POST(request: NextRequest, { params }: Props) {
+export async function POST(request: NextRequest) {
   try {
     const user = await getCurrentUser();
-    const resolvedParams = use(params);
-    const { commentId } = resolvedParams;
+    
+    // Get the commentId from URL path
+    const pathParts = request.nextUrl.pathname.split('/');
+    const commentId = pathParts[pathParts.length - 2] || ''; // Get commentId (second to last part)
 
     if (!user) {
       return NextResponse.json(

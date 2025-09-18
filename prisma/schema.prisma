@@ -241,6 +241,10 @@ model User {
   blogComments          BlogComment[]
   moderatedComments     BlogComment[] @relation("CommentModerator")
   approvedBlogPosts     BlogPost[]    @relation("BlogPostApprovedBy")
+  
+  // Social interactions
+  blogPostLikes         BlogPostLike[]    @relation("BlogPostLikes")
+  blogCommentLikes      BlogCommentLike[] @relation("BlogCommentLikes")
 
   @@map("users")
 }
@@ -1012,6 +1016,7 @@ model BlogPost {
   // Relationships
   tags            BlogPostTag[]
   comments        BlogComment[]
+  likedBy         BlogPostLike[]    @relation("BlogPostLikes")
   
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
@@ -1081,6 +1086,9 @@ model BlogComment {
   parent    BlogComment? @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
   replies   BlogComment[] @relation("CommentReplies")
   
+  // Social interactions
+  likedBy   BlogCommentLike[]  @relation("BlogCommentLikes")
+  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   
@@ -1104,4 +1112,31 @@ model BlogSubscriber {
   updatedAt DateTime @updatedAt
   
   @@map("blog_subscribers")
+}
+
+// Social Interaction Models
+model BlogPostLike {
+  id     String   @id @default(cuid())
+  userId String
+  user   User     @relation("BlogPostLikes", fields: [userId], references: [id], onDelete: Cascade)
+  postId String
+  post   BlogPost @relation("BlogPostLikes", fields: [postId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+  
+  @@unique([userId, postId])
+  @@map("blog_post_likes")
+}
+
+model BlogCommentLike {
+  id        String      @id @default(cuid())
+  userId    String
+  user      User        @relation("BlogCommentLikes", fields: [userId], references: [id], onDelete: Cascade)
+  commentId String
+  comment   BlogComment @relation("BlogCommentLikes", fields: [commentId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+  
+  @@unique([userId, commentId])
+  @@map("blog_comment_likes")
 }

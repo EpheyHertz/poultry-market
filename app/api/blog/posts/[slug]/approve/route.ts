@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
-import { use } from 'react';
 
 // Approval/rejection schema
 const approvalSchema = z.object({
@@ -14,11 +13,13 @@ const approvalSchema = z.object({
 
 // PATCH - Approve or reject a blog post
 export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ slug: string }> }
+  request: NextRequest
 ) {
   try {
-    const resolvedParams = use(params);
+    // Get the slug from URL path
+    const pathParts = request.nextUrl.pathname.split('/');
+    const slug = pathParts[pathParts.length - 2] || ''; // Get slug (second to last part)
+    
     const user = await getCurrentUser();
     
     if (!user) {
@@ -41,7 +42,7 @@ export async function PATCH(
 
     // Find the blog post
     const existingPost = await prisma.blogPost.findUnique({
-      where: { slug: resolvedParams.slug },
+      where: { slug },
       include: {
         author: {
           select: {
@@ -91,7 +92,7 @@ export async function PATCH(
 
     // Update the blog post
     const updatedPost = await prisma.blogPost.update({
-      where: { slug: resolvedParams.slug },
+      where: { slug },
       data: updateData,
       include: {
         author: {

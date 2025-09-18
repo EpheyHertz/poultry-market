@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
-import { use } from 'react';
 
 const updateCommentSchema = z.object({
   content: z.string().min(1, 'Content is required').max(1000, 'Content too long'),
@@ -16,10 +15,11 @@ interface Props {
 }
 
 // GET - Fetch individual comment
-export async function GET(request: NextRequest, { params }: Props) {
+export async function GET(request: NextRequest) {
   try {
-    const resolvedParams = use(params);
-    const { commentId } = resolvedParams;
+    // Get the commentId from URL path
+    const pathParts = request.nextUrl.pathname.split('/');
+    const commentId = pathParts[pathParts.length - 1] || ''; // Get the last part (commentId)
 
     const comment = await prisma.blogComment.findUnique({
       where: { id: commentId },
@@ -73,11 +73,13 @@ export async function GET(request: NextRequest, { params }: Props) {
 }
 
 // PUT - Update comment
-export async function PUT(request: NextRequest, { params }: Props) {
+export async function PUT(request: NextRequest) {
   try {
     const user = await getCurrentUser();
-    const resolvedParams = use(params);
-    const { commentId } = resolvedParams;
+    
+    // Get the commentId from URL path
+    const pathParts = request.nextUrl.pathname.split('/');
+    const commentId = pathParts[pathParts.length - 1] || ''; // Get the last part (commentId)
 
     if (!user) {
       return NextResponse.json(
@@ -161,11 +163,13 @@ export async function PUT(request: NextRequest, { params }: Props) {
 }
 
 // DELETE - Delete comment
-export async function DELETE(request: NextRequest, { params }: Props) {
+export async function DELETE(request: NextRequest) {
   try {
     const user = await getCurrentUser();
-    const resolvedParams = use(params);
-    const { commentId } = resolvedParams;
+    
+    // Get the commentId from URL path
+    const pathParts = request.nextUrl.pathname.split('/');
+    const commentId = pathParts[pathParts.length - 1] || ''; // Get the last part (commentId)
 
     if (!user) {
       return NextResponse.json(
