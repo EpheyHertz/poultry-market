@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
+import Head from 'next/head';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -23,8 +24,7 @@ import {
   Tag,
   BookOpen,
   TrendingUp,
-  Star,
-  Heart
+  Star
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -51,7 +51,7 @@ interface BlogPost {
   }>;
   _count: {
     comments: number;
-    likedBy: number;
+    likes: number;
   };
 }
 
@@ -120,6 +120,7 @@ export default function BlogContent() {
       const params = new URLSearchParams({
         page: page.toString(),
         limit: '9',
+        // Remove explicit status filter to use API default (PUBLISHED + APPROVED)
         ...(search && { search }),
         ...(category !== 'all' && { category })
       });
@@ -141,6 +142,7 @@ export default function BlogContent() {
   // Fetch featured posts
   const fetchFeaturedPosts = async () => {
     try {
+      // Remove explicit status filter to use API default
       const response = await fetch('/api/blog/posts?featured=true&limit=3');
       if (!response.ok) throw new Error('Failed to fetch featured posts');
 
@@ -232,41 +234,41 @@ export default function BlogContent() {
         {/* Background Pattern */}
         <div className="absolute inset-0 bg-grid-slate-100 [mask-image:linear-gradient(0deg,white,rgba(255,255,255,0.6))] opacity-30"></div>
         
-        <div className="relative container mx-auto px-2 sm:px-4 lg:px-6 xl:px-8 max-w-7xl">
+        <div className="relative container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-5xl mx-auto">
             <motion.div
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8 }}
-              className="space-y-4 sm:space-y-6 lg:space-y-8"
+              className="space-y-6 sm:space-y-8"
             >
-              <div className="space-y-2 sm:space-y-3 lg:space-y-4">
-                <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold bg-gradient-to-r from-emerald-600 via-blue-600 to-indigo-600 bg-clip-text text-transparent leading-tight px-4">
+              <div className="space-y-3 sm:space-y-4">
+                <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold bg-gradient-to-r from-emerald-600 via-blue-600 to-indigo-600 bg-clip-text text-transparent leading-tight">
                   Poultry Knowledge Hub
                 </h1>
-                <p className="text-sm sm:text-base md:text-lg lg:text-xl text-gray-600 max-w-4xl mx-auto leading-relaxed px-4">
+                <p className="text-base sm:text-lg md:text-xl lg:text-2xl text-gray-600 max-w-4xl mx-auto leading-relaxed px-2">
                   Discover expert insights, farming tips, and industry trends to grow your poultry business successfully.
                 </p>
               </div>
 
               {/* Search Bar */}
-              <div className="max-w-2xl mx-auto px-4">
+              <div className="max-w-2xl mx-auto px-2">
                 <div className="relative">
-                  <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
+                  <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                   <Input
                     type="text"
                     placeholder="Search articles, tips, and guides..."
                     value={searchTerm}
                     onChange={(e) => handleSearch(e.target.value)}
-                    className="pl-10 sm:pl-12 pr-4 py-2 sm:py-3 lg:py-4 text-sm sm:text-base w-full rounded-xl sm:rounded-2xl border-0 bg-white/80 backdrop-blur-sm shadow-lg focus:shadow-xl focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all duration-200"
+                    className="pl-12 pr-4 py-3 sm:py-4 text-base w-full rounded-2xl border-0 bg-white/80 backdrop-blur-sm shadow-lg focus:shadow-xl focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all duration-200"
                   />
                 </div>
               </div>
 
               {/* Quick Stats */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 max-w-2xl mx-auto px-4">
-                <div className="bg-white/60 backdrop-blur-sm rounded-lg sm:rounded-xl p-2 sm:p-3 lg:p-4 text-center border border-white/20 shadow-sm">
-                  <div className="text-lg sm:text-xl lg:text-2xl xl:text-3xl font-bold text-emerald-600">{pagination.totalPosts}</div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 sm:gap-6 max-w-2xl mx-auto px-2">
+                <div className="bg-white/60 backdrop-blur-sm rounded-xl p-3 sm:p-4 text-center border border-white/20 shadow-sm">
+                  <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-emerald-600">{pagination.totalPosts}</div>
                   <div className="text-xs sm:text-sm text-gray-600 font-medium">Articles</div>
                 </div>
                 <div className="bg-white/60 backdrop-blur-sm rounded-xl p-3 sm:p-4 text-center border border-white/20 shadow-sm">
@@ -398,29 +400,29 @@ export default function BlogContent() {
       )}
 
       {/* Main Content */}
-      <div className="min-h-screen bg-gray-50 py-4 sm:py-8 lg:py-12 xl:py-16">
-        <div className="container mx-auto px-2 sm:px-4 lg:px-6 xl:px-8 max-w-7xl">
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 xl:gap-8">
+      <div className="min-h-screen bg-gray-50 py-8 sm:py-12 lg:py-16">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 lg:gap-8">
             {/* Sidebar */}
             <div className="lg:col-span-1 order-2 lg:order-1">
-              <div className="lg:sticky lg:top-6 space-y-3 sm:space-y-4 lg:space-y-6">
+              <div className="sticky top-6 space-y-6">
                 {/* Categories Filter */}
-                <Card className="border-0 shadow-md lg:shadow-lg bg-white">
-                  <CardHeader className="pb-2 sm:pb-3 lg:pb-4 px-3 sm:px-4 lg:px-6">
-                    <CardTitle className="flex items-center gap-2 text-sm sm:text-base lg:text-lg font-bold text-gray-900">
-                      <Filter className="h-3 w-3 sm:h-4 sm:w-4 lg:h-5 lg:w-5 text-emerald-600" />
+                <Card className="border-0 shadow-lg bg-white">
+                  <CardHeader className="pb-4">
+                    <CardTitle className="flex items-center gap-2 text-lg font-bold text-gray-900">
+                      <Filter className="h-5 w-5 text-emerald-600" />
                       Categories
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="pt-0 px-3 sm:px-4 lg:px-6 pb-3 sm:pb-4 lg:pb-6">
+                  <CardContent className="pt-0">
                     <Select value={categoryFilter} onValueChange={handleCategoryChange}>
-                      <SelectTrigger className="w-full h-10 sm:h-11 text-xs sm:text-sm lg:text-base">
+                      <SelectTrigger className="w-full">
                         <SelectValue placeholder="All Categories" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">All Categories</SelectItem>
                         {categories.map((category) => (
-                          <SelectItem key={category.slug || category.key || category.name} value={category.slug || category.key || category.name}>
+                          <SelectItem key={category.slug || category.key} value={category.slug || category.key}>
                             {category.name} ({category.count})
                           </SelectItem>
                         ))}
@@ -432,9 +434,9 @@ export default function BlogContent() {
                 {/* Popular Tags */}
                 {popularTags.length > 0 && (
                   <Card className="border-0 shadow-lg bg-white">
-                    <CardHeader className="pb-3 sm:pb-4">
-                      <CardTitle className="flex items-center gap-2 text-base sm:text-lg font-bold text-gray-900">
-                        <Tag className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
+                    <CardHeader className="pb-4">
+                      <CardTitle className="flex items-center gap-2 text-lg font-bold text-gray-900">
+                        <Tag className="h-5 w-5 text-blue-600" />
                         Popular Topics
                       </CardTitle>
                     </CardHeader>
@@ -444,7 +446,7 @@ export default function BlogContent() {
                           <Badge
                             key={tag.id}
                             variant="secondary"
-                            className="cursor-pointer hover:bg-emerald-100 hover:text-emerald-700 transition-colors text-xs px-2 py-1 touch-manipulation"
+                            className="cursor-pointer hover:bg-emerald-100 hover:text-emerald-700 transition-colors text-xs"
                           >
                             {tag.name}
                           </Badge>
@@ -509,17 +511,16 @@ export default function BlogContent() {
                   </div>
 
                   {/* Posts Grid */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-6">
                     {posts.map((post, index) => (
                       <motion.div
                         key={post.id}
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.6, delay: 0.05 * index }}
-                        className="w-full"
                       >
-                        <Link href={`/blog/${post.slug}`} className="block w-full">
-                          <Card className="h-full hover:shadow-2xl transition-all duration-300 group cursor-pointer border-0 bg-white overflow-hidden touch-manipulation">
+                        <Link href={`/blog/${post.slug}`}>
+                          <Card className="h-full hover:shadow-2xl transition-all duration-300 group cursor-pointer border-0 bg-white overflow-hidden">
                             <div className="flex flex-col sm:flex-row h-full">
                               {/* Image */}
                               <div className="relative w-full sm:w-48 h-48 sm:h-auto overflow-hidden">
@@ -539,12 +540,12 @@ export default function BlogContent() {
                               </div>
 
                               {/* Content */}
-                              <div className="flex-1 p-4 sm:p-6 flex flex-col justify-between min-h-[200px] sm:min-h-0">
+                              <div className="flex-1 p-4 sm:p-6 flex flex-col justify-between">
                                 <div className="space-y-3">
                                   {/* Category & Date */}
                                   <div className="flex flex-wrap items-center gap-2">
                                     <Badge 
-                                      className={`text-xs font-medium px-2 py-1 ${BLOG_CATEGORIES[post.category as keyof typeof BLOG_CATEGORIES]?.color || 'bg-gray-100 text-gray-800'}`}
+                                      className={`text-xs font-medium ${BLOG_CATEGORIES[post.category as keyof typeof BLOG_CATEGORIES]?.color || 'bg-gray-100 text-gray-800'}`}
                                     >
                                       {BLOG_CATEGORIES[post.category as keyof typeof BLOG_CATEGORIES]?.icon} {BLOG_CATEGORIES[post.category as keyof typeof BLOG_CATEGORIES]?.name}
                                     </Badge>
@@ -555,13 +556,13 @@ export default function BlogContent() {
                                   </div>
 
                                   {/* Title */}
-                                  <h3 className="text-lg sm:text-xl font-bold text-gray-900 line-clamp-2 group-hover:text-emerald-600 transition-colors duration-200 leading-tight">
+                                  <h3 className="text-lg sm:text-xl font-bold text-gray-900 line-clamp-2 group-hover:text-emerald-600 transition-colors duration-200">
                                     {post.title}
                                   </h3>
 
                                   {/* Excerpt */}
                                   {post.excerpt && (
-                                    <p className="text-sm sm:text-base text-gray-600 line-clamp-3 sm:line-clamp-2 leading-relaxed">
+                                    <p className="text-sm sm:text-base text-gray-600 line-clamp-2 leading-relaxed">
                                       {post.excerpt}
                                     </p>
                                   )}
@@ -574,8 +575,8 @@ export default function BlogContent() {
                                       <Image
                                         src={post.author.avatar}
                                         alt={post.author.name}
-                                        width={28}
-                                        height={28}
+                                        width={24}
+                                        height={24}
                                         className="rounded-full"
                                       />
                                     ) : (
@@ -596,10 +597,6 @@ export default function BlogContent() {
                                       <span>{post._count?.comments || 0}</span>
                                     </div>
                                     <div className="flex items-center space-x-1">
-                                      <Heart className="h-3 w-3" />
-                                      <span>{post._count?.likedBy || 0}</span>
-                                    </div>
-                                    <div className="flex items-center space-x-1">
                                       <Clock className="h-3 w-3" />
                                       <span>{post.readingTime || 3} min</span>
                                     </div>
@@ -615,26 +612,25 @@ export default function BlogContent() {
 
                   {/* Pagination */}
                   {pagination.totalPages > 1 && (
-                    <div className="mt-8 sm:mt-12 flex flex-col items-center gap-4">
-                      <div className="text-sm text-gray-600 text-center">
+                    <div className="mt-12 flex flex-col sm:flex-row items-center justify-between gap-4">
+                      <div className="text-sm text-gray-600">
                         Showing page {pagination.currentPage} of {pagination.totalPages}
                       </div>
                       
-                      <div className="flex items-center justify-center space-x-2 w-full max-w-sm">
+                      <div className="flex items-center space-x-2">
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => handlePageChange(pagination.currentPage - 1)}
                           disabled={!pagination.hasPrevPage}
-                          className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm h-9 sm:h-10 px-2 sm:px-3 touch-manipulation"
+                          className="flex items-center gap-2"
                         >
-                          <ArrowRight className="h-3 w-3 sm:h-4 sm:w-4 rotate-180" />
-                          <span className="hidden sm:inline">Previous</span>
-                          <span className="sm:hidden">Prev</span>
+                          <ArrowRight className="h-4 w-4 rotate-180" />
+                          Previous
                         </Button>
                         
                         <div className="flex items-center space-x-1">
-                          {Array.from({ length: Math.min(3, pagination.totalPages) }, (_, i) => {
+                          {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
                             const pageNum = i + 1;
                             return (
                               <Button
@@ -642,25 +638,12 @@ export default function BlogContent() {
                                 variant={pageNum === pagination.currentPage ? "default" : "outline"}
                                 size="sm"
                                 onClick={() => handlePageChange(pageNum)}
-                                className="w-9 h-9 sm:w-10 sm:h-10 p-0 text-xs sm:text-sm touch-manipulation"
+                                className="w-10 h-10 p-0"
                               >
                                 {pageNum}
                               </Button>
                             );
                           })}
-                          {pagination.totalPages > 3 && (
-                            <>
-                              <span className="text-gray-400 px-1">...</span>
-                              <Button
-                                variant={pagination.totalPages === pagination.currentPage ? "default" : "outline"}
-                                size="sm"
-                                onClick={() => handlePageChange(pagination.totalPages)}
-                                className="w-9 h-9 sm:w-10 sm:h-10 p-0 text-xs sm:text-sm touch-manipulation"
-                              >
-                                {pagination.totalPages}
-                              </Button>
-                            </>
-                          )}
                         </div>
                         
                         <Button
@@ -668,11 +651,10 @@ export default function BlogContent() {
                           size="sm"
                           onClick={() => handlePageChange(pagination.currentPage + 1)}
                           disabled={!pagination.hasNextPage}
-                          className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm h-9 sm:h-10 px-2 sm:px-3 touch-manipulation"
+                          className="flex items-center gap-2"
                         >
-                          <span className="sm:hidden">Next</span>
-                          <span className="hidden sm:inline">Next</span>
-                          <ArrowRight className="h-3 w-3 sm:h-4 sm:w-4" />
+                          Next
+                          <ArrowRight className="h-4 w-4" />
                         </Button>
                       </div>
                     </div>
@@ -703,6 +685,136 @@ export default function BlogContent() {
           </div>
         </div>
       </div>
+    </>
+  );
+}
+                                </Badge>
+                              </div>
+                              
+                              <h3 className="font-bold text-lg mb-3 group-hover:text-emerald-600 transition-colors line-clamp-2">
+                                {post.title}
+                              </h3>
+                              
+                              {post.excerpt && (
+                                <p className="text-gray-600 mb-4 line-clamp-2 text-sm">
+                                  {post.excerpt}
+                                </p>
+                              )}
+                              
+                              <div className="flex items-center justify-between text-sm text-gray-500 mb-3">
+                                <div className="flex items-center gap-2">
+                                  <User className="h-4 w-4" />
+                                  <span>{post.author.name}</span>
+                                </div>
+                                
+                                <div className="flex items-center gap-3">
+                                  {post.readingTime && (
+                                    <div className="flex items-center gap-1">
+                                      <Clock className="h-4 w-4" />
+                                      <span>{post.readingTime} min</span>
+                                    </div>
+                                  )}
+                                  <div className="flex items-center gap-1">
+                                    <Eye className="h-4 w-4" />
+                                    <span>{post.viewCount}</span>
+                                  </div>
+                                </div>
+                              </div>
+                              
+                              <div className="flex items-center justify-between text-sm text-gray-400">
+                                <div className="flex items-center gap-1">
+                                  <Calendar className="h-4 w-4" />
+                                  <span>{formatDate(post.publishedAt)}</span>
+                                </div>
+                                
+                                {post._count.comments > 0 && (
+                                  <div className="flex items-center gap-1">
+                                    <MessageCircle className="h-4 w-4" />
+                                    <span>{post._count.comments} comments</span>
+                                  </div>
+                                )}
+                              </div>
+                            </CardContent>
+                          </Card>
+                        </Link>
+                      </motion.div>
+                    ))}
+                  </motion.div>
+
+                  {/* Pagination */}
+                  {pagination.totalPages > 1 && (
+                    <div className="flex justify-center items-center gap-2 mt-12">
+                      <Button
+                        variant="outline"
+                        disabled={!pagination.hasPrevPage}
+                        onClick={() => handlePageChange(currentPage - 1)}
+                        className="px-4 py-2"
+                      >
+                        Previous
+                      </Button>
+                      
+                      <div className="flex gap-1">
+                        {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
+                          const pageNum = Math.max(1, Math.min(
+                            pagination.totalPages - 4,
+                            Math.max(1, currentPage - 2)
+                          )) + i;
+                          
+                          return (
+                            <Button
+                              key={pageNum}
+                              variant={currentPage === pageNum ? "default" : "outline"}
+                              onClick={() => handlePageChange(pageNum)}
+                              className="px-3 py-2 min-w-[40px]"
+                            >
+                              {pageNum}
+                            </Button>
+                          );
+                        })}
+                      </div>
+                      
+                      <Button
+                        variant="outline"
+                        disabled={!pagination.hasNextPage}
+                        onClick={() => handlePageChange(currentPage + 1)}
+                        className="px-4 py-2"
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="text-center py-12"
+                >
+                  <BookOpen className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">No articles found</h3>
+                  <p className="text-gray-600 mb-6">
+                    {searchTerm || categoryFilter !== 'all' 
+                      ? "Try adjusting your search or filter criteria." 
+                      : "Be the first to share your poultry knowledge!"}
+                  </p>
+                  {(searchTerm || categoryFilter !== 'all') && (
+                    <Button 
+                      onClick={() => {
+                        setSearchTerm('');
+                        setCategoryFilter('all');
+                        setCurrentPage(1);
+                      }}
+                      variant="outline"
+                    >
+                      Clear Filters
+                    </Button>
+                  )}
+                </motion.div>
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
     </>
   );
 }

@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import DashboardLayout from '@/components/layout/dashboard-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -349,19 +351,9 @@ export default function BlogPendingPage() {
                   <div>
                     <h4 className="font-medium text-gray-900 mb-2">Content</h4>
                     <div className="prose max-w-none p-4 border rounded-lg bg-white">
-                      <div dangerouslySetInnerHTML={{ 
-                        __html: selectedPost.content
-                          .replace(/^### (.*$)/gim, '<h3>$1</h3>')
-                          .replace(/^## (.*$)/gim, '<h2>$1</h2>')
-                          .replace(/^# (.*$)/gim, '<h1>$1</h1>')
-                          .replace(/\*\*(.*)\*\*/gim, '<strong>$1</strong>')
-                          .replace(/\*(.*)\*/gim, '<em>$1</em>')
-                          .replace(/`(.*)`/gim, '<code>$1</code>')
-                          .replace(/^> (.*$)/gim, '<blockquote>$1</blockquote>')
-                          .replace(/^- (.*$)/gim, '<li>$1</li>')
-                          .replace(/^\d+\. (.*$)/gim, '<li>$1</li>')
-                          .replace(/\n/gim, '<br>')
-                      }} />
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {selectedPost.content}
+                      </ReactMarkdown>
                     </div>
                   </div>
 

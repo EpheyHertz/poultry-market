@@ -75,6 +75,9 @@ export async function GET(request: NextRequest) {
       } else {
         where.status = status;
       }
+    } else {
+      // Default to showing published and approved posts for public view
+      where.status = { in: ['PUBLISHED', 'APPROVED'] };
     }
     if (featured) where.featured = featured === 'true';
     if (authorId) where.authorId = authorId;
@@ -124,7 +127,8 @@ export async function GET(request: NextRequest) {
               where: {
                 isApproved: true
               }
-            }
+            },
+            likedBy: true // This matches the schema relationship name
           }
         }
       },
@@ -136,14 +140,19 @@ export async function GET(request: NextRequest) {
       skip: (page - 1) * limit,
       take: limit,
     });
-
+console.log("Posts:",posts)
     const totalPages = Math.ceil(totalPosts / limit);
 
     return NextResponse.json({
       posts: posts.map(post => ({
         ...post,
         tags: post.tags.map(t => t.tag),
-        commentCount: post._count.comments
+        commentCount: post._count.comments,
+        likeCount: post._count.likedBy, // Use the correct count field
+        _count: {
+          comments: post._count.comments,
+          likes: post._count.likedBy // Map to expected frontend structure
+        }
       })),
       pagination: {
         currentPage: page,

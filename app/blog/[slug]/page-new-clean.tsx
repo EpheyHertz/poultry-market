@@ -11,15 +11,14 @@ interface Props {
 
 async function getBlogPost(slug: string) {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-    const response = await fetch(`${baseUrl}/api/blog/posts/${slug}`, {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/blog/${slug}`, {
       cache: 'no-store'
     });
     if (!response.ok) {
       return null;
     }
     const data = await response.json();
-    return data; // The API returns the post data directly, not wrapped in { post: ... }
+    return data.post;
   } catch (error) {
     console.error('Error fetching blog post:', error);
     return null;

@@ -76,7 +76,14 @@ export async function GET(
             email: true,
             avatar: true,
             role: true,
-            bio: true
+            bio: true,
+            _count: {
+              select: {
+                blogPosts: true,
+                followers: true,
+                following: true
+              }
+            }
           }
         },
         tags: {
@@ -117,6 +124,12 @@ export async function GET(
           },
           orderBy: {
             createdAt: 'desc'
+          }
+        },
+        _count: {
+          select: {
+            likedBy: true,
+            comments: true
           }
         }
       }
@@ -178,6 +191,10 @@ export async function GET(
 
     return NextResponse.json({
       ...post,
+      _count: {
+        likes: post._count.likedBy,
+        comments: post._count.comments
+      },
       tags: post.tags.map(t => t.tag),
       relatedPosts: relatedPosts.map(p => ({
         ...p,

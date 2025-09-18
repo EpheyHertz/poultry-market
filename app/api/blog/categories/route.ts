@@ -80,14 +80,16 @@ export async function GET(request: NextRequest) {
           const count = await prisma.blogPost.count({
             where: {
               category: categoryKey as any,
-              status: 'PUBLISHED'
+              status: { in: ['PUBLISHED', 'APPROVED'] } // Include both statuses
             }
           });
 
           return {
             key: categoryKey,
+            slug: categoryKey, // Add slug for frontend compatibility
             ...BLOG_CATEGORIES[categoryKey as keyof typeof BLOG_CATEGORIES],
-            postCount: count
+            postCount: count,
+            count: count // Add count alias for consistency
           };
         })
       );
@@ -96,7 +98,9 @@ export async function GET(request: NextRequest) {
     } else {
       categoriesWithCounts = Object.entries(BLOG_CATEGORIES).map(([key, category]) => ({
         key,
-        ...category
+        slug: key, // Add slug for frontend compatibility
+        ...category,
+        count: 0 // Default count when not fetching counts
       }));
     }
 

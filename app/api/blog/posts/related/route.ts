@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     // Build the where clause for related posts
     const whereClause: any = {
       id: { not: exclude },
-      status: 'PUBLISHED',
+      status: { in: ['PUBLISHED', 'APPROVED'] }, // Include both statuses
     };
 
     // Create an OR condition for related content
@@ -113,7 +113,7 @@ export async function GET(request: NextRequest) {
       const recentPosts = await prisma.blogPost.findMany({
         where: {
           id: { not: exclude },
-          status: 'PUBLISHED',
+          status: { in: ['PUBLISHED', 'APPROVED'] }, // Include both statuses
         },
         select: {
           id: true,

@@ -6,13 +6,23 @@ import { Heart } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface LikeButtonProps {
-  slug: string;
+  postId?: string;
+  slug?: string;
+  initialLiked?: boolean;
+  initialCount?: number;
+  onLikeChange?: (liked: boolean, count: number) => void;
 }
 
-export default function LikeButton({ slug }: LikeButtonProps) {
+export default function LikeButton({ 
+  postId,
+  slug, 
+  initialLiked = false, 
+  initialCount = 0,
+  onLikeChange 
+}: LikeButtonProps) {
   const [user, setUser] = useState<any>(null);
-  const [liked, setLiked] = useState(false);
-  const [likes, setLikes] = useState(0);
+  const [liked, setLiked] = useState(initialLiked);
+  const [likes, setLikes] = useState(initialCount);
   const [loading, setLoading] = useState(false);
 
   // Fetch user data
@@ -35,12 +45,16 @@ export default function LikeButton({ slug }: LikeButtonProps) {
   // Fetch initial like status
   useEffect(() => {
     const fetchLikeStatus = async () => {
+      if (!postId && !slug) return;
+      
       try {
-        const response = await fetch(`/api/blog/posts/${slug}/like`);
+        const endpoint = slug ? `/api/blog/posts/${slug}/like` : `/api/blog/posts/${postId}/like`;
+        const response = await fetch(endpoint);
         if (response.ok) {
           const data = await response.json();
           setLiked(data.liked);
           setLikes(data.likes);
+          onLikeChange?.(data.liked, data.likes);
         }
       } catch (error) {
         console.error('Error fetching like status:', error);
@@ -48,7 +62,7 @@ export default function LikeButton({ slug }: LikeButtonProps) {
     };
 
     fetchLikeStatus();
-  }, [slug]);
+  }, [postId, slug, onLikeChange]);
 
   const handleLike = async () => {
     if (!user) {
@@ -56,9 +70,15 @@ export default function LikeButton({ slug }: LikeButtonProps) {
       return;
     }
 
+    if (!postId && !slug) {
+      toast.error('Post identifier missing');
+      return;
+    }
+
     setLoading(true);
     try {
-      const response = await fetch(`/api/blog/posts/${slug}/like`, {
+      const endpoint = slug ? `/api/blog/posts/${slug}/like` : `/api/blog/posts/${postId}/like`;
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -69,6 +89,7 @@ export default function LikeButton({ slug }: LikeButtonProps) {
         const data = await response.json();
         setLiked(data.liked);
         setLikes(data.likes);
+        onLikeChange?.(data.liked, data.likes);
         
         if (data.liked) {
           toast.success('Post liked!');

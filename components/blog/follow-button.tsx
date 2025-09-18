@@ -6,12 +6,20 @@ import { UserPlus, UserCheck } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface FollowButtonProps {
-  authorId: string;
+  userId: string;
+  initialFollowing?: boolean;
+  onFollowChange?: (following: boolean) => void;
+  className?: string;
 }
 
-export default function FollowButton({ authorId }: FollowButtonProps) {
+export default function FollowButton({ 
+  userId, 
+  initialFollowing = false, 
+  onFollowChange,
+  className = ""
+}: FollowButtonProps) {
   const [user, setUser] = useState<any>(null);
-  const [following, setFollowing] = useState(false);
+  const [following, setFollowing] = useState(initialFollowing);
   const [loading, setLoading] = useState(false);
 
   // Fetch user data
@@ -37,10 +45,11 @@ export default function FollowButton({ authorId }: FollowButtonProps) {
       if (!user) return;
       
       try {
-        const response = await fetch(`/api/follow/${authorId}`);
+        const response = await fetch(`/api/follow/${userId}`);
         if (response.ok) {
           const data = await response.json();
           setFollowing(data.following);
+          onFollowChange?.(data.following);
         }
       } catch (error) {
         console.error('Error fetching follow status:', error);
@@ -48,10 +57,10 @@ export default function FollowButton({ authorId }: FollowButtonProps) {
     };
 
     fetchFollowStatus();
-  }, [authorId, user]);
+  }, [userId, user, onFollowChange]);
 
   // Don't show follow button for own posts
-  if (user?.id === authorId) {
+  if (user?.id === userId) {
     return null;
   }
 
@@ -63,7 +72,7 @@ export default function FollowButton({ authorId }: FollowButtonProps) {
 
     setLoading(true);
     try {
-      const response = await fetch(`/api/follow/${authorId}`, {
+      const response = await fetch(`/api/follow/${userId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -73,6 +82,7 @@ export default function FollowButton({ authorId }: FollowButtonProps) {
       if (response.ok) {
         const data = await response.json();
         setFollowing(data.following);
+        onFollowChange?.(data.following);
         
         if (data.following) {
           toast.success('Now following this author!');
@@ -101,7 +111,7 @@ export default function FollowButton({ authorId }: FollowButtonProps) {
         following 
           ? 'bg-emerald-500 hover:bg-emerald-600 text-white' 
           : 'hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-300'
-      }`}
+      } ${className}`}
     >
       {following ? (
         <>

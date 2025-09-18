@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useRef } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -598,10 +600,11 @@ export default function BlogSubmissionForm({ onSubmit, loading = false }: BlogSu
 
             {/* Content Area */}
             {contentPreview ? (
-              <div 
-                className="min-h-[300px] p-4 border border-gray-200 rounded-b-md bg-white prose max-w-none"
-                dangerouslySetInnerHTML={{ __html: renderPreview() }}
-              />
+              <div className="min-h-[300px] p-4 border border-gray-200 rounded-b-md bg-white prose max-w-none">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {formData.content}
+                </ReactMarkdown>
+              </div>
             ) : (
               <Textarea
                 ref={contentRef}
