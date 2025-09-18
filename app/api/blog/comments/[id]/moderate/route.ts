@@ -8,19 +8,13 @@ const moderateCommentSchema = z.object({
   reason: z.string().optional(), // For rejection reason
 });
 
-interface Props {
-  params: Promise<{
-    commentId: string;
-  }>;
-}
-
 export async function POST(request: NextRequest) {
   try {
     const user = await getCurrentUser();
     
-    // Get the commentId from URL path
+    // Get the id from URL path
     const pathParts = request.nextUrl.pathname.split('/');
-    const commentId = pathParts[pathParts.length - 2] || ''; // Get commentId (second to last part)
+    const id = pathParts[pathParts.length - 2] || ''; // Get id (second to last part)
 
     if (!user) {
       return NextResponse.json(
@@ -42,7 +36,7 @@ export async function POST(request: NextRequest) {
 
     // Find the comment
     const comment = await prisma.blogComment.findUnique({
-      where: { id: commentId },
+      where: { id },
       include: {
         author: {
           select: {
@@ -71,7 +65,7 @@ export async function POST(request: NextRequest) {
     if (validatedData.action === 'approve') {
       // Approve the comment
       const approvedComment = await prisma.blogComment.update({
-        where: { id: commentId },
+        where: { id },
         data: {
           isApproved: true,
           moderatedAt: new Date(),
@@ -105,7 +99,7 @@ export async function POST(request: NextRequest) {
     } else {
       // Reject the comment (soft delete by marking as not approved and adding reason)
       const rejectedComment = await prisma.blogComment.update({
-        where: { id: commentId },
+        where: { id },
         data: {
           isApproved: false,
           moderatedAt: new Date(),

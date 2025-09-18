@@ -8,21 +8,15 @@ const updateCommentSchema = z.object({
   images: z.array(z.string().url()).max(2, 'Maximum 2 images allowed for comments').optional(),
 });
 
-interface Props {
-  params: Promise<{
-    commentId: string;
-  }>;
-}
-
 // GET - Fetch individual comment
 export async function GET(request: NextRequest) {
   try {
-    // Get the commentId from URL path
+    // Get the id from URL path
     const pathParts = request.nextUrl.pathname.split('/');
-    const commentId = pathParts[pathParts.length - 1] || ''; // Get the last part (commentId)
+    const id = pathParts[pathParts.length - 1] || ''; // Get the last part (id)
 
     const comment = await prisma.blogComment.findUnique({
-      where: { id: commentId },
+      where: { id },
       include: {
         author: {
           select: {
@@ -77,9 +71,9 @@ export async function PUT(request: NextRequest) {
   try {
     const user = await getCurrentUser();
     
-    // Get the commentId from URL path
+    // Get the id from URL path
     const pathParts = request.nextUrl.pathname.split('/');
-    const commentId = pathParts[pathParts.length - 1] || ''; // Get the last part (commentId)
+    const id = pathParts[pathParts.length - 1] || ''; // Get the last part (id)
 
     if (!user) {
       return NextResponse.json(
@@ -90,7 +84,7 @@ export async function PUT(request: NextRequest) {
 
     // Find the comment and check ownership
     const existingComment = await prisma.blogComment.findUnique({
-      where: { id: commentId },
+      where: { id },
       include: {
         author: {
           select: { id: true },
@@ -120,7 +114,7 @@ export async function PUT(request: NextRequest) {
 
     // Update the comment
     const updatedComment = await prisma.blogComment.update({
-      where: { id: commentId },
+      where: { id },
       data: {
         content: validatedData.content,
         images: validatedData.images || [],
@@ -167,9 +161,9 @@ export async function DELETE(request: NextRequest) {
   try {
     const user = await getCurrentUser();
     
-    // Get the commentId from URL path
+    // Get the id from URL path
     const pathParts = request.nextUrl.pathname.split('/');
-    const commentId = pathParts[pathParts.length - 1] || ''; // Get the last part (commentId)
+    const id = pathParts[pathParts.length - 1] || ''; // Get the last part (id)
 
     if (!user) {
       return NextResponse.json(
@@ -180,7 +174,7 @@ export async function DELETE(request: NextRequest) {
 
     // Find the comment and check ownership
     const existingComment = await prisma.blogComment.findUnique({
-      where: { id: commentId },
+      where: { id },
       include: {
         author: {
           select: { id: true },
@@ -210,7 +204,7 @@ export async function DELETE(request: NextRequest) {
 
     // Delete the comment and all its replies (cascade delete should handle this)
     await prisma.blogComment.delete({
-      where: { id: commentId },
+      where: { id },
     });
 
     return NextResponse.json({ 
