@@ -35,9 +35,11 @@ import {
   CreditCard,
   Speech,
   SearchCode,
+  TrendingUp,
   ChevronLeft,
   ChevronRight,
-  X
+  X,
+  BookOpen
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -134,9 +136,11 @@ export default function DashboardLayout({ children, user: propUser }: DashboardL
           { name: 'Sponsorships', href: '/admin/sponsorships', icon: HandHeart },
           { name: 'Delivery', href: '/admin/delivery-agents', icon: BarChart3 },
           { name: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
+          { name: 'Blog Management', href: '/admin/blog', icon: BookOpen },
           // { name: 'Support Chats', href: '/admin/chats', icon: MessageCircle },
           { name: 'Manage Chats', href: '/chats', icon: MessageCircle },
           { name: 'Announcements', href: '/admin/announcements', icon: Speech },
+          { name: 'Blog Posts', href: '/blog', icon: BookOpen },
           { name: 'Use AI', href: '/chatbot', icon: SearchCode },
         ];
       case 'SELLER':
@@ -153,6 +157,8 @@ export default function DashboardLayout({ children, user: propUser }: DashboardL
           { name: 'Chats', href: '/seller/chats', icon: MessageCircle },
           { name: 'Manage Chats', href: '/chats', icon: MessageCircle },
           { name: 'Announcements', href: '/announcements', icon: Speech },
+          { name: 'Blog Posts', href: '/blog', icon: BookOpen },
+          { name: 'My Blogs', href: '/my-blogs', icon: BookOpen },
           { name: 'Use AI', href: '/chatbot', icon: SearchCode },
         ];
       case 'COMPANY':
@@ -169,6 +175,8 @@ export default function DashboardLayout({ children, user: propUser }: DashboardL
           { name: 'Chats', href: '/company/chats', icon: MessageCircle },
           { name: 'Manage Chats', href: '/chats', icon: MessageCircle },
           { name: 'Announcements', href: '/announcements', icon: Speech },
+          { name: 'Blog Posts', href: '/blog', icon: BookOpen },
+          { name: 'My Blogs', href: '/my-blogs', icon: BookOpen },
           { name: 'Use AI', href: '/chatbot', icon: SearchCode },
         ];
       case 'CUSTOMER':
@@ -184,7 +192,32 @@ export default function DashboardLayout({ children, user: propUser }: DashboardL
           { name: 'Vouchers', href: '/customer/vouchers', icon: Ticket },
           { name: 'Manage Chats', href: '/chats', icon: MessageCircle },
           { name: 'Announcements', href: '/announcements', icon: Speech },
-                    { name: 'Use AI', href: '/chatbot', icon: SearchCode },
+          { name: 'Blog Posts', href: '/blog', icon: BookOpen },
+          { name: 'Use AI', href: '/chatbot', icon: SearchCode },
+        ];
+      case 'DELIVERY_AGENT':
+        return [
+          ...baseItems,
+          { name: 'Delivery Orders', href: '/delivery-agent/orders', icon: Package },
+          { name: 'My Deliveries', href: '/delivery-agent/deliveries', icon: ShoppingCart },
+          { name: 'Delivery History', href: '/delivery-agent/history', icon: FileText },
+          { name: 'Profile', href: '/delivery-agent/profile', icon: Settings },
+          { name: 'Chats', href: '/chats', icon: MessageCircle },
+          { name: 'Announcements', href: '/announcements', icon: Speech },
+          { name: 'Blog Posts', href: '/blog', icon: BookOpen },
+          { name: 'Use AI', href: '/chatbot', icon: SearchCode },
+        ];
+      case 'STAKEHOLDER':
+        return [
+          ...baseItems,
+          { name: 'Analytics', href: '/stakeholder/analytics', icon: BarChart3 },
+          { name: 'Reports', href: '/stakeholder/reports', icon: FileText },
+          { name: 'Performance', href: '/stakeholder/performance', icon: TrendingUp },
+          { name: 'Profile', href: '/stakeholder/profile', icon: Settings },
+          { name: 'Chats', href: '/chats', icon: MessageCircle },
+          { name: 'Announcements', href: '/announcements', icon: Speech },
+          { name: 'Blog Posts', href: '/blog', icon: BookOpen },
+          { name: 'Use AI', href: '/chatbot', icon: SearchCode },
         ];
       default:
         return baseItems;
