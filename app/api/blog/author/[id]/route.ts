@@ -32,6 +32,13 @@ export async function GET(
         },
         _count: {
           select: {
+            blogPosts: {
+              where: {
+                status: {
+                  in: ['PUBLISHED', 'APPROVED']
+                }
+              }
+            },
             followers: true,
             following: true
           }

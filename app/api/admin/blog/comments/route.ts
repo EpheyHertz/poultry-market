@@ -88,6 +88,12 @@ export async function GET(request: NextRequest) {
             id: true,
             title: true,
             slug: true,
+            author: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
           },
         },
         _count: {

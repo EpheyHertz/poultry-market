@@ -7,6 +7,68 @@ const likeSchema = z.object({
   slug: z.string().min(1)
 });
 
+export async function GET(
+  request: NextRequest
+) {
+  try {
+    const user = await getCurrentUser();
+
+    // Get the slug/ID from URL path
+    const pathParts = request.nextUrl.pathname.split('/');
+    const slugOrId = pathParts[pathParts.length - 2] || ''; // Get slug or ID (second to last part)
+
+    // Determine if this is a CUID (ID) or a slug
+    const isCuid = /^c[a-z0-9]{24}$/.test(slugOrId); // CUID pattern: starts with 'c' followed by 24 alphanumeric chars
+    
+    console.log('GET /api/blog/posts/[slug]/like called with:', slugOrId, 'isCuid:', isCuid);
+    
+    // Find the blog post by ID or slug
+    const post = await prisma.blogPost.findUnique({
+      where: isCuid ? { id: slugOrId } : { slug: slugOrId },
+      select: { 
+        id: true, 
+        status: true,
+        _count: {
+          select: {
+            likedBy: true
+          }
+        }
+      }
+    });
+
+    if (!post) {
+      return NextResponse.json(
+        { error: 'Blog post not found' },
+        { status: 404 }
+      );
+    }
+
+    let liked = false;
+    if (user?.id) {
+      const existingLike = await prisma.blogPostLike.findUnique({
+        where: {
+          userId_postId: {
+            userId: user.id,
+            postId: post.id
+          }
+        }
+      });
+      liked = !!existingLike;
+    }
+
+    return NextResponse.json({
+      liked,
+      likes: post._count.likedBy
+    });
+  } catch (error) {
+    console.error('Error fetching like status:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
 export async function POST(
   request: NextRequest
 ) {
@@ -19,14 +81,19 @@ export async function POST(
       );
     }
 
-    // Get the slug from URL path
+    // Get the slug/ID from URL path
     const pathParts = request.nextUrl.pathname.split('/');
-    const slug = pathParts[pathParts.length - 2] || ''; // Get slug (second to last part)
+    const slugOrId = pathParts[pathParts.length - 2] || ''; // Get slug or ID (second to last part)
 
-    // Find the blog post
+    // Determine if this is a CUID (ID) or a slug
+    const isCuid = /^c[a-z0-9]{24}$/.test(slugOrId); // CUID pattern: starts with 'c' followed by 24 alphanumeric chars
+    
+    console.log('POST /api/blog/posts/[slug]/like called with:', slugOrId, 'isCuid:', isCuid);
+    
+    // Find the blog post by ID or slug
     const post = await prisma.blogPost.findUnique({
-      where: { slug },
-      select: { id: true, status: true }
+      where: isCuid ? { id: slugOrId } : { slug: slugOrId },
+      select: { id: true, status: true, _count: { select: { likedBy: true } } }
     });
 
     if (!post) {
@@ -104,52 +171,6 @@ export async function POST(
     }
   } catch (error) {
     console.error('Error toggling blog post like:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
-  }
-}
-
-export async function GET(
-  request: NextRequest
-) {
-  try {
-    const user = await getCurrentUser();
-    
-    // Get the slug from URL path
-    const pathParts = request.nextUrl.pathname.split('/');
-    const slug = pathParts[pathParts.length - 2] || ''; // Get slug (second to last part)
-
-    // Find the blog post
-    const post = await prisma.blogPost.findUnique({
-      where: { slug },
-      select: { 
-        id: true, 
-        likes: true,
-        likedBy: user?.id ? {
-          where: { userId: user.id },
-          select: { id: true }
-        } : false
-      }
-    });
-
-    if (!post) {
-      return NextResponse.json(
-        { error: 'Blog post not found' },
-        { status: 404 }
-      );
-    }
-
-    const isLiked = user?.id ? 
-      Array.isArray(post.likedBy) && post.likedBy.length > 0 : false;
-
-    return NextResponse.json({
-      liked: isLiked,
-      likes: post.likes
-    });
-  } catch (error) {
-    console.error('Error getting blog post likes:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

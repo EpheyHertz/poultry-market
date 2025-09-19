@@ -300,44 +300,116 @@ export default function AuthorProfilePage({ params }: Props) {
             </div>
 
             {/* Author Info */}
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
-              {author.name}
-            </h1>
+            <div className="space-y-4 mb-8">
+              <div>
+                <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-2">
+                  {author.name}
+                </h1>
+                <p className="text-lg sm:text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed">
+                  {author.bio || 'Passionate poultry farmer and industry expert sharing knowledge and experiences.'}
+                </p>
+              </div>
 
-            {author.bio && (
-              <p className="text-lg sm:text-xl text-gray-600 max-w-3xl mx-auto mb-6 leading-relaxed">
-                {author.bio}
-              </p>
-            )}
-
-            {/* Author Meta */}
-            <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6 text-sm text-gray-600 mb-8">
-              {author.location && (
-                <div className="flex items-center space-x-1">
-                  <MapPin className="h-4 w-4" />
-                  <span>{author.location}</span>
+              {/* Contact Info */}
+              <div className="flex flex-wrap items-center justify-center gap-4 text-sm text-gray-600">
+                {author.location && (
+                  <div className="flex items-center gap-1">
+                    <MapPin className="h-4 w-4" />
+                    <span>{author.location}</span>
+                  </div>
+                )}
+                <div className="flex items-center gap-1">
+                  <Calendar className="h-4 w-4" />
+                  <span>Joined {formatDate(author.createdAt)}</span>
                 </div>
-              )}
-              <div className="flex items-center space-x-1">
-                <Calendar className="h-4 w-4" />
-                <span>Joined {formatDate(author.createdAt)}</span>
+                {author.email && (
+                  <div className="flex items-center gap-1">
+                    <Mail className="h-4 w-4" />
+                    <a href={`mailto:${author.email}`} className="hover:text-emerald-600 transition-colors">
+                      Contact
+                    </a>
+                  </div>
+                )}
+                {author.website && (
+                  <div className="flex items-center gap-1">
+                    <Globe className="h-4 w-4" />
+                    <a href={author.website} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 transition-colors">
+                      Website
+                    </a>
+                  </div>
+                )}
               </div>
             </div>
 
             {/* Stats */}
-            <div className="grid grid-cols-3 gap-4 sm:gap-8 max-w-md mx-auto mb-8">
-              <div className="text-center">
-                <div className="text-2xl sm:text-3xl font-bold text-emerald-600">{author._count.blogPosts}</div>
-                <div className="text-sm sm:text-base text-gray-600">Posts</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl sm:text-3xl font-bold text-blue-600">{author._count.followers}</div>
-                <div className="text-sm sm:text-base text-gray-600">Followers</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl sm:text-3xl font-bold text-indigo-600">{author._count.following}</div>
-                <div className="text-sm sm:text-base text-gray-600">Following</div>
-              </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto mb-8">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.5, delay: 0.2 }}
+              >
+                <Card className="bg-white/70 backdrop-blur-sm border-white/50 shadow-lg hover:shadow-xl transition-all duration-300">
+                  <CardContent className="p-4 text-center">
+                    <BookOpen className="h-8 w-8 text-emerald-600 mx-auto mb-2" />
+                    <div className="text-2xl font-bold text-gray-900">
+                      {author._count.blogPosts || 0}
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      {author._count.blogPosts === 1 ? 'Article' : 'Articles'}
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.5, delay: 0.3 }}
+              >
+                <Card className="bg-white/70 backdrop-blur-sm border-white/50 shadow-lg hover:shadow-xl transition-all duration-300">
+                  <CardContent className="p-4 text-center">
+                    <Users className="h-8 w-8 text-blue-600 mx-auto mb-2" />
+                    <div className="text-2xl font-bold text-gray-900">
+                      {author._count.followers || 0}
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      {author._count.followers === 1 ? 'Follower' : 'Followers'}
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.5, delay: 0.4 }}
+              >
+                <Card className="bg-white/70 backdrop-blur-sm border-white/50 shadow-lg hover:shadow-xl transition-all duration-300">
+                  <CardContent className="p-4 text-center">
+                    <Eye className="h-8 w-8 text-purple-600 mx-auto mb-2" />
+                    <div className="text-2xl font-bold text-gray-900">
+                      {author.blogPosts?.reduce((total, post) => total + (post.viewCount || 0), 0) || 0}
+                    </div>
+                    <div className="text-sm text-gray-600">Total Views</div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.5, delay: 0.5 }}
+              >
+                <Card className="bg-white/70 backdrop-blur-sm border-white/50 shadow-lg hover:shadow-xl transition-all duration-300">
+                  <CardContent className="p-4 text-center">
+                    <Heart className="h-8 w-8 text-red-600 mx-auto mb-2" />
+                    <div className="text-2xl font-bold text-gray-900">
+                      {author.blogPosts?.reduce((total, post) => total + (post._count?.likedBy || 0), 0) || 0}
+                    </div>
+                    <div className="text-sm text-gray-600">Total Likes</div>
+                  </CardContent>
+                </Card>
+              </motion.div>
             </div>
 
             {/* Action Buttons */}
@@ -347,36 +419,42 @@ export default function AuthorProfilePage({ params }: Props) {
                   userId={author.id}
                   initialFollowing={isFollowing}
                   onFollowChange={setIsFollowing}
-                  className="min-w-[120px]"
+                  className="px-8 py-3 text-lg font-medium bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
                 />
               )}
               
+              <Button
+                variant="outline"
+                onClick={() => router.push('/blog')}
+                className="px-8 py-3 text-lg font-medium bg-white/80 hover:bg-white border-gray-300 text-gray-700 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
+              >
+                <ArrowLeft className="h-5 w-5 mr-2" />
+                Back to Blog
+              </Button>
+              
               {/* Social Links */}
-              <div className="flex items-center space-x-3">
+              <div className="flex items-center space-x-2">
                 {author.website && (
                   <Button variant="ghost" size="sm" asChild>
-                    <a href={author.website} target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-emerald-600">
+                    <a href={author.website} target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-emerald-600 transition-colors">
                       <Globe className="h-4 w-4" />
                     </a>
                   </Button>
                 )}
                 {author.twitter && (
                   <Button variant="ghost" size="sm" asChild>
-                    <a href={`https://twitter.com/${author.twitter}`} target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-blue-500">
+                    <a href={`https://twitter.com/${author.twitter}`} target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-blue-500 transition-colors">
                       <Twitter className="h-4 w-4" />
                     </a>
                   </Button>
                 )}
                 {author.linkedin && (
                   <Button variant="ghost" size="sm" asChild>
-                    <a href={author.linkedin} target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-blue-700">
+                    <a href={author.linkedin} target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-blue-700 transition-colors">
                       <Linkedin className="h-4 w-4" />
                     </a>
                   </Button>
                 )}
-                <Button variant="ghost" size="sm" className="text-gray-600 hover:text-emerald-600">
-                  <Mail className="h-4 w-4" />
-                </Button>
               </div>
             </div>
           </motion.div>
@@ -386,23 +464,54 @@ export default function AuthorProfilePage({ params }: Props) {
       {/* Content Tabs */}
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:grid-cols-none lg:inline-flex">
-            <TabsTrigger value="posts" className="flex items-center gap-2">
-              <BookOpen className="h-4 w-4" />
-              <span className="hidden sm:inline">Posts</span>
-              <Badge variant="secondary" className="ml-1">{author._count.blogPosts}</Badge>
-            </TabsTrigger>
-            <TabsTrigger value="followers" className="flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              <span className="hidden sm:inline">Followers</span>
-              <Badge variant="secondary" className="ml-1">{author._count.followers}</Badge>
-            </TabsTrigger>
-            <TabsTrigger value="following" className="flex items-center gap-2">
-              <UserPlus className="h-4 w-4" />
-              <span className="hidden sm:inline">Following</span>
-              <Badge variant="secondary" className="ml-1">{author._count.following}</Badge>
-            </TabsTrigger>
-          </TabsList>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="flex justify-center mb-8"
+          >
+            <TabsList className="grid w-full max-w-md grid-cols-3 bg-white/80 backdrop-blur-sm shadow-lg border border-gray-200 rounded-2xl p-1">
+              <TabsTrigger 
+                value="posts" 
+                className="flex items-center gap-2 rounded-xl transition-all duration-300 data-[state=active]:bg-emerald-500 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-emerald-50"
+              >
+                <BookOpen className="h-4 w-4" />
+                <span className="hidden sm:inline font-medium">Posts</span>
+                <Badge 
+                  variant={activeTab === 'posts' ? 'outline' : 'secondary'} 
+                  className={`ml-1 ${activeTab === 'posts' ? 'bg-white/20 text-white border-white/30' : 'bg-emerald-100 text-emerald-800'}`}
+                >
+                  {author._count.blogPosts}
+                </Badge>
+              </TabsTrigger>
+              <TabsTrigger 
+                value="followers" 
+                className="flex items-center gap-2 rounded-xl transition-all duration-300 data-[state=active]:bg-blue-500 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-blue-50"
+              >
+                <Users className="h-4 w-4" />
+                <span className="hidden sm:inline font-medium">Followers</span>
+                <Badge 
+                  variant={activeTab === 'followers' ? 'outline' : 'secondary'} 
+                  className={`ml-1 ${activeTab === 'followers' ? 'bg-white/20 text-white border-white/30' : 'bg-blue-100 text-blue-800'}`}
+                >
+                  {author._count.followers}
+                </Badge>
+              </TabsTrigger>
+              <TabsTrigger 
+                value="following" 
+                className="flex items-center gap-2 rounded-xl transition-all duration-300 data-[state=active]:bg-purple-500 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-purple-50"
+              >
+                <UserPlus className="h-4 w-4" />
+                <span className="hidden sm:inline font-medium">Following</span>
+                <Badge 
+                  variant={activeTab === 'following' ? 'outline' : 'secondary'} 
+                  className={`ml-1 ${activeTab === 'following' ? 'bg-white/20 text-white border-white/30' : 'bg-purple-100 text-purple-800'}`}
+                >
+                  {author._count.following}
+                </Badge>
+              </TabsTrigger>
+            </TabsList>
+          </motion.div>
 
           {/* Posts Tab */}
           <TabsContent value="posts" className="mt-8">
@@ -513,7 +622,7 @@ export default function AuthorProfilePage({ params }: Props) {
                           </div>
                         )}
 
-                        <Link href={`/blog/${post.slug}`}>
+                        <Link href={`/blog/${author.name.replace(/\s+/g, '-').toLowerCase()}/${post.slug}`}>
                           <h3 className="font-bold text-xl text-gray-900 group-hover:text-emerald-600 transition-colors line-clamp-2 cursor-pointer">
                             {post.title}
                           </h3>
@@ -594,24 +703,208 @@ export default function AuthorProfilePage({ params }: Props) {
 
           {/* Followers Tab */}
           <TabsContent value="followers" className="mt-8">
-            <div className="text-center py-12">
-              <Users className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">Followers</h3>
-              <p className="text-gray-600 mb-4">{author._count.followers} people follow {author.name}</p>
-              {/* TODO: Implement followers list */}
-              <p className="text-sm text-gray-500">Followers list coming soon...</p>
-            </div>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+              className="space-y-6"
+            >
+              {/* Header */}
+              <div className="text-center mb-8">
+                <motion.div
+                  initial={{ scale: 0.9, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ duration: 0.5, delay: 0.1 }}
+                  className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full mb-4 shadow-lg"
+                >
+                  <Users className="h-10 w-10 text-white" />
+                </motion.div>
+                <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                  {author._count.followers} {author._count.followers === 1 ? 'Follower' : 'Followers'}
+                </h3>
+                <p className="text-gray-600 max-w-md mx-auto">
+                  People who follow {author.name} to stay updated with their latest articles and insights
+                </p>
+              </div>
+
+              {/* Stats Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.5, delay: 0.2 }}
+                >
+                  <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200 hover:shadow-lg transition-all duration-300">
+                    <CardContent className="p-6 text-center">
+                      <div className="inline-flex items-center justify-center w-12 h-12 bg-blue-500 rounded-full mb-3">
+                        <Users className="h-6 w-6 text-white" />
+                      </div>
+                      <div className="text-2xl font-bold text-blue-900 mb-1">
+                        {author._count.followers}
+                      </div>
+                      <div className="text-sm text-blue-700">Total Followers</div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.5, delay: 0.3 }}
+                >
+                  <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200 hover:shadow-lg transition-all duration-300">
+                    <CardContent className="p-6 text-center">
+                      <div className="inline-flex items-center justify-center w-12 h-12 bg-green-500 rounded-full mb-3">
+                        <TrendingUp className="h-6 w-6 text-white" />
+                      </div>
+                      <div className="text-2xl font-bold text-green-900 mb-1">
+                        {Math.round((author._count.followers / Math.max(author._count.blogPosts, 1)) * 10) / 10}
+                      </div>
+                      <div className="text-sm text-green-700">Avg per Post</div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.5, delay: 0.4 }}
+                >
+                  <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200 hover:shadow-lg transition-all duration-300">
+                    <CardContent className="p-6 text-center">
+                      <div className="inline-flex items-center justify-center w-12 h-12 bg-purple-500 rounded-full mb-3">
+                        <Heart className="h-6 w-6 text-white" />
+                      </div>
+                      <div className="text-2xl font-bold text-purple-900 mb-1">
+                        {author._count.followers > 0 ? 'High' : 'Growing'}
+                      </div>
+                      <div className="text-sm text-purple-700">Engagement</div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              </div>
+
+              {/* Feature Coming Soon */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.5 }}
+                className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl p-8 max-w-2xl mx-auto text-center border border-gray-200"
+              >
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-gray-300 rounded-full mb-4">
+                  <Users className="h-8 w-8 text-gray-600" />
+                </div>
+                <h4 className="text-xl font-semibold text-gray-900 mb-2">Follower Directory</h4>
+                <p className="text-gray-600 mb-4">
+                  We&apos;re working on a feature to showcase {author.name}&apos;s community of followers. 
+                  This will include detailed follower profiles and engagement metrics.
+                </p>
+                <Badge className="bg-blue-100 text-blue-800 px-4 py-2">Coming Soon</Badge>
+              </motion.div>
+            </motion.div>
           </TabsContent>
 
           {/* Following Tab */}
           <TabsContent value="following" className="mt-8">
-            <div className="text-center py-12">
-              <UserPlus className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">Following</h3>
-              <p className="text-gray-600 mb-4">{author.name} follows {author._count.following} people</p>
-              {/* TODO: Implement following list */}
-              <p className="text-sm text-gray-500">Following list coming soon...</p>
-            </div>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+              className="space-y-6"
+            >
+              {/* Header */}
+              <div className="text-center mb-8">
+                <motion.div
+                  initial={{ scale: 0.9, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ duration: 0.5, delay: 0.1 }}
+                  className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-full mb-4 shadow-lg"
+                >
+                  <UserPlus className="h-10 w-10 text-white" />
+                </motion.div>
+                <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                  Following {author._count.following} {author._count.following === 1 ? 'Person' : 'People'}
+                </h3>
+                <p className="text-gray-600 max-w-md mx-auto">
+                  Authors and experts that {author.name} follows for inspiration and industry insights
+                </p>
+              </div>
+
+              {/* Stats Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.5, delay: 0.2 }}
+                >
+                  <Card className="bg-gradient-to-br from-emerald-50 to-emerald-100 border-emerald-200 hover:shadow-lg transition-all duration-300">
+                    <CardContent className="p-6 text-center">
+                      <div className="inline-flex items-center justify-center w-12 h-12 bg-emerald-500 rounded-full mb-3">
+                        <UserPlus className="h-6 w-6 text-white" />
+                      </div>
+                      <div className="text-2xl font-bold text-emerald-900 mb-1">
+                        {author._count.following}
+                      </div>
+                      <div className="text-sm text-emerald-700">Following</div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.5, delay: 0.3 }}
+                >
+                  <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200 hover:shadow-lg transition-all duration-300">
+                    <CardContent className="p-6 text-center">
+                      <div className="inline-flex items-center justify-center w-12 h-12 bg-orange-500 rounded-full mb-3">
+                        <BookOpen className="h-6 w-6 text-white" />
+                      </div>
+                      <div className="text-2xl font-bold text-orange-900 mb-1">
+                        {author._count.following > 0 ? Math.round(author._count.following / Math.max(author._count.blogPosts, 1) * 100) / 100 : 0}
+                      </div>
+                      <div className="text-sm text-orange-700">Follow Ratio</div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.5, delay: 0.4 }}
+                >
+                  <Card className="bg-gradient-to-br from-indigo-50 to-indigo-100 border-indigo-200 hover:shadow-lg transition-all duration-300">
+                    <CardContent className="p-6 text-center">
+                      <div className="inline-flex items-center justify-center w-12 h-12 bg-indigo-500 rounded-full mb-3">
+                        <TrendingUp className="h-6 w-6 text-white" />
+                      </div>
+                      <div className="text-2xl font-bold text-indigo-900 mb-1">
+                        {author._count.following > 0 ? 'Active' : 'Selective'}
+                      </div>
+                      <div className="text-sm text-indigo-700">Network Style</div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              </div>
+
+              {/* Feature Coming Soon */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.5 }}
+                className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl p-8 max-w-2xl mx-auto text-center border border-gray-200"
+              >
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-gray-300 rounded-full mb-4">
+                  <UserPlus className="h-8 w-8 text-gray-600" />
+                </div>
+                <h4 className="text-xl font-semibold text-gray-900 mb-2">Following Network</h4>
+                <p className="text-gray-600 mb-4">
+                  Soon you&apos;ll be able to explore who {author.name} follows, discover new authors, 
+                  and build your own network within the poultry farming community.
+                </p>
+                <Badge className="bg-emerald-100 text-emerald-800 px-4 py-2">Coming Soon</Badge>
+              </motion.div>
+            </motion.div>
           </TabsContent>
         </Tabs>
       </div>

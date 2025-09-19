@@ -479,7 +479,7 @@ export default function MobileBlogPost({ params, initialPost }: Props) {
                     )}
                   </div>
                   <CardContent className="p-4">
-                    <Link href={`/blog/${relatedPost.slug}`}>
+                    <Link href={`/blog/${relatedPost.author.name.replace(/\s+/g, '-').toLowerCase()}/${relatedPost.slug}`}>
                       <h4 className="font-semibold text-sm mb-2 line-clamp-2 group-hover:text-emerald-600 transition-colors">
                         {relatedPost.title}
                       </h4>

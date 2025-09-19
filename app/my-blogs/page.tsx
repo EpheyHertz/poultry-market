@@ -43,6 +43,7 @@ import PublicNavbar from '@/components/layout/public-navbar';
 interface BlogPost {
   id: string;
   title: string;
+  slug: string;
   excerpt: string;
   featuredImage?: string;
   category: string;
@@ -396,7 +397,7 @@ export default function MyBlogsPage() {
                                 <DropdownMenuContent align="end">
                                   {blog.status === 'APPROVED' && (
                                     <DropdownMenuItem asChild>
-                                      <Link href={`/blog/${blog.id}`}>
+                                      <Link href={`/blog/${user?.name.replace(/\s+/g, '-').toLowerCase()}/${blog.slug}`}>
                                         <Eye className="mr-2 h-4 w-4" />
                                         View Post
                                       </Link>

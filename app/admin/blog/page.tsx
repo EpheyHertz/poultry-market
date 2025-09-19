@@ -713,7 +713,7 @@ export default function AdminBlogPage() {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuItem asChild>
-                                <Link href={`/blog/${post.slug}`} target="_blank">
+                                <Link href={`/blog/${post.author.name.replace(/\s+/g, '-').toLowerCase()}/${post.slug}`} target="_blank">
                                   <Eye className="h-4 w-4 mr-2" />
                                   Preview
                                 </Link>

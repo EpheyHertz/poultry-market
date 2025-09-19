@@ -399,7 +399,7 @@ export default function MobileBlogContent() {
                               </div>
                               <CardContent className="p-6 flex-1 flex flex-col justify-between">
                                 <div className="space-y-4">
-                                  <Link href={`/blog/${post.slug}`} className="block group/link">
+                                  <Link href={`/blog/${post.author.name.replace(/\s+/g, '-').toLowerCase()}/${post.slug}`} className="block group/link">
                                     <h3 className="font-bold mb-3 line-clamp-2 text-xl leading-tight hover:text-emerald-600 transition-colors duration-200 group-hover/link:text-emerald-700">
                                       {post.title}
                                     </h3>
@@ -511,7 +511,7 @@ export default function MobileBlogContent() {
                               </div>
                               <CardContent className="p-5 flex-1 flex flex-col justify-between">
                                 <div className="space-y-3">
-                                  <Link href={`/blog/${post.slug}`} className="block group/link">
+                                  <Link href={`/blog/${post.author.name.replace(/\s+/g, '-').toLowerCase()}/${post.slug}`} className="block group/link">
                                     <h3 className="font-bold mb-2 line-clamp-2 text-lg leading-tight hover:text-emerald-600 transition-colors duration-200 group-hover/link:text-emerald-700">
                                       {post.title}
                                     </h3>

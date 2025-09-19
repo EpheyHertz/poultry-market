@@ -114,16 +114,20 @@ export default function LikeButton({
       size="sm"
       onClick={handleLike}
       disabled={loading}
-      className={`flex items-center space-x-2 ${
+      className={`flex items-center space-x-2 transition-all duration-200 ${
         liked 
-          ? 'bg-red-500 hover:bg-red-600 text-white' 
-          : 'hover:bg-red-50 hover:text-red-600 hover:border-red-300'
-      }`}
+          ? 'bg-red-500 hover:bg-red-600 text-white shadow-md border-red-500' 
+          : 'hover:bg-red-50 hover:text-red-600 hover:border-red-300 border-gray-300'
+      } ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
     >
       <Heart 
-        className={`h-4 w-4 ${liked ? 'fill-current' : ''}`} 
+        className={`h-4 w-4 transition-all duration-200 ${
+          liked ? 'fill-current text-white' : 'text-gray-500'
+        } ${loading ? 'animate-pulse' : ''}`} 
       />
-      <span>{likes}</span>
+      <span className={`${liked ? 'text-white' : 'text-gray-700'} font-medium`}>
+        {likes}
+      </span>
     </Button>
   );
 }

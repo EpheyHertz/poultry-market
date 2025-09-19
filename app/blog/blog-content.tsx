@@ -316,7 +316,7 @@ export default function BlogContent() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.6, delay: 0.1 * index }}
                 >
-                  <Link href={`/blog/${post.slug}`}>
+                  <Link href={`/blog/${post.author.name.replace(/\s+/g, '-').toLowerCase()}/${post.slug}`}>
                     <Card className="h-full hover:shadow-2xl transition-all duration-300 group cursor-pointer border-0 bg-white overflow-hidden">
                       <div className="relative h-48 sm:h-52 lg:h-48 xl:h-52 overflow-hidden">
                         {post.featuredImage ? (
@@ -518,7 +518,7 @@ export default function BlogContent() {
                         transition={{ duration: 0.6, delay: 0.05 * index }}
                         className="w-full"
                       >
-                        <Link href={`/blog/${post.slug}`} className="block w-full">
+                        <Link href={`/blog/${post.author.name.replace(/\s+/g, '-').toLowerCase()}/${post.slug}`} className="block w-full">
                           <Card className="h-full hover:shadow-2xl transition-all duration-300 group cursor-pointer border-0 bg-white overflow-hidden touch-manipulation">
                             <div className="flex flex-col sm:flex-row h-full">
                               {/* Image */}

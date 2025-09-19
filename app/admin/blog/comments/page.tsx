@@ -75,6 +75,10 @@ interface BlogComment {
     id: string;
     title: string;
     slug: string;
+    author: {
+      id: string;
+      name: string;
+    };
   };
   parentId: string | null;
   _count: {
@@ -581,7 +585,7 @@ export default function CommentModerationPage() {
                           <div className="bg-gradient-to-r from-gray-50 to-gray-100 p-3 rounded-lg border">
                             <p className="text-sm text-gray-600">Comment on:</p>
                             <Link 
-                              href={`/blog/${comment.post.slug}`}
+                              href={`/blog/${comment.post.author.name.replace(/\s+/g, '-').toLowerCase()}/${comment.post.slug}`}
                               className="text-blue-600 hover:text-blue-800 font-medium text-sm hover:underline transition-colors"
                             >
                               {comment.post.title}
