@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
-// GET - Fetch pending blog posts for admin review
 export async function GET(request: NextRequest) {
   try {
     const user = await getCurrentUser();
@@ -14,33 +13,37 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Only admins can view pending posts
+    // Only admins can view all posts
     if (user.role !== 'ADMIN') {
       return NextResponse.json(
-        { error: 'Insufficient permissions. Only admins can view pending posts.' },
+        { error: 'Insufficient permissions. Only admins can view all posts.' },
         { status: 403 }
       );
     }
 
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '10');
-    const status = searchParams.get('status') || 'PENDING_APPROVAL';
+    const limit = parseInt(searchParams.get('limit') || '12');
     const search = searchParams.get('search');
+    const status = searchParams.get('status');
+    const category = searchParams.get('category');
 
+    // Build where clause
     const where: any = {};
 
-    // Handle different status filters
-    if (status !== 'all') {
+    if (status && status !== 'all') {
       where.status = status;
+    }
+
+    if (category && category !== 'all') {
+      where.category = category;
     }
 
     if (search) {
       where.OR = [
         { title: { contains: search, mode: 'insensitive' } },
         { content: { contains: search, mode: 'insensitive' } },
-        { author: { name: { contains: search, mode: 'insensitive' } } },
-        { author: { email: { contains: search, mode: 'insensitive' } } }
+        { author: { name: { contains: search, mode: 'insensitive' } } }
       ];
     }
 
@@ -55,31 +58,30 @@ export async function GET(request: NextRequest) {
           select: {
             id: true,
             name: true,
-            email: true,
-            phone: true,
             avatar: true
-          }
-        },
-        approvedByUser: {
-          select: {
-            id: true,
-            name: true,
-            email: true
           }
         },
         tags: {
           include: {
-            tag: true
+            tag: {
+              select: {
+                id: true,
+                name: true,
+                slug: true
+              }
+            }
           }
         },
         _count: {
           select: {
+            likedBy: true,
             comments: true
           }
         }
       },
       orderBy: [
-        { submittedAt: 'desc' },
+        { featured: 'desc' },
+        { publishedAt: 'desc' },
         { createdAt: 'desc' }
       ],
       skip: (page - 1) * limit,
@@ -92,7 +94,10 @@ export async function GET(request: NextRequest) {
       posts: posts.map(post => ({
         ...post,
         tags: post.tags.map(t => t.tag),
-        commentCount: post._count.comments
+        _count: {
+          likes: post._count.likedBy,
+          comments: post._count.comments
+        }
       })),
       pagination: {
         currentPage: page,
@@ -100,19 +105,13 @@ export async function GET(request: NextRequest) {
         totalPosts,
         hasNextPage: page < totalPages,
         hasPrevPage: page > 1
-      },
-      summary: {
-        pending: await prisma.blogPost.count({ where: { status: 'PENDING_APPROVAL' } }),
-        approved: await prisma.blogPost.count({ where: { status: 'APPROVED' } }),
-        rejected: await prisma.blogPost.count({ where: { status: 'REJECTED' } }),
-        published: await prisma.blogPost.count({ where: { status: 'PUBLISHED' } })
       }
     });
 
   } catch (error) {
-    console.error('Error fetching pending blog posts:', error);
+    console.error('Error fetching admin blog posts:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch pending blog posts' },
+      { error: 'Failed to fetch blog posts' },
       { status: 500 }
     );
   }

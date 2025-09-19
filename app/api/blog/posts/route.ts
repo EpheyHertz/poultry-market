@@ -154,10 +154,10 @@ export async function GET(request: NextRequest) {
         ...post,
         tags: post.tags.map(t => t.tag),
         commentCount: post._count.comments,
-        likeCount: post._count.likedBy, // Use the correct count field
+        likeCount: post._count.likedBy, 
         _count: {
           comments: post._count.comments,
-          likes: post._count.likedBy // Map to expected frontend structure
+          likes: post._count.likedBy 
         }
       })),
       pagination: {
