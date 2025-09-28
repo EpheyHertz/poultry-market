@@ -4,7 +4,7 @@ import { getCurrentUser } from '@/lib/auth';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { orderId: string } }
+  context: { params: Promise<{ orderId: string }> }
 ) {
   try {
     const user = await getCurrentUser();
@@ -13,7 +13,7 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { orderId } = params;
+    const { orderId } = await context.params;
 
     // Find the payment record
     const payment = await prisma.payment.findFirst({
@@ -88,7 +88,7 @@ export async function GET(
 // Endpoint to retry failed STK Push
 export async function POST(
   request: NextRequest,
-  { params }: { params: { orderId: string } }
+  context: { params: Promise<{ orderId: string }> }
 ) {
   try {
     const user = await getCurrentUser();
@@ -97,7 +97,7 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { orderId } = params;
+    const { orderId } = await context.params;
     const { phoneNumber } = await request.json();
 
     // Find the failed payment

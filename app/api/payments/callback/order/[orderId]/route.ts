@@ -16,10 +16,10 @@ interface LipiaCallbackData {
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { orderId: string } }
+  context: { params: Promise<{ orderId: string }> }
 ) {
   try {
-    const { orderId } = params;
+    const { orderId } = await context.params;
     const callbackData: LipiaCallbackData = await request.json();
 
     console.log('Received STK Push callback for order:', orderId, callbackData);
@@ -142,9 +142,9 @@ export async function POST(
 // Handle GET requests (for testing)
 export async function GET(
   request: NextRequest,
-  { params }: { params: { orderId: string } }
+  context: { params: Promise<{ orderId: string }> }
 ) {
-  const { orderId } = params;
+  const { orderId } = await context.params;
   
   return NextResponse.json({
     message: 'STK Push callback endpoint',
