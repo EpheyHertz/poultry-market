@@ -99,39 +99,40 @@ export default function HomePage() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              <div className="w-10 h-10 bg-gradient-to-r from-green-500 to-yellow-500 rounded-xl flex items-center justify-center">
-                <span className="text-white font-bold text-xl">🐔</span>
+              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-green-500 to-yellow-500 rounded-xl flex items-center justify-center">
+                <span className="text-white font-bold text-lg sm:text-xl">🐔</span>
               </div>
-              <span className="text-2xl font-bold bg-gradient-to-r from-green-600 to-yellow-600 bg-clip-text text-transparent">
+              <span className="text-lg sm:text-2xl font-bold bg-gradient-to-r from-green-600 to-yellow-600 bg-clip-text text-transparent">
                 PoultryMarket
               </span>
             </div>
             
-            <div className="hidden md:flex items-center space-x-8">
-              <Link href="#features" className="text-gray-700 hover:text-green-600 transition-colors">
+            <div className="hidden md:flex items-center space-x-6 lg:space-x-8">
+              <Link href="#features" className="text-gray-700 hover:text-green-600 transition-colors text-sm lg:text-base">
                 Features
               </Link>
-              <Link href="/blog" className="text-gray-700 hover:text-green-600 transition-colors">
+              <Link href="/blog" className="text-gray-700 hover:text-green-600 transition-colors text-sm lg:text-base">
                 Blog
               </Link>
-              <Link href="#testimonials" className="text-gray-700 hover:text-green-600 transition-colors">
+              <Link href="#testimonials" className="text-gray-700 hover:text-green-600 transition-colors text-sm lg:text-base">
                 Reviews
               </Link>
-              <Link href="/contact" className="text-gray-700 hover:text-green-600 transition-colors">
+              <Link href="/contact" className="text-gray-700 hover:text-green-600 transition-colors text-sm lg:text-base">
                 Contact
               </Link>
             </div>
 
-            <div className="flex items-center space-x-4">
-              <Link href="/auth/login">
-                <Button variant="ghost" className="text-green-600 hover:text-green-700">
+            <div className="flex items-center space-x-2 sm:space-x-4">
+              <Link href="/auth/login" className="hidden sm:block">
+                <Button variant="ghost" className="text-green-600 hover:text-green-700 text-sm lg:text-base px-3 lg:px-4">
                   Sign In
                 </Button>
               </Link>
               <Link href="/auth/register">
-                <Button className="bg-gradient-to-r from-green-500 to-yellow-500 hover:from-green-600 hover:to-yellow-600 text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300">
-                  Get Started
-                  <ChevronRight className="ml-2 h-4 w-4" />
+                <Button className="bg-gradient-to-r from-green-500 to-yellow-500 hover:from-green-600 hover:to-yellow-600 text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 text-sm lg:text-base px-3 lg:px-6 py-2">
+                  <span className="hidden sm:inline">Get Started</span>
+                  <span className="sm:hidden">Start</span>
+                  <ChevronRight className="ml-1 sm:ml-2 h-3 w-3 sm:h-4 sm:w-4" />
                 </Button>
               </Link>
             </div>
@@ -140,17 +141,17 @@ export default function HomePage() {
       </nav>
 
       {/* Hero Section */}
-      <section className="pt-32 pb-20 relative overflow-hidden">
+      <section className="pt-24 sm:pt-32 pb-12 sm:pb-20 relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-r from-green-600/10 to-yellow-600/10"></div>
-        <div className="container mx-auto px-4 relative">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <div className={`space-y-8 transition-all duration-1000 ${isVisible ? 'translate-x-0 opacity-100' : '-translate-x-20 opacity-0'}`}>
-              <div className="space-y-6">
-                <Badge className="bg-green-100 text-green-700 hover:bg-green-200 transition-colors">
+        <div className="container mx-auto px-4 sm:px-6 relative">
+          <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
+            <div className={`space-y-6 sm:space-y-8 transition-all duration-1000 ${isVisible ? 'translate-x-0 opacity-100' : '-translate-x-20 opacity-0'}`}>
+              <div className="space-y-4 sm:space-y-6">
+                <Badge className="bg-green-100 text-green-700 hover:bg-green-200 transition-colors text-xs sm:text-sm">
                   🎉 Now serving 50+ cities nationwide
                 </Badge>
                 
-                <h1 className="text-5xl lg:text-7xl font-bold leading-tight">
+                <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-bold leading-tight">
                   <span className="bg-gradient-to-r from-green-600 via-yellow-600 to-orange-600 bg-clip-text text-transparent">
                     Fresh Poultry
                   </span>
@@ -158,62 +159,62 @@ export default function HomePage() {
                   <span className="text-gray-800">Delivered Daily</span>
                 </h1>
                 
-                <p className="text-xl text-gray-600 leading-relaxed max-w-lg">
+                <p className="text-base sm:text-lg lg:text-xl text-gray-600 leading-relaxed max-w-lg">
                   Connect with trusted farmers and suppliers. Get premium quality poultry products delivered fresh to your doorstep with just a few clicks.
                 </p>
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-4">
-                <Link href="/auth/register">
-                  <Button size="lg" className="bg-gradient-to-r from-green-500 to-yellow-500 hover:from-green-600 hover:to-yellow-600 text-white shadow-2xl hover:shadow-3xl transform hover:scale-105 transition-all duration-300 group">
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+                <Link href="/auth/register" className="w-full sm:w-auto">
+                  <Button size="lg" className="w-full sm:w-auto bg-gradient-to-r from-green-500 to-yellow-500 hover:from-green-600 hover:to-yellow-600 text-white shadow-2xl hover:shadow-3xl transform hover:scale-105 transition-all duration-300 group">
                     Start Shopping Now
-                    <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+                    <ArrowRight className="ml-2 h-4 w-4 sm:h-5 sm:w-5 group-hover:translate-x-1 transition-transform" />
                   </Button>
                 </Link>
                 
-                <Button size="lg" variant="outline" className="border-2 border-green-500 text-green-600 hover:bg-green-50 group">
-                  <Play className="mr-2 h-5 w-5 group-hover:scale-110 transition-transform" />
+                <Button size="lg" variant="outline" className="w-full sm:w-auto border-2 border-green-500 text-green-600 hover:bg-green-50 group">
+                  <Play className="mr-2 h-4 w-4 sm:h-5 sm:w-5 group-hover:scale-110 transition-transform" />
                   Watch Demo
                 </Button>
               </div>
 
               {/* Stats */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 pt-8">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 pt-6 sm:pt-8">
                 {stats.map((stat, index) => (
                   <div key={stat.label} className={`text-center transition-all duration-700 delay-${index * 100} ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
                     <div className="flex items-center justify-center mb-2">
-                      <stat.icon className="h-6 w-6 text-green-600" />
+                      <stat.icon className="h-5 w-5 sm:h-6 sm:w-6 text-green-600" />
                     </div>
-                    <div className="text-2xl font-bold text-gray-800">{stat.value}</div>
-                    <div className="text-sm text-gray-600">{stat.label}</div>
+                    <div className="text-lg sm:text-2xl font-bold text-gray-800">{stat.value}</div>
+                    <div className="text-xs sm:text-sm text-gray-600">{stat.label}</div>
                   </div>
                 ))}
               </div>
             </div>
 
-            <div className={`relative transition-all duration-1000 delay-300 ${isVisible ? 'translate-x-0 opacity-100' : 'translate-x-20 opacity-0'}`}>
+            <div className={`relative mt-8 lg:mt-0 transition-all duration-1000 delay-300 ${isVisible ? 'translate-x-0 opacity-100' : 'translate-x-20 opacity-0'}`}>
               <div className="relative">
                 {/* Floating cards animation */}
                 <div className="absolute inset-0 animate-pulse">
-                  <div className="absolute top-10 right-10 w-20 h-20 bg-gradient-to-r from-green-400 to-yellow-400 rounded-full opacity-20 animate-bounce"></div>
-                  <div className="absolute bottom-20 left-10 w-16 h-16 bg-gradient-to-r from-orange-400 to-red-400 rounded-full opacity-20 animate-bounce delay-300"></div>
+                  <div className="absolute top-10 right-10 w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-r from-green-400 to-yellow-400 rounded-full opacity-20 animate-bounce"></div>
+                  <div className="absolute bottom-20 left-10 w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-r from-orange-400 to-red-400 rounded-full opacity-20 animate-bounce delay-300"></div>
                 </div>
                 
-                <div className="bg-white rounded-3xl shadow-2xl p-8 transform rotate-2 hover:rotate-0 transition-transform duration-500">
-                  <div className="aspect-square bg-gradient-to-br from-green-100 to-yellow-100 rounded-2xl flex items-center justify-center text-8xl">
+                <div className="bg-white rounded-3xl shadow-2xl p-6 sm:p-8 transform rotate-2 hover:rotate-0 transition-transform duration-500">
+                  <div className="aspect-square bg-gradient-to-br from-green-100 to-yellow-100 rounded-2xl flex items-center justify-center text-6xl sm:text-8xl">
                     🐔
                   </div>
-                  <div className="mt-6 space-y-3">
+                  <div className="mt-4 sm:mt-6 space-y-3">
                     <div className="flex items-center space-x-2">
                       <div className="flex space-x-1">
                         {[...Array(5)].map((_, i) => (
-                          <Star key={i} className="h-5 w-5 fill-yellow-400 text-yellow-400" />
+                          <Star key={i} className="h-4 w-4 sm:h-5 sm:w-5 fill-yellow-400 text-yellow-400" />
                         ))}
                       </div>
-                      <span className="text-gray-600">4.9/5</span>
+                      <span className="text-gray-600 text-sm sm:text-base">4.9/5</span>
                     </div>
-                    <h3 className="text-xl font-bold text-gray-800">Premium Quality</h3>
-                    <p className="text-gray-600">Guaranteed fresh delivery</p>
+                    <h3 className="text-lg sm:text-xl font-bold text-gray-800">Premium Quality</h3>
+                    <p className="text-gray-600 text-sm sm:text-base">Guaranteed fresh delivery</p>
                   </div>
                 </div>
               </div>
@@ -223,29 +224,29 @@ export default function HomePage() {
       </section>
 
       {/* Features Section */}
-      <section id="features" className="py-20 bg-white">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
-            <Badge className="bg-green-100 text-green-700 mb-4">
+      <section id="features" className="py-12 sm:py-16 lg:py-20 bg-white">
+        <div className="container mx-auto px-4 sm:px-6">
+          <div className="text-center mb-12 sm:mb-16">
+            <Badge className="bg-green-100 text-green-700 mb-4 text-xs sm:text-sm">
               Why Choose Us
             </Badge>
-            <h2 className="text-4xl lg:text-5xl font-bold text-gray-800 mb-6">
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-bold text-gray-800 mb-4 sm:mb-6">
               Everything You Need in One
               <span className="bg-gradient-to-r from-green-600 to-yellow-600 bg-clip-text text-transparent"> Platform</span>
             </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+            <p className="text-base sm:text-lg lg:text-xl text-gray-600 max-w-3xl mx-auto px-4">
               From farm to table, we&apos;ve got you covered with cutting-edge technology and unmatched service quality.
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
             {features.map((feature, index) => (
               <Card key={feature.title} className={`group hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 cursor-pointer border-0 bg-gradient-to-br ${feature.color} p-1`}>
-                <CardContent className="bg-white m-1 rounded-lg p-6 h-full">
-                  <div className={`w-16 h-16 rounded-2xl bg-gradient-to-r ${feature.color} flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300`}>
-                    <feature.icon className="h-8 w-8 text-white" />
+                <CardContent className="bg-white m-1 rounded-lg p-4 sm:p-6 h-full">
+                  <div className={`w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-r ${feature.color} flex items-center justify-center mb-4 sm:mb-6 group-hover:scale-110 transition-transform duration-300 mx-auto sm:mx-0`}>
+                    <feature.icon className="h-6 w-6 sm:h-8 sm:w-8 text-white" />
                   </div>
-                  <h3 className="text-xl font-bold text-gray-800 mb-3 group-hover:text-green-600 transition-colors">
+                  <h3 className="text-lg sm:text-xl font-bold text-gray-800 mb-2 sm:mb-3 group-hover:text-green-600 transition-colors text-center sm:text-left">
                     {feature.title}
                   </h3>
                   <p className="text-gray-600 leading-relaxed">
@@ -426,53 +427,53 @@ export default function HomePage() {
       </section>
 
       {/* Footer */}
-      <footer className="bg-gray-900 text-white py-12">
-        <div className="container mx-auto px-4">
-          <div className="grid md:grid-cols-4 gap-8 mb-8">
-            <div>
-              <div className="flex items-center space-x-2 mb-4">
-                <div className="w-10 h-10 bg-gradient-to-r from-green-500 to-yellow-500 rounded-xl flex items-center justify-center">
-                  <span className="text-white font-bold text-xl">🐔</span>
+      <footer className="bg-gray-900 text-white py-8 sm:py-12">
+        <div className="container mx-auto px-4 sm:px-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8 mb-6 sm:mb-8">
+            <div className="text-center sm:text-left">
+              <div className="flex items-center justify-center sm:justify-start space-x-2 mb-4">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-green-500 to-yellow-500 rounded-xl flex items-center justify-center">
+                  <span className="text-white font-bold text-lg sm:text-xl">🐔</span>
                 </div>
-                <span className="text-2xl font-bold">PoultryMarket</span>
+                <span className="text-xl sm:text-2xl font-bold">PoultryMarket</span>
               </div>
-              <p className="text-gray-400 leading-relaxed">
+              <p className="text-gray-400 leading-relaxed text-sm sm:text-base">
                 Connecting farmers, suppliers, and customers for the freshest poultry products delivered daily.
               </p>
             </div>
             
-            <div>
-              <h3 className="font-bold mb-4">Quick Links</h3>
+            <div className="text-center sm:text-left">
+              <h3 className="font-bold mb-4 text-sm sm:text-base">Quick Links</h3>
               <div className="space-y-2">
-                <Link href="/products" className="text-gray-400 hover:text-white transition-colors block">Products</Link>
-                <Link href="/blog" className="text-gray-400 hover:text-white transition-colors block">Blog</Link>
-                <Link href="/chatbot" className="text-gray-400 hover:text-white transition-colors block">Chat with AI</Link>
+                <Link href="/products" className="text-gray-400 hover:text-white transition-colors block text-sm">Products</Link>
+                <Link href="/blog" className="text-gray-400 hover:text-white transition-colors block text-sm">Blog</Link>
+                <Link href="/chatbot" className="text-gray-400 hover:text-white transition-colors block text-sm">Chat with AI</Link>
                 
-                <Link href="/contact" className="text-gray-400 hover:text-white transition-colors block">Contact</Link>
+                <Link href="/contact" className="text-gray-400 hover:text-white transition-colors block text-sm">Contact</Link>
               </div>
             </div>
             
-            <div>
-              <h3 className="font-bold mb-4">For Business</h3>
+            <div className="text-center sm:text-left">
+              <h3 className="font-bold mb-4 text-sm sm:text-base">For Business</h3>
               <div className="space-y-2">
-                <Link href="/auth/register" className="text-gray-400 hover:text-white transition-colors block">Become Seller</Link>
-                <Link href="/auth/register" className="text-gray-400 hover:text-white transition-colors block">Delivery Partner</Link>
-                <Link href="/auth/register" className="text-gray-400 hover:text-white transition-colors block">Company Solutions</Link>
+                <Link href="/auth/register" className="text-gray-400 hover:text-white transition-colors block text-sm">Become Seller</Link>
+                <Link href="/auth/register" className="text-gray-400 hover:text-white transition-colors block text-sm">Delivery Partner</Link>
+                <Link href="/auth/register" className="text-gray-400 hover:text-white transition-colors block text-sm">Company Solutions</Link>
               </div>
             </div>
             
-            <div>
-              <h3 className="font-bold mb-4">Support</h3>
+            <div className="text-center sm:text-left">
+              <h3 className="font-bold mb-4 text-sm sm:text-base">Support</h3>
               <div className="space-y-2">
-                <Link href="/terms" className="text-gray-400 hover:text-white transition-colors block">Terms of Service</Link>
-                <Link href="/terms" className="text-gray-400 hover:text-white transition-colors block">Privacy Policy</Link>
-                <Link href="/contact" className="text-gray-400 hover:text-white transition-colors block">Help Center</Link>
+                <Link href="/terms" className="text-gray-400 hover:text-white transition-colors block text-sm">Terms of Service</Link>
+                <Link href="/terms" className="text-gray-400 hover:text-white transition-colors block text-sm">Privacy Policy</Link>
+                <Link href="/contact" className="text-gray-400 hover:text-white transition-colors block text-sm">Help Center</Link>
               </div>
             </div>
           </div>
           
-          <div className="border-t border-gray-800 pt-8 text-center">
-            <p className="text-gray-400">
+          <div className="border-t border-gray-800 pt-6 sm:pt-8 text-center">
+            <p className="text-gray-400 text-xs sm:text-sm">
               © 2025 PoultryMarket. All rights reserved. Made with ❤️ for farmers and food lovers.
             </p>
           </div>

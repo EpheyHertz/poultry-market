@@ -44,6 +44,18 @@ export default function PublicNavbar({ showAuth = true }: PublicNavbarProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const router = useRouter();
 
+  // Close mobile menu when screen size changes
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 768) {
+        setIsMobileMenuOpen(false);
+      }
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   // Fetch current user
   useEffect(() => {
     const fetchUser = async () => {
@@ -81,61 +93,62 @@ export default function PublicNavbar({ showAuth = true }: PublicNavbarProps) {
   };
 
   return (
-    <nav className="sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-200">
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6">
-        <div className="flex items-center justify-between h-12 sm:h-16">
-          {/* Logo - Mobile First */}
-          <Link href="/" className="flex items-center space-x-2 flex-shrink-0">
-            <motion.div
-              whileHover={{ scale: 1.05, rotate: 5 }}
-              transition={{ type: "spring", stiffness: 400, damping: 10 }}
-            >
-              <Bird className="h-6 w-6 sm:h-7 sm:w-7 text-emerald-600" />
-            </motion.div>
-            <span className="text-base sm:text-lg font-bold text-gray-900">
-              PoultryHub
-            </span>
-          </Link>
+    <>
+      <nav className="sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6">
+          <div className="flex items-center justify-between h-12 sm:h-16">
+            {/* Logo - Mobile First */}
+            <Link href="/" className="flex items-center space-x-2 flex-shrink-0">
+              <motion.div
+                whileHover={{ scale: 1.05, rotate: 5 }}
+                transition={{ type: "spring", stiffness: 400, damping: 10 }}
+              >
+                <Bird className="h-6 w-6 sm:h-7 sm:w-7 text-emerald-600" />
+              </motion.div>
+              <span className="text-base sm:text-lg font-bold text-gray-900">
+                PoultryHub
+              </span>
+            </Link>
 
-          {/* Desktop Navigation - Hidden on mobile */}
-          <div className="hidden lg:flex items-center space-x-6">
-            <Link 
-              href="/" 
-              className="text-gray-700 hover:text-emerald-600 transition-colors font-medium"
-            >
-              Home
-            </Link>
-            <Link 
-              href="/products" 
-              className="text-gray-700 hover:text-emerald-600 transition-colors font-medium"
-            >
-              Products
-            </Link>
-            <Link 
-              href="/blog" 
-              className="text-gray-700 hover:text-emerald-600 transition-colors font-medium"
-            >
-              Blog
-            </Link>
-            <Link 
-              href="/blog/submit" 
-              className="text-emerald-600 hover:text-emerald-700 transition-colors font-medium border border-emerald-600 px-3 py-1 rounded-md hover:bg-emerald-50"
-            >
-              Write Blog
-            </Link>
-            <Link 
-              href="/announcements" 
-              className="text-gray-700 hover:text-emerald-600 transition-colors font-medium"
-            >
-              Announcements
-            </Link>
-          </div>
+            {/* Desktop Navigation - Hidden on mobile */}
+            <div className="hidden md:flex items-center space-x-4 lg:space-x-6">
+              <Link 
+                href="/" 
+                className="text-gray-700 hover:text-emerald-600 transition-colors font-medium text-sm lg:text-base"
+              >
+                Home
+              </Link>
+              <Link 
+                href="/products" 
+                className="text-gray-700 hover:text-emerald-600 transition-colors font-medium text-sm lg:text-base"
+              >
+                Products
+              </Link>
+              <Link 
+                href="/blog" 
+                className="text-gray-700 hover:text-emerald-600 transition-colors font-medium text-sm lg:text-base"
+              >
+                Blog
+              </Link>
+              <Link 
+                href="/blog/submit" 
+                className="text-emerald-600 hover:text-emerald-700 transition-colors font-medium border border-emerald-600 px-2 lg:px-3 py-1 rounded-md hover:bg-emerald-50 text-sm lg:text-base"
+              >
+                Write Blog
+              </Link>
+              <Link 
+                href="/announcements" 
+                className="text-gray-700 hover:text-emerald-600 transition-colors font-medium text-sm lg:text-base"
+              >
+                Announcements
+              </Link>
+            </div>
 
-          {/* Right Side - Mobile Optimized */}
-          <div className="flex items-center space-x-2">
-            {/* Desktop Auth */}
-            {!isLoading && showAuth && (
-              <div className="hidden lg:flex items-center space-x-3">
+            {/* Right Side - Mobile Optimized */}
+            <div className="flex items-center space-x-2">
+              {/* Desktop Auth */}
+              {!isLoading && showAuth && (
+                <div className="hidden md:flex items-center space-x-2 lg:space-x-3">
                 {user ? (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -297,5 +310,6 @@ export default function PublicNavbar({ showAuth = true }: PublicNavbarProps) {
         </AnimatePresence>
       </div>
     </nav>
+    </>
   );
 }

@@ -94,6 +94,15 @@ export default function MobileBlogContent() {
   const [selectedTag, setSelectedTag] = useState(searchParams?.get('tag') || '');
   const [sortBy, setSortBy] = useState(searchParams?.get('sort') || 'latest');
   const [showFilters, setShowFilters] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Check for mobile viewport
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const fetchPosts = useCallback(async () => {
     try {
@@ -173,12 +182,12 @@ export default function MobileBlogContent() {
     <div className="min-h-screen bg-white">
       {/* Mobile-First Hero Section */}
       <section className="bg-gradient-to-br from-emerald-500 to-emerald-600 text-white">
-        <div className="px-4 py-8 sm:px-6 sm:py-12 lg:px-8">
+        <div className="px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-12">
           <div className="max-w-4xl mx-auto text-center">
             <h1 className="text-2xl font-bold mb-2 sm:text-3xl lg:text-4xl">
               PoultryHub Blog
             </h1>
-            <p className="text-emerald-100 text-sm mb-6 sm:text-base lg:text-lg">
+            <p className="text-emerald-100 text-sm mb-4 sm:mb-6 sm:text-base lg:text-lg">
               Expert insights for poultry professionals
             </p>
             
@@ -198,9 +207,9 @@ export default function MobileBlogContent() {
       </section>
 
       {/* Main Content Container */}
-      <div className="max-w-6xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
+      <div className="max-w-6xl mx-auto px-3 py-4 sm:px-4 sm:py-6 lg:px-8">
         {/* Mobile Filters */}
-        <div className="mb-6 lg:hidden">
+        <div className="mb-4 lg:hidden">
           <Button
             variant="outline"
             onClick={() => setShowFilters(!showFilters)}
@@ -209,18 +218,18 @@ export default function MobileBlogContent() {
           >
             <span className="flex items-center gap-2 text-sm">
               <Filter className="h-4 w-4" />
-              Filters
+              Filters & Sort
             </span>
             {showFilters ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 lg:gap-6">
           {/* Sidebar - Mobile Collapsible */}
-          <div className={`lg:block ${showFilters ? 'block' : 'hidden'} space-y-4`}>
+          <div className={`lg:block ${showFilters ? 'block' : 'hidden'} space-y-3 lg:space-y-4`}>
             {/* Sort */}
-            <Card className="p-4">
-              <h3 className="font-semibold mb-3 text-sm">Sort By</h3>
+            <Card className="p-3 lg:p-4">
+              <h3 className="font-semibold mb-2 lg:mb-3 text-sm">Sort By</h3>
               <div className="space-y-1">
                 {[
                   { value: 'latest', label: 'Latest' },
@@ -232,8 +241,9 @@ export default function MobileBlogContent() {
                     onClick={() => {
                       setSortBy(option.value);
                       updateURL('sort', option.value);
+                      if (isMobile) setShowFilters(false);
                     }}
-                    className={`w-full text-left px-3 py-2 rounded text-xs transition-colors ${
+                    className={`w-full text-left px-2 lg:px-3 py-1.5 lg:py-2 rounded text-xs transition-colors ${
                       sortBy === option.value
                         ? 'bg-emerald-100 text-emerald-700'
                         : 'hover:bg-gray-100'
@@ -371,23 +381,24 @@ export default function MobileBlogContent() {
                           <Card className="group overflow-hidden bg-white border-0 shadow-md hover:shadow-2xl transition-all duration-300 rounded-xl backdrop-blur-sm will-change-transform gpu-acceleration">
                             <div className="flex flex-col sm:flex-row relative">
                               <div className="absolute inset-0 bg-gradient-to-r from-emerald-50/50 via-transparent to-blue-50/30 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
-                              <div className="relative w-full sm:w-80 h-48 sm:h-56 flex-shrink-0 overflow-hidden">
+                              <div className="relative w-full sm:w-72 lg:w-80 h-48 sm:h-52 lg:h-56 flex-shrink-0 overflow-hidden">
                                 {post.featuredImage ? (
                                   <Image
                                     src={post.featuredImage}
                                     alt={post.title}
                                     fill
                                     className="object-cover group-hover:scale-110 transition-transform duration-500 ease-out will-change-transform"
+                                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                                   />
                                 ) : (
                                   <div className="w-full h-full bg-gradient-to-br from-emerald-100 via-emerald-50 to-emerald-200 flex items-center justify-center relative">
                                     <div className="absolute inset-0 bg-gradient-to-br from-emerald-400/20 to-emerald-600/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                                    <Tag className="h-8 w-8 text-emerald-600 group-hover:scale-110 transition-transform duration-300 relative z-10" />
+                                    <Tag className="h-6 w-6 sm:h-8 sm:w-8 text-emerald-600 group-hover:scale-110 transition-transform duration-300 relative z-10" />
                                   </div>
                                 )}
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                                 {post.category && (
-                                  <Badge className="absolute top-3 left-3 bg-emerald-600/90 backdrop-blur-sm text-white text-xs font-medium px-2 py-1 rounded-md shadow-lg hover:bg-emerald-700 transition-colors">
+                                  <Badge className="absolute top-2 left-2 sm:top-3 sm:left-3 bg-emerald-600/90 backdrop-blur-sm text-white text-xs font-medium px-2 py-1 rounded-md shadow-lg hover:bg-emerald-700 transition-colors">
                                     {post.category.name}
                                   </Badge>
                                 )}
@@ -466,7 +477,7 @@ export default function MobileBlogContent() {
                 {regularPosts.length > 0 && (
                   <div>
                     <h2 className="text-lg font-bold mb-4">Latest Articles</h2>
-                    <div className="space-y-5">
+                    <div className="space-y-4 lg:space-y-5">
                       {regularPosts.map((post, index) => (
                         <motion.div
                           key={post.id}
@@ -484,13 +495,14 @@ export default function MobileBlogContent() {
                         >
                           <Card className="group overflow-hidden bg-white border-0 shadow-sm hover:shadow-xl transition-all duration-300 rounded-lg">
                             <div className="flex flex-col sm:flex-row">
-                              <div className="relative w-full sm:w-64 h-40 sm:h-48 flex-shrink-0 overflow-hidden">
+                              <div className="relative w-full sm:w-48 lg:w-64 h-40 sm:h-44 lg:h-48 flex-shrink-0 overflow-hidden">
                                 {post.featuredImage ? (
                                   <Image
                                     src={post.featuredImage}
                                     alt={post.title}
                                     fill
-                                    className="object-cover group-hover:scale-105 transition-transform duration-400 ease-out"
+                                    className="object-cover group-hover:scale-105 transition-transform duration-300"
+                                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                                   />
                                 ) : (
                                   <div className="w-full h-full bg-gradient-to-br from-gray-100 via-gray-50 to-gray-200 flex items-center justify-center">

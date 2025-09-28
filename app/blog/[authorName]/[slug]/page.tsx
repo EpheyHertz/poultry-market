@@ -119,6 +119,59 @@ async function getBlogPost(authorName: string, slug: string) {
   }
 }
 
+async function getRelatedPosts(postId: string, category: string, authorId: string, limit: number = 3) {
+  try {
+    return await prisma.blogPost.findMany({
+      where: {
+        AND: [
+          { id: { not: postId } },
+          { status: 'PUBLISHED' },
+          {
+            OR: [
+              { category: category as any },
+              { authorId }
+            ]
+          }
+        ]
+      },
+      include: {
+        author: {
+          select: {
+            id: true,
+            name: true,
+            avatar: true,
+            bio: true,
+            _count: {
+              select: {
+                blogPosts: true,
+                followers: true
+              }
+            }
+          }
+        },
+        tags: {
+          include: {
+            tag: true
+          }
+        },
+        _count: {
+          select: {
+            likedBy: true,
+            comments: true
+          }
+        }
+      },
+      orderBy: {
+        viewCount: 'desc'
+      },
+      take: limit
+    });
+  } catch (error) {
+    console.error('Error fetching related posts:', error);
+    return [];
+  }
+}
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const resolvedParams = await params;
   const post = await getBlogPost(resolvedParams.authorName, resolvedParams.slug);
@@ -133,8 +186,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const authorName = resolvedParams.authorName;
   
   return {
-    title: `${post.title} | ${resolvedParams.authorName.replace(/-/g, ' ')} | KenChic Connect`,
-    description: post.metaDescription || post.excerpt || `Read ${post.title} by ${resolvedParams.authorName.replace(/-/g, ' ')} on KenChic Connect`,
+    title: `${post.title} | ${resolvedParams.authorName.replace(/-/g, ' ')} | Poultry Market Kenya Connect`,
+    description: post.metaDescription || post.excerpt || `Read ${post.title} by ${resolvedParams.authorName.replace(/-/g, ' ')} on Poultry Market Kenya Connect`,
     keywords: post.metaKeywords,
     authors: [{ name: resolvedParams.authorName.replace(/-/g, ' ') }],
     openGraph: {
@@ -151,7 +204,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       type: 'article',
       publishedTime: post.publishedAt ? new Date(post.publishedAt).toISOString() : new Date(post.createdAt).toISOString(),
       authors: [resolvedParams.authorName.replace(/-/g, ' ')],
-      url: `https://kenchicconnect.com/blog/${authorName}/${post.slug}`,
+      url: `https://poultrymarketke.vercel.app/blog/${authorName}/${post.slug}`,
     },
     twitter: {
       card: 'summary_large_image',
@@ -164,7 +217,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       follow: post.status === 'PUBLISHED',
     },
     alternates: {
-      canonical: `https://kenchicconnect.com/blog/${authorName}/${post.slug}`,
+      canonical: `https://poultrymarketke.vercel.app/blog/${authorName}/${post.slug}`,
     },
   };
 }
@@ -182,10 +235,13 @@ export default async function BlogPostPage({ params }: Props) {
     notFound();
   }
 
+  // Fetch related posts
+  const relatedPosts = await getRelatedPosts(post.id, post.category, post.authorId);
+
   return (
     <>
       <PublicNavbar />
-      <MobileBlogPost post={post} />
+      <MobileBlogPost post={post} relatedPosts={relatedPosts} />
     </>
   );
 }
