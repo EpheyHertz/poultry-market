@@ -107,6 +107,7 @@ function EnhancedCheckoutContent() {
   });
   const [deliveryOptions, setDeliveryOptions] = useState<DeliveryOption[]>([]);
   const [selectedPaymentType, setSelectedPaymentType] = useState('BEFORE_DELIVERY');
+  const [paymentMethod, setPaymentMethod] = useState<'STK_PUSH' | 'MANUAL'>('STK_PUSH'); // New payment method state
   const [paymentDetails, setPaymentDetails] = useState({
     phone: '',
     reference: '',
@@ -118,7 +119,8 @@ function EnhancedCheckoutContent() {
     deliveryOptions: false,
     checkout: false,
     vouchers: false,
-    validating: false
+    validating: false,
+    stkPush: false
   });
   const [step, setStep] = useState(1); // 1: Location, 2: Review Delivery, 3: Payment, 4: Confirm
   
@@ -506,6 +508,113 @@ function EnhancedCheckoutContent() {
     toast.success('Delivery voucher removed');
   };
 
+  // Handle STK Push initiation
+  const handleStkPush = async () => {
+    if (!paymentDetails.phone) {
+      toast.error('Please enter your M-Pesa phone number');
+      return;
+    }
+
+    if (!deliveryAddress.trim()) {
+      toast.error('Please enter a delivery address first');
+      return;
+    }
+
+    setIsLoading(prev => ({ ...prev, stkPush: true }));
+
+    try {
+      let orderPayload;
+
+      if (isSessionMode && checkoutSession) {
+        orderPayload = {
+          items: [{
+            productId: checkoutSession.product.id,
+            quantity: checkoutSession.quantity,
+            price: calculateItemPrice(checkoutSession.product)
+          }],
+          total: grandTotal,
+          subtotal,
+          discountAmount,
+          voucherCode: appliedVoucher?.code || null,
+          deliveryFee: finalDeliveryFee,
+          deliveryVoucherCode: appliedDeliveryVoucher?.code || null,
+          deliveryAddress,
+          deliveryCounty: deliveryLocation.county,
+          deliveryProvince: deliveryLocation.province,
+          paymentType: 'MPESA',
+          paymentPreference: 'BEFORE_DELIVERY',
+          paymentDetails: {
+            phone: paymentDetails.phone,
+            details: paymentDetails.details
+          },
+          sessionId: checkoutSession.id,
+          stkPush: true
+        };
+      } else {
+        orderPayload = {
+          deliveryOptions,
+          deliveryLocation,
+          paymentPreference: 'BEFORE_DELIVERY',
+          paymentType: 'MPESA',
+          paymentDetails: {
+            phone: paymentDetails.phone,
+            details: paymentDetails.details
+          },
+          deliveryAddress,
+          items: cartItems.map(item => ({
+            productId: item.product.id,
+            quantity: item.quantity,
+            price: calculateItemPrice(item.product)
+          })),
+          total: grandTotal,
+          subtotal,
+          discountAmount,
+          voucherCode: appliedVoucher?.code || null,
+          deliveryFee: finalDeliveryFee,
+          deliveryVoucherCode: appliedDeliveryVoucher?.code || null,
+          deliveryDiscountAmount,
+          stkPush: true
+        };
+      }
+
+      const response = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(orderPayload)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to initiate payment');
+      }
+
+      const data = await response.json();
+
+      if (data.stkPush?.initiated) {
+        toast.success(`STK Push sent to ${paymentDetails.phone}. Please check your phone and complete the payment.`);
+        
+        // Mark session as completed if in session mode
+        if (isSessionMode && checkoutSession) {
+          await fetch(`/api/checkout/session/${checkoutSession.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ isCompleted: true })
+          });
+        }
+
+        router.push(`/customer/orders/${data.order.id}?payment_status=pending`);
+      } else {
+        throw new Error(data.stkPush?.error || 'STK Push failed');
+      }
+
+    } catch (error) {
+      console.error('STK Push error:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to initiate STK Push');
+    } finally {
+      setIsLoading(prev => ({ ...prev, stkPush: false }));
+    }
+  };
+
   // Handle order placement
   const handlePlaceOrder = async () => {
     if (!deliveryAddress.trim()) {
@@ -513,9 +622,16 @@ function EnhancedCheckoutContent() {
       return;
     }
 
-    if (selectedPaymentType === 'BEFORE_DELIVERY' && (!paymentDetails.phone || !paymentDetails.reference)) {
-      toast.error('Please enter payment details for prepaid orders');
-      return;
+    if (selectedPaymentType === 'BEFORE_DELIVERY') {
+      if (!paymentDetails.phone) {
+        toast.error('Please enter your M-Pesa phone number');
+        return;
+      }
+      
+      if (paymentMethod === 'MANUAL' && !paymentDetails.reference) {
+        toast.error('Please enter the M-Pesa transaction code');
+        return;
+      }
     }
 
     setIsLoading(prev => ({ ...prev, checkout: true }));
@@ -543,8 +659,9 @@ function EnhancedCheckoutContent() {
           paymentType: selectedPaymentType === 'BEFORE_DELIVERY' ? 'MPESA' : null,
           paymentDetails: selectedPaymentType === 'BEFORE_DELIVERY' ? {
             phone: paymentDetails.phone,
-            reference: paymentDetails.reference,
-            details: paymentDetails.details
+            reference: paymentMethod === 'MANUAL' ? paymentDetails.reference : null,
+            details: paymentDetails.details,
+            method: paymentMethod
           } : null,
           sessionId: checkoutSession.id
         };
@@ -557,7 +674,10 @@ function EnhancedCheckoutContent() {
           deliveryLocation,
           paymentPreference: selectedPaymentType,
           paymentType: defaultPaymentMethod,
-          paymentDetails: selectedPaymentType === 'BEFORE_DELIVERY' ? paymentDetails : null,
+          paymentDetails: selectedPaymentType === 'BEFORE_DELIVERY' ? {
+            ...paymentDetails,
+            method: paymentMethod
+          } : null,
           deliveryAddress,
           items: cartItems.map(item => ({
             productId: item.product.id,
@@ -587,6 +707,23 @@ function EnhancedCheckoutContent() {
 
       const data = await response.json();
 
+      // Handle STK Push response
+      if (data.stkPush) {
+        if (data.stkPush.initiated) {
+          toast.success(`STK Push sent to ${paymentDetails.phone}. Please check your phone and complete the payment.`);
+          // You could redirect to a payment status page or stay on current page with status polling
+          router.push(`/customer/orders/${data.order.id}?payment_status=pending`);
+        } else if (data.stkPush.error) {
+          toast.error(`STK Push failed: ${data.stkPush.error}`);
+          toast.info('Order created but payment needs to be completed manually.');
+          router.push('/customer/orders');
+        }
+      } else {
+        // Regular order without STK Push
+        toast.success(data.message || 'Order placed successfully!');
+        router.push('/customer/orders');
+      }
+
       // Mark session as completed if in session mode
       if (isSessionMode && checkoutSession) {
         await fetch(`/api/checkout/session/${checkoutSession.id}`, {
@@ -595,9 +732,6 @@ function EnhancedCheckoutContent() {
           body: JSON.stringify({ isCompleted: true })
         });
       }
-
-      toast.success(data.message || 'Order placed successfully!');
-      router.push('/customer/orders');
 
     } catch (error) {
       console.error('Order creation error:', error);
@@ -639,26 +773,27 @@ function EnhancedCheckoutContent() {
         </div>
 
         {/* Progress Steps */}
-        <div className="flex items-center space-x-4 mb-8">
+        <div className="flex items-center space-x-2 sm:space-x-4 mb-8 overflow-x-auto pb-2">
           {[
             { step: 1, title: 'Delivery Location', icon: MapPin },
             { step: 2, title: 'Review Options', icon: Package },
             { step: 3, title: 'Vouchers & Payment', icon: CreditCard },
             { step: 4, title: 'Confirm', icon: CheckCircle }
           ].map(({ step: stepNum, title, icon: Icon }) => (
-            <div key={stepNum} className="flex items-center">
-              <div className={`flex items-center space-x-2 p-2 rounded-lg ${
+            <div key={stepNum} className="flex items-center flex-shrink-0">
+              <div className={`flex items-center space-x-1 sm:space-x-2 p-1.5 sm:p-2 rounded-lg ${
                 step >= stepNum ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-500'
               }`}>
-                <Icon className="h-4 w-4" />
-                <span className="text-sm font-medium">{title}</span>
+                <Icon className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="text-xs sm:text-sm font-medium hidden sm:inline">{title}</span>
+                <span className="text-xs font-medium sm:hidden">{stepNum}</span>
               </div>
-              {stepNum < 4 && <div className="w-8 h-0.5 bg-gray-200 mx-2" />}
+              {stepNum < 4 && <div className="w-4 sm:w-8 h-0.5 bg-gray-200 mx-1 sm:mx-2" />}
             </div>
           ))}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
             {/* Step 1: Delivery Location */}
@@ -1029,48 +1164,178 @@ function EnhancedCheckoutContent() {
 
                     {/* Payment Details (for prepaid) */}
                     {selectedPaymentType === 'BEFORE_DELIVERY' && (
-                      <div className="space-y-4">
-                        <h4 className="font-medium">M-Pesa Payment Details</h4>
-                        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
-                          <div className="flex">
-                            <div className="flex-shrink-0">
-                              <AlertCircle className="h-5 w-5 text-yellow-400" />
+                      <div className="space-y-6">
+                        <h4 className="font-medium">M-Pesa Payment Method</h4>
+                        
+                        {/* Payment Method Selection */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                          <div 
+                            className={`p-3 sm:p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                              paymentMethod === 'STK_PUSH' 
+                                ? 'border-blue-500 bg-blue-50' 
+                                : 'border-gray-200 hover:border-gray-300'
+                            }`}
+                            onClick={() => setPaymentMethod('STK_PUSH')}
+                          >
+                            <div className="flex items-center space-x-3">
+                              <div className={`w-4 h-4 rounded-full border-2 ${
+                                paymentMethod === 'STK_PUSH' ? 'border-blue-500 bg-blue-500' : 'border-gray-300'
+                              }`}>
+                                {paymentMethod === 'STK_PUSH' && (
+                                  <div className="w-2 h-2 bg-white rounded-full mx-auto mt-0.5"></div>
+                                )}
+                              </div>
+                              <div>
+                                <h5 className="font-medium text-sm">STK Push</h5>
+                                <p className="text-xs text-gray-500">Automatic payment</p>
+                              </div>
                             </div>
-                            <div className="ml-3">
-                              <h3 className="text-sm font-medium text-yellow-800">How to pay via M-Pesa Till</h3>
-                              <div className="mt-2 text-sm text-yellow-700">
-                                <ol className="list-decimal pl-5 space-y-1">
-                                  <li>Open your M-Pesa app</li>
-                                  <li>Select <strong>Lipa na M-Pesa</strong></li>
-                                  <li>Select <strong>Pay Bill</strong></li>
-                                  <li>Enter PAYBILL Number: <strong>200999</strong></li>
-                                  <li>Enter Amount: <strong>Ksh {grandTotal.toFixed(2)}</strong></li>
-                                  <li>Enter your M-Pesa PIN and confirm payment</li>
-                                </ol>
+                          </div>
+                          
+                          <div 
+                            className={`p-3 sm:p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                              paymentMethod === 'MANUAL' 
+                                ? 'border-blue-500 bg-blue-50' 
+                                : 'border-gray-200 hover:border-gray-300'
+                            }`}
+                            onClick={() => setPaymentMethod('MANUAL')}
+                          >
+                            <div className="flex items-center space-x-3">
+                              <div className={`w-4 h-4 rounded-full border-2 ${
+                                paymentMethod === 'MANUAL' ? 'border-blue-500 bg-blue-500' : 'border-gray-300'
+                              }`}>
+                                {paymentMethod === 'MANUAL' && (
+                                  <div className="w-2 h-2 bg-white rounded-full mx-auto mt-0.5"></div>
+                                )}
+                              </div>
+                              <div>
+                                <h5 className="font-medium text-sm">Manual M-Pesa</h5>
+                                <p className="text-xs text-gray-500">Enter transaction code</p>
                               </div>
                             </div>
                           </div>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                        {/* STK Push Instructions */}
+                        {paymentMethod === 'STK_PUSH' && (
+                          <div className="bg-blue-50 border-l-4 border-blue-400 p-4">
+                            <div className="flex">
+                              <div className="flex-shrink-0">
+                                <AlertCircle className="h-5 w-5 text-blue-400" />
+                              </div>
+                              <div className="ml-3">
+                                <h3 className="text-sm font-medium text-blue-800">STK Push Payment</h3>
+                                <div className="mt-2 text-sm text-blue-700">
+                                  <p>Click &ldquo;Pay Now&rdquo; to receive an STK Push notification on your phone.</p>
+                                  <ol className="list-decimal pl-5 space-y-1 mt-2">
+                                    <li>Enter your M-Pesa phone number below</li>
+                                    <li>Click &ldquo;Pay Now&rdquo; button</li>
+                                    <li>Check your phone for M-Pesa prompt</li>
+                                    <li>Enter your M-Pesa PIN to complete payment of <strong>Ksh {grandTotal.toFixed(2)}</strong></li>
+                                  </ol>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Manual Payment Instructions */}
+                        {paymentMethod === 'MANUAL' && (
+                          <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
+                            <div className="flex">
+                              <div className="flex-shrink-0">
+                                <AlertCircle className="h-5 w-5 text-yellow-400" />
+                              </div>
+                              <div className="ml-3">
+                                <h3 className="text-sm font-medium text-yellow-800">Manual M-Pesa Payment</h3>
+                                <div className="mt-2 text-sm text-yellow-700">
+                                  <p>Complete payment manually and enter transaction details:</p>
+                                  <ol className="list-decimal pl-5 space-y-1 mt-2">
+                                    <li>Open your M-Pesa app</li>
+                                    <li>Select <strong>Lipa na M-Pesa</strong> → <strong>Pay Bill</strong></li>
+                                    <li>Enter PayBill Number: <strong>200999</strong></li>
+                                    <li>Enter Account Number: <strong>0133160030472</strong></li>
+                                    <li>Enter Amount: <strong>Ksh {grandTotal.toFixed(2)}</strong></li>
+                                    <li>Enter your M-Pesa PIN and confirm</li>
+                                    <li>Copy the transaction code from the M-Pesa message</li>
+                                  </ol>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Phone Number Input */}
+                        <div className="space-y-4">
                           <div>
-                            <Label htmlFor="paymentPhone">M-Pesa Phone Number</Label>
+                            <Label htmlFor="paymentPhone">M-Pesa Phone Number *</Label>
                             <Input
                               id="paymentPhone"
                               value={paymentDetails.phone}
                               onChange={(e) => setPaymentDetails(prev => ({ ...prev, phone: e.target.value }))}
-                              placeholder="254712345678"
+                              placeholder="0712345678"
+                              className="text-base" // Better for mobile
+                              required
                             />
+                            <p className="text-sm text-gray-500 mt-1">
+                              Enter the phone number registered with M-Pesa (e.g., 0712345678)
+                            </p>
                           </div>
-                          <div>
-                            <Label htmlFor="paymentReference">Transaction Code</Label>
-                            <Input
-                              id="paymentReference"
-                              value={paymentDetails.reference}
-                              onChange={(e) => setPaymentDetails(prev => ({ ...prev, reference: e.target.value }))}
-                              placeholder="QA12BC3DEF"
-                            />
-                          </div>
+
+                          {/* Transaction Code Input (Manual Only) */}
+                          {paymentMethod === 'MANUAL' && (
+                            <div>
+                              <Label htmlFor="paymentReference">M-Pesa Transaction Code *</Label>
+                              <Input
+                                id="paymentReference"
+                                value={paymentDetails.reference}
+                                onChange={(e) => setPaymentDetails(prev => ({ ...prev, reference: e.target.value }))}
+                                placeholder="QA12BC3DEF"
+                                className="text-base uppercase" // Better for mobile
+                                required
+                              />
+                              <p className="text-sm text-gray-500 mt-1">
+                                Enter the transaction code from your M-Pesa confirmation message
+                              </p>
+                            </div>
+                          )}
+
+                          {/* STK Push Pay Now Button */}
+                          {paymentMethod === 'STK_PUSH' && paymentDetails.phone && deliveryAddress && (
+                            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+                                <div className="flex-1">
+                                  <h4 className="font-medium text-green-800">Ready to Pay with STK Push</h4>
+                                  <p className="text-sm text-green-600 mt-1">
+                                    Amount: <strong>Ksh {grandTotal.toFixed(2)}</strong> • Phone: {paymentDetails.phone}
+                                  </p>
+                                </div>
+                                <Button
+                                  onClick={handleStkPush}
+                                  disabled={isLoading.stkPush || !paymentDetails.phone || !deliveryAddress}
+                                  className="bg-green-600 hover:bg-green-700 text-white px-4 sm:px-6 py-2.5 text-sm font-medium w-full sm:w-auto"
+                                  size="lg"
+                                >
+                                  {isLoading.stkPush ? (
+                                    <>
+                                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                      <span>Sending STK Push...</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      💳 Pay Now - Ksh {grandTotal.toFixed(2)}
+                                    </>
+                                  )}
+                                </Button>
+                              </div>
+                              <p className="text-xs text-green-600 mt-2">
+                                You&apos;ll receive a push notification on your phone to complete payment
+                              </p>
+                            </div>
+                          )}
                         </div>
+                        
+                        {/* Additional Details */}
                         <div>
                           <Label htmlFor="paymentDetails">Additional Details (Optional)</Label>
                           <Textarea
@@ -1184,7 +1449,13 @@ function EnhancedCheckoutContent() {
                       disabled={isLoading.checkout}
                       className="flex-1"
                     >
-                      {isLoading.checkout ? 'Processing...' : `Place Order - Ksh ${grandTotal.toFixed(2)}`}
+                      {isLoading.checkout ? 'Processing...' : 
+                       selectedPaymentType === 'BEFORE_DELIVERY' && paymentMethod === 'STK_PUSH' 
+                         ? `Place Order (Manual Pay) - Ksh ${grandTotal.toFixed(2)}`
+                         : selectedPaymentType === 'BEFORE_DELIVERY' && paymentMethod === 'MANUAL' 
+                         ? `Complete Order - Ksh ${grandTotal.toFixed(2)}`
+                         : `Place Order - Ksh ${grandTotal.toFixed(2)}`
+                      }
                     </Button>
                   </div>
                 </CardContent>

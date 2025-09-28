@@ -8,9 +8,9 @@ if (!LIPIA_API_KEY) {
   console.warn('LIPIA_API_KEY is not configured. STK Push payments will not work.');
 }
 
-// Phone number validation schema
+// Phone number validation schema for the final normalized format (254XXXXXXXXX - 12 digits total)
 const phoneNumberSchema = z.string()
-  .regex(/^(\+254|254|07|01)[0-9]{8}$/, 'Invalid Kenyan phone number format');
+  .regex(/^254[0-9]{9}$/, 'Invalid normalized phone number format');
 
 // STK Push request schema
 const stkPushSchema = z.object({
@@ -59,7 +59,7 @@ export interface LipiaErrorResponse {
 
 /**
  * Normalize phone number to the format expected by Lipia
- * Converts various formats to 254XXXXXXXXX
+ * Converts various formats to 254XXXXXXXXX (12 digits total)
  */
 export function normalizePhoneNumber(phoneNumber: string): string {
   // Remove spaces and dashes
@@ -67,15 +67,20 @@ export function normalizePhoneNumber(phoneNumber: string): string {
   
   // Handle different formats
   if (normalized.startsWith('+254')) {
-    normalized = normalized.substring(4);
+    // +254700086852 -> 254700086852
+    return normalized.substring(1);
   } else if (normalized.startsWith('254')) {
-    normalized = normalized.substring(3);
+    // Already in correct format: 254700086852
+    return normalized;
   } else if (normalized.startsWith('07') || normalized.startsWith('01')) {
-    normalized = normalized.substring(1);
+    // 0700086852 -> 700086852 -> 254700086852
+    return '254' + normalized.substring(1);
+  } else if (normalized.startsWith('7') || normalized.startsWith('1')) {
+    // 700086852 -> 254700086852
+    return '254' + normalized;
   }
   
-  // Add country code
-  return `254${normalized}`;
+  return normalized;
 }
 
 /**
@@ -83,7 +88,20 @@ export function normalizePhoneNumber(phoneNumber: string): string {
  */
 export function validatePhoneNumber(phoneNumber: string): { isValid: boolean; normalized?: string; error?: string } {
   try {
-    const normalized = normalizePhoneNumber(phoneNumber);
+    // Remove spaces and dashes for validation
+    const cleanNumber = phoneNumber.replace(/[\s-]/g, '');
+    
+    // Validate input format - accept common Kenyan phone number formats
+    const inputValidation = /^(\+254|254)[0-9]{9}$|^0[7|1][0-9]{8}$/;
+    
+    if (!inputValidation.test(cleanNumber)) {
+      return {
+        isValid: false,
+        error: 'Invalid phone number format. Use formats like 0712345678, 254712345678, or +254712345678'
+      };
+    }
+
+    const normalized = normalizePhoneNumber(cleanNumber);
     phoneNumberSchema.parse(normalized);
     return { isValid: true, normalized };
   } catch (error) {

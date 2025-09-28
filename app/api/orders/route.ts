@@ -4,6 +4,15 @@ import { getCurrentUser } from '@/lib/auth'
 import { OrderStatus, PaymentMethod, PaymentStatus, PaymentType, ProductType, VoucherType, Voucher, DeliveryVoucher } from '@prisma/client'
 import { createNotification, notificationTemplates } from '@/lib/notifications'
 import { COUNTY_TO_PROVINCE } from '@/lib/kenya-locations'
+import { 
+  initiateStkPush, 
+  validatePhoneNumber,
+  generateExternalReference,
+  generateCallbackUrl,
+  createPaymentMetadata,
+  formatPaymentAmount,
+  LipiaPaymentError
+} from '@/lib/lipia'
 export async function GET(request: NextRequest) {
   try {
     const user = await getCurrentUser()
@@ -135,12 +144,31 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No items in order' }, { status: 400 })
     }
 
-    // Validate MPESA payment details
-    if (paymentType === PaymentMethod.MPESA && (!paymentDetails?.phone || !paymentDetails?.reference)) {
-      return NextResponse.json(
-        { error: 'MPESA payment requires phone number and transaction reference' },
-        { status: 400 }
-      )
+    // Validate MPESA payment details for prepaid orders
+    if (paymentType === PaymentMethod.MPESA && paymentPreference === 'BEFORE_DELIVERY') {
+      if (!paymentDetails?.phone) {
+        return NextResponse.json(
+          { error: 'Phone number is required for M-Pesa payments' },
+          { status: 400 }
+        )
+      }
+      
+      // Validate phone number format
+      const phoneValidation = validatePhoneNumber(paymentDetails.phone)
+      if (!phoneValidation.isValid) {
+        return NextResponse.json(
+          { error: phoneValidation.error },
+          { status: 400 }
+        )
+      }
+
+      // For manual payments, require transaction reference
+      if (paymentDetails.method === 'MANUAL' && !paymentDetails.reference) {
+        return NextResponse.json(
+          { error: 'Transaction reference is required for manual M-Pesa payments' },
+          { status: 400 }
+        )
+      }
     }
 
     // Calculate server-side amounts and validate products
@@ -338,7 +366,7 @@ const serverTotal = rawTotal % 1 <= 0.4
     const initialPaymentStatus: PaymentStatus =  PaymentStatus.SUBMITTED 
 
     // Create order and payment in transaction
-    const [order, payment] = await prisma.$transaction(async (tx) => {
+    const [order, payment, stkPushResponse] = await prisma.$transaction(async (tx) => {
       // 1. Create the order first
       const createdOrder = await tx.order.create({
         data: {
@@ -348,13 +376,14 @@ const serverTotal = rawTotal % 1 <= 0.4
           status: initialStatus,
           paymentType: paymentPreference as PaymentType,
           paymentStatus: initialPaymentStatus,
-          deliveryFee:finalDeliveryFee,
+          deliveryFee: finalDeliveryFee,
           discountAmount: serverDiscountAmount,
           voucherCode: validVoucher?.code || null,
-          paymentDetails:
-            (deliveryVoucherCode || voucherCode ? `Delivery Voucher: ${deliveryVoucherCode}. Voucher Code: ${voucherCode}` : `${body?.paymentDetails}`) || null,
+          paymentDetails: paymentPreference === 'BEFORE_DELIVERY' && body?.paymentDetails?.phone 
+            ? `Phone: ${body.paymentDetails.phone}` 
+            : null,
           paymentPhone: body?.paymentDetails?.phone || null,
-          paymentReference: body?.paymentDetails?.reference || null,
+          paymentReference: null, // Will be set after STK Push
           notes: notes || null,
           items: {
             create: orderItems.map(({ sellerId, ...item }) => item)
@@ -364,7 +393,7 @@ const serverTotal = rawTotal % 1 <= 0.4
               create: {
                 address: deliveryAddress,
                 trackingId: `TRK${Date.now()}`,
-                status:'ASSIGNED',
+                status: 'ASSIGNED',
                 fee: finalDeliveryFee,
                 deliveryNotes: deliveryVoucherCode
                   ? `Applied voucher: ${deliveryVoucherCode}`
@@ -375,25 +404,22 @@ const serverTotal = rawTotal % 1 <= 0.4
         }
       })
 
-      // 2. Create payment with both order and user relations
+      // 2. Create payment record
       const paymentRecord = await tx.payment.create({
         data: {
           orderId: createdOrder.id,
           userId: user.id,
           amount: serverTotal,
-          method:  PaymentMethod.MPESA,
+          method: paymentPreference === 'BEFORE_DELIVERY' ? PaymentMethod.MPESA : PaymentMethod.CASH_ON_DELIVERY,
           status: PaymentStatus.PENDING,
           phoneNumber: body?.paymentDetails?.phone || null,
-          transactionCode: body?.paymentDetails?.reference || null,
+          transactionCode: body?.paymentDetails?.method === 'MANUAL' ? body.paymentDetails.reference : null,
           referenceNumber: `PAY-${Date.now()}`,
-          mpesaMessage: body?.paymentDetails?.details|| null,
-          description:
-            
-            (validVoucher ? `Applied voucher: ${validVoucher.code}` : '') +
-              (validDeliveryVoucher
-                ? ` | Applied delivery voucher: ${validDeliveryVoucher.code}`
-                : ''),
-         
+          description: [
+            validVoucher ? `Applied voucher: ${validVoucher.code}` : '',
+            validDeliveryVoucher ? `Applied delivery voucher: ${validDeliveryVoucher.code}` : '',
+            body?.paymentDetails?.method ? `Payment method: ${body.paymentDetails.method}` : ''
+          ].filter(Boolean).join(' | ') || null
         }
       })
 
@@ -441,8 +467,72 @@ const serverTotal = rawTotal % 1 <= 0.4
         })
       }
 
-      return [updatedOrder, paymentRecord]
+      return [updatedOrder, paymentRecord, null] // STK Push response will be set if initiated
     }, { timeout: 35000 })
+
+    // Initiate STK Push for prepaid STK Push payments (outside transaction to avoid blocking)
+    let stkPushData: any = null
+    if (paymentPreference === 'BEFORE_DELIVERY' && 
+        paymentType === PaymentMethod.MPESA && 
+        body?.paymentDetails?.phone &&
+        (body?.paymentDetails?.method === 'STK_PUSH' || body?.stkPush === true)) {
+      try {
+        const phoneValidation = validatePhoneNumber(body.paymentDetails.phone)
+        if (phoneValidation.isValid) {
+          // Format amount for payment
+          const paymentAmount = formatPaymentAmount(serverTotal)
+          
+          // Generate external reference
+          const externalReference = generateExternalReference('ORDER', order.id)
+          
+          // Create callback URL
+          const callbackUrl = generateCallbackUrl(`order/${order.id}`)
+          
+          // Create metadata
+          const metadata = createPaymentMetadata({
+            orderId: order.id,
+            userId: user.id,
+            customerName: user.name,
+            customerEmail: user.email,
+            paymentType: 'order_payment',
+            orderTotal: serverTotal
+          })
+
+          // Initiate STK Push
+          const stkResponse = await initiateStkPush({
+            phone_number: phoneValidation.normalized!,
+            amount: paymentAmount,
+            external_reference: externalReference,
+            callback_url: callbackUrl,
+            metadata
+          })
+
+          // Update payment record with STK Push data
+          await prisma.payment.update({
+            where: { id: payment.id },
+            data: {
+              referenceNumber: stkResponse.data.TransactionReference,
+              externalReference,
+              stkPushData: JSON.stringify(stkResponse.data),
+              metadata: JSON.stringify(metadata)
+            }
+          })
+
+          stkPushData = {
+            initiated: true,
+            transactionReference: stkResponse.data.TransactionReference,
+            message: stkResponse.customerMessage
+          }
+        }
+      } catch (error) {
+        console.error('STK Push initiation error:', error)
+        // Don't fail the order if STK Push fails, but log the error
+        stkPushData = {
+          initiated: false,
+          error: error instanceof Error ? error.message : 'Failed to initiate STK Push'
+        }
+      }
+    }
 
     // Send notifications to all sellers involved
     for (const sellerId of Array.from(sellerIds)) {
@@ -485,11 +575,17 @@ const serverTotal = rawTotal % 1 <= 0.4
       message: buyerTemplate.message
     })
 
-    return NextResponse.json({
+    const response: any = {
       success: true,
       order,
       payment
-    })
+    }
+
+    if (stkPushData) {
+      response.stkPush = stkPushData
+    }
+
+    return NextResponse.json(response)
   } catch (error) {
     console.error('Order creation error:', error)
     return NextResponse.json(
