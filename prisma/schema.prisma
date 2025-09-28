@@ -440,21 +440,27 @@ model DeliveryFee {
 }
 
 model Payment {
-  id              String        @id @default(cuid())
-  orderId         String        @unique
-  order           Order         @relation(fields: [orderId], references: [id])
-  userId          String
-  user            User          @relation(fields: [userId], references: [id])
-  amount          Float
-  method          PaymentMethod
-  status          PaymentStatus @default(PENDING)
-  phoneNumber     String?
-  transactionCode String?
-  mpesaMessage    String?
-  description     String?
-  referenceNumber String?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  id                 String        @id @default(cuid())
+  orderId            String        @unique
+  order              Order         @relation(fields: [orderId], references: [id])
+  userId             String
+  user               User          @relation(fields: [userId], references: [id])
+  amount             Float
+  method             PaymentMethod
+  status             PaymentStatus @default(PENDING)
+  phoneNumber        String?
+  transactionCode    String?
+  mpesaMessage       String?
+  description        String?
+  referenceNumber    String?
+  externalReference  String?       // For tracking external payment systems
+  metadata           String?       // JSON string for additional data
+  stkPushData        String?       // JSON string for STK Push response data
+  callbackData       String?       // JSON string for payment callback data
+  callbackReceived   Boolean       @default(false)
+  failureReason      String?       // Reason for payment failure
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
 
   @@map("payments")
 }

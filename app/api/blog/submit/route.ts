@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+
 import { z } from 'zod';
 
 // Blog submission schema
@@ -166,11 +167,13 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    // TODO: Send notification to admins about new submission
-    // This would be implemented in the notifications system
-
-    // TODO: Send confirmation email to the author
-    // This would be implemented with the email system
+    // Send notification to admins about new submission
+    // try {
+    //   await sendBlogSubmissionToAdmin(blogPost);
+    // } catch (emailError) {
+    //   console.error('Error sending admin notification:', emailError);
+    //   // Don't fail the submission if email fails
+    // }
 
     return NextResponse.json({
       success: true,
