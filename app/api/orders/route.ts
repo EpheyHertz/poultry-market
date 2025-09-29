@@ -478,58 +478,186 @@ const serverTotal = rawTotal % 1 <= 0.4
         (body?.paymentDetails?.method === 'STK_PUSH' || body?.stkPush === true)) {
       try {
         const phoneValidation = validatePhoneNumber(body.paymentDetails.phone)
-        if (phoneValidation.isValid) {
-          // Format amount for payment
-          const paymentAmount = formatPaymentAmount(serverTotal)
+        if (!phoneValidation.isValid) {
+          // Delete the order if phone validation fails for STK Push
+          await prisma.$transaction(async (tx) => {
+            // Delete related records first (in correct order to avoid foreign key constraints)
+            await tx.payment.delete({ where: { id: payment.id } })
+            if (order.delivery) {
+              await tx.delivery.delete({ where: { orderId: order.id } })
+            }
+            await tx.orderItem.deleteMany({ where: { orderId: order.id } })
+            await tx.order.delete({ where: { id: order.id } })
+            
+            // Restore product stocks in parallel for better performance
+            const stockUpdates = orderItems.map(item => 
+              tx.product.update({
+                where: { id: item.productId },
+                data: { stock: { increment: item.quantity } }
+              })
+            )
+            await Promise.all(stockUpdates)
+            
+            // Restore voucher usage counts
+            if (validVoucher) {
+              await tx.voucher.update({
+                where: { code: validVoucher.code },
+                data: { usedCount: { decrement: 1 } }
+              })
+            }
+            if (validDeliveryVoucher) {
+              await tx.deliveryVoucher.update({
+                where: { code: validDeliveryVoucher.code },
+                data: { usedCount: { decrement: 1 } }
+              })
+            }
+          }, { timeout: 15000 }) // Increase timeout to 15 seconds
           
-          // Generate external reference
-          const externalReference = generateExternalReference('ORDER', order.id)
-          
-          // Create callback URL
-          const callbackUrl = generateCallbackUrl(`order/${order.id}`)
-          
-          // Create metadata
-          const metadata = createPaymentMetadata({
-            orderId: order.id,
-            userId: user.id,
-            customerName: user.name,
-            customerEmail: user.email,
-            paymentType: 'order_payment',
-            orderTotal: serverTotal
-          })
+          return NextResponse.json({
+            error: phoneValidation.error
+          }, { status: 400 })
+        }
 
-          // Initiate STK Push
-          const stkResponse = await initiateStkPush({
-            phone_number: phoneValidation.normalized!,
-            amount: paymentAmount,
-            external_reference: externalReference,
-            callback_url: callbackUrl,
-            metadata
-          })
+        // Format amount for payment
+        const paymentAmount = formatPaymentAmount(serverTotal)
+        
+        // Generate external reference
+        const externalReference = generateExternalReference('ORDER', order.id)
+        
+        // Create callback URL
+        const callbackUrl = generateCallbackUrl(`order/${order.id}`)
+        
+        // Create metadata
+        const metadata = createPaymentMetadata({
+          orderId: order.id,
+          userId: user.id,
+          customerName: user.name,
+          customerEmail: user.email,
+          paymentType: 'order_payment',
+          orderTotal: serverTotal
+        })
 
-          // Update payment record with STK Push data
+        // Initiate STK Push
+        const stkResponse = await initiateStkPush({
+          phone_number: phoneValidation.normalized!,
+          amount: paymentAmount,
+          external_reference: externalReference,
+          callback_url: callbackUrl,
+          metadata
+        })
+
+        // Update payment record with STK Push data
+        await prisma.payment.update({
+          where: { id: payment.id },
+          data: {
+            referenceNumber: stkResponse.data.TransactionReference,
+            externalReference,
+            stkPushData: JSON.stringify(stkResponse.data),
+            metadata: JSON.stringify(metadata)
+          }
+        })
+
+        stkPushData = {
+          initiated: true,
+          transactionReference: stkResponse.data.TransactionReference,
+          message: stkResponse.customerMessage
+        }
+      } catch (error) {
+        console.error('STK Push initiation error:', error)
+        
+        // Check if it's a temporary service issue
+        const isTemporaryError = error instanceof Error && 
+          (error.message.includes('temporarily unavailable') || 
+           error.message.includes('service unavailable') ||
+           error.message.includes('timeout'))
+
+        if (isTemporaryError) {
+          // For temporary service issues, convert to manual payment instead of deleting order
+          console.log('STK Push service temporarily unavailable, converting to manual payment')
+          
+          // Update payment to require manual confirmation
           await prisma.payment.update({
             where: { id: payment.id },
             data: {
-              referenceNumber: stkResponse.data.TransactionReference,
-              externalReference,
-              stkPushData: JSON.stringify(stkResponse.data),
-              metadata: JSON.stringify(metadata)
+              status: 'PENDING',
+              description: 'STK Push service temporarily unavailable - Manual payment required',
+              failureReason: 'STK Push service unavailable - Please pay manually and provide transaction code'
+            }
+          })
+
+          // Update order status to indicate manual payment needed
+          await prisma.order.update({
+            where: { id: order.id },
+            data: {
+              paymentStatus: 'PENDING',
+              notes: order.notes ? 
+                `${order.notes} | STK Push failed - Manual payment required` : 
+                'STK Push failed - Manual payment required'
             }
           })
 
           stkPushData = {
-            initiated: true,
-            transactionReference: stkResponse.data.TransactionReference,
-            message: stkResponse.customerMessage
+            initiated: false,
+            fallbackToManual: true,
+            error: 'STK Push service is temporarily unavailable. Please pay manually using M-Pesa and provide the transaction code.',
+            manualPaymentInstructions: {
+              paybill: '174379',
+              accountNumber: order.id.slice(-8).toUpperCase(),
+              amount: serverTotal,
+              phone: body.paymentDetails.phone
+            }
           }
-        }
-      } catch (error) {
-        console.error('STK Push initiation error:', error)
-        // Don't fail the order if STK Push fails, but log the error
-        stkPushData = {
-          initiated: false,
-          error: error instanceof Error ? error.message : 'Failed to initiate STK Push'
+        } else {
+          // For other errors, delete the order and restore everything
+          try {
+            await prisma.$transaction(async (tx) => {
+              // Delete related records first (in correct order to avoid foreign key constraints)
+              await tx.payment.delete({ where: { id: payment.id } })
+              if (order.delivery) {
+                await tx.delivery.delete({ where: { orderId: order.id } })
+              }
+              await tx.orderItem.deleteMany({ where: { orderId: order.id } })
+              await tx.order.delete({ where: { id: order.id } })
+              
+              // Restore product stocks in parallel for better performance
+              const stockUpdates = orderItems.map(item => 
+                tx.product.update({
+                  where: { id: item.productId },
+                  data: { stock: { increment: item.quantity } }
+                })
+              )
+              await Promise.all(stockUpdates)
+              
+              // Restore voucher usage counts
+              if (validVoucher) {
+                await tx.voucher.update({
+                  where: { code: validVoucher.code },
+                  data: { usedCount: { decrement: 1 } }
+                })
+              }
+              if (validDeliveryVoucher) {
+                await tx.deliveryVoucher.update({
+                  where: { code: validDeliveryVoucher.code },
+                  data: { usedCount: { decrement: 1 } }
+                })
+              }
+            }, { timeout: 15000 }) // Increase timeout to 15 seconds
+          } catch (rollbackError) {
+            console.error('Failed to rollback order after STK Push failure:', rollbackError)
+            // Log the specific error for debugging
+            if (rollbackError instanceof Error) {
+              console.error('Rollback error details:', {
+                message: rollbackError.message,
+                orderId: order.id,
+                paymentId: payment.id
+              })
+            }
+          }
+
+          // Return error for non-temporary STK Push failures
+          return NextResponse.json({
+            error: error instanceof Error ? error.message : 'Failed to initiate STK Push payment'
+          }, { status: 400 })
         }
       }
     }

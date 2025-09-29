@@ -711,8 +711,22 @@ function EnhancedCheckoutContent() {
       if (data.stkPush) {
         if (data.stkPush.initiated) {
           toast.success(`STK Push sent to ${paymentDetails.phone}. Please check your phone and complete the payment.`);
-          // You could redirect to a payment status page or stay on current page with status polling
           router.push(`/customer/orders/${data.order.id}?payment_status=pending`);
+        } else if (data.stkPush.fallbackToManual) {
+          // STK Push service unavailable, fallback to manual payment
+          toast.error('STK Push service is temporarily unavailable');
+          toast.info('Order created - Please pay manually using M-Pesa');
+          
+          // Show manual payment instructions
+          const instructions = data.stkPush.manualPaymentInstructions;
+          if (instructions) {
+            toast.success(
+              `Pay KSH ${instructions.amount} to Paybill ${instructions.paybill}, Account: ${instructions.accountNumber}`,
+              { duration: 10000 }
+            );
+          }
+          
+          router.push(`/customer/orders/${data.order.id}?payment_status=manual_required&fallback=true`);
         } else if (data.stkPush.error) {
           toast.error(`STK Push failed: ${data.stkPush.error}`);
           toast.info('Order created but payment needs to be completed manually.');

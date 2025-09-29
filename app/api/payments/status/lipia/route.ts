@@ -13,25 +13,31 @@ export async function GET(request: NextRequest) {
     }
 
     // Check API health/status
-    const response = await fetch(`${LIPIA_BASE_URL}/health`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${LIPIA_API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      timeout: 10000 // 10 second timeout
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+    
+    try {
+      const response = await fetch(`${LIPIA_BASE_URL}/health`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${LIPIA_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
 
     const isHealthy = response.ok;
     
     return NextResponse.json({
-      status: isHealthy ? 'operational' : 'degraded',
-      baseUrl: LIPIA_BASE_URL,
-      responseStatus: response.status,
-      message: isHealthy ? 'Lipia API is operational' : 'Lipia API may be experiencing issues',
-      timestamp: new Date().toISOString()
+      status: isHealthy ? 'operational' : 'degraded'
     });
-
+    
+    } catch (error) {
+      clearTimeout(timeoutId);
+      throw error;
+    }
   } catch (error) {
     console.error('Lipia API health check failed:', error);
     
