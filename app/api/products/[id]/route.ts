@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'
+import { sendEmail } from '@/lib/email'
+import { generateProductUpdateEmail, type ProductUpdateEmailData } from '@/lib/email-templates'
 
 // export async function GET(
 //   request: NextRequest,
@@ -37,10 +39,10 @@ import { getCurrentUser } from '@/lib/auth'
 // }
 
 export async function PUT(
-  request: NextRequest
-  // { params }: { params: { id: string } }
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
 ) {
-   const id = request.nextUrl.pathname.split('/').pop() || ''
+  const { id } = await context.params;
   try {
     const user = await getCurrentUser()
     
@@ -60,22 +62,41 @@ export async function PUT(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    const { name, description, price, stock, images } = await request.json()
+    const { name, description, price, stock, images, type } = await request.json()
+
+    // Validate required fields
+    if (!name?.trim() || !description?.trim() || !type) {
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    }
+
+    if (price <= 0) {
+      return NextResponse.json({ error: 'Price must be greater than 0' }, { status: 400 })
+    }
+
+    if (stock < 0) {
+      return NextResponse.json({ error: 'Stock cannot be negative' }, { status: 400 })
+    }
+
+    // Store original product data for comparison
+    const originalProduct = { ...product }
 
     const updatedProduct = await prisma.product.update({
       where: { id: id },
       data: {
-        name,
-        description,
+        name: name.trim(),
+        description: description.trim(),
+        type,
         price: parseFloat(price),
         stock: parseInt(stock),
         images: images || product.images,
+        updatedAt: new Date()
       },
       include: {
         seller: {
           select: {
             id: true,
             name: true,
+            email: true,
             role: true,
             tags: {
               select: {
@@ -87,17 +108,68 @@ export async function PUT(
       }
     })
 
+    // Send email notification about product update
+    try {
+      const changes: string[] = [];
+      if (originalProduct.name !== updatedProduct.name) {
+        changes.push(`Name: "${originalProduct.name}" → "${updatedProduct.name}"`);
+      }
+      if (originalProduct.description !== updatedProduct.description) {
+        changes.push(`Description updated`);
+      }
+      if (originalProduct.type !== updatedProduct.type) {
+        changes.push(`Type: "${originalProduct.type}" → "${updatedProduct.type}"`);
+      }
+      if (originalProduct.price !== updatedProduct.price) {
+        changes.push(`Price: Ksh ${originalProduct.price} → Ksh ${updatedProduct.price}`);
+      }
+      if (originalProduct.stock !== updatedProduct.stock) {
+        changes.push(`Stock: ${originalProduct.stock} → ${updatedProduct.stock} units`);
+      }
+
+      if (changes.length > 0) {
+        const emailData: ProductUpdateEmailData = {
+          productName: updatedProduct.name,
+          productId: updatedProduct.id,
+          updatedBy: user.name || 'Unknown User',
+          updatedByEmail: user.email!,
+          updatedAt: new Date().toLocaleString(),
+          changes,
+          currentDetails: {
+            type: updatedProduct.type,
+            price: updatedProduct.price,
+            stock: updatedProduct.stock,
+            isActive: updatedProduct.isActive
+          }
+        };
+
+        const emailContent = generateProductUpdateEmail(emailData);
+
+        await sendEmail({
+          to: user.email!,
+          subject: `✅ Product Updated: ${updatedProduct.name}`,
+          html: emailContent
+        });
+
+        console.log(`Product update email sent to ${user.email} for product ${updatedProduct.name}`);
+      }
+    } catch (emailError) {
+      console.error('Failed to send product update email:', emailError);
+      // Don't fail the request if email fails
+    }
+
     return NextResponse.json(updatedProduct)
   } catch (error) {
+    console.error('Error updating product:', error)
     return NextResponse.json({ error: 'Failed to update product' }, { status: 500 })
   }
 }
 
 export async function DELETE(
-  request: NextRequest
-  // { params }: { params: { id: string } }
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
 ) {
-   const id = request.nextUrl.pathname.split('/').pop() || ''
+  const { id } = await context.params;
   try {
     const user = await getCurrentUser()
     
@@ -129,11 +201,11 @@ export async function DELETE(
 
 
 export async function GET(
-  request: NextRequest
-  // { params }: { params: { id: string } }
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-     const id = request.nextUrl.pathname.split('/').pop() || ''
+    const { id } = await context.params;
     // const { id } = params;
     const user = await getCurrentUser();
 
