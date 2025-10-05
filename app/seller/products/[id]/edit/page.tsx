@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import ImageUpload from '@/components/ui/image-upload';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
-import { getCurrentUser } from '@/lib/auth';
+
 
 function EditProductContent() {
   const params = useParams();
@@ -28,10 +28,10 @@ function EditProductContent() {
     const fetchData = async () => {
       try {
         setLoading(true);
-
-        const userData = await getCurrentUser();
-        if (!userData) throw new Error('Failed to fetch user');
-        // const userData = await userResponse.json();
+        // const response = await fetch('/api/auth/me');
+        const userResponse = await fetch('/api/auth/me');
+        if (!userResponse.ok) throw new Error('Failed to fetch user');
+        const userData = await userResponse.json();
         setUser(userData);
 
         if (!userData || userData.role !== 'SELLER') {
