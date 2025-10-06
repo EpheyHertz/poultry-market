@@ -42,6 +42,29 @@ export interface STKPushResponse {
   timestamp: string;
 }
 
+export interface PaymentStatusResponse {
+  success: boolean;
+  status: string;
+  message: string;
+  customerMessage: string;
+  data: {
+    response: {
+      Amount: number;
+      ExternalReference: string;
+      MerchantRequestID: string;
+      MpesaReceiptNumber: string;
+      Phone: string;
+      ResultCode: number;
+      ResultDesc: string;
+      Metadata: Record<string, any>;
+      Status: 'PENDING' | 'SUCCESS' | 'FAILED';
+      TransactionDate: string;
+    };
+    status: boolean; // true for successful payments, false for failed/pending
+  };
+  timestamp: string;
+}
+
 export interface LipiaErrorResponse {
   success: false;
   status: 'error';
@@ -110,6 +133,142 @@ export function validatePhoneNumber(phoneNumber: string): { isValid: boolean; no
       error: 'Invalid phone number format. Use formats like 0712345678, 254712345678, or +254712345678' 
     };
   }
+}
+
+/**
+ * Check payment status using transaction reference
+ */
+export async function checkPaymentStatus(transactionReference: string): Promise<PaymentStatusResponse> {
+  if (!LIPIA_API_KEY) {
+    throw new Error('Lipia API key is not configured');
+  }
+
+  if (!transactionReference || typeof transactionReference !== 'string') {
+    throw new Error('Valid transaction reference is required');
+  }
+
+  try {
+    const response = await fetch(`${LIPIA_BASE_URL}/payments/status?reference=${encodeURIComponent(transactionReference)}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${LIPIA_API_KEY}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new LipiaPaymentError(result as LipiaErrorResponse, response.status);
+    }
+
+    return result as PaymentStatusResponse;
+  } catch (error) {
+    if (error instanceof LipiaPaymentError) {
+      throw error;
+    }
+
+    throw new Error(`Failed to check payment status: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+/**
+ * Poll payment status until completion or timeout
+ */
+export async function pollPaymentStatus(
+  transactionReference: string, 
+  options: {
+    maxAttempts?: number;
+    intervalMs?: number;
+    onStatusUpdate?: (status: PaymentStatusResponse) => void;
+  } = {}
+): Promise<PaymentStatusResponse> {
+  const { maxAttempts = 30, intervalMs = 5000, onStatusUpdate } = options;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const statusResponse = await checkPaymentStatus(transactionReference);
+      
+      // Call the optional callback with status update
+      if (onStatusUpdate) {
+        onStatusUpdate(statusResponse);
+      }
+
+      const paymentData = statusResponse.data.response;
+      
+      if (paymentData.Status === 'SUCCESS') {
+        console.log('Payment completed successfully:', {
+          amount: paymentData.Amount,
+          receipt: paymentData.MpesaReceiptNumber,
+          reference: paymentData.ExternalReference
+        });
+        return statusResponse;
+      } else if (paymentData.Status === 'FAILED') {
+        console.log('Payment failed:', paymentData.ResultDesc);
+        throw new Error(`Payment failed: ${paymentData.ResultDesc}`);
+      }
+      
+      // Payment is still pending
+      console.log(`Payment still pending (attempt ${attempt}/${maxAttempts})`);
+      
+      // Don't wait after the last attempt
+      if (attempt < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, intervalMs));
+      }
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('Payment failed:')) {
+        // Re-throw payment failures immediately
+        throw error;
+      }
+      
+      console.error(`Error polling payment status (attempt ${attempt}):`, error);
+      
+      // For API errors, wait and retry unless it's the last attempt
+      if (attempt < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, intervalMs));
+        continue;
+      }
+      
+      throw error;
+    }
+  }
+  
+  throw new Error(`Payment status polling timeout after ${maxAttempts} attempts`);
+}
+
+/**
+ * Check if a payment is complete (either SUCCESS or FAILED)
+ */
+export function isPaymentComplete(statusResponse: PaymentStatusResponse): boolean {
+  const status = statusResponse.data.response.Status;
+  return status === 'SUCCESS' || status === 'FAILED';
+}
+
+/**
+ * Check if a payment was successful
+ */
+export function isPaymentSuccessful(statusResponse: PaymentStatusResponse): boolean {
+  return statusResponse.data.response.Status === 'SUCCESS' && statusResponse.data.status === true;
+}
+
+/**
+ * Get payment result summary
+ */
+export function getPaymentSummary(statusResponse: PaymentStatusResponse) {
+  const payment = statusResponse.data.response;
+  return {
+    status: payment.Status,
+    amount: payment.Amount,
+    phone: payment.Phone,
+    receipt: payment.MpesaReceiptNumber || null,
+    reference: payment.ExternalReference,
+    resultCode: payment.ResultCode,
+    resultDescription: payment.ResultDesc,
+    transactionDate: payment.TransactionDate,
+    metadata: payment.Metadata,
+    isSuccessful: payment.Status === 'SUCCESS',
+    isComplete: payment.Status !== 'PENDING'
+  };
 }
 
 /**
@@ -212,5 +371,54 @@ export function createPaymentMetadata(data: {
     timestamp: new Date().toISOString(),
     source: 'poultry-marketplace',
     ...data
+  };
+}
+
+/**
+ * Create a simple payment status checker for frontend use
+ */
+export function createPaymentStatusChecker(transactionReference: string) {
+  return {
+    async checkStatus() {
+      const response = await fetch(`/api/payments/check/${encodeURIComponent(transactionReference)}`);
+      if (!response.ok) {
+        throw new Error('Failed to check payment status');
+      }
+      return response.json();
+    },
+
+    async pollStatus(options: {
+      maxAttempts?: number;
+      intervalMs?: number;
+      onUpdate?: (status: any) => void;
+    } = {}) {
+      const { maxAttempts = 20, intervalMs = 3000, onUpdate } = options;
+      
+      for (let i = 0; i < maxAttempts; i++) {
+        try {
+          const status = await this.checkStatus();
+          
+          if (onUpdate) {
+            onUpdate(status);
+          }
+          
+          if (status.isComplete) {
+            return status;
+          }
+          
+          if (i < maxAttempts - 1) {
+            await new Promise(resolve => setTimeout(resolve, intervalMs));
+          }
+        } catch (error) {
+          console.error('Error checking payment status:', error);
+          if (i === maxAttempts - 1) {
+            throw error;
+          }
+          await new Promise(resolve => setTimeout(resolve, intervalMs));
+        }
+      }
+      
+      throw new Error('Payment status polling timeout');
+    }
   };
 }

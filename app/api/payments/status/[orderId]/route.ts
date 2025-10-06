@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth';
+import { checkPaymentStatus, getPaymentSummary, LipiaPaymentError } from '@/lib/lipia';
 
 export async function GET(
   request: NextRequest,
@@ -56,6 +57,38 @@ export async function GET(
       console.error('Error parsing payment data:', parseError);
     }
 
+    // If we have a reference number and payment is still pending, check with Lipia API
+    let lipiaStatus: ReturnType<typeof getPaymentSummary> | null = null;
+    if (payment.referenceNumber && payment.status === 'PENDING') {
+      try {
+        const statusResponse = await checkPaymentStatus(payment.referenceNumber);
+        lipiaStatus = getPaymentSummary(statusResponse);
+        
+        // Update local payment status if Lipia shows it's complete
+        if (lipiaStatus && lipiaStatus.isComplete && lipiaStatus.status !== 'PENDING') {
+          const newStatus = lipiaStatus.isSuccessful ? 'APPROVED' : 'REJECTED';
+          
+          await prisma.payment.update({
+            where: { id: payment.id },
+            data: {
+              status: newStatus,
+              transactionCode: lipiaStatus.receipt,
+              failureReason: lipiaStatus.isSuccessful ? null : lipiaStatus.resultDescription,
+              updatedAt: new Date()
+            }
+          });
+
+          // Update the payment object to reflect the new status
+          payment.status = newStatus;
+          payment.transactionCode = lipiaStatus.receipt;
+          payment.failureReason = lipiaStatus.isSuccessful ? null : lipiaStatus.resultDescription;
+        }
+      } catch (lipiaError) {
+        console.error('Error checking Lipia status:', lipiaError);
+        // Don't fail the request if Lipia check fails
+      }
+    }
+
     return NextResponse.json({
       payment: {
         id: payment.id,
@@ -74,7 +107,8 @@ export async function GET(
       },
       order: payment.order,
       stkPushData,
-      callbackData
+      callbackData,
+      lipiaStatus // Include live status from Lipia API
     });
 
   } catch (error) {

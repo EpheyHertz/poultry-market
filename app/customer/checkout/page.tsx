@@ -120,9 +120,22 @@ function EnhancedCheckoutContent() {
     checkout: false,
     vouchers: false,
     validating: false,
-    stkPush: false
+    stkPush: false,
+    paymentCheck: false
   });
   const [step, setStep] = useState(1); // 1: Location, 2: Review Delivery, 3: Payment, 4: Confirm
+  
+  // Payment status checking states
+  const [paymentReference, setPaymentReference] = useState('');
+  const [paymentStatus, setPaymentStatus] = useState<{
+    checking: boolean;
+    result: any;
+    error: string | null;
+  }>({
+    checking: false,
+    result: null,
+    error: null
+  });
   
   // Voucher and discount states
   const [availableVouchers, setAvailableVouchers] = useState<any[]>([]);
@@ -506,6 +519,64 @@ function EnhancedCheckoutContent() {
     setDeliveryDiscountAmount(0);
     setDeliveryVoucherCode('');
     toast.success('Delivery voucher removed');
+  };
+
+  // Check payment status by reference
+  const checkPaymentStatus = async () => {
+    if (!paymentReference.trim()) {
+      toast.error('Please enter a transaction reference');
+      return;
+    }
+
+    setIsLoading(prev => ({ ...prev, paymentCheck: true }));
+    setPaymentStatus(prev => ({ ...prev, checking: true, error: null }));
+
+    try {
+      const response = await fetch(`/api/payments/reference/${encodeURIComponent(paymentReference.trim())}`);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || errorData.customerMessage || 'Failed to check payment status');
+      }
+
+      const data = await response.json();
+      
+      setPaymentStatus(prev => ({ 
+        ...prev, 
+        checking: false, 
+        result: data,
+        error: null 
+      }));
+
+      if (data.isSuccessful) {
+        toast.success('Payment verified successfully!');
+        // Auto-fill the payment details if payment is successful
+        setPaymentDetails(prev => ({ 
+          ...prev, 
+          reference: paymentReference.trim(),
+          phone: data.phone || prev.phone 
+        }));
+        setPaymentMethod('MANUAL'); // Switch to manual mode since we have a reference
+      } else if (data.status === 'PENDING') {
+        toast.info('Payment is still pending. Please wait or check again later.');
+      } else if (data.status === 'FAILED') {
+        toast.error(`Payment failed: ${data.resultDescription || 'Unknown error'}`);
+      } else {
+        toast.info(`Payment status: ${data.status}`);
+      }
+
+    } catch (error) {
+      console.error('Payment status check error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to check payment status';
+      setPaymentStatus(prev => ({ 
+        ...prev, 
+        checking: false, 
+        error: errorMessage
+      }));
+      toast.error(errorMessage);
+    } finally {
+      setIsLoading(prev => ({ ...prev, paymentCheck: false }));
+    }
   };
 
   // Handle STK Push initiation
@@ -1247,6 +1318,20 @@ function EnhancedCheckoutContent() {
                                     <li>Check your phone for M-Pesa prompt</li>
                                     <li>Enter your M-Pesa PIN to complete payment of <strong>Ksh {grandTotal.toFixed(2)}</strong></li>
                                   </ol>
+                                  <div className="mt-3 p-2 bg-blue-100 rounded">
+                                    <p className="text-xs">
+                                      <strong>If STK Push fails:</strong> Switch to &ldquo;Manual M-Pesa&rdquo; method above and use our{' '}
+                                      <a 
+                                        href="https://lipia-online.vercel.app/link/poultry-market" 
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        className="underline hover:text-blue-800"
+                                      >
+                                        online payment portal
+                                      </a>
+                                      {' '}or traditional M-Pesa to complete payment.
+                                    </p>
+                                  </div>
                                 </div>
                               </div>
                             </div>
@@ -1255,26 +1340,129 @@ function EnhancedCheckoutContent() {
 
                         {/* Manual Payment Instructions */}
                         {paymentMethod === 'MANUAL' && (
-                          <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
-                            <div className="flex">
-                              <div className="flex-shrink-0">
-                                <AlertCircle className="h-5 w-5 text-yellow-400" />
-                              </div>
-                              <div className="ml-3">
-                                <h3 className="text-sm font-medium text-yellow-800">Manual M-Pesa Payment</h3>
-                                <div className="mt-2 text-sm text-yellow-700">
-                                  <p>Complete payment manually and enter transaction details:</p>
-                                  <ol className="list-decimal pl-5 space-y-1 mt-2">
-                                    <li>Open your M-Pesa app</li>
-                                    <li>Select <strong>Lipa na M-Pesa</strong> → <strong>Pay Bill</strong></li>
-                                    <li>Enter PayBill Number: <strong>200999</strong></li>
-                                    <li>Enter Account Number: <strong>0133160030472</strong></li>
-                                    <li>Enter Amount: <strong>Ksh {grandTotal.toFixed(2)}</strong></li>
-                                    <li>Enter your M-Pesa PIN and confirm</li>
-                                    <li>Copy the transaction code from the M-Pesa message</li>
-                                  </ol>
+                          <div className="space-y-4">
+                            <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
+                              <div className="flex">
+                                <div className="flex-shrink-0">
+                                  <AlertCircle className="h-5 w-5 text-yellow-400" />
+                                </div>
+                                <div className="ml-3">
+                                  <h3 className="text-sm font-medium text-yellow-800">Manual M-Pesa Payment Options</h3>
+                                  <div className="mt-2 text-sm text-yellow-700">
+                                    <p>Choose one of the following payment methods:</p>
+                                    
+                                    {/* Online Payment Option */}
+                                    <div className="mt-4 p-3 bg-white rounded-lg border">
+                                      <h4 className="font-semibold text-yellow-800 mb-2">Option 1: Pay Online (Recommended)</h4>
+                                      <p className="mb-2">Use our secure online payment portal:</p>
+                                      <a 
+                                        href="https://lipia-online.vercel.app/link/poultry-market" 
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                                      >
+                                        <CreditCard className="h-4 w-4 mr-2" />
+                                        Pay Online - Ksh {grandTotal.toFixed(2)}
+                                      </a>
+                                      <p className="text-xs mt-2">After payment, copy the transaction reference and paste it below.</p>
+                                    </div>
+
+                                    {/* Traditional M-Pesa Option */}
+                                    <div className="mt-3 p-3 bg-white rounded-lg border">
+                                      <h4 className="font-semibold text-yellow-800 mb-2">Option 2: Traditional M-Pesa</h4>
+                                      <ol className="list-decimal pl-5 space-y-1">
+                                        <li>Open your M-Pesa app</li>
+                                        <li>Select <strong>Lipa na M-Pesa</strong> → <strong>Pay Bill</strong></li>
+                                        <li>Enter PayBill Number: <strong>200999</strong></li>
+                                        <li>Enter Account Number: <strong>0133160030472</strong></li>
+                                        <li>Enter Amount: <strong>Ksh {grandTotal.toFixed(2)}</strong></li>
+                                        <li>Enter your M-Pesa PIN and confirm</li>
+                                        <li>Copy the transaction code from the M-Pesa message</li>
+                                      </ol>
+                                    </div>
+                                  </div>
                                 </div>
                               </div>
+                            </div>
+
+                            {/* Payment Status Checker */}
+                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                              <h4 className="font-medium text-blue-800 mb-3">Check Payment Status</h4>
+                              <p className="text-sm text-blue-700 mb-3">
+                                If you have already made a payment, enter the transaction reference to verify it:
+                              </p>
+                              <div className="flex gap-2">
+                                <Input
+                                  value={paymentReference}
+                                  onChange={(e) => setPaymentReference(e.target.value.toUpperCase())}
+                                  placeholder="Enter transaction reference (e.g., QA12BC3DEF)"
+                                  className="flex-1 text-base uppercase"
+                                  disabled={isLoading.paymentCheck}
+                                />
+                                <Button
+                                  onClick={checkPaymentStatus}
+                                  disabled={!paymentReference.trim() || isLoading.paymentCheck}
+                                  variant="outline"
+                                  size="sm"
+                                >
+                                  {isLoading.paymentCheck ? 'Checking...' : 'Verify'}
+                                </Button>
+                              </div>
+                              
+                              {/* Payment Status Result */}
+                              {paymentStatus.result && (
+                                <div className={`mt-3 p-3 rounded-lg ${
+                                  paymentStatus.result.isSuccessful 
+                                    ? 'bg-green-100 border border-green-300' 
+                                    : paymentStatus.result.status === 'PENDING'
+                                    ? 'bg-yellow-100 border border-yellow-300'
+                                    : 'bg-red-100 border border-red-300'
+                                }`}>
+                                  <div className="flex items-center gap-2">
+                                    {paymentStatus.result.isSuccessful ? (
+                                      <CheckCircle className="h-4 w-4 text-green-600" />
+                                    ) : paymentStatus.result.status === 'PENDING' ? (
+                                      <Clock className="h-4 w-4 text-yellow-600" />
+                                    ) : (
+                                      <AlertCircle className="h-4 w-4 text-red-600" />
+                                    )}
+                                    <span className={`text-sm font-medium ${
+                                      paymentStatus.result.isSuccessful 
+                                        ? 'text-green-800' 
+                                        : paymentStatus.result.status === 'PENDING'
+                                        ? 'text-yellow-800'
+                                        : 'text-red-800'
+                                    }`}>
+                                      {paymentStatus.result.isSuccessful ? 'Payment Verified!' : 
+                                       paymentStatus.result.status === 'PENDING' ? 'Payment Pending' :
+                                       'Payment Failed'}
+                                    </span>
+                                  </div>
+                                  {paymentStatus.result.isSuccessful && (
+                                    <div className="text-xs text-green-700 mt-1">
+                                      Amount: Ksh {paymentStatus.result.amount} | Phone: {paymentStatus.result.phone}
+                                      {paymentStatus.result.receipt && (
+                                        <span> | Receipt: {paymentStatus.result.receipt}</span>
+                                      )}
+                                    </div>
+                                  )}
+                                  {paymentStatus.result.resultDescription && (
+                                    <div className="text-xs mt-1">
+                                      {paymentStatus.result.resultDescription}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+
+                              {paymentStatus.error && (
+                                <div className="mt-3 p-3 bg-red-100 border border-red-300 rounded-lg">
+                                  <div className="flex items-center gap-2">
+                                    <AlertCircle className="h-4 w-4 text-red-600" />
+                                    <span className="text-sm font-medium text-red-800">Error</span>
+                                  </div>
+                                  <div className="text-xs text-red-700 mt-1">{paymentStatus.error}</div>
+                                </div>
+                              )}
                             </div>
                           </div>
                         )}
@@ -1300,17 +1488,62 @@ function EnhancedCheckoutContent() {
                           {paymentMethod === 'MANUAL' && (
                             <div>
                               <Label htmlFor="paymentReference">M-Pesa Transaction Code *</Label>
-                              <Input
-                                id="paymentReference"
-                                value={paymentDetails.reference}
-                                onChange={(e) => setPaymentDetails(prev => ({ ...prev, reference: e.target.value }))}
-                                placeholder="QA12BC3DEF"
-                                className="text-base uppercase" // Better for mobile
-                                required
-                              />
+                              <div className="flex gap-2">
+                                <Input
+                                  id="paymentReference"
+                                  value={paymentDetails.reference}
+                                  onChange={(e) => {
+                                    const value = e.target.value.toUpperCase();
+                                    setPaymentDetails(prev => ({ ...prev, reference: value }));
+                                    setPaymentReference(value); // Sync with payment checker
+                                  }}
+                                  placeholder="QA12BC3DEF"
+                                  className="text-base uppercase flex-1" // Better for mobile
+                                  required
+                                />
+                                {paymentDetails.reference && (
+                                  <Button
+                                    type="button"
+                                    onClick={checkPaymentStatus}
+                                    disabled={!paymentDetails.reference.trim() || isLoading.paymentCheck}
+                                    variant="outline"
+                                    size="sm"
+                                  >
+                                    {isLoading.paymentCheck ? 'Verifying...' : 'Verify'}
+                                  </Button>
+                                )}
+                              </div>
                               <p className="text-sm text-gray-500 mt-1">
-                                Enter the transaction code from your M-Pesa confirmation message
+                                Enter the transaction code from your M-Pesa confirmation message or online payment
                               </p>
+                              
+                              {/* Verification Status */}
+                              {paymentDetails.reference === paymentReference && paymentStatus.result && (
+                                <div className={`mt-2 p-2 rounded text-xs ${
+                                  paymentStatus.result.isSuccessful 
+                                    ? 'bg-green-100 text-green-800 border border-green-300' 
+                                    : paymentStatus.result.status === 'PENDING'
+                                    ? 'bg-yellow-100 text-yellow-800 border border-yellow-300'
+                                    : 'bg-red-100 text-red-800 border border-red-300'
+                                }`}>
+                                  {paymentStatus.result.isSuccessful ? (
+                                    <span className="flex items-center gap-1">
+                                      <CheckCircle className="h-3 w-3" />
+                                      Payment verified successfully!
+                                    </span>
+                                  ) : paymentStatus.result.status === 'PENDING' ? (
+                                    <span className="flex items-center gap-1">
+                                      <Clock className="h-3 w-3" />
+                                      Payment is still processing...
+                                    </span>
+                                  ) : (
+                                    <span className="flex items-center gap-1">
+                                      <AlertCircle className="h-3 w-3" />
+                                      Payment verification failed
+                                    </span>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           )}
 
