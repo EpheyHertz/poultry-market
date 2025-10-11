@@ -155,6 +155,7 @@ export async function checkPaymentStatus(transactionReference: string): Promise<
         'Content-Type': 'application/json'
       }
     });
+    console.log("Response:",response)
 
     const result = await response.json();
 

@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Suspense } from 'react';
+import axios from 'axios';
 import { KENYA_COUNTIES, KENYA_PROVINCES, COUNTY_TO_PROVINCE } from '@/lib/kenya-locations';
 
 interface Product {
@@ -579,7 +580,7 @@ function EnhancedCheckoutContent() {
     }
   };
 
-  // Handle STK Push initiation
+  // Handle Pay Via Link (New STK Push replacement)
   const handleStkPush = async () => {
     if (!paymentDetails.phone) {
       toast.error('Please enter your M-Pesa phone number');
@@ -594,76 +595,102 @@ function EnhancedCheckoutContent() {
     setIsLoading(prev => ({ ...prev, stkPush: true }));
 
     try {
-      let orderPayload;
-
-      if (isSessionMode && checkoutSession) {
-        orderPayload = {
-          items: [{
-            productId: checkoutSession.product.id,
-            quantity: checkoutSession.quantity,
-            price: calculateItemPrice(checkoutSession.product)
-          }],
-          total: grandTotal,
-          subtotal,
-          discountAmount,
-          voucherCode: appliedVoucher?.code || null,
-          deliveryFee: finalDeliveryFee,
-          deliveryVoucherCode: appliedDeliveryVoucher?.code || null,
-          deliveryAddress,
-          deliveryCounty: deliveryLocation.county,
-          deliveryProvince: deliveryLocation.province,
-          paymentType: 'MPESA',
-          paymentPreference: 'BEFORE_DELIVERY',
-          paymentDetails: {
-            phone: paymentDetails.phone,
-            details: paymentDetails.details
-          },
-          sessionId: checkoutSession.id,
-          stkPush: true
-        };
-      } else {
-        orderPayload = {
-          deliveryOptions,
-          deliveryLocation,
-          paymentPreference: 'BEFORE_DELIVERY',
-          paymentType: 'MPESA',
-          paymentDetails: {
-            phone: paymentDetails.phone,
-            details: paymentDetails.details
-          },
-          deliveryAddress,
-          items: cartItems.map(item => ({
-            productId: item.product.id,
-            quantity: item.quantity,
-            price: calculateItemPrice(item.product)
-          })),
-          total: grandTotal,
-          subtotal,
-          discountAmount,
-          voucherCode: appliedVoucher?.code || null,
-          deliveryFee: finalDeliveryFee,
-          deliveryVoucherCode: appliedDeliveryVoucher?.code || null,
-          deliveryDiscountAmount,
-          stkPush: true
-        };
-      }
-
-      const response = await fetch('/api/orders', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(orderPayload)
+      // Step 1: Initiate payment via the pay-via-link API
+      toast.info('Initiating payment...');
+      
+      const paymentResponse = await axios.post('/api/payments/pay-via-link', {
+        phone: paymentDetails.phone.replace(/\s/g, ''), // Remove spaces
+        amount: grandTotal,
+        link_slug: 'poultry-market',
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to initiate payment');
-      }
+      console.log('Payment initiated:', paymentResponse.data);
 
-      const data = await response.json();
-
-      if (data.stkPush?.initiated) {
-        toast.success(`STK Push sent to ${paymentDetails.phone}. Please check your phone and complete the payment.`);
+      // Check if payment was successful
+      if (paymentResponse.data.success && paymentResponse.data.data.success) {
+        toast.success('Payment completed successfully!');
         
+        // Step 2: Create the order with payment confirmed
+        let orderPayload;
+
+        if (isSessionMode && checkoutSession) {
+          orderPayload = {
+            items: [{
+              productId: checkoutSession.product.id,
+              quantity: checkoutSession.quantity,
+              price: calculateItemPrice(checkoutSession.product)
+            }],
+            total: grandTotal,
+            subtotal,
+            discountAmount,
+            voucherCode: appliedVoucher?.code || null,
+            deliveryFee: finalDeliveryFee,
+            deliveryVoucherCode: appliedDeliveryVoucher?.code || null,
+            deliveryAddress,
+            deliveryCounty: deliveryLocation.county,
+            deliveryProvince: deliveryLocation.province,
+            paymentType: 'MPESA',
+            paymentPreference: 'BEFORE_DELIVERY',
+            paymentDetails: {
+              phone: paymentDetails.phone,
+              reference: paymentResponse.data.data?.data?.TransactionReference || 
+                        paymentResponse.data.data?.data?.transactionReference ||
+                        paymentResponse.data.data?.reference ||
+                        `LINK_${Date.now()}`,
+              details: 'Payment via Link - Auto Processed',
+              method: 'STK_PUSH',
+              paymentConfirmed: true
+            },
+            sessionId: checkoutSession.id,
+            paymentConfirmed: true
+          };
+        } else {
+          orderPayload = {
+            deliveryOptions,
+            deliveryLocation,
+            paymentPreference: 'BEFORE_DELIVERY',
+            paymentType: 'MPESA',
+            paymentDetails: {
+              phone: paymentDetails.phone,
+              reference: paymentResponse.data.data?.data?.TransactionReference || 
+                        paymentResponse.data.data?.data?.transactionReference ||
+                        paymentResponse.data.data?.reference ||
+                        `LINK_${Date.now()}`,
+              details: 'Payment via Link - Auto Processed',
+              method: 'STK_PUSH',
+              paymentConfirmed: true
+            },
+            deliveryAddress,
+            items: cartItems.map(item => ({
+              productId: item.product.id,
+              quantity: item.quantity,
+              price: calculateItemPrice(item.product)
+            })),
+            total: grandTotal,
+            subtotal,
+            discountAmount,
+            voucherCode: appliedVoucher?.code || null,
+            deliveryFee: finalDeliveryFee,
+            deliveryVoucherCode: appliedDeliveryVoucher?.code || null,
+            deliveryDiscountAmount,
+            paymentConfirmed: true
+          };
+        }
+
+        // Create the order
+        const orderResponse = await fetch('/api/orders', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(orderPayload)
+        });
+
+        if (!orderResponse.ok) {
+          const errorData = await orderResponse.json();
+          throw new Error(errorData.error || 'Failed to create order after payment');
+        }
+
+        const orderData = await orderResponse.json();
+
         // Mark session as completed if in session mode
         if (isSessionMode && checkoutSession) {
           await fetch(`/api/checkout/session/${checkoutSession.id}`, {
@@ -673,14 +700,37 @@ function EnhancedCheckoutContent() {
           });
         }
 
-        router.push(`/customer/orders/${data.order.id}?payment_status=pending`);
+        toast.success('Order created successfully!');
+        router.push(`/customer/orders/${orderData.order.id}?payment_status=completed`);
+        
       } else {
-        throw new Error(data.stkPush?.error || 'STK Push failed');
+        // Payment failed or pending
+        const errorMsg = paymentResponse.data.data?.message || 
+                        paymentResponse.data.data?.customerMessage || 
+                        paymentResponse.data.error ||
+                        'Payment failed';
+        toast.error(`Payment failed: ${errorMsg}`);
+        
+        // Show fallback options
+        toast.info('Please try manual payment or contact support');
       }
 
     } catch (error) {
-      console.error('STK Push error:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to initiate STK Push');
+      console.error('Payment error:', error);
+      
+      if (axios.isAxiosError(error)) {
+        const errorMsg = error.response?.data?.error || 
+                        error.response?.data?.customerMessage || 
+                        error.response?.data?.message ||
+                        error.message;
+        toast.error(`Payment failed: ${errorMsg}`);
+      } else {
+        toast.error(error instanceof Error ? error.message : 'Failed to process payment');
+      }
+      
+      // Show fallback option
+      toast.info('You can try manual payment using the "Manual M-Pesa" option above');
+      
     } finally {
       setIsLoading(prev => ({ ...prev, stkPush: false }));
     }
@@ -1271,8 +1321,8 @@ function EnhancedCheckoutContent() {
                                 )}
                               </div>
                               <div>
-                                <h5 className="font-medium text-sm">STK Push</h5>
-                                <p className="text-xs text-gray-500">Automatic payment</p>
+                                <h5 className="font-medium text-sm">Pay via Link</h5>
+                                <p className="text-xs text-gray-500">Instant payment processing</p>
                               </div>
                             </div>
                           </div>
@@ -1301,7 +1351,7 @@ function EnhancedCheckoutContent() {
                           </div>
                         </div>
 
-                        {/* STK Push Instructions */}
+                        {/* Pay via Link Instructions */}
                         {paymentMethod === 'STK_PUSH' && (
                           <div className="bg-blue-50 border-l-4 border-blue-400 p-4">
                             <div className="flex">
@@ -1309,18 +1359,18 @@ function EnhancedCheckoutContent() {
                                 <AlertCircle className="h-5 w-5 text-blue-400" />
                               </div>
                               <div className="ml-3">
-                                <h3 className="text-sm font-medium text-blue-800">STK Push Payment</h3>
+                                <h3 className="text-sm font-medium text-blue-800">Pay via Link Payment</h3>
                                 <div className="mt-2 text-sm text-blue-700">
-                                  <p>Click &ldquo;Pay Now&rdquo; to receive an STK Push notification on your phone.</p>
+                                  <p>Click &ldquo;Pay Now&rdquo; to process your payment instantly.</p>
                                   <ol className="list-decimal pl-5 space-y-1 mt-2">
                                     <li>Enter your M-Pesa phone number below</li>
                                     <li>Click &ldquo;Pay Now&rdquo; button</li>
-                                    <li>Check your phone for M-Pesa prompt</li>
-                                    <li>Enter your M-Pesa PIN to complete payment of <strong>Ksh {grandTotal.toFixed(2)}</strong></li>
+                                    <li>Payment will be processed automatically</li>
+                                    <li>Complete payment of <strong>Ksh {grandTotal.toFixed(2)}</strong></li>
                                   </ol>
                                   <div className="mt-3 p-2 bg-blue-100 rounded">
                                     <p className="text-xs">
-                                      <strong>If STK Push fails:</strong> Switch to &ldquo;Manual M-Pesa&rdquo; method above and use our{' '}
+                                      <strong>If payment fails:</strong> Switch to &ldquo;Manual M-Pesa&rdquo; method above and use our{' '}
                                       <a 
                                         href="https://lipia-online.vercel.app/link/poultry-market" 
                                         target="_blank" 
