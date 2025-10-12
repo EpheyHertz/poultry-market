@@ -79,6 +79,15 @@ enum PaymentStatus {
   REFUNDED
 }
 
+enum PaymentInvoiceStatus {
+  CREATED     // Invoice created but payment not initiated
+  PENDING     // Payment initiated but not completed
+  COMPLETE    // Payment completed successfully
+  FAILED      // Payment failed
+  EXPIRED     // Invoice expired
+  USED        // Invoice used for order creation
+}
+
 enum SponsorshipStatus {
   PENDING
   APPROVED
@@ -331,6 +340,7 @@ model Order {
   items      OrderItem[]
   delivery   Delivery?
   payment    Payment?
+  paymentInvoices PaymentInvoice[]
   notifications Notification[]
   paymentApprovals PaymentApprovalLog[]
   chats      Chat[]
@@ -476,6 +486,25 @@ model PaymentApprovalLog {
   createdAt DateTime @default(now())
 
   @@map("payment_approval_logs")
+}
+
+model PaymentInvoice {
+  id               String   @id @default(cuid())
+  invoiceId        String   @unique                    // IntaSend invoice ID
+  orderId          String?                            // Optional - set when order is created
+  order            Order?   @relation(fields: [orderId], references: [id])
+  provider         String   @default("intasend")      // Payment provider (intasend, lipia, etc.)
+  status           PaymentInvoiceStatus @default(CREATED)
+  amount           Float                              // Original payment amount
+  expectedAmount   Float?                            // Expected amount with fees
+  phoneNumber      String?                           // Phone number used for payment
+  isUsed           Boolean  @default(false)          // Whether invoice has been used for an order
+  expiresAt        DateTime                          // When invoice expires
+  metadata         String?                           // JSON string for additional data
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@map("payment_invoices")
 }
 
 model Voucher {

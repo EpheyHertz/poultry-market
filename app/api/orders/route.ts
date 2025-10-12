@@ -4,6 +4,7 @@ import { getCurrentUser } from '@/lib/auth'
 import { OrderStatus, PaymentMethod, PaymentStatus, PaymentType, ProductType, VoucherType, Voucher, DeliveryVoucher } from '@prisma/client'
 import { createNotification, notificationTemplates } from '@/lib/notifications'
 import { COUNTY_TO_PROVINCE } from '@/lib/kenya-locations'
+import { markInvoiceAsUsed, canUseInvoice } from '@/lib/payment-invoices'
 import { 
   initiateStkPush, 
   validatePhoneNumber,
@@ -365,6 +366,39 @@ const serverTotal = rawTotal % 1 <= 0.4
     const initialStatus: OrderStatus = OrderStatus.PENDING
     const initialPaymentStatus: PaymentStatus =  PaymentStatus.SUBMITTED 
 
+    // Check if manual payment reference is an IntaSend invoice ID
+    let isValidInvoice = false
+    if (paymentPreference === 'BEFORE_DELIVERY' && 
+        body?.paymentDetails?.method === 'MANUAL' && 
+        body.paymentDetails.reference) {
+      
+      try {
+        const invoiceCheck = await canUseInvoice(body.paymentDetails.reference)
+        if (invoiceCheck.canUse && invoiceCheck.invoice) {
+          // Verify the invoice amount matches the order total
+          const expectedAmount = invoiceCheck.invoice.amount
+          const tolerance = Math.max(1, expectedAmount * 0.02) // 2% tolerance or minimum KES 1
+          
+          if (Math.abs(expectedAmount - serverTotal) <= tolerance) {
+            isValidInvoice = true
+          } else {
+            return NextResponse.json({
+              error: `Payment amount mismatch. Expected: KES ${serverTotal}, Invoice amount: KES ${expectedAmount}`
+            }, { status: 400 })
+          }
+        } else {
+          return NextResponse.json({
+            error: `Invalid payment reference: ${invoiceCheck.reason}`
+          }, { status: 400 })
+        }
+      } catch (error) {
+        console.error('Invoice verification error:', error)
+        return NextResponse.json({
+          error: 'Failed to verify payment reference'
+        }, { status: 400 })
+      }
+    } 
+
     // Create order and payment in transaction
     const [order, payment, stkPushResponse] = await prisma.$transaction(async (tx) => {
       // 1. Create the order first
@@ -469,6 +503,17 @@ const serverTotal = rawTotal % 1 <= 0.4
 
       return [updatedOrder, paymentRecord, null] // STK Push response will be set if initiated
     }, { timeout: 35000 })
+
+    // Mark IntaSend invoice as used if this was a manual payment with a valid invoice
+    if (isValidInvoice && body?.paymentDetails?.reference) {
+      try {
+        await markInvoiceAsUsed(body.paymentDetails.reference, order.id)
+        console.log(`Marked invoice ${body.paymentDetails.reference} as used for order ${order.id}`)
+      } catch (error) {
+        console.error('Failed to mark invoice as used:', error)
+        // Continue with order processing even if invoice marking fails
+      }
+    }
 
     // Initiate STK Push for prepaid STK Push payments (outside transaction to avoid blocking)
     let stkPushData: any = null

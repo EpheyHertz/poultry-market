@@ -28,8 +28,8 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Suspense } from 'react';
-import axios from 'axios';
 import { KENYA_COUNTIES, KENYA_PROVINCES, COUNTY_TO_PROVINCE } from '@/lib/kenya-locations';
+import { calculateIntaSendFees } from '@/lib/intasend';
 
 interface Product {
   id: string;
@@ -128,6 +128,8 @@ function EnhancedCheckoutContent() {
   
   // Payment status checking states
   const [paymentReference, setPaymentReference] = useState('');
+  const [currentInvoiceId, setCurrentInvoiceId] = useState(''); // Track current payment invoice
+  const [manualInvoiceId, setManualInvoiceId] = useState(''); // For manual status checking
   const [paymentStatus, setPaymentStatus] = useState<{
     checking: boolean;
     result: any;
@@ -137,6 +139,10 @@ function EnhancedCheckoutContent() {
     result: null,
     error: null
   });
+  const [showManualChecker, setShowManualChecker] = useState(false);
+  
+  // Payment fees calculation
+  const [showFeeBreakdown, setShowFeeBreakdown] = useState(false);
   
   // Voucher and discount states
   const [availableVouchers, setAvailableVouchers] = useState<any[]>([]);
@@ -418,6 +424,14 @@ function EnhancedCheckoutContent() {
   const rawTotal = Math.max(0, subtotal - discountAmount + finalDeliveryFee);
   const grandTotal = customRound(rawTotal);
 
+  // Calculate payment fees for STK Push
+  const paymentFees = selectedPaymentType === 'BEFORE_DELIVERY' && paymentMethod === 'STK_PUSH' 
+    ? calculateIntaSendFees(grandTotal) 
+    : null;
+
+  // Final amount customer pays (includes payment fees for STK Push)
+  const finalPaymentAmount = paymentFees ? paymentFees.totalAmount : grandTotal;
+
   // Voucher application functions
   const applyVoucher = async () => {
     if (!voucherCode.trim()) {
@@ -580,7 +594,150 @@ function EnhancedCheckoutContent() {
     }
   };
 
-  // Handle Pay Via Link (New STK Push replacement)
+  // Check payment status by IntaSend invoice ID
+  const checkInvoiceStatus = async (invoiceId?: string) => {
+    const idToCheck = invoiceId || manualInvoiceId.trim();
+    
+    if (!idToCheck) {
+      toast.error('Please enter an invoice ID');
+      return;
+    }
+
+    setIsLoading(prev => ({ ...prev, paymentCheck: true }));
+    setPaymentStatus(prev => ({ ...prev, checking: true, error: null }));
+
+    try {
+      const response = await fetch(`/api/payments/intasend/status/${encodeURIComponent(idToCheck)}`);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || errorData.customerMessage || 'Failed to check payment status');
+      }
+
+      const data = await response.json();
+      
+      setPaymentStatus(prev => ({ 
+        ...prev, 
+        checking: false, 
+        result: data,
+        error: null 
+      }));
+
+      if (data.isSuccessful) {
+        toast.success('Payment verified successfully!');
+        // Auto-fill the payment details if payment is successful
+        setPaymentDetails(prev => ({ 
+          ...prev, 
+          reference: data.mpesaReference || data.invoiceId,
+          phone: data.phone || prev.phone 
+        }));
+        setPaymentMethod('MANUAL'); // Switch to manual mode since payment is confirmed
+      } else if (data.state === 'PENDING') {
+        toast.info('Payment is still pending. Please wait or check again later.');
+      } else if (data.state === 'FAILED') {
+        toast.error(`Payment failed: ${data.failedReason || 'Unknown error'}`);
+      } else {
+        toast.info(`Payment status: ${data.state}`);
+      }
+
+    } catch (error) {
+      console.error('Invoice status check error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to check payment status';
+      setPaymentStatus(prev => ({ 
+        ...prev, 
+        checking: false, 
+        error: errorMessage
+      }));
+      toast.error(errorMessage);
+    } finally {
+      setIsLoading(prev => ({ ...prev, paymentCheck: false }));
+    }
+  };
+
+  // Check payment status by invoice ID (IntaSend)
+  const checkPaymentByInvoice = async () => {
+    if (!manualInvoiceId.trim()) {
+      toast.error('Please enter an invoice ID');
+      return;
+    }
+
+    setIsLoading(prev => ({ ...prev, paymentCheck: true }));
+    setPaymentStatus(prev => ({ ...prev, checking: true, error: null }));
+
+    try {
+      // Use the new verification endpoint that includes fraud prevention
+      const response = await fetch('/api/payments/intasend/verify', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          invoiceId: manualInvoiceId.trim(),
+          expectedAmount: grandTotal
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        setPaymentStatus(prev => ({ 
+          ...prev, 
+          checking: false, 
+          error: data.customerMessage || data.error || 'Payment verification failed'
+        }));
+
+        // Show specific error messages based on the failure reason
+        if (data.details) {
+          if (data.details.isUsed) {
+            toast.error('This invoice has already been used for another order');
+          } else if (data.details.expired) {
+            toast.error('This invoice has expired');
+          } else if (data.details.paymentState !== 'COMPLETE') {
+            toast.error(`Payment is ${data.details.paymentState.toLowerCase()}. Please complete the payment first.`);
+          } else if (data.details.difference !== undefined) {
+            toast.error(`Payment amount mismatch. Expected: KES ${grandTotal}, Found: KES ${data.details.actualAmount}`);
+          } else {
+            toast.error(data.customerMessage || 'Payment verification failed');
+          }
+        } else {
+          toast.error(data.customerMessage || 'Payment verification failed');
+        }
+        return;
+      }
+
+      // Payment verification successful
+      setPaymentStatus(prev => ({ 
+        ...prev, 
+        checking: false, 
+        result: data,
+        error: null 
+      }));
+
+      toast.success('Payment verified successfully! You can now complete your order.');
+      
+      // Auto-fill the payment details
+      setPaymentDetails(prev => ({ 
+        ...prev, 
+        reference: data.data.invoiceId,
+        phone: prev.phone 
+      }));
+      setPaymentMethod('MANUAL'); // Switch to manual mode since we have a verified reference
+
+    } catch (error) {
+      console.error('Payment verification error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to verify payment';
+      setPaymentStatus(prev => ({ 
+        ...prev, 
+        checking: false, 
+        error: errorMessage
+      }));
+      toast.error(errorMessage);
+    } finally {
+      setIsLoading(prev => ({ ...prev, paymentCheck: false }));
+    }
+  };
+
+  // Handle IntaSend STK Push
   const handleStkPush = async () => {
     if (!paymentDetails.phone) {
       toast.error('Please enter your M-Pesa phone number');
@@ -595,141 +752,190 @@ function EnhancedCheckoutContent() {
     setIsLoading(prev => ({ ...prev, stkPush: true }));
 
     try {
-      // Step 1: Initiate payment via the pay-via-link API
-      toast.info('Initiating payment...');
+      // Step 1: Initiate IntaSend STK Push
+      toast.info('Sending payment request to your phone...');
       
-      const paymentResponse = await axios.post('/api/payments/pay-via-link', {
-        phone: paymentDetails.phone.replace(/\s/g, ''), // Remove spaces
-        amount: grandTotal,
-        link_slug: 'poultry-market',
+      const stkResponse = await fetch('/api/payments/intasend/stk-push', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          phone: paymentDetails.phone.replace(/\s/g, ''), // Remove spaces
+          amount: grandTotal, // Use base amount, API will calculate fees
+          orderId: isSessionMode ? checkoutSession?.id : 'CART_CHECKOUT',
+          apiRef: `POULTRY_${Date.now()}`
+        }),
       });
 
-      console.log('Payment initiated:', paymentResponse.data);
-
-      // Check if payment was successful
-      if (paymentResponse.data.success && paymentResponse.data.data.success) {
-        toast.success('Payment completed successfully!');
-        
-        // Step 2: Create the order with payment confirmed
-        let orderPayload;
-
-        if (isSessionMode && checkoutSession) {
-          orderPayload = {
-            items: [{
-              productId: checkoutSession.product.id,
-              quantity: checkoutSession.quantity,
-              price: calculateItemPrice(checkoutSession.product)
-            }],
-            total: grandTotal,
-            subtotal,
-            discountAmount,
-            voucherCode: appliedVoucher?.code || null,
-            deliveryFee: finalDeliveryFee,
-            deliveryVoucherCode: appliedDeliveryVoucher?.code || null,
-            deliveryAddress,
-            deliveryCounty: deliveryLocation.county,
-            deliveryProvince: deliveryLocation.province,
-            paymentType: 'MPESA',
-            paymentPreference: 'BEFORE_DELIVERY',
-            paymentDetails: {
-              phone: paymentDetails.phone,
-              reference: paymentResponse.data.data?.data?.TransactionReference || 
-                        paymentResponse.data.data?.data?.transactionReference ||
-                        paymentResponse.data.data?.reference ||
-                        `LINK_${Date.now()}`,
-              details: 'Payment via Link - Auto Processed',
-              method: 'STK_PUSH',
-              paymentConfirmed: true
-            },
-            sessionId: checkoutSession.id,
-            paymentConfirmed: true
-          };
-        } else {
-          orderPayload = {
-            deliveryOptions,
-            deliveryLocation,
-            paymentPreference: 'BEFORE_DELIVERY',
-            paymentType: 'MPESA',
-            paymentDetails: {
-              phone: paymentDetails.phone,
-              reference: paymentResponse.data.data?.data?.TransactionReference || 
-                        paymentResponse.data.data?.data?.transactionReference ||
-                        paymentResponse.data.data?.reference ||
-                        `LINK_${Date.now()}`,
-              details: 'Payment via Link - Auto Processed',
-              method: 'STK_PUSH',
-              paymentConfirmed: true
-            },
-            deliveryAddress,
-            items: cartItems.map(item => ({
-              productId: item.product.id,
-              quantity: item.quantity,
-              price: calculateItemPrice(item.product)
-            })),
-            total: grandTotal,
-            subtotal,
-            discountAmount,
-            voucherCode: appliedVoucher?.code || null,
-            deliveryFee: finalDeliveryFee,
-            deliveryVoucherCode: appliedDeliveryVoucher?.code || null,
-            deliveryDiscountAmount,
-            paymentConfirmed: true
-          };
-        }
-
-        // Create the order
-        const orderResponse = await fetch('/api/orders', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(orderPayload)
-        });
-
-        if (!orderResponse.ok) {
-          const errorData = await orderResponse.json();
-          throw new Error(errorData.error || 'Failed to create order after payment');
-        }
-
-        const orderData = await orderResponse.json();
-
-        // Mark session as completed if in session mode
-        if (isSessionMode && checkoutSession) {
-          await fetch(`/api/checkout/session/${checkoutSession.id}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ isCompleted: true })
-          });
-        }
-
-        toast.success('Order created successfully!');
-        router.push(`/customer/orders/${orderData.order.id}?payment_status=completed`);
-        
-      } else {
-        // Payment failed or pending
-        const errorMsg = paymentResponse.data.data?.message || 
-                        paymentResponse.data.data?.customerMessage || 
-                        paymentResponse.data.error ||
-                        'Payment failed';
-        toast.error(`Payment failed: ${errorMsg}`);
-        
-        // Show fallback options
-        toast.info('Please try manual payment or contact support');
+      if (!stkResponse.ok) {
+        const errorData = await stkResponse.json();
+        throw new Error(errorData.error || errorData.customerMessage || 'Failed to initiate payment');
       }
+
+      const stkData = await stkResponse.json();
+      console.log('STK Push initiated:', stkData);
+
+      if (!stkData.success) {
+        throw new Error(stkData.error || 'Failed to initiate STK Push');
+      }
+
+      const invoiceId = stkData.data.invoiceId;
+      const totalAmountToPay = stkData.data.totalAmount;
+      setCurrentInvoiceId(invoiceId); // Store for manual checking
+      
+      toast.success(`Payment request sent to ${paymentDetails.phone}. Please check your phone and enter your M-Pesa PIN.`);
+      
+      if (stkData.feeBreakdown) {
+        toast.info(`Total amount: KES ${totalAmountToPay} (Order: KES ${grandTotal} + Service: KES ${stkData.feeBreakdown.serviceFee} + IntaSend: KES ${stkData.feeBreakdown.intaSendFee})`);
+      }
+      
+      toast.info(`Invoice ID: ${invoiceId} (save this for reference)`, { duration: 8000 });
+      
+      // Step 2: Poll payment status
+      toast.info('Waiting for payment confirmation...');
+      let paymentConfirmed = false;
+      let paymentReference = '';
+      let attempts = 0;
+      const maxAttempts = 30; // 2.5 minutes with 5-second intervals
+
+      while (attempts < maxAttempts && !paymentConfirmed) {
+        await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds
+        attempts++;
+
+        try {
+          const statusResponse = await fetch(`/api/payments/intasend/status/${invoiceId}?expectedAmount=${grandTotal}`);
+          
+          if (statusResponse.ok) {
+            const statusData = await statusResponse.json();
+            console.log(`Payment status check ${attempts}:`, statusData);
+
+            if (statusData.isSuccessful) {
+              // Check amount validation if available
+              if (statusData.amountValidation && !statusData.isAmountValid) {
+                toast.error(`Payment amount mismatch: ${statusData.amountValidation.message}`);
+                throw new Error(`Payment amount validation failed: ${statusData.amountValidation.message}`);
+              }
+              
+              paymentConfirmed = true;
+              paymentReference = statusData.mpesaReference || statusData.invoiceId;
+              toast.success('Payment confirmed successfully!');
+              break;
+            } else if (statusData.state === 'FAILED') {
+              throw new Error(statusData.failedReason || 'Payment failed');
+            }
+            
+            // Still pending - show progress
+            if (attempts % 3 === 0) { // Every 15 seconds
+              toast.info(`Still waiting for payment confirmation... (${Math.floor(attempts/2)} minutes elapsed)`);
+            }
+          }
+        } catch (statusError) {
+          console.error('Status check error:', statusError);
+          // Continue polling even if status check fails
+        }
+      }
+
+      if (!paymentConfirmed) {
+        setShowManualChecker(true); // Show manual checker on timeout
+        throw new Error(`Payment confirmation timeout. You can check payment status using Invoice ID: ${invoiceId}, or try manual payment.`);
+      }
+
+      // Step 3: Create the order with confirmed payment
+      let orderPayload;
+
+      if (isSessionMode && checkoutSession) {
+        orderPayload = {
+          items: [{
+            productId: checkoutSession.product.id,
+            quantity: checkoutSession.quantity,
+            price: calculateItemPrice(checkoutSession.product)
+          }],
+          total: grandTotal,
+          subtotal,
+          discountAmount,
+          voucherCode: appliedVoucher?.code || null,
+          deliveryFee: finalDeliveryFee,
+          deliveryVoucherCode: appliedDeliveryVoucher?.code || null,
+          deliveryAddress,
+          deliveryCounty: deliveryLocation.county,
+          deliveryProvince: deliveryLocation.province,
+          paymentType: 'MPESA',
+          paymentPreference: 'BEFORE_DELIVERY',
+          paymentDetails: {
+            phone: paymentDetails.phone,
+            reference: paymentReference,
+            details: 'IntaSend STK Push - Payment Confirmed',
+            method: 'STK_PUSH',
+            invoiceId: invoiceId
+          },
+          sessionId: checkoutSession.id,
+          paymentConfirmed: true
+        };
+      } else {
+        orderPayload = {
+          deliveryOptions,
+          deliveryLocation,
+          paymentPreference: 'BEFORE_DELIVERY',
+          paymentType: 'MPESA',
+          paymentDetails: {
+            phone: paymentDetails.phone,
+            reference: paymentReference,
+            details: 'IntaSend STK Push - Payment Confirmed',
+            method: 'STK_PUSH',
+            invoiceId: invoiceId
+          },
+          deliveryAddress,
+          items: cartItems.map(item => ({
+            productId: item.product.id,
+            quantity: item.quantity,
+            price: calculateItemPrice(item.product)
+          })),
+          total: grandTotal,
+          subtotal,
+          discountAmount,
+          voucherCode: appliedVoucher?.code || null,
+          deliveryFee: finalDeliveryFee,
+          deliveryVoucherCode: appliedDeliveryVoucher?.code || null,
+          deliveryDiscountAmount,
+          paymentConfirmed: true
+        };
+      }
+
+      const orderResponse = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(orderPayload)
+      });
+
+      if (!orderResponse.ok) {
+        const orderError = await orderResponse.json();
+        throw new Error(orderError.error || 'Failed to create order');
+      }
+
+      const orderData = await orderResponse.json();
+      toast.success('Order created successfully!');
+
+      // Mark session as completed if in session mode
+      if (isSessionMode && checkoutSession) {
+        await fetch(`/api/checkout/session/${checkoutSession.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ isCompleted: true })
+        });
+      }
+
+      router.push(`/customer/orders/${orderData.order.id}?payment_status=confirmed`);
 
     } catch (error) {
-      console.error('Payment error:', error);
+      console.error('IntaSend STK Push error:', error);
       
-      if (axios.isAxiosError(error)) {
-        const errorMsg = error.response?.data?.error || 
-                        error.response?.data?.customerMessage || 
-                        error.response?.data?.message ||
-                        error.message;
-        toast.error(`Payment failed: ${errorMsg}`);
-      } else {
-        toast.error(error instanceof Error ? error.message : 'Failed to process payment');
-      }
+      const errorMessage = error instanceof Error ? error.message : 'Payment failed';
+      toast.error(errorMessage);
       
-      // Show fallback option
-      toast.info('You can try manual payment using the "Manual M-Pesa" option above');
+      // Show fallback options including manual invoice checker
+      toast.info('You can try again, use manual payment, or check payment status with your invoice ID.');
+      setShowManualChecker(true); // Show the manual checker
       
     } finally {
       setIsLoading(prev => ({ ...prev, stkPush: false }));
@@ -1597,6 +1803,160 @@ function EnhancedCheckoutContent() {
                             </div>
                           )}
 
+                          {/* Manual Invoice Status Checker */}
+                          {(showManualChecker || currentInvoiceId) && (
+                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                              <h4 className="font-medium text-blue-800 mb-3 flex items-center gap-2">
+                                <Info className="h-4 w-4" />
+                                Check Payment Status with Invoice ID
+                              </h4>
+                              
+                              {currentInvoiceId && (
+                                <div className="mb-3 p-2 bg-white rounded border">
+                                  <p className="text-sm text-blue-700 mb-1">
+                                    <strong>Your Current Payment Invoice ID:</strong>
+                                  </p>
+                                  <div className="flex items-center gap-2">
+                                    <code className="bg-gray-100 px-2 py-1 rounded text-sm font-mono">
+                                      {currentInvoiceId}
+                                    </code>
+                                    <Button
+                                      type="button"
+                                      onClick={() => checkInvoiceStatus(currentInvoiceId)}
+                                      disabled={isLoading.paymentCheck}
+                                      variant="outline"
+                                      size="sm"
+                                    >
+                                      {isLoading.paymentCheck ? 'Checking...' : 'Check Status'}
+                                    </Button>
+                                  </div>
+                                </div>
+                              )}
+
+                              <p className="text-sm text-blue-700 mb-3">
+                                Enter any IntaSend invoice ID to check its payment status:
+                              </p>
+                              <div className="flex gap-2">
+                                <Input
+                                  value={manualInvoiceId}
+                                  onChange={(e) => setManualInvoiceId(e.target.value.toUpperCase())}
+                                  placeholder="Enter invoice ID (e.g., Y38DNZM)"
+                                  className="flex-1 text-base uppercase"
+                                  disabled={isLoading.paymentCheck}
+                                />
+                                <Button
+                                  type="button"
+                                  onClick={checkPaymentByInvoice}
+                                  disabled={!manualInvoiceId.trim() || isLoading.paymentCheck}
+                                  variant="outline"
+                                  size="sm"
+                                >
+                                  {isLoading.paymentCheck ? 'Checking...' : 'Check'}
+                                </Button>
+                              </div>
+                              
+                              {/* Invoice Status Result */}
+                              {paymentStatus.result && (
+                                <div className={`mt-3 p-3 rounded-lg ${
+                                  paymentStatus.result.isSuccessful 
+                                    ? 'bg-green-100 border border-green-300' 
+                                    : paymentStatus.result.state === 'PENDING'
+                                    ? 'bg-yellow-100 border border-yellow-300'
+                                    : 'bg-red-100 border border-red-300'
+                                }`}>
+                                  <div className="flex items-center gap-2">
+                                    {paymentStatus.result.isSuccessful ? (
+                                      <CheckCircle className="h-4 w-4 text-green-600" />
+                                    ) : paymentStatus.result.state === 'PENDING' ? (
+                                      <Clock className="h-4 w-4 text-yellow-600" />
+                                    ) : (
+                                      <AlertCircle className="h-4 w-4 text-red-600" />
+                                    )}
+                                    <span className={`text-sm font-medium ${
+                                      paymentStatus.result.isSuccessful 
+                                        ? 'text-green-800' 
+                                        : paymentStatus.result.state === 'PENDING'
+                                        ? 'text-yellow-800'
+                                        : 'text-red-800'
+                                    }`}>
+                                      {paymentStatus.result.isSuccessful ? 'Payment Successful!' : 
+                                       paymentStatus.result.state === 'PENDING' ? 'Payment Pending' :
+                                       'Payment Failed'}
+                                    </span>
+                                  </div>
+                                  <div className="text-xs mt-1">
+                                    <div>Status: {paymentStatus.result.state}</div>
+                                    <div>Amount: {paymentStatus.result.currency} {paymentStatus.result.amount}</div>
+                                    <div>Phone: {paymentStatus.result.phone}</div>
+                                    {paymentStatus.result.mpesaReference && (
+                                      <div>M-Pesa Ref: {paymentStatus.result.mpesaReference}</div>
+                                    )}
+                                    {paymentStatus.result.clearingStatus && (
+                                      <div>Clearing Status: {paymentStatus.result.clearingStatus}</div>
+                                    )}
+                                    {paymentStatus.result.failedReason && (
+                                      <div className="text-red-700">Reason: {paymentStatus.result.failedReason}</div>
+                                    )}
+                                  </div>
+                                  
+                                  {paymentStatus.result.isSuccessful && (
+                                    <Button
+                                      type="button"
+                                      onClick={() => {
+                                        setPaymentDetails(prev => ({
+                                          ...prev,
+                                          reference: paymentStatus.result.mpesaReference || paymentStatus.result.invoiceId
+                                        }));
+                                        setPaymentMethod('MANUAL');
+                                        toast.success('Payment details filled automatically!');
+                                      }}
+                                      className="mt-2"
+                                      size="sm"
+                                    >
+                                      Use This Payment
+                                    </Button>
+                                  )}
+                                </div>
+                              )}
+
+                              {paymentStatus.error && (
+                                <div className="mt-3 p-3 bg-red-100 border border-red-300 rounded-lg">
+                                  <div className="flex items-center gap-2">
+                                    <AlertCircle className="h-4 w-4 text-red-600" />
+                                    <span className="text-sm font-medium text-red-800">Error</span>
+                                  </div>
+                                  <div className="text-xs text-red-700 mt-1">{paymentStatus.error}</div>
+                                </div>
+                              )}
+                              
+                              <div className="mt-3 flex justify-end">
+                                <Button
+                                  type="button"
+                                  onClick={() => setShowManualChecker(false)}
+                                  variant="ghost"
+                                  size="sm"
+                                >
+                                  Hide Checker
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+
+                          {!showManualChecker && !currentInvoiceId && (
+                            <div className="text-center">
+                              <Button
+                                type="button"
+                                onClick={() => setShowManualChecker(true)}
+                                variant="ghost"
+                                size="sm"
+                                className="text-blue-600 hover:text-blue-800"
+                              >
+                                <Info className="h-4 w-4 mr-1" />
+                                Check Payment by Invoice ID
+                              </Button>
+                            </div>
+                          )}
+
                           {/* STK Push Pay Now Button */}
                           {paymentMethod === 'STK_PUSH' && paymentDetails.phone && deliveryAddress && (
                             <div className="bg-green-50 border border-green-200 rounded-lg p-4">
@@ -1827,9 +2187,32 @@ function EnhancedCheckoutContent() {
 
                     <Separator />
                     <div className="flex justify-between font-bold text-lg">
-                      <span>Total:</span>
+                      <span>Order Total:</span>
                       <span>Ksh {grandTotal.toFixed(2)}</span>
                     </div>
+                    
+                    {paymentFees && (
+                      <>
+                        <div className="mt-2 space-y-1 text-sm text-gray-600">
+                          <div className="flex justify-between">
+                            <span>Service Fee:</span>
+                            <span>Ksh {paymentFees.serviceFee.toFixed(2)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Payment Processing Fee (3%):</span>
+                            <span>Ksh {paymentFees.intaSendFee.toFixed(2)}</span>
+                          </div>
+                        </div>
+                        <Separator />
+                        <div className="flex justify-between font-bold text-lg text-blue-600">
+                          <span>Final Payment Amount:</span>
+                          <span>Ksh {finalPaymentAmount.toFixed(2)}</span>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">
+                          *Service fee: KES {paymentFees.serviceFee} for orders {grandTotal >= 50 ? 'above' : 'below'} KES 50
+                        </p>
+                      </>
+                    )}
                   </div>
                 </div>
               </CardContent>
