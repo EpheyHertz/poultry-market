@@ -683,7 +683,7 @@ function EnhancedCheckoutContent() {
     setCurrentInvoiceId('');
     setManualInvoiceId('');
     setPaymentStatus(prev => ({ ...prev, checking: false, error: null, result: null }));
-    setIsLoading(prev => ({ ...prev, stkPush: false, paymentCheck: false }));
+    // Don't reset stkPush loading state here - let the main function handle it
   };
 
   const checkPaymentByInvoice = async () => {
@@ -860,6 +860,7 @@ function EnhancedCheckoutContent() {
       let paymentConfirmed = false;
       let paymentReference = '';
       let attempts = 0;
+      let stoppedByUserError = false; // Track if polling stopped due to user error
       const maxAttempts = 30; // 2.5 minutes with 5-second intervals
 
       while (attempts < maxAttempts && !paymentConfirmed) {
@@ -904,7 +905,10 @@ function EnhancedCheckoutContent() {
                 console.log(`Stopping polling due to user error: ${statusData.failedCode}`);
                 resetPaymentState();
                 toast.info('You can try the payment again when ready.');
-                throw new Error(`${errorMessage} (Payment reset - you can try again)`);
+                
+                // Mark that polling was stopped due to user error
+                stoppedByUserError = true;
+                break; // Exit the while loop gracefully
               }
               
               throw new Error(errorMessage);
@@ -922,8 +926,15 @@ function EnhancedCheckoutContent() {
       }
 
       if (!paymentConfirmed) {
-        setShowManualChecker(true); // Show manual checker on timeout
-        throw new Error(`Payment confirmation timeout. You can check payment status using Invoice ID: ${invoiceId}, or try manual payment.`);
+        if (stoppedByUserError) {
+          // Payment was stopped due to user error - don't show timeout message
+          // Just clean up and let user try again
+          return; // Exit function cleanly
+        } else {
+          // Payment timed out - show manual checker
+          setShowManualChecker(true);
+          throw new Error(`Payment confirmation timeout. You can check payment status using Invoice ID: ${invoiceId}, or try manual payment.`);
+        }
       }
 
       // Step 3: Create the order with confirmed payment
@@ -1017,6 +1028,11 @@ function EnhancedCheckoutContent() {
       
       const errorMessage = error instanceof Error ? error.message : 'Payment failed';
       toast.error(errorMessage);
+      
+      // Check if this is a user error that requires reset
+      if (isUserError(errorMessage)) {
+        resetPaymentState();
+      }
       
       // Show fallback options including manual invoice checker
       toast.info('You can try again, use manual payment, or check payment status with your invoice ID.');
