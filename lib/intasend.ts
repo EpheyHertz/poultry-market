@@ -448,7 +448,7 @@ export function calculateIntaSendFees(amount: number): {
 export function validatePaymentAmount(
   receivedAmount: number, 
   expectedOrderTotal: number,
-  tolerance: number = 0.05 // 5 cents tolerance
+  tolerance: number = 1.0 // Increased tolerance to 1 KES to handle rounding
 ): {
   isValid: boolean;
   expectedAmount: number;
@@ -458,23 +458,42 @@ export function validatePaymentAmount(
 } {
   const feeCalculation = calculateIntaSendFees(expectedOrderTotal);
   const expectedAmount = feeCalculation.totalAmount;
-  const difference = Math.abs(receivedAmount - expectedAmount);
   
-  // Check if the received amount matches expected amount within tolerance
+  // Also calculate the rounded expected amount
+  const roundedExpectedAmount = Math.ceil(expectedAmount);
+  
+  // Check against both the exact amount and the rounded amount
+  const differenceFromExact = Math.abs(receivedAmount - expectedAmount);
+  const differenceFromRounded = Math.abs(receivedAmount - roundedExpectedAmount);
+  
+  // Use the smaller difference for validation
+  const difference = Math.min(differenceFromExact, differenceFromRounded);
+  
+  // Payment is valid if it matches either the exact amount or the rounded amount within tolerance
   const isValid = difference <= tolerance;
   
   let message = '';
   if (isValid) {
-    message = 'Payment amount verified successfully';
-  } else if (receivedAmount < expectedAmount) {
-    message = `Payment amount too low. Expected: ${expectedAmount} KES, Received: ${receivedAmount} KES`;
+    if (receivedAmount === roundedExpectedAmount && receivedAmount !== expectedAmount) {
+      message = `Payment amount verified successfully (rounded up from ${expectedAmount} to ${roundedExpectedAmount} KES)`;
+    } else {
+      message = 'Payment amount verified successfully';
+    }
   } else {
-    message = `Payment amount too high. Expected: ${expectedAmount} KES, Received: ${receivedAmount} KES`;
+    const expectedRange = expectedAmount === roundedExpectedAmount 
+      ? `${expectedAmount} KES`
+      : `${expectedAmount} KES (or ${roundedExpectedAmount} KES rounded)`;
+    
+    if (receivedAmount < expectedAmount) {
+      message = `Payment amount too low. Expected: ${expectedRange}, Received: ${receivedAmount} KES`;
+    } else {
+      message = `Payment amount too high. Expected: ${expectedRange}, Received: ${receivedAmount} KES`;
+    }
   }
   
   return {
     isValid,
-    expectedAmount,
+    expectedAmount: roundedExpectedAmount, // Return the rounded expected amount
     receivedAmount,
     difference,
     message
