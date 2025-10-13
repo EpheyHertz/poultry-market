@@ -267,9 +267,15 @@ export function getPaymentSummary(statusResponse: PaymentStatusResponse, expecte
   const invoice = statusResponse.invoice;
   const customer = statusResponse.meta.customer;
   
+  // Parse the raw amount from IntaSend
+  const rawAmount = parseFloat(invoice.net_amount);
+  // Round up to next whole number (12.36 becomes 13)
+  const roundedAmount = roundUpPaymentAmount(rawAmount);
+  
   const summary = {
     state: invoice.state,
-    amount: parseFloat(invoice.net_amount),
+    amount: roundedAmount, // Use rounded amount
+    rawAmount: rawAmount, // Keep original for reference
     currency: invoice.currency,
     phone: customer.phone_number,
     mpesaReference: invoice.mpesa_reference,
@@ -286,7 +292,7 @@ export function getPaymentSummary(statusResponse: PaymentStatusResponse, expecte
   // Add amount validation if expected amount is provided
   if (expectedOrderTotal !== undefined && invoice.state === 'COMPLETE') {
     const validation = validatePaymentAmount(
-      parseFloat(invoice.net_amount), 
+      roundedAmount, // Use rounded amount for validation
       expectedOrderTotal
     );
     
@@ -305,6 +311,14 @@ export function getPaymentSummary(statusResponse: PaymentStatusResponse, expecte
  */
 export function generateExternalReference(prefix: string, id: string): string {
   return `${prefix}_${id}_${Date.now()}`;
+}
+
+/**
+ * Round up payment amount to next whole number
+ * Example: 12.36 becomes 13, 12.00 stays 12
+ */
+export function roundUpPaymentAmount(amount: number): number {
+  return Math.ceil(amount);
 }
 
 /**
@@ -356,7 +370,7 @@ export function calculateIntaSendFees(amount: number): {
 export function validatePaymentAmount(
   receivedAmount: number, 
   expectedOrderTotal: number,
-  tolerance: number = 0.05 // 5 cents tolerance
+  tolerance: number = 1.0 // Increased tolerance to 1 KES to handle rounding
 ): {
   isValid: boolean;
   expectedAmount: number;
@@ -366,23 +380,36 @@ export function validatePaymentAmount(
 } {
   const feeCalculation = calculateIntaSendFees(expectedOrderTotal);
   const expectedAmount = feeCalculation.totalAmount;
-  const difference = Math.abs(receivedAmount - expectedAmount);
   
-  // Check if the received amount matches expected amount within tolerance
+  // For validation, also consider the rounded up version of expected amount
+  const roundedExpectedAmount = roundUpPaymentAmount(expectedAmount);
+  
+  // Check against both original and rounded expected amounts
+  const differenceFromOriginal = Math.abs(receivedAmount - expectedAmount);
+  const differenceFromRounded = Math.abs(receivedAmount - roundedExpectedAmount);
+  
+  // Use the smaller difference
+  const difference = Math.min(differenceFromOriginal, differenceFromRounded);
+  
+  // Payment is valid if it matches either the exact amount or the rounded amount within tolerance
   const isValid = difference <= tolerance;
   
   let message = '';
   if (isValid) {
-    message = 'Payment amount verified successfully';
+    if (receivedAmount === roundedExpectedAmount) {
+      message = `Payment amount verified successfully (rounded up from ${expectedAmount} to ${roundedExpectedAmount})`;
+    } else {
+      message = 'Payment amount verified successfully';
+    }
   } else if (receivedAmount < expectedAmount) {
-    message = `Payment amount too low. Expected: ${expectedAmount} KES, Received: ${receivedAmount} KES`;
+    message = `Payment amount too low. Expected: ${expectedAmount} KES (or ${roundedExpectedAmount} KES rounded), Received: ${receivedAmount} KES`;
   } else {
-    message = `Payment amount too high. Expected: ${expectedAmount} KES, Received: ${receivedAmount} KES`;
+    message = `Payment amount too high. Expected: ${expectedAmount} KES (or ${roundedExpectedAmount} KES rounded), Received: ${receivedAmount} KES`;
   }
   
   return {
     isValid,
-    expectedAmount,
+    expectedAmount: roundedExpectedAmount, // Return the rounded expected amount
     receivedAmount,
     difference,
     message

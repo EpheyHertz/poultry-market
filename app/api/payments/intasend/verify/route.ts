@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { checkPaymentStatus, validatePaymentAmount } from '@/lib/intasend';
+import { checkPaymentStatus, validatePaymentAmount, roundUpPaymentAmount } from '@/lib/intasend';
 import { canUseInvoice, findPaymentInvoice, updateInvoicePaymentStatus } from '@/lib/payment-invoices';
 
 export async function POST(request: NextRequest) {
@@ -53,9 +53,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate payment amount
-    const receivedAmount = parseFloat(statusResponse.invoice.net_amount);
+    const rawReceivedAmount = parseFloat(statusResponse.invoice.net_amount);
+    const roundedReceivedAmount = roundUpPaymentAmount(rawReceivedAmount); // Use the utility function
+    
     const amountValidation = validatePaymentAmount(
-      receivedAmount,
+      roundedReceivedAmount,
       expectedAmount  // This is the original order amount without fees
     );
 
@@ -66,7 +68,8 @@ export async function POST(request: NextRequest) {
         customerMessage: `Payment amount verification failed: ${amountValidation.message}`,
         details: {
           expectedAmount: amountValidation.expectedAmount, // This will be the amount with fees
-          actualAmount: receivedAmount,
+          actualAmount: roundedReceivedAmount,
+          rawAmount: rawReceivedAmount,
           difference: amountValidation.difference
         }
       }, { status: 400 });
@@ -85,7 +88,8 @@ export async function POST(request: NextRequest) {
       data: {
         invoiceId,
         paymentState: statusResponse.invoice.state,
-        amount: receivedAmount,
+        amount: roundedReceivedAmount,
+        rawAmount: rawReceivedAmount,
         currency: statusResponse.invoice.currency,
         paidAt: statusResponse.invoice.updated_at,
         validationDetails: amountValidation
