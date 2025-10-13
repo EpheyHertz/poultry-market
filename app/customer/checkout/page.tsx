@@ -692,6 +692,16 @@ function EnhancedCheckoutContent() {
             toast.error('This invoice has already been used for another order');
           } else if (data.details.expired) {
             toast.error('This invoice has expired');
+          } else if (data.details.paymentState === 'FAILED') {
+            // Show user-friendly error message for failed payments
+            toast.error(data.customerMessage || 'Payment failed');
+            if (data.actionRequired) {
+              setTimeout(() => {
+                toast.info(data.actionRequired);
+              }, 1000);
+            }
+          } else if (data.details.paymentState === 'PENDING') {
+            toast.warning('Payment is still being processed. Please wait and try again.');
           } else if (data.details.paymentState !== 'COMPLETE') {
             toast.error(`Payment is ${data.details.paymentState.toLowerCase()}. Please complete the payment first.`);
           } else if (data.details.difference !== undefined) {
@@ -700,7 +710,13 @@ function EnhancedCheckoutContent() {
             toast.error(data.customerMessage || 'Payment verification failed');
           }
         } else {
+          // Use the customer message if available
           toast.error(data.customerMessage || 'Payment verification failed');
+          if (data.actionRequired) {
+            setTimeout(() => {
+              toast.info(data.actionRequired);
+            }, 1000);
+          }
         }
         return;
       }

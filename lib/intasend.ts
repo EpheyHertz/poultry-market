@@ -7,6 +7,78 @@ if (!INTASEND_SECRET_KEY) {
   console.warn('INTASEND_API_KEY is not configured. IntaSend payments will not work.');
 }
 
+/**
+ * Map IntaSend error codes to user-friendly messages
+ */
+export function getIntaSendErrorMessage(failedCode: string | null, failedReason: string | null): {
+  userMessage: string;
+  technicalMessage: string;
+  actionRequired: string;
+} {
+  if (!failedCode || !failedReason) {
+    return {
+      userMessage: 'Payment failed due to an unknown error.',
+      technicalMessage: 'No error code or reason provided',
+      actionRequired: 'Please try again or contact support.'
+    };
+  }
+
+  const errorMappings: Record<string, {
+    userMessage: string;
+    technicalMessage: string;
+    actionRequired: string;
+  }> = {
+    '1032': {
+      userMessage: 'You cancelled the payment request.',
+      technicalMessage: 'Request Cancelled by user',
+      actionRequired: 'Try again and complete the payment process.'
+    },
+    '2001': {
+      userMessage: 'Invalid M-Pesa PIN entered.',
+      technicalMessage: 'The initiator information is invalid',
+      actionRequired: 'Please try again with the correct M-Pesa PIN.'
+    },
+    '1': {
+      userMessage: 'Insufficient funds in your M-Pesa account.',
+      technicalMessage: 'Insufficient Balance',
+      actionRequired: 'Add money to your M-Pesa account and try again.'
+    },
+    '2006': {
+      userMessage: 'Transaction timeout. The request took too long.',
+      technicalMessage: 'Transaction timeout',
+      actionRequired: 'Please try again.'
+    },
+    '1001': {
+      userMessage: 'Invalid phone number or M-Pesa not registered.',
+      technicalMessage: 'Invalid MSISDN',
+      actionRequired: 'Check your phone number and ensure M-Pesa is active.'
+    },
+    '1019': {
+      userMessage: 'Transaction limit exceeded.',
+      technicalMessage: 'Transaction limit exceeded',
+      actionRequired: 'Try with a smaller amount or contact your mobile provider.'
+    },
+    '1037': {
+      userMessage: 'Unable to process payment at this time.',
+      technicalMessage: 'Unable to process request',
+      actionRequired: 'Please try again later.'
+    }
+  };
+
+  const errorInfo = errorMappings[failedCode];
+  
+  if (errorInfo) {
+    return errorInfo;
+  }
+
+  // Default for unknown error codes
+  return {
+    userMessage: `Payment failed: ${failedReason}`,
+    technicalMessage: `Error code ${failedCode}: ${failedReason}`,
+    actionRequired: 'Please try again or contact support if the problem persists.'
+  };
+}
+
 export interface STKPushRequest {
   amount: string;
   phone_number: string;
@@ -267,9 +339,20 @@ export function getPaymentSummary(statusResponse: PaymentStatusResponse, expecte
   const invoice = statusResponse.invoice;
   const customer = statusResponse.meta.customer;
   
+  // Parse the raw amount from IntaSend
+  const rawAmount = parseFloat(invoice.net_amount);
+  // Round up to next whole number (12.36 becomes 13)
+  const roundedAmount = roundUpPaymentAmount(rawAmount);
+  
+  // Get user-friendly error information if payment failed
+  const errorInfo = invoice.state === 'FAILED' 
+    ? getIntaSendErrorMessage(invoice.failed_code, invoice.failed_reason)
+    : null;
+  
   const summary = {
     state: invoice.state,
-    amount: parseFloat(invoice.net_amount),
+    amount: roundedAmount, // Use rounded amount
+    rawAmount: rawAmount, // Keep original for reference
     currency: invoice.currency,
     phone: customer.phone_number,
     mpesaReference: invoice.mpesa_reference,
@@ -277,6 +360,7 @@ export function getPaymentSummary(statusResponse: PaymentStatusResponse, expecte
     clearingStatus: invoice.clearing_status,
     failedReason: invoice.failed_reason,
     failedCode: invoice.failed_code,
+    errorInfo: errorInfo, // Add user-friendly error information
     isSuccessful: invoice.state === 'COMPLETE',
     isComplete: invoice.state !== 'PENDING',
     createdAt: invoice.created_at,
@@ -286,7 +370,7 @@ export function getPaymentSummary(statusResponse: PaymentStatusResponse, expecte
   // Add amount validation if expected amount is provided
   if (expectedOrderTotal !== undefined && invoice.state === 'COMPLETE') {
     const validation = validatePaymentAmount(
-      parseFloat(invoice.net_amount), 
+      roundedAmount, // Use rounded amount for validation
       expectedOrderTotal
     );
     
@@ -305,6 +389,14 @@ export function getPaymentSummary(statusResponse: PaymentStatusResponse, expecte
  */
 export function generateExternalReference(prefix: string, id: string): string {
   return `${prefix}_${id}_${Date.now()}`;
+}
+
+/**
+ * Round up payment amount to next whole number
+ * Example: 12.36 becomes 13, 12.00 stays 12
+ */
+export function roundUpPaymentAmount(amount: number): number {
+  return Math.ceil(amount);
 }
 
 /**

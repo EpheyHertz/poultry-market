@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { checkPaymentStatus, validatePaymentAmount } from '@/lib/intasend';
+import { checkPaymentStatus, validatePaymentAmount, roundUpPaymentAmount, getIntaSendErrorMessage } from '@/lib/intasend';
 import { canUseInvoice, findPaymentInvoice, updateInvoicePaymentStatus } from '@/lib/payment-invoices';
 
 export async function POST(request: NextRequest) {
@@ -41,12 +41,31 @@ export async function POST(request: NextRequest) {
         statusResponse.invoice?.state || 'FAILED'
       );
 
+      // Get user-friendly error message for failed payments
+      let customerMessage = 'Payment verification failed. Payment is not completed.';
+      let actionRequired = 'Please try again or contact support.';
+      
+      if (statusResponse.invoice?.state === 'FAILED') {
+        const errorInfo = getIntaSendErrorMessage(
+          statusResponse.invoice.failed_code,
+          statusResponse.invoice.failed_reason
+        );
+        customerMessage = errorInfo.userMessage;
+        actionRequired = errorInfo.actionRequired;
+      } else if (statusResponse.invoice?.state === 'PENDING') {
+        customerMessage = 'Payment is still being processed.';
+        actionRequired = 'Please wait a moment and try again.';
+      }
+
       return NextResponse.json({
         success: false,
         error: 'Payment not completed',
-        customerMessage: 'Payment verification failed. Payment is not completed or was cancelled.',
+        customerMessage,
+        actionRequired,
         details: {
           paymentState: statusResponse.invoice?.state || 'NOT_FOUND',
+          failedCode: statusResponse.invoice?.failed_code,
+          failedReason: statusResponse.invoice?.failed_reason,
           intasendResponse: statusResponse
         }
       }, { status: 400 });

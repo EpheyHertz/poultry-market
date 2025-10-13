@@ -44,11 +44,21 @@ export async function GET(
       // Continue with response even if DB update fails
     }
 
-    return NextResponse.json({
+    // Enhanced response with better error handling
+    const response: any = {
       success: true,
       ...paymentSummary,
       raw: statusResponse // Include full response for debugging
-    });
+    };
+
+    // Add user-friendly error messages for failed payments
+    if (paymentSummary.state === 'FAILED' && paymentSummary.errorInfo) {
+      response.customerMessage = paymentSummary.errorInfo.userMessage;
+      response.actionRequired = paymentSummary.errorInfo.actionRequired;
+      response.technicalMessage = paymentSummary.errorInfo.technicalMessage;
+    }
+
+    return NextResponse.json(response);
 
   } catch (error) {
     console.error('IntaSend payment status check error:', error);
