@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 
 export async function GET(
   request: NextRequest,
-//   { params }: { params: { storeId: string } }
+context: { params: Promise<{ storeId: string }> }
 ) {
   try {
      const storeId  = request.nextUrl.pathname.split('/').pop() || '';

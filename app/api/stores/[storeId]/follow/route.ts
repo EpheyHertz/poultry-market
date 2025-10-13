@@ -5,16 +5,16 @@ import { createNotification } from '@/lib/notifications';
 
 export async function POST(
   request: NextRequest,
-//   { params }: { params: { storeId: string } }
+context: { params: Promise<{ storeId: string }> }
 ) {
   try {
-    const storeId  = request.nextUrl.pathname.split('/').pop() || '';
+    // const storeId  = request.nextUrl.pathname.split('/').pop() || '';
     const user = await getCurrentUser();
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // const { storeId } = params;
+     const { storeId } = await context.params;
 
     if (user.id === storeId) {
       return NextResponse.json({ error: 'Cannot follow yourself' }, { status: 400 });
