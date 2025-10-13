@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { checkPaymentStatus, getPaymentSummary } from '@/lib/intasend';
+import { checkPaymentStatus, getPaymentSummary, roundUpPaymentAmount } from '@/lib/intasend';
 import { updateInvoicePaymentStatus, findPaymentInvoice } from '@/lib/payment-invoices';
 
 export async function GET(
