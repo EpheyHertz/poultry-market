@@ -635,7 +635,16 @@ function EnhancedCheckoutContent() {
       } else if (data.state === 'PENDING') {
         toast.info('Payment is still pending. Please wait or check again later.');
       } else if (data.state === 'FAILED') {
-        toast.error(`Payment failed: ${data.failedReason || 'Unknown error'}`);
+        // Use enhanced error messages if available
+        const errorMessage = data.customerMessage || data.failedReason || 'Payment failed';
+        toast.error(errorMessage);
+        
+        // Show action guidance if available
+        if (data.actionRequired) {
+          setTimeout(() => {
+            toast.info(data.actionRequired);
+          }, 1000);
+        }
       } else {
         toast.info(`Payment status: ${data.state}`);
       }
@@ -838,7 +847,20 @@ function EnhancedCheckoutContent() {
               toast.success('Payment confirmed successfully!');
               break;
             } else if (statusData.state === 'FAILED') {
-              throw new Error(statusData.failedReason || 'Payment failed');
+              // Use enhanced error messages for failed payments
+              const errorMessage = statusData.customerMessage || statusData.failedReason || 'Payment failed';
+              
+              // Show the error immediately
+              toast.error(errorMessage);
+              
+              // Show action guidance if available
+              if (statusData.actionRequired) {
+                setTimeout(() => {
+                  toast.info(statusData.actionRequired);
+                }, 1000);
+              }
+              
+              throw new Error(errorMessage);
             }
             
             // Still pending - show progress
@@ -1910,8 +1932,24 @@ function EnhancedCheckoutContent() {
                                     {paymentStatus.result.clearingStatus && (
                                       <div>Clearing Status: {paymentStatus.result.clearingStatus}</div>
                                     )}
-                                    {paymentStatus.result.failedReason && (
-                                      <div className="text-red-700">Reason: {paymentStatus.result.failedReason}</div>
+                                    {paymentStatus.result.state === 'FAILED' && (
+                                      <div className="space-y-2">
+                                        {paymentStatus.result.customerMessage && (
+                                          <div className="text-red-700 font-medium">
+                                            {paymentStatus.result.customerMessage}
+                                          </div>
+                                        )}
+                                        {paymentStatus.result.actionRequired && (
+                                          <div className="text-blue-700 text-sm">
+                                            What to do: {paymentStatus.result.actionRequired}
+                                          </div>
+                                        )}
+                                        {paymentStatus.result.failedReason && (
+                                          <div className="text-gray-600 text-xs">
+                                            Technical: {paymentStatus.result.failedReason}
+                                          </div>
+                                        )}
+                                      </div>
                                     )}
                                   </div>
                                   
