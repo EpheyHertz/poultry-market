@@ -645,6 +645,14 @@ function EnhancedCheckoutContent() {
             toast.info(data.actionRequired);
           }, 1000);
         }
+        
+        // Reset state for user errors to allow fresh start
+        if (data.failedCode && isUserError(data.failedCode)) {
+          setTimeout(() => {
+            resetPaymentState();
+            toast.info('Payment cleared - you can start a new payment.');
+          }, 2500);
+        }
       } else {
         toast.info(`Payment status: ${data.state}`);
       }
@@ -664,6 +672,20 @@ function EnhancedCheckoutContent() {
   };
 
   // Check payment status by invoice ID (IntaSend)
+  // Helper function to determine if error should stop polling
+  const isUserError = (failedCode: string | null) => {
+    // These error codes indicate user actions that won't resolve by waiting
+    const userErrorCodes = ['1032', '2001', '1', '1001', '1019'];
+    return failedCode && userErrorCodes.includes(failedCode);
+  };
+
+  const resetPaymentState = () => {
+    setCurrentInvoiceId('');
+    setManualInvoiceId('');
+    setPaymentStatus(prev => ({ ...prev, checking: false, error: null, result: null }));
+    setIsLoading(prev => ({ ...prev, stkPush: false, paymentCheck: false }));
+  };
+
   const checkPaymentByInvoice = async () => {
     if (!manualInvoiceId.trim()) {
       toast.error('Please enter an invoice ID');
@@ -709,6 +731,14 @@ function EnhancedCheckoutContent() {
                 toast.info(data.actionRequired);
               }, 1000);
             }
+            
+            // Reset state for user errors to allow fresh start
+            if (data.details.failedCode && isUserError(data.details.failedCode)) {
+              setTimeout(() => {
+                resetPaymentState();
+                toast.info('Payment cleared - you can try again with a new transaction.');
+              }, 2000);
+            }
           } else if (data.details.paymentState === 'PENDING') {
             toast.warning('Payment is still being processed. Please wait and try again.');
           } else if (data.details.paymentState !== 'COMPLETE') {
@@ -725,6 +755,14 @@ function EnhancedCheckoutContent() {
             setTimeout(() => {
               toast.info(data.actionRequired);
             }, 1000);
+          }
+          
+          // Reset state for user errors
+          if (data.details?.failedCode && isUserError(data.details.failedCode)) {
+            setTimeout(() => {
+              resetPaymentState();
+              toast.info('Payment cleared - you can try again with a new transaction.');
+            }, 2000);
           }
         }
         return;
@@ -858,6 +896,15 @@ function EnhancedCheckoutContent() {
                 setTimeout(() => {
                   toast.info(statusData.actionRequired);
                 }, 1000);
+              }
+              
+              // Check if this is a user error that should stop polling
+              if (isUserError(statusData.failedCode)) {
+                // Stop polling and reset state for user errors
+                console.log(`Stopping polling due to user error: ${statusData.failedCode}`);
+                resetPaymentState();
+                toast.info('You can try the payment again when ready.');
+                throw new Error(`${errorMessage} (Payment reset - you can try again)`);
               }
               
               throw new Error(errorMessage);
@@ -1968,6 +2015,22 @@ function EnhancedCheckoutContent() {
                                       size="sm"
                                     >
                                       Use This Payment
+                                    </Button>
+                                  )}
+                                  
+                                  {paymentStatus.result.state === 'FAILED' && 
+                                   paymentStatus.result.failedCode && 
+                                   isUserError(paymentStatus.result.failedCode) && (
+                                    <Button
+                                      type="button"
+                                      onClick={() => {
+                                        resetPaymentState();
+                                        toast.success('Payment cleared. You can try again now.');
+                                      }}
+                                      className="mt-2 bg-blue-600 hover:bg-blue-700"
+                                      size="sm"
+                                    >
+                                      Try New Payment
                                     </Button>
                                   )}
                                 </div>
