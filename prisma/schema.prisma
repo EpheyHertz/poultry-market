@@ -36,6 +36,7 @@ enum ProductType {
   CHICKEN_FEED
   CHICKS
   HATCHING_EGGS
+  CUSTOM
 }
 
 enum ApplicationStatus {
@@ -265,6 +266,7 @@ model Product {
   price       Float
   stock       Int
   type        ProductType
+  customType  String?
   images      String[]
   sellerId    String
   seller      User        @relation(fields: [sellerId], references: [id])

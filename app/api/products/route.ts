@@ -4,6 +4,7 @@ import { getCurrentUser } from '@/lib/auth'
 import { createNotification } from '@/lib/notifications'
 import { sendEmail } from '@/lib/email'
 import { ProductType } from '@prisma/client'
+import { formatProductTypeLabel } from '@/lib/utils'
 
 export async function GET(request: NextRequest) {
   try {
@@ -80,23 +81,32 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { name, description, price, stock, type, images } = await request.json()
+    const { name, description, price, stock, type, images, customType } = await request.json()
+
+    const normalizedType = type as ProductType
+    const trimmedCustomType = typeof customType === 'string' ? customType.trim() : ''
 
     // Validate product type based on user role
     if (user.role === 'SELLER') {
-      const allowedTypes = ['EGGS', 'CHICKEN_MEAT']
-      if (!allowedTypes.includes(type)) {
+      const allowedTypes = ['EGGS', 'CHICKEN_MEAT', 'CUSTOM']
+      if (!allowedTypes.includes(normalizedType)) {
         return NextResponse.json({ 
-          error: 'Sellers can only sell eggs and chicken meat' 
+          error: 'Sellers can list eggs, chicken meat, or define a custom product type' 
         }, { status: 400 })
       }
     } else if (user.role === 'COMPANY') {
-      const allowedTypes = ['CHICKEN_FEED', 'CHICKS', 'HATCHING_EGGS']
-      if (!allowedTypes.includes(type)) {
+      const allowedTypes = ['CHICKEN_FEED', 'CHICKS', 'HATCHING_EGGS', 'CUSTOM']
+      if (!allowedTypes.includes(normalizedType)) {
         return NextResponse.json({ 
-          error: 'Companies can only sell chicken feed, chicks, and hatching eggs' 
+          error: 'Companies can list chicken feed, chicks, hatching eggs, or define a custom product type' 
         }, { status: 400 })
       }
+    }
+
+    if (normalizedType === 'CUSTOM' && !trimmedCustomType) {
+      return NextResponse.json({
+        error: 'Please provide a custom product type name'
+      }, { status: 400 })
     }
 
     const product = await prisma.product.create({
@@ -105,7 +115,8 @@ export async function POST(request: NextRequest) {
         description,
         price: parseFloat(price),
         stock: parseInt(stock),
-        type: type as ProductType,
+        type: normalizedType,
+        customType: normalizedType === 'CUSTOM' ? trimmedCustomType : null,
         images: images || [],
         sellerId: user.id,
       },
@@ -139,7 +150,7 @@ export async function POST(request: NextRequest) {
             <h3 style="margin-top: 0; color: #0c4a6e; font-size: 18px;">📦 ${product.name}</h3>
             <div style="color: #475569; font-size: 14px;">
               <p style="margin: 5px 0;"><strong>Product ID:</strong> ${product.id}</p>
-              <p style="margin: 5px 0;"><strong>Type:</strong> ${product.type}</p>
+              <p style="margin: 5px 0;"><strong>Type:</strong> ${formatProductTypeLabel(product.type, product.customType)}</p>
               <p style="margin: 5px 0;"><strong>Price:</strong> Ksh ${product.price.toLocaleString()}</p>
               <p style="margin: 5px 0;"><strong>Stock:</strong> ${product.stock} units</p>
               <p style="margin: 5px 0;"><strong>Created on:</strong> ${new Date().toLocaleString()}</p>

@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { ShoppingCart, Plus, Minus, Trash2, Package } from 'lucide-react';
 import { toast } from 'sonner';
 import Image from 'next/image';
+import { formatProductTypeLabel } from '@/lib/utils';
 
 interface CartItem {
   id: string;
@@ -23,6 +24,7 @@ interface CartItem {
     images: string[];
     stock: number;
     type: string;
+    customType?: string | null;
     seller: {
       id: string;
       name: string;
@@ -199,6 +201,7 @@ export default function CustomerCart() {
       case 'CHICKEN_FEED': return 'bg-green-100 text-green-800';
       case 'CHICKS': return 'bg-orange-100 text-orange-800';
       case 'HATCHING_EGGS': return 'bg-purple-100 text-purple-800';
+      case 'CUSTOM': return 'bg-slate-100 text-slate-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -274,7 +277,7 @@ export default function CustomerCart() {
                         </p>
                         <div className="flex items-center space-x-2 mt-1">
                           <Badge className={getTypeColor(item.product.type)}>
-                            {item.product.type}
+                            {formatProductTypeLabel(item.product.type, item.product.customType)}
                           </Badge>
                           <span className="text-sm text-gray-500">
                             Stock: {item.product.stock}

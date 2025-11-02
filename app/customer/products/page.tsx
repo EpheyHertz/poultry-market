@@ -28,6 +28,7 @@ import {
   Eye
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { formatProductTypeLabel } from '@/lib/utils';
 
 const tagIcons = {
   VERIFIED: Shield,
@@ -198,6 +199,7 @@ export default function CustomerProducts() {
       case 'CHICKEN_FEED': return 'bg-green-100 text-green-800';
       case 'CHICKS': return 'bg-orange-100 text-orange-800';
       case 'HATCHING_EGGS': return 'bg-purple-100 text-purple-800';
+      case 'CUSTOM': return 'bg-slate-100 text-slate-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -388,7 +390,7 @@ export default function CustomerProducts() {
                     
                     {/* Product Type Badge */}
                     <Badge className={`absolute top-4 left-4 ${getTypeColor(product.type)} shadow-lg font-semibold text-xs px-3 py-1.5 z-10 border border-white/50 backdrop-blur-sm`}>
-                      {product.type.replace('_', ' ')}
+                      {formatProductTypeLabel(product.type, product.customType)}
                     </Badge>
 
                     {/* Stock indicator */}

@@ -29,6 +29,7 @@ export default function NewCompanyProduct() {
     price: '',
     stock: '',
     type: '',
+    customType: '',
   });
   const [imagePreviews, setImagePreviews] = useState<ImagePreview[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -73,6 +74,12 @@ export default function NewCompanyProduct() {
       return;
     }
 
+    if (formData.type === 'CUSTOM' && !formData.customType.trim()) {
+      setError('Please provide a name for your custom product type');
+      setIsLoading(false);
+      return;
+    }
+
     try {
       const response = await fetch('/api/products', {
         method: 'POST',
@@ -81,6 +88,7 @@ export default function NewCompanyProduct() {
         },
         body: JSON.stringify({
           ...formData,
+          customType: formData.customType.trim() || undefined,
           images: imagePreviews.map(img => img.url)
         }),
       });
@@ -246,7 +254,7 @@ export default function NewCompanyProduct() {
           <CardHeader>
             <CardTitle>Product Details</CardTitle>
             <CardDescription>
-              Fill in the information about your product. As a company, you can sell feeds, chicks, and hatching eggs.
+          Fill in the information about your product. Companies can list feeds, chicks, hatching eggs, or introduce a custom category for specialized offerings.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -311,7 +319,16 @@ export default function NewCompanyProduct() {
 
               <div className="space-y-2">
                 <Label htmlFor="type">Product Type</Label>
-                <Select value={formData.type} onValueChange={(value) => setFormData({ ...formData, type: value })}>
+                <Select
+                  value={formData.type}
+                  onValueChange={(value) =>
+                    setFormData(prev => ({
+                      ...prev,
+                      type: value,
+                      customType: value === 'CUSTOM' ? prev.customType : ''
+                    }))
+                  }
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Select product type" />
                   </SelectTrigger>
@@ -319,9 +336,25 @@ export default function NewCompanyProduct() {
                     <SelectItem value="CHICKEN_FEED">Chicken Feed</SelectItem>
                     <SelectItem value="CHICKS">Chicks</SelectItem>
                     <SelectItem value="HATCHING_EGGS">Hatching Eggs</SelectItem>
+                    <SelectItem value="CUSTOM">Custom type</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
+
+              {formData.type === 'CUSTOM' && (
+                <div className="space-y-2">
+                  <Label htmlFor="customType">Custom Product Type</Label>
+                  <Input
+                    id="customType"
+                    value={formData.customType}
+                    onChange={(e) => setFormData(prev => ({ ...prev, customType: e.target.value }))}
+                    placeholder="e.g., Organic Fertilizer Mix"
+                    maxLength={60}
+                    required
+                  />
+                  <p className="text-xs text-gray-500">Customers will see this label when browsing your product.</p>
+                </div>
+              )}
 
               <div className="space-y-4">
                 <Label>Product Images</Label>

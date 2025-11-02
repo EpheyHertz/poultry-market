@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import DashboardLayout from '@/components/layout/dashboard-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -25,6 +26,7 @@ import {
   TrendingUp,
   Percent
 } from 'lucide-react';
+import { formatProductTypeLabel } from '@/lib/utils';
 
 const tagIcons = {
   VERIFIED: Shield,
@@ -88,9 +90,9 @@ export default function AdminProducts() {
     if (user) {
       fetchProducts();
     }
-  }, [user, typeFilter, sellerFilter]);
+  }, [user, fetchProducts]);
 
-  const fetchProducts = async () => {
+  const fetchProducts = useCallback(async () => {
     try {
       const params = new URLSearchParams();
       if (typeFilter) params.append('type', typeFilter);
@@ -104,7 +106,7 @@ export default function AdminProducts() {
     } catch (error) {
       console.error('Failed to fetch products:', error);
     }
-  };
+  }, [typeFilter, sellerFilter]);
 
   const getTypeColor = (type: string) => {
     switch (type) {
@@ -113,6 +115,7 @@ export default function AdminProducts() {
       case 'CHICKEN_FEED': return 'bg-green-100 text-green-800';
       case 'CHICKS': return 'bg-orange-100 text-orange-800';
       case 'HATCHING_EGGS': return 'bg-purple-100 text-purple-800';
+      case 'CUSTOM': return 'bg-slate-100 text-slate-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -173,6 +176,7 @@ export default function AdminProducts() {
                   <SelectItem value="CHICKEN_FEED">Chicken Feed</SelectItem>
                   <SelectItem value="CHICKS">Chicks</SelectItem>
                   <SelectItem value="HATCHING_EGGS">Hatching Eggs</SelectItem>
+                  <SelectItem value="CUSTOM">Custom Types</SelectItem>
                 </SelectContent>
               </Select>
 
@@ -213,10 +217,12 @@ export default function AdminProducts() {
                     <Card key={product.id} className="overflow-hidden">
                       <div className="aspect-square relative">
                         {product.images.length > 0 ? (
-                          <img
+                          <Image
                             src={product.images[0]}
                             alt={product.name}
-                            className="w-full h-full object-cover"
+                            fill
+                            className="object-cover"
+                            sizes="(min-width: 1024px) 240px, 100vw"
                           />
                         ) : (
                           <div className="w-full h-full bg-gray-200 flex items-center justify-center">
@@ -240,7 +246,7 @@ export default function AdminProducts() {
                         <div className="flex justify-between items-start">
                           <CardTitle className="text-lg">{product.name}</CardTitle>
                           <Badge className={getTypeColor(product.type)}>
-                            {product.type.replace('_', ' ')}
+                            {formatProductTypeLabel(product.type, product.customType)}
                           </Badge>
                         </div>
                         <CardDescription className="line-clamp-2">

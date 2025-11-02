@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Image from 'next/image';
+import { formatProductTypeLabel } from '@/lib/utils';
 
 interface Product {
   id: string;
@@ -32,6 +33,7 @@ interface Product {
   price: number;
   stock: number;
   type: string;
+  customType?: string | null;
   images: string[];
   sellerId: string;
   isActive: boolean;
@@ -308,7 +310,7 @@ export default function CheckoutSessionPage() {
                     <h3 className="font-semibold text-lg">{session.product.name}</h3>
                     <p className="text-gray-600 text-sm mt-1">{session.product.description}</p>
                     <div className="flex items-center gap-2 mt-2">
-                      <Badge variant="outline">{session.product.type}</Badge>
+                      <Badge variant="outline">{formatProductTypeLabel(session.product.type, session.product.customType)}</Badge>
                       {hasActiveDiscount && (
                         <Badge variant="secondary" className="text-green-600">
                           {session.product.discountType === 'PERCENTAGE' 

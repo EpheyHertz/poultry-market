@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'
 import { sendEmail } from '@/lib/email'
 import { generateProductUpdateEmail, type ProductUpdateEmailData } from '@/lib/email-templates'
+import { ProductType } from '@prisma/client'
+import { formatProductTypeLabel } from '@/lib/utils'
 
 // export async function GET(
 //   request: NextRequest,
@@ -62,7 +64,10 @@ export async function PUT(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    const { name, description, price, stock, images, type } = await request.json()
+  const { name, description, price, stock, images, type, customType } = await request.json()
+
+  const normalizedType = type as ProductType
+  const trimmedCustomType = typeof customType === 'string' ? customType.trim() : ''
 
     // Validate required fields
     if (!name?.trim() || !description?.trim() || !type) {
@@ -80,12 +85,29 @@ export async function PUT(
     // Store original product data for comparison
     const originalProduct = { ...product }
 
+    if (normalizedType === 'CUSTOM' && !trimmedCustomType) {
+      return NextResponse.json({ error: 'Please provide a custom product type name' }, { status: 400 })
+    }
+
+    if (user.role === 'SELLER') {
+      const allowedTypes = ['EGGS', 'CHICKEN_MEAT', 'CUSTOM']
+      if (!allowedTypes.includes(normalizedType)) {
+        return NextResponse.json({ error: 'Sellers can list eggs, chicken meat, or define a custom product type' }, { status: 400 })
+      }
+    } else if (user.role === 'COMPANY') {
+      const allowedTypes = ['CHICKEN_FEED', 'CHICKS', 'HATCHING_EGGS', 'CUSTOM']
+      if (!allowedTypes.includes(normalizedType)) {
+        return NextResponse.json({ error: 'Companies can list chicken feed, chicks, hatching eggs, or define a custom product type' }, { status: 400 })
+      }
+    }
+
     const updatedProduct = await prisma.product.update({
       where: { id: id },
       data: {
         name: name.trim(),
         description: description.trim(),
-        type,
+        type: normalizedType,
+        customType: normalizedType === 'CUSTOM' ? trimmedCustomType : null,
         price: parseFloat(price),
         stock: parseInt(stock),
         images: images || product.images,
@@ -117,8 +139,10 @@ export async function PUT(
       if (originalProduct.description !== updatedProduct.description) {
         changes.push(`Description updated`);
       }
-      if (originalProduct.type !== updatedProduct.type) {
-        changes.push(`Type: "${originalProduct.type}" → "${updatedProduct.type}"`);
+      if (originalProduct.type !== updatedProduct.type || originalProduct.customType !== updatedProduct.customType) {
+        const originalTypeLabel = formatProductTypeLabel(originalProduct.type, originalProduct.customType ?? undefined)
+        const updatedTypeLabel = formatProductTypeLabel(updatedProduct.type, updatedProduct.customType ?? undefined)
+        changes.push(`Type: "${originalTypeLabel}" → "${updatedTypeLabel}"`);
       }
       if (originalProduct.price !== updatedProduct.price) {
         changes.push(`Price: Ksh ${originalProduct.price} → Ksh ${updatedProduct.price}`);
@@ -136,7 +160,7 @@ export async function PUT(
           updatedAt: new Date().toLocaleString(),
           changes,
           currentDetails: {
-            type: updatedProduct.type,
+            type: formatProductTypeLabel(updatedProduct.type, updatedProduct.customType ?? undefined),
             price: updatedProduct.price,
             stock: updatedProduct.stock,
             isActive: updatedProduct.isActive

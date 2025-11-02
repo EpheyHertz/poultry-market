@@ -47,6 +47,7 @@ import { toast } from 'sonner';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Slider } from '@/components/ui/slider';
+import { formatProductTypeLabel } from '@/lib/utils';
 
 const tagIcons = {
   VERIFIED: Shield,
@@ -192,6 +193,7 @@ export default function PublicProductsPage() {
       case 'CHICKEN_FEED': return 'bg-green-100 text-green-800';
       case 'CHICKS': return 'bg-orange-100 text-orange-800';
       case 'HATCHING_EGGS': return 'bg-purple-100 text-purple-800';
+      case 'CUSTOM': return 'bg-slate-100 text-slate-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -312,7 +314,7 @@ export default function PublicProductsPage() {
           {/* Compact Product Type Badge */}
           <div className="absolute top-2 right-2 z-10">
             <Badge className={`${getTypeColor(product.type)} shadow-sm border-0 text-xs py-0 px-2 h-5`}>
-              {product.type.replace('_', ' ')}
+              {formatProductTypeLabel(product.type, product.customType)}
             </Badge>
           </div>
 

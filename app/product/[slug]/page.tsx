@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -47,6 +47,7 @@ import Image from 'next/image';
 import { toast } from 'sonner';
 import ChatWidget from '@/components/chat/chat-widget';
 import { formatCurrency } from '@/lib/formatCurrency';
+import { formatProductTypeLabel } from '@/lib/utils';
 import { Suspense } from 'react';
 
 const tagIcons = {
@@ -106,14 +107,14 @@ function ProductDetailContent() {
   useEffect(() => {
     fetchProduct();
     fetchUser();
-  }, [slug]);
+  }, [slug, fetchProduct, fetchUser]);
 
   useEffect(() => {
     if (product) {
       fetchRelatedProducts();
       fetchStoreProducts();
     }
-  }, [product]);
+  }, [product, fetchRelatedProducts, fetchStoreProducts]);
 
   useEffect(() => {
     if (product?.hasDiscount && product?.discountEndDate) {
@@ -138,7 +139,7 @@ function ProductDetailContent() {
     }
   }, [product]);
 
-  const fetchProduct = async () => {
+  const fetchProduct = useCallback(async () => {
     try {
       const response = await fetch(`/api/products/${slug}`);
       if (response.ok) {
@@ -153,9 +154,9 @@ function ProductDetailContent() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [slug]);
 
-  const fetchUser = async () => {
+  const fetchUser = useCallback(async () => {
     try {
       const response = await fetch('/api/auth/me');
       if (response.ok) {
@@ -165,9 +166,12 @@ function ProductDetailContent() {
     } catch (error) {
       console.error('Failed to fetch user:', error);
     }
-  };
+  }, []);
 
-  const fetchRelatedProducts = async () => {
+  const fetchRelatedProducts = useCallback(async () => {
+    if (!product?.type || !product?.id) {
+      return;
+    }
     try {
       const response = await fetch(`/api/products?type=${product.type}&limit=8&exclude=${product.id}`);
       if (response.ok) {
@@ -177,9 +181,12 @@ function ProductDetailContent() {
     } catch (error) {
       console.error('Failed to fetch related products:', error);
     }
-  };
+  }, [product?.id, product?.type]);
 
-  const fetchStoreProducts = async () => {
+  const fetchStoreProducts = useCallback(async () => {
+    if (!product?.sellerId || !product?.id) {
+      return;
+    }
     try {
       const response = await fetch(`/api/products?sellerId=${product.sellerId}&limit=6&exclude=${product.id}`);
       if (response.ok) {
@@ -189,7 +196,7 @@ function ProductDetailContent() {
     } catch (error) {
       console.error('Failed to fetch store products:', error);
     }
-  };
+  }, [product?.id, product?.sellerId]);
 
   const handleAddToCart = async () => {
     if (!user) {
@@ -621,7 +628,7 @@ function ProductDetailContent() {
                 {/* Enhanced Tags */}
                 <div className="flex flex-wrap gap-3 mb-6">
                   <Badge className={`${tagColors[product.type as keyof typeof tagColors]} text-sm px-4 py-2 rounded-full font-semibold shadow-lg`}>
-                    {product.type.replace('_', ' ')}
+                    {formatProductTypeLabel(product.type, product.customType)}
                   </Badge>
                   {product.tags.map((tagData: any) => {
                     const TagIcon = tagIcons[tagData.tag as keyof typeof tagIcons];
@@ -924,7 +931,7 @@ function ProductDetailContent() {
                           <Package className="h-6 w-6 text-blue-600" />
                           <span className="font-bold text-lg text-gray-900">Product Type</span>
                         </div>
-                        <p className="text-gray-700 text-lg font-medium">{product.type.replace('_', ' ')}</p>
+                        <p className="text-gray-700 text-lg font-medium">{formatProductTypeLabel(product.type, product.customType)}</p>
                       </div>
 
                       <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl p-6 border border-green-200/50">
@@ -1444,7 +1451,7 @@ function ProductDetailContent() {
                           </div>
                           <div className="flex justify-between">
                             <span className="text-gray-600">Category:</span>
-                            <span className="font-semibold text-gray-900">{product.type.replace('_', ' ')}</span>
+                            <span className="font-semibold text-gray-900">{formatProductTypeLabel(product.type, product.customType)}</span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-gray-600">Status:</span>
@@ -1524,7 +1531,7 @@ function ProductDetailContent() {
 
                         <div className="flex flex-wrap gap-2 mb-4">
                           <Badge className={`text-xs px-3 py-1 rounded-full ${tagColors[storeProduct.type as keyof typeof tagColors]}`}>
-                            {storeProduct.type.replace('_', ' ')}
+                            {formatProductTypeLabel(storeProduct.type, storeProduct.customType)}
                           </Badge>
                           {storeProduct.stock > 0 && (
                             <Badge variant="outline" className="text-xs px-2 py-1 rounded-full bg-green-50 text-green-700 border-green-200">

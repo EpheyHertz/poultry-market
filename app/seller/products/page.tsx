@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Plus, Edit, Trash2, Package } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { formatProductTypeLabel } from '@/lib/utils';
 
 export default async function SellerProducts() {
   const user = await getCurrentUser();
@@ -25,6 +26,7 @@ export default async function SellerProducts() {
     switch (type) {
       case 'EGGS': return 'bg-yellow-100 text-yellow-800';
       case 'CHICKEN_MEAT': return 'bg-red-100 text-red-800';
+      case 'CUSTOM': return 'bg-slate-100 text-slate-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -42,7 +44,7 @@ export default async function SellerProducts() {
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">My Products</h1>
-            <p className="text-gray-600 mt-2">Manage your eggs and chicken meat products</p>
+            <p className="text-gray-600 mt-2">Manage your eggs, chicken meat, and custom product categories</p>
           </div>
           <Link href="/seller/products/new">
             <Button>
@@ -79,10 +81,11 @@ export default async function SellerProducts() {
                 <Card key={product.id} className="overflow-hidden">
                   <div className="aspect-square relative">
                     {product.images.length > 0 ? (
-                      <img
+                      <Image
                         src={product.images[0]}
                         alt={product.name}
-                        className="w-full h-full object-cover"
+                        fill
+                        className="object-cover"
                       />
                     ) : (
                       <div className="w-full h-full bg-gray-200 flex items-center justify-center">
@@ -94,7 +97,7 @@ export default async function SellerProducts() {
                     <div className="flex justify-between items-start">
                       <CardTitle className="text-lg">{product.name}</CardTitle>
                       <Badge className={getTypeColor(product.type)}>
-                        {product.type.replace('_', ' ')}
+                        {formatProductTypeLabel(product.type, product.customType)}
                       </Badge>
                     </div>
                     <CardDescription className="line-clamp-2">

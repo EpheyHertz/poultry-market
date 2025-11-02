@@ -21,6 +21,7 @@ import {
   Activity
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { formatProductTypeLabel } from '@/lib/utils';
 
 export default function CompanyAnalytics() {
   const [user, setUser] = useState<any>(null);
@@ -104,7 +105,7 @@ export default function CompanyAnalytics() {
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Analytics Dashboard</h1>
-            <p className="text-gray-600 mt-2">Track your company's performance and growth</p>
+            <p className="text-gray-600 mt-2">Track your company&apos;s performance and growth</p>
           </div>
           <div className="flex space-x-2">
             {['7', '30', '90', '365'].map((days) => (
@@ -245,7 +246,7 @@ export default function CompanyAnalytics() {
                             </div>
                             <div>
                               <p className="font-medium">{product.name}</p>
-                              <p className="text-sm text-gray-500">{product.type.replace('_', ' ')}</p>
+                              <p className="text-sm text-gray-500">{formatProductTypeLabel(product.type, product.customType)}</p>
                             </div>
                           </div>
                           <div className="text-right">

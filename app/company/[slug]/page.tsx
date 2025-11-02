@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { notFound } from 'next/navigation'
+import Image from 'next/image'
 import {
   Card, CardContent, CardDescription, CardHeader, CardTitle
 } from '@/components/ui/card'
@@ -14,6 +15,7 @@ import {
 import Link from 'next/link'
 import ChatWidget from '@/components/chat/chat-widget'
 import { Suspense } from 'react'
+import { formatProductTypeLabel } from '@/lib/utils'
 
 function CompanyPublicContent() {
   const params = useParams()
@@ -48,6 +50,7 @@ function CompanyPublicContent() {
       case 'CHICKEN_FEED': return 'bg-green-100 text-green-800'
       case 'CHICKS': return 'bg-orange-100 text-orange-800'
       case 'HATCHING_EGGS': return 'bg-purple-100 text-purple-800'
+      case 'CUSTOM': return 'bg-slate-100 text-slate-800'
       default: return 'bg-gray-100 text-gray-800'
     }
   }
@@ -133,7 +136,15 @@ function CompanyPublicContent() {
                     {company.products.map((product: any) => (
                       <div key={product.id} className="border rounded-lg overflow-hidden hover:shadow-md transition-shadow">
                         {product.images?.[0] ? (
-                          <img src={product.images[0]} alt={product.name} className="w-full h-32 object-cover" />
+                          <div className="relative h-32 w-full">
+                            <Image
+                              src={product.images[0]}
+                              alt={product.name}
+                              fill
+                              className="object-cover"
+                              sizes="(min-width: 1024px) 250px, 100vw"
+                            />
+                          </div>
                         ) : (
                           <div className="w-full h-32 bg-gray-200 flex items-center justify-center">
                             <Package className="h-8 w-8 text-gray-400" />
@@ -142,8 +153,8 @@ function CompanyPublicContent() {
                         <div className="p-3">
                           <div className="flex justify-between items-start mb-2">
                             <h3 className="font-medium text-sm">{product.name}</h3>
-                           <Badge className={`${getTypeColor(product.type)} text-xs px-2 py-0.5`}>
-                              {product.type.replace('_', ' ')}
+                  <Badge className={`${getTypeColor(product.type)} text-xs px-2 py-0.5`}>
+                    {formatProductTypeLabel(product.type, product.customType)}
                             </Badge>
                           </div>
                           <p className="text-xs text-gray-600 mb-2 line-clamp-2">

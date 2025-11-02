@@ -30,6 +30,7 @@ import { toast } from 'sonner';
 import { Suspense } from 'react';
 import { KENYA_COUNTIES, KENYA_PROVINCES, COUNTY_TO_PROVINCE } from '@/lib/kenya-locations';
 import { calculateIntaSendFees } from '@/lib/intasend';
+import { formatProductTypeLabel } from '@/lib/utils';
 
 interface Product {
   id: string;
@@ -38,6 +39,7 @@ interface Product {
   price: number;
   stock: number;
   type: string;
+  customType?: string | null;
   images: string[];
   sellerId: string;
   isActive: boolean;
@@ -1318,12 +1320,33 @@ function EnhancedCheckoutContent() {
                       <div className="space-y-3">
                         {/* Items */}
                         <div className="space-y-2">
-                          {option.items.map(item => (
-                            <div key={item.product.id} className="flex justify-between text-sm">
-                              <span>{item.product.name} x {item.quantity}</span>
-                              <span>Ksh {(item.product.price * item.quantity).toFixed(2)}</span>
-                            </div>
-                          ))}
+                          {option.items.map(item => {
+                            const discountedPrice = calculateItemPrice(item.product);
+                            const hasActiveDiscount = item?.product?.hasDiscount && 
+                              item?.product?.discountStartDate && 
+                              item?.product?.discountEndDate &&
+                              new Date(item?.product?.discountStartDate) <= new Date() && 
+                              new Date(item?.product?.discountEndDate) >= new Date();
+
+                            return (
+                              <div key={item.product.id} className="flex justify-between items-start gap-3 text-sm">
+                                <div className="flex flex-col gap-1">
+                                  <span>{item.product.name} x {item.quantity}</span>
+                                  <Badge variant="outline" className="w-fit text-[10px]">
+                                    {formatProductTypeLabel(item.product.type, item.product.customType)}
+                                  </Badge>
+                                </div>
+                                <div className="text-right">
+                                  <span>Ksh {(discountedPrice * item.quantity).toFixed(2)}</span>
+                                  {hasActiveDiscount && (
+                                    <div className="text-[11px] text-green-600">
+                                      (Discounted from Ksh {(item.product.price * item.quantity).toFixed(2)})
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
 
                         {/* Delivery Info */}
@@ -2181,16 +2204,34 @@ function EnhancedCheckoutContent() {
                     <h4 className="font-medium">Order Summary</h4>
                     {isSessionMode ? (
                       <div className="p-4 bg-gray-50 rounded-lg">
-                        <div className="flex justify-between items-center mb-2">
-                          <span className="font-medium">{checkoutSession?.product.seller.name}</span>
-                          <span className="font-medium">Ksh {grandTotal.toFixed(2)}</span>
-                        </div>
-                        <div className="text-sm text-gray-600 space-y-1">
-                          <div className="flex justify-between">
-                            <span>{checkoutSession?.product.name} x {checkoutSession?.quantity}</span>
-                            <span>Ksh {(calculateItemPrice(checkoutSession?.product!) * checkoutSession?.quantity!).toFixed(2)}</span>
+                          <div className="flex justify-between items-center mb-2">
+                            <span className="font-medium">{checkoutSession?.product.seller.name}</span>
+                            <span className="font-medium">Ksh {grandTotal.toFixed(2)}</span>
                           </div>
-                          <div className="flex justify-between font-medium text-gray-800">
+                          <div className="text-sm text-gray-600 space-y-1">
+                            <div className="flex justify-between items-start gap-3">
+                              <div className="flex flex-col gap-1">
+                                <span>{checkoutSession?.product.name} x {checkoutSession?.quantity}</span>
+                                <Badge variant="outline" className="w-fit text-[10px]">
+                                  {formatProductTypeLabel(checkoutSession?.product.type, checkoutSession?.product.customType)}
+                                </Badge>
+                              </div>
+                              <div className="text-right">
+                                <span>
+                                  Ksh {(calculateItemPrice(checkoutSession?.product!) * checkoutSession?.quantity!).toFixed(2)}
+                                </span>
+                                {checkoutSession?.product?.hasDiscount &&
+                                 checkoutSession?.product?.discountStartDate &&
+                                 checkoutSession?.product?.discountEndDate &&
+                                 new Date(checkoutSession?.product?.discountStartDate) <= new Date() &&
+                                 new Date(checkoutSession?.product?.discountEndDate) >= new Date() && (
+                                  <div className="text-[11px] text-green-600">
+                                    (Discounted from Ksh {(checkoutSession?.product.price * checkoutSession?.quantity!).toFixed(2)})
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex justify-between font-medium text-gray-800">
                             <span>Delivery:</span>
                             <span>{totalDeliveryFee === 0 ? 'FREE' : `Ksh ${totalDeliveryFee.toFixed(2)}`}</span>
                           </div>
@@ -2204,12 +2245,33 @@ function EnhancedCheckoutContent() {
                             <span className="font-medium">Ksh {(option.subtotal + option.deliveryFee).toFixed(2)}</span>
                           </div>
                           <div className="text-sm text-gray-600 space-y-1">
-                            {option.items.map(item => (
-                              <div key={item.product.id} className="flex justify-between">
-                                <span>{item.product.name} x {item.quantity}</span>
-                                <span>Ksh {(calculateItemPrice(item.product) * item.quantity).toFixed(2)}</span>
-                              </div>
-                            ))}
+                            {option.items.map(item => {
+                              const discountedPrice = calculateItemPrice(item.product);
+                              const hasActiveDiscount = item?.product?.hasDiscount && 
+                                item?.product?.discountStartDate && 
+                                item?.product?.discountEndDate &&
+                                new Date(item?.product?.discountStartDate) <= new Date() && 
+                                new Date(item?.product?.discountEndDate) >= new Date();
+
+                              return (
+                                <div key={item.product.id} className="flex justify-between items-start gap-3">
+                                  <div className="flex flex-col gap-1">
+                                    <span>{item.product.name} x {item.quantity}</span>
+                                    <Badge variant="outline" className="w-fit text-[10px]">
+                                      {formatProductTypeLabel(item.product.type, item.product.customType)}
+                                    </Badge>
+                                  </div>
+                                  <div className="text-right">
+                                    <span>Ksh {(discountedPrice * item.quantity).toFixed(2)}</span>
+                                    {hasActiveDiscount && (
+                                      <div className="text-[11px] text-green-600">
+                                        (Discounted from Ksh {(item.product.price * item.quantity).toFixed(2)})
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
                             <div className="flex justify-between font-medium text-gray-800">
                               <span>Delivery:</span>
                               <span>{option.deliveryFee === 0 ? 'FREE' : `Ksh ${option.deliveryFee.toFixed(2)}`}</span>
@@ -2274,8 +2336,13 @@ function EnhancedCheckoutContent() {
                         new Date(item?.product?.discountEndDate) >= new Date();
 
                       return (
-                        <div key={item.product.id} className="flex justify-between text-sm">
-                          <span>{item.product.name} x {item.quantity}</span>
+                        <div key={item.product.id} className="flex justify-between items-start gap-3 text-sm">
+                          <div className="flex flex-col gap-1">
+                            <span>{item.product.name} x {item.quantity}</span>
+                            <Badge variant="outline" className="w-fit text-[10px]">
+                              {formatProductTypeLabel(item.product.type, item.product.customType)}
+                            </Badge>
+                          </div>
                           <div className="text-right">
                             <span>Ksh {(price * item.quantity).toFixed(2)}</span>
                             {hasActiveDiscount && (

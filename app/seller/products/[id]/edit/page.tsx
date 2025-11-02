@@ -45,6 +45,7 @@ function EditProductContent() {
     price: '',
     stock: '',
     description: '',
+    customType: '',
     images: [] as string[]
   });
 
@@ -84,6 +85,7 @@ function EditProductContent() {
           price: productData.price?.toString() || '',
           stock: productData.stock?.toString() || '',
           description: productData.description || '',
+          customType: productData.customType || '',
           images: productData.images || []
         });
 
@@ -120,7 +122,8 @@ function EditProductContent() {
   const handleSelectChange = (name: string, value: string) => {
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      [name]: value,
+      ...(name === 'type' && value !== 'CUSTOM' ? { customType: '' } : {})
     }));
   };
 
@@ -282,6 +285,15 @@ function EditProductContent() {
       return;
     }
 
+    if (formData.type === 'CUSTOM' && !formData.customType.trim()) {
+      toast({
+        title: "Custom type name required",
+        description: "Please provide a label for your custom product type",
+        variant: "destructive"
+      });
+      return;
+    }
+
     if (parseFloat(formData.price) <= 0) {
       toast({
         title: "Validation Error", 
@@ -306,6 +318,7 @@ function EditProductContent() {
       const updateData = {
         name: formData.name.trim(),
         type: formData.type,
+        customType: formData.type === 'CUSTOM' ? formData.customType.trim() : undefined,
         price: parseFloat(formData.price),
         stock: parseInt(formData.stock),
         description: formData.description.trim(),
@@ -448,9 +461,26 @@ function EditProductContent() {
                     <SelectContent>
                       <SelectItem value="EGGS">Eggs</SelectItem>
                       <SelectItem value="CHICKEN_MEAT">Chicken Meat</SelectItem>
+                      <SelectItem value="CUSTOM">Custom type</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
+
+                {formData.type === 'CUSTOM' && (
+                  <div className="space-y-2">
+                    <Label htmlFor="customType">Custom Product Type *</Label>
+                    <Input
+                      id="customType"
+                      name="customType"
+                      value={formData.customType}
+                      onChange={handleInputChange}
+                      placeholder="e.g., Specialty Marinades"
+                      maxLength={60}
+                      required
+                    />
+                    <p className="text-xs text-gray-500">This label appears to customers on listings and detailed product views.</p>
+                  </div>
+                )}
 
                 <div className="space-y-2">
                   <Label htmlFor="price">Price (Kes) *</Label>

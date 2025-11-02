@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Edit, Trash2, Package } from 'lucide-react';
 import Link from 'next/link';
+import Image from 'next/image';
+import { formatProductTypeLabel } from '@/lib/utils';
 
 export default async function CompanyProducts() {
   const user = await getCurrentUser();
@@ -25,6 +27,7 @@ export default async function CompanyProducts() {
       case 'CHICKEN_FEED': return 'bg-green-100 text-green-800';
       case 'CHICKS': return 'bg-orange-100 text-orange-800';
       case 'HATCHING_EGGS': return 'bg-purple-100 text-purple-800';
+      case 'CUSTOM': return 'bg-slate-100 text-slate-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -42,7 +45,7 @@ export default async function CompanyProducts() {
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Company Products</h1>
-            <p className="text-gray-600 mt-2">Manage your feeds, chicks, and hatching eggs</p>
+            <p className="text-gray-600 mt-2">Manage your feeds, chicks, hatching eggs, and custom product categories</p>
           </div>
           <Link href="/company/products/new">
             <Button>
@@ -79,10 +82,11 @@ export default async function CompanyProducts() {
                 <Card key={product.id} className="overflow-hidden">
                   <div className="aspect-square relative">
                     {product.images.length > 0 ? (
-                      <img
+                      <Image
                         src={product.images[0]}
                         alt={product.name}
-                        className="w-full h-full object-cover"
+                        fill
+                        className="object-cover"
                       />
                     ) : (
                       <div className="w-full h-full bg-gray-200 flex items-center justify-center">
@@ -94,7 +98,7 @@ export default async function CompanyProducts() {
                     <div className="flex justify-between items-start">
                       <CardTitle className="text-lg">{product.name}</CardTitle>
                       <Badge className={getTypeColor(product.type)}>
-                        {product.type.replace('_', ' ')}
+                        {formatProductTypeLabel(product.type, product.customType)}
                       </Badge>
                     </div>
                     <CardDescription className="line-clamp-2">

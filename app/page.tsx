@@ -1,482 +1,1121 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useMemo, type ReactNode } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
+import { AnimatePresence, motion, useAnimation, useInView } from 'framer-motion';
+import { clsx } from 'clsx';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { 
-  ChevronRight, 
-  Users, 
-  ShoppingCart, 
-  Truck, 
-  Star, 
-  Play,
-  CheckCircle,
+import {
   ArrowRight,
-  Zap,
-  Shield,
-  TrendingUp,
+  CheckCircle,
   Globe,
-  Award,
-  Heart
+  Moon,
+  Play,
+  Shield,
+  ShoppingCart,
+  Star,
+  Sun,
+  Truck,
+  Users,
+  Zap
 } from 'lucide-react';
 
-export default function HomePage() {
-  const [isVisible, setIsVisible] = useState(false);
-  const [activeTestimonial, setActiveTestimonial] = useState(0);
+type Highlight = {
+  icon: typeof Truck;
+  title: string;
+  description: string;
+};
 
-  const testimonials = [
-    {
-      name: "Sarah Johnson",
-      role: "Restaurant Owner",
-      image: "/images/testimonial1.jpg",
-      content: "This platform transformed my business! Fresh poultry delivered daily at unbeatable prices.",
-      rating: 5
-    },
-    {
-      name: "Michael Chen",
-      role: "Poultry Farmer",
-      image: "/images/testimonial2.jpg", 
-      content: "Finally, a platform that connects me directly with customers. My income increased by 40%!",
-      rating: 5
-    },
-    {
-      name: "Emma Davis",
-      role: "Home Chef",
-      image: "/images/testimonial3.jpg",
-      content: "The quality is exceptional and delivery is always on time. Highly recommended!",
-      rating: 5
-    }
-  ];
+type FeatureTile = {
+  icon: typeof Truck;
+  title: string;
+  description: string;
+  image: string;
+  bullets: string[];
+};
+
+type Testimonial = {
+  name: string;
+  role: string;
+  image: string;
+  content: string;
+  rating: number;
+};
+
+const heroHighlights: Highlight[] = [
+  {
+    icon: Truck,
+    title: 'Cold-chain Dispatch',
+    description: 'Guaranteed freshness with monitored temperature routes.'
+  },
+  {
+    icon: Shield,
+    title: 'Veterinary Certified',
+    description: 'Audited farms and real-time health documentation.'
+  },
+  {
+    icon: Globe,
+    title: 'Nationwide Reach',
+    description: '18 fulfillment hubs serving chefs, homes, and retailers.'
+  }
+];
+
+const marketMetrics = [
+  { label: 'Orders Delivered', value: '450K+', helper: '99.2% on-time fulfillment' },
+  { label: 'Partner Farms', value: '620', helper: 'Traceable and certified' },
+  { label: 'Daily Volume', value: '12T', helper: 'Fresh produce moved daily' },
+  { label: 'Customer NPS', value: '74', helper: 'Industry-leading loyalty' }
+];
+
+const featureTiles: FeatureTile[] = [
+  {
+    icon: Shield,
+    title: 'Traceable Supply Chains',
+    description: 'Follow every flock from hatchery to doorstep with blockchain-backed certificates and live health records.',
+    image: '/images/chicken_in_cages.jpg',
+    bullets: ['Digital health passports', 'QA snapshots at every hub', 'Transparent farm audits']
+  },
+  {
+    icon: Truck,
+    title: 'Intelligent Fulfillment',
+    description: 'AI-assisted route planning and demand forecasting keep inventory lean while guaranteeing freshness.',
+    image: '/images/gettyimages-1791498223-612x612.jpg',
+    bullets: ['Same-day dispatch windows', 'Cold-chain routing', 'Real-time tracking links']
+  },
+  {
+    icon: ShoppingCart,
+    title: 'Wholesale Meets Retail',
+    description: 'Dynamic pricing and curated storefronts let chefs, households, and resellers shop their way.',
+    image: '/images/gettyimages-919680038-612x612.jpg',
+    bullets: ['Bulk & bundle deals', 'Smart substitutions', 'Flexible payment terms']
+  },
+  {
+    icon: Users,
+    title: 'Partner Growth Studio',
+    description: 'Dedicated growth strategists help producers brand, package, and scale to new regions.',
+    image: '/images/1758148946399-farm.png',
+    bullets: ['Story-driven branding', 'Regional launch playbooks', 'Always-on analytics']
+  }
+];
+
+const storyGallery = [
+  {
+    title: 'Morning Farm Harvest',
+    image: '/images/black_chick.jpg',
+    caption: 'Organic feed, humane rearing, and flavor-forward breeds ready for dispatch.'
+  },
+  {
+    title: 'Quality Control Lab',
+    image: '/images/gettyimages-92482265-612x612.jpg',
+    caption: 'Veterinary teams certify every crate before it hits the cold-chain line.'
+  },
+  {
+    title: 'Community Deliveries',
+    image: '/images/chick.jpg',
+    caption: 'Neighborhood hubs bring farm-fresh poultry closer to every table.'
+  }
+];
+
+const testimonials: Testimonial[] = [
+  {
+    name: 'Chef Nala Wanjiru',
+    role: 'Executive Chef, The Golden Rooster',
+    image: '/images/gettyimages-92515721-612x612.jpg',
+    content:
+      'Poultry Market Kenya redesigned how we source poultry. Our kitchens now receive perfectly chilled, traceable cuts before brunch service even begins.',
+    rating: 5
+  },
+  {
+    name: 'Daniel Otieno',
+    role: 'Second-generation Poultry Farmer',
+    image: '/images/gettyimages-902089270-612x612.jpg',
+    content:
+      'The partner growth studio helped us launch a premium brand with packaging and storytelling that resonates. Weekly revenue is up 52%.',
+    rating: 5
+  },
+  {
+    name: 'Farida Musa',
+    role: 'Caterer & Home Chef',
+    image: '/images/gettyimages-919680038-612x612.jpg',
+    content:
+      'Deliveries are effortless and punctual. The platform remembers my prep calendar and adjusts orders automatically.',
+    rating: 5
+  }
+];
+
+const marqueeItems = [
+  'Farm-to-table logistics',
+  'Always-on quality assurance',
+  'Predictive procurement tools',
+  'Sustainable packaging loops',
+  'Partner profitability clinics',
+  'Chef-tested recipes & cuts'
+];
+
+type RevealDirection = 'up' | 'down' | 'left' | 'right';
+
+function Reveal({
+  children,
+  delay = 0,
+  className,
+  direction = 'up'
+}: {
+  children: ReactNode;
+  delay?: number;
+  className?: string;
+  direction?: RevealDirection;
+}) {
+  const controls = useAnimation();
+  const ref = useRef<HTMLDivElement | null>(null);
+  const isInView = useInView(ref, { once: true, margin: '-120px' });
+  const variants = useMemo(() => {
+    const offset = 64;
+    const hidden = { opacity: 0, x: 0, y: 0 } as { opacity: number; x?: number; y?: number };
+
+    if (direction === 'left') hidden.x = -offset;
+    if (direction === 'right') hidden.x = offset;
+    if (direction === 'up') hidden.y = offset;
+    if (direction === 'down') hidden.y = -offset;
+
+    return {
+      hidden,
+      visible: { opacity: 1, x: 0, y: 0 }
+    };
+  }, [direction]);
 
   useEffect(() => {
-    setIsVisible(true);
-    const interval = setInterval(() => {
-      setActiveTestimonial(prev => (prev + 1) % testimonials.length);
-    }, 4000);
-    return () => clearInterval(interval);
-  }, [testimonials.length]);
-
-  const features = [
-    {
-      icon: ShoppingCart,
-      title: "Smart Marketplace",
-      description: "Connect with verified poultry suppliers and buyers in your area",
-      color: "from-emerald-500 to-green-600"
-    },
-    {
-      icon: Truck,
-      title: "Fast Delivery",
-      description: "Same-day delivery with real-time tracking for fresh products",
-      color: "from-blue-500 to-cyan-600"
-    },
-    {
-      icon: Shield,
-      title: "Quality Assured",
-      description: "All products are verified and quality-tested before delivery",
-      color: "from-purple-500 to-indigo-600"
-    },
-    {
-      icon: TrendingUp,
-      title: "Best Prices",
-      description: "Competitive pricing with direct farmer-to-customer connections",
-      color: "from-orange-500 to-red-600"
+    if (isInView) {
+      controls.start('visible');
     }
-  ];
-
-  const stats = [
-    { label: "Active Users", value: "50K+", icon: Users },
-    { label: "Daily Orders", value: "2K+", icon: ShoppingCart },
-    { label: "Partner Farms", value: "500+", icon: Globe },
-    { label: "Satisfaction Rate", value: "99%", icon: Heart }
-  ];
+  }, [controls, isInView]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 via-yellow-50 to-orange-50">
-      {/* Navigation */}
-      <nav className="fixed top-0 w-full bg-white/90 backdrop-blur-lg border-b border-green-100 z-50">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-green-500 to-yellow-500 rounded-xl flex items-center justify-center">
-                <span className="text-white font-bold text-lg sm:text-xl">🐔</span>
-              </div>
-              <span className="text-lg sm:text-2xl font-bold bg-gradient-to-r from-green-600 to-yellow-600 bg-clip-text text-transparent">
-                PoultryMarket
-              </span>
-            </div>
-            
-            <div className="hidden md:flex items-center space-x-6 lg:space-x-8">
-              <Link href="#features" className="text-gray-700 hover:text-green-600 transition-colors text-sm lg:text-base">
-                Features
-              </Link>
-              <Link href="/blog" className="text-gray-700 hover:text-green-600 transition-colors text-sm lg:text-base">
-                Blog
-              </Link>
-              <Link href="#testimonials" className="text-gray-700 hover:text-green-600 transition-colors text-sm lg:text-base">
-                Reviews
-              </Link>
-              <Link href="/contact" className="text-gray-700 hover:text-green-600 transition-colors text-sm lg:text-base">
-                Contact
-              </Link>
-            </div>
+    <motion.div
+      ref={ref}
+      initial="hidden"
+      animate={controls}
+      variants={variants}
+      transition={{ duration: 0.8, ease: 'easeOut', delay }}
+      className={className}
+    >
+      {children}
+    </motion.div>
+  );
+}
 
-            <div className="flex items-center space-x-2 sm:space-x-4">
-              <Link href="/auth/login" className="hidden sm:block">
-                <Button variant="ghost" className="text-green-600 hover:text-green-700 text-sm lg:text-base px-3 lg:px-4">
-                  Sign In
-                </Button>
-              </Link>
-              <Link href="/auth/register">
-                <Button className="bg-gradient-to-r from-green-500 to-yellow-500 hover:from-green-600 hover:to-yellow-600 text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 text-sm lg:text-base px-3 lg:px-6 py-2">
-                  <span className="hidden sm:inline">Get Started</span>
-                  <span className="sm:hidden">Start</span>
-                  <ChevronRight className="ml-1 sm:ml-2 h-3 w-3 sm:h-4 sm:w-4" />
-                </Button>
-              </Link>
+export default function HomePage() {
+  const [isDark, setIsDark] = useState(true);
+  const hasResolvedTheme = useRef(false);
+  const [activeTestimonial, setActiveTestimonial] = useState(0);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || hasResolvedTheme.current) {
+      return;
+    }
+
+    const stored = window.localStorage.getItem('pmk-theme');
+    const prefersDark = typeof window.matchMedia === 'function'
+      ? window.matchMedia('(prefers-color-scheme: dark)').matches
+      : false;
+    const initialTheme = stored ? stored === 'dark' : prefersDark;
+
+    setIsDark(initialTheme);
+    document.documentElement.classList.toggle('dark', initialTheme);
+    hasResolvedTheme.current = true;
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !hasResolvedTheme.current) {
+      return;
+    }
+
+    window.localStorage.setItem('pmk-theme', isDark ? 'dark' : 'light');
+    document.documentElement.classList.toggle('dark', isDark);
+  }, [isDark]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setActiveTestimonial(prev => (prev + 1) % testimonials.length);
+    }, 6000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div
+      className={clsx(
+        'min-h-screen transition-colors duration-500',
+        isDark ? 'bg-slate-950 text-slate-50' : 'bg-slate-50 text-slate-900'
+      )}
+    >
+      <nav
+        className={clsx(
+          'fixed top-0 z-50 w-full overflow-hidden backdrop-blur-2xl transition-colors duration-500 shadow-[0_1px_0_0_rgba(255,255,255,0.05)]',
+          isDark
+            ? 'border-b border-white/10 bg-slate-950/70 supports-[backdrop-filter]:bg-slate-950/45'
+            : 'border-b border-emerald-100/60 bg-white/70 supports-[backdrop-filter]:bg-white/40'
+        )}
+      >
+        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.6, x: -120, y: -40 }}
+            animate={{ opacity: 0.45, scale: 1.1, x: 40, y: 0 }}
+            transition={{ duration: 8, repeat: Infinity, repeatType: 'reverse', ease: 'easeInOut' }}
+            className={clsx(
+              'absolute -top-24 -left-24 h-56 w-56 rounded-full blur-3xl',
+              isDark ? 'bg-emerald-500/40' : 'bg-emerald-300/40'
+            )}
+          />
+          <motion.div
+            initial={{ opacity: 0, scale: 0.5, x: 120, y: 60 }}
+            animate={{ opacity: 0.35, scale: 1.2, x: -30, y: -10 }}
+            transition={{ duration: 10, repeat: Infinity, repeatType: 'reverse', ease: 'easeInOut' }}
+            className={clsx(
+              'absolute -bottom-28 right-[-6rem] h-64 w-64 rounded-full blur-3xl',
+              isDark ? 'bg-amber-400/30' : 'bg-amber-300/40'
+            )}
+          />
+          <motion.div
+            initial={{ opacity: 0, rotate: -10 }}
+            animate={{ opacity: 0.15, rotate: 6 }}
+            transition={{ duration: 12, repeat: Infinity, repeatType: 'reverse', ease: 'easeInOut' }}
+            className={clsx(
+              'absolute inset-x-1/4 top-1/2 h-32 w-2/3 -translate-y-1/2 rounded-full bg-gradient-to-r blur-2xl',
+              isDark ? 'from-emerald-500/20 via-teal-400/20 to-amber-300/10' : 'from-emerald-300/20 via-white/30 to-amber-200/10'
+            )}
+          />
+          <div
+            className={clsx(
+              'absolute inset-x-0 bottom-0 h-px w-full opacity-60',
+              isDark
+                ? 'bg-gradient-to-r from-transparent via-emerald-400/40 to-transparent'
+                : 'bg-gradient-to-r from-transparent via-emerald-400/50 to-transparent'
+            )}
+          />
+        </div>
+
+        <div className="container relative mx-auto flex items-center justify-between px-4 py-4">
+          <Link href="/" className="flex items-center space-x-3">
+            <div className="relative h-11 w-11 overflow-hidden rounded-2xl bg-gradient-to-br from-amber-400 via-rose-400 to-emerald-500 shadow-lg">
+              <span className="flex h-full w-full items-center justify-center text-2xl">🐔</span>
             </div>
+            <div>
+              <p className="text-lg font-semibold tracking-[0.12em] text-emerald-300">POULTRY MARKET KENYA</p>
+              <p className={clsx('text-xs', isDark ? 'text-slate-300' : 'text-slate-500')}>
+                Farm-to-table poultry experiences
+              </p>
+            </div>
+          </Link>
+
+          <div
+            className={clsx(
+              'hidden items-center space-x-8 text-sm font-medium md:flex',
+              isDark ? 'text-slate-200' : 'text-slate-700'
+            )}
+          >
+            <Link href="#features" className="transition-colors hover:text-emerald-400">
+              Solutions
+            </Link>
+            <Link href="#story" className="transition-colors hover:text-emerald-400">
+              Journey
+            </Link>
+            <Link href="#testimonials" className="transition-colors hover:text-emerald-400">
+              Voices
+            </Link>
+            <Link href="/blog" className="transition-colors hover:text-emerald-400">
+              Insights
+            </Link>
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              className={clsx(
+                'h-10 w-10 transition-colors duration-300',
+                isDark ? 'text-emerald-200 hover:text-white' : 'text-emerald-600 hover:text-emerald-500'
+              )}
+              onClick={() => setIsDark(prev => !prev)}
+              aria-pressed={isDark}
+              aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+            >
+              {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+            </Button>
+            <Link href="/auth/login" className="hidden sm:block">
+              <Button
+                variant="ghost"
+                className={clsx(
+                  'transition-colors duration-300',
+                  isDark ? 'text-emerald-200 hover:text-white' : 'text-emerald-600 hover:text-emerald-500'
+                )}
+              >
+                Sign In
+              </Button>
+            </Link>
+            <Link href="/auth/register">
+              <Button
+                className={clsx(
+                  'transition-transform duration-300 hover:scale-[1.02] shadow-lg',
+                  isDark
+                    ? 'bg-gradient-to-r from-emerald-400 via-teal-400 to-amber-300 text-slate-950 hover:from-emerald-300 hover:via-teal-300 hover:to-amber-200'
+                    : 'bg-gradient-to-r from-emerald-500 via-teal-500 to-amber-400 text-white hover:from-emerald-400 hover:via-teal-400 hover:to-amber-300'
+                )}
+              >
+                Join Poultry Market Kenya
+              </Button>
+            </Link>
           </div>
         </div>
       </nav>
 
-      {/* Hero Section */}
-      <section className="pt-24 sm:pt-32 pb-12 sm:pb-20 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-green-600/10 to-yellow-600/10"></div>
-        <div className="container mx-auto px-4 sm:px-6 relative">
-          <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
-            <div className={`space-y-6 sm:space-y-8 transition-all duration-1000 ${isVisible ? 'translate-x-0 opacity-100' : '-translate-x-20 opacity-0'}`}>
-              <div className="space-y-4 sm:space-y-6">
-                <Badge className="bg-green-100 text-green-700 hover:bg-green-200 transition-colors text-xs sm:text-sm">
-                  🎉 Now serving 50+ cities nationwide
+      <main className="pt-24 sm:pt-28">
+        <section className="relative overflow-hidden">
+          <div className="absolute inset-0">
+            <Image
+              src="/images/chickencages.jpg"
+              alt="Poultry Market Kenya farm partners"
+              fill
+              priority
+              sizes="100vw"
+              className={clsx('object-cover transition duration-500', isDark ? 'brightness-[0.45]' : 'brightness-[0.75]')}
+            />
+            <div
+              className={clsx(
+                'absolute inset-0 transition-colors duration-500',
+                isDark
+                  ? 'bg-gradient-to-br from-slate-950/60 via-slate-950/70 to-slate-950/30'
+                  : 'bg-gradient-to-br from-white/40 via-white/20 to-emerald-100/20'
+              )}
+            />
+          </div>
+
+          <div className="relative">
+            <div className="container mx-auto grid gap-12 px-4 pb-28 pt-16 lg:grid-cols-[minmax(0,1fr),minmax(0,0.8fr)] lg:pb-36 lg:pt-24">
+              <Reveal className="space-y-8">
+                <Badge
+                  className={clsx(
+                    'w-fit backdrop-blur transition-colors duration-300',
+                    isDark ? 'border border-white/20 bg-white/10 text-emerald-200' : 'border border-emerald-200/60 bg-emerald-50 text-emerald-700'
+                  )}
+                >
+                  2025 Launch · Trusted by Kenyan chefs, farmers & households
                 </Badge>
-                
-                <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-bold leading-tight">
-                  <span className="bg-gradient-to-r from-green-600 via-yellow-600 to-orange-600 bg-clip-text text-transparent">
-                    Fresh Poultry
-                  </span>
-                  <br />
-                  <span className="text-gray-800">Delivered Daily</span>
+                <h1
+                  className={clsx(
+                    'max-w-2xl text-4xl font-semibold leading-tight transition-colors sm:text-5xl lg:text-6xl',
+                    isDark ? 'text-white' : 'text-slate-900'
+                  )}
+                >
+                  Farm-direct poultry, perfectly timed for every Kenyan menu and meal.
                 </h1>
-                
-                <p className="text-base sm:text-lg lg:text-xl text-gray-600 leading-relaxed max-w-lg">
-                  Connect with trusted farmers and suppliers. Get premium quality poultry products delivered fresh to your doorstep with just a few clicks.
+                <p
+                  className={clsx(
+                    'max-w-xl text-lg transition-colors sm:text-xl',
+                    isDark ? 'text-slate-200' : 'text-slate-600'
+                  )}
+                >
+                  Poultry Market Kenya synchronizes farmers, cold-chain carriers, and conscious buyers on one vibrant
+                  platform. Experience premium cuts, predictable deliveries, and storytelling that keeps customers coming
+                  back.
+                </p>
+
+                <div className="flex flex-col gap-4 sm:flex-row">
+                  <Link href="/auth/register" className="w-full sm:w-auto">
+                    <Button size="lg" className="w-full bg-emerald-400 text-slate-950 shadow-emerald-500/40 transition hover:scale-[1.02] hover:bg-emerald-300">
+                      Start your marketplace
+                      <ArrowRight className="ml-2 h-5 w-5" />
+                    </Button>
+                  </Link>
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    className={clsx(
+                      'w-full transition sm:w-auto',
+                      isDark
+                        ? 'border-white/30 bg-white/10 text-white hover:bg-white/20'
+                        : 'border-emerald-200 text-emerald-700 hover:bg-emerald-50'
+                    )}
+                  >
+                    <Play className="mr-2 h-5 w-5" />
+                    Watch the supply tour
+                  </Button>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-3">
+                  {heroHighlights.map((item, index) => (
+                    <motion.div
+                      key={item.title}
+                      initial={{ opacity: 0, y: 32 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      whileHover={{ y: -8, scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      transition={{ delay: 0.4 + index * 0.1, duration: 0.6, ease: 'easeOut' }}
+                      className={clsx(
+                        'rounded-2xl p-4 backdrop-blur transition-colors duration-300',
+                        isDark ? 'border border-white/10 bg-white/10' : 'border border-emerald-100 bg-white/70'
+                      )}
+                    >
+                      <div
+                        className={clsx(
+                          'flex items-center space-x-3 text-sm font-medium uppercase tracking-[0.18em]',
+                          isDark ? 'text-emerald-200' : 'text-emerald-600'
+                        )}
+                      >
+                        <item.icon className="h-5 w-5" />
+                        <span>
+                          {item.title}
+                        </span>
+                      </div>
+                      <p
+                        className={clsx(
+                          'mt-3 text-sm transition-colors duration-300',
+                          isDark ? 'text-slate-100/80' : 'text-slate-600'
+                        )}
+                      >
+                        {item.description}
+                      </p>
+                    </motion.div>
+                  ))}
+                </div>
+              </Reveal>
+
+              <div className="relative">
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9, rotate: -2 }}
+                  animate={{ opacity: 1, scale: 1, rotate: 0 }}
+                  transition={{ delay: 0.35, duration: 0.8, ease: 'easeOut' }}
+                  className={clsx(
+                    'relative rounded-[32px] p-6 backdrop-blur-xl shadow-2xl transition-colors duration-500',
+                    isDark ? 'border border-white/20 bg-white/5' : 'border border-emerald-100 bg-white/70'
+                  )}
+                >
+                  <div className="grid gap-4">
+                    <motion.div
+                      animate={{ y: [0, -12, 0] }}
+                      transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut' }}
+                      className="relative h-64 overflow-hidden rounded-3xl sm:h-80"
+                    >
+                      <Image
+                        src="/images/chicken_in_cages.jpg"
+                        alt="Cold-chain prep"
+                        fill
+                        sizes="(min-width: 1024px) 520px, 100vw"
+                        className="object-cover"
+                      />
+                    </motion.div>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <motion.div
+                        animate={{ y: [0, 10, 0] }}
+                        transition={{ duration: 6.5, repeat: Infinity, ease: 'easeInOut', delay: 0.2 }}
+                        className="relative h-40 overflow-hidden rounded-2xl"
+                      >
+                        <Image
+                          src="/images/black_and_white_chick.jpg"
+                          alt="Heritage breeds"
+                          fill
+                          sizes="(min-width: 640px) 250px, 100vw"
+                          className="object-cover"
+                        />
+                      </motion.div>
+                      <motion.div
+                        animate={{ y: [0, -10, 0] }}
+                        transition={{ duration: 6.5, repeat: Infinity, ease: 'easeInOut', delay: 0.4 }}
+                        className="relative h-40 overflow-hidden rounded-2xl"
+                      >
+                        <Image
+                          src="/images/gettyimages-1791498223-612x612.jpg"
+                          alt="Market-ready cuts"
+                          fill
+                          sizes="(min-width: 640px) 250px, 100vw"
+                          className="object-cover"
+                        />
+                      </motion.div>
+                    </div>
+                  </div>
+
+                  <div
+                    className={clsx(
+                      'mt-5 flex flex-col gap-3 rounded-2xl p-4 text-sm transition-colors duration-300',
+                      isDark ? 'bg-slate-950/70 text-slate-200' : 'bg-emerald-50 text-slate-700'
+                    )}
+                  >
+                    <div className="flex items-center justify-between">
+                      <p className={clsx('uppercase tracking-[0.3em]', isDark ? 'text-emerald-300' : 'text-emerald-600')}>
+                        Live dispatch
+                      </p>
+                      <div
+                        className={clsx(
+                          'flex items-center space-x-2 text-xs transition-colors',
+                          isDark ? 'text-slate-300' : 'text-emerald-700'
+                        )}
+                      >
+                        <Shield className="h-4 w-4" />
+                        <span>QA cleared 3 mins ago</span>
+                      </div>
+                    </div>
+                    <p className={clsx(isDark ? 'text-slate-100' : 'text-slate-700')}>
+                      &ldquo;Batch FF-0825&rdquo; is sealed, scanned, and loading for Nairobi CBD in a zero-emission fleet.
+                    </p>
+                  </div>
+                </motion.div>
+              </div>
+            </div>
+
+            <div className="absolute inset-x-0 bottom-0">
+              <div
+                className={clsx(
+                  'overflow-hidden border-t py-4 transition-colors duration-500',
+                  isDark ? 'border-white/10 bg-slate-950/80' : 'border-emerald-100 bg-emerald-50/70'
+                )}
+              >
+                <motion.div
+                  className={clsx(
+                    'flex min-w-max items-center space-x-6 text-sm uppercase tracking-[0.3em] transition-colors duration-500',
+                    isDark ? 'text-slate-200' : 'text-emerald-700'
+                  )}
+                  animate={{ x: ['0%', '-50%'] }}
+                  transition={{ duration: 28, repeat: Infinity, ease: 'linear' }}
+                >
+                  {[...marqueeItems, ...marqueeItems].map((item, index) => (
+                    <span key={`${item}-${index}`} className="flex items-center space-x-2">
+                      <span>{item}</span>
+                      <span className={clsx(isDark ? 'text-emerald-300' : 'text-emerald-500')}>•</span>
+                    </span>
+                  ))}
+                </motion.div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section
+          id="features"
+          className={clsx(
+            'py-24 transition-colors duration-500',
+            isDark ? 'bg-slate-950' : 'bg-slate-100'
+          )}
+        >
+          <div className="container mx-auto px-4">
+            <Reveal className="mx-auto max-w-3xl text-center" direction="down">
+              <Badge
+                className={clsx(
+                  'mb-4 transition-colors duration-300',
+                  isDark
+                    ? 'border border-emerald-300/40 bg-emerald-300/10 text-emerald-200'
+                    : 'border border-emerald-200/60 bg-emerald-50 text-emerald-700'
+                )}
+              >
+                Why partners choose Poultry Market Kenya
+              </Badge>
+              <h2
+                className={clsx(
+                  'text-3xl font-semibold transition-colors sm:text-4xl',
+                  isDark ? 'text-white' : 'text-slate-900'
+                )}
+              >
+                Built for the full poultry journey — from thoughtful farming to unforgettable dining.
+              </h2>
+              <p
+                className={clsx(
+                  'mt-4 text-lg transition-colors',
+                  isDark ? 'text-slate-300' : 'text-slate-600'
+                )}
+              >
+                Every workflow is orchestrated to boost quality, protect margins, and delight every kind of customer you serve.
+              </p>
+            </Reveal>
+
+            <div className="mt-14 grid gap-8 lg:grid-cols-2">
+              {featureTiles.map((feature, index) => (
+                <Reveal key={feature.title} delay={index * 0.12} className="h-full" direction={index % 2 === 0 ? 'left' : 'right'}>
+                  <motion.div whileHover={{ y: -12, scale: 1.01 }} whileTap={{ scale: 0.99 }} className="h-full">
+                    <Card
+                      className={clsx(
+                        'h-full overflow-hidden transition-colors',
+                        isDark ? 'border border-white/10 bg-white/5 text-slate-50' : 'border border-emerald-100 bg-white text-slate-800'
+                      )}
+                    >
+                      <CardContent className="grid gap-6 p-6 sm:grid-cols-[minmax(0,0.7fr),1fr]">
+                      <div className="relative h-48 overflow-hidden rounded-2xl sm:h-full">
+                        <Image
+                          src={feature.image}
+                          alt={feature.title}
+                          fill
+                          sizes="(min-width: 1024px) 320px, 100vw"
+                          className="object-cover"
+                        />
+                        <div
+                          className={clsx(
+                            'absolute inset-0 transition-colors duration-300',
+                            isDark ? 'bg-gradient-to-t from-slate-950/60 via-slate-950/10 to-transparent' : 'bg-gradient-to-t from-slate-900/20 via-white/10 to-transparent'
+                          )}
+                        />
+                        <div
+                          className={clsx(
+                            'absolute bottom-4 left-4 flex items-center space-x-2 text-xs uppercase tracking-[0.25em] transition-colors',
+                            isDark ? 'text-emerald-200' : 'text-emerald-600'
+                          )}
+                        >
+                          <feature.icon className="h-4 w-4" />
+                          <span>Poultry Market Kenya</span>
+                        </div>
+                      </div>
+
+                      <div className="space-y-4">
+                        <h3
+                          className={clsx(
+                            'text-2xl font-semibold transition-colors',
+                            isDark ? 'text-white' : 'text-slate-900'
+                          )}
+                        >
+                          {feature.title}
+                        </h3>
+                        <p
+                          className={clsx(
+                            'text-sm transition-colors',
+                            isDark ? 'text-slate-200/90' : 'text-slate-600'
+                          )}
+                        >
+                          {feature.description}
+                        </p>
+                        <ul
+                          className={clsx(
+                            'space-y-2 text-sm transition-colors',
+                            isDark ? 'text-slate-200/80' : 'text-slate-600'
+                          )}
+                        >
+                          {feature.bullets.map(bullet => (
+                            <li key={bullet} className="flex items-start space-x-2">
+                              <CheckCircle
+                                className={clsx(
+                                  'mt-0.5 h-4 w-4',
+                                  isDark ? 'text-emerald-300' : 'text-emerald-500'
+                                )}
+                              />
+                              <span>{bullet}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                </Reveal>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section
+          className={clsx(
+            'py-24 transition-colors duration-500',
+            isDark ? 'bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950' : 'bg-gradient-to-b from-white via-emerald-50 to-white'
+          )}
+          id="story"
+        >
+          <div className="container mx-auto px-4">
+            <Reveal className="mx-auto max-w-3xl text-center" direction="down">
+              <Badge
+                className={clsx(
+                  'mb-4 transition-colors duration-300',
+                  isDark ? 'border border-amber-200/40 bg-amber-100/10 text-amber-200' : 'border border-amber-200/60 bg-amber-50 text-amber-700'
+                )}
+              >
+                Inside the Poultry Market Kenya journey
+              </Badge>
+              <h2
+                className={clsx(
+                  'text-3xl font-semibold transition-colors sm:text-4xl',
+                  isDark ? 'text-white' : 'text-slate-900'
+                )}
+              >
+                Scroll through a day in our ecosystem — and see why freshness never sleeps.
+              </h2>
+            </Reveal>
+
+            <div className="mt-14 grid gap-10 lg:grid-cols-3">
+              {storyGallery.map((story, index) => (
+                <Reveal key={story.title} delay={index * 0.15} direction={index === 1 ? 'up' : index === 0 ? 'left' : 'right'}>
+                  <motion.div
+                    whileHover={{ y: -10, scale: 1.01 }}
+                    transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+                    className={clsx(
+                      'group overflow-hidden rounded-3xl shadow-lg transition duration-500',
+                      isDark
+                        ? 'border border-white/10 bg-white/5 hover:border-emerald-300/40 hover:shadow-emerald-500/20'
+                        : 'border border-emerald-100 bg-white hover:border-emerald-300/60 hover:shadow-emerald-400/20'
+                    )}
+                  >
+                    <div className="relative h-72 overflow-hidden">
+                      <Image
+                        src={story.image}
+                        alt={story.title}
+                        fill
+                        sizes="(min-width: 1024px) 360px, 100vw"
+                        className=" object-cover transition duration-700 group-hover:scale-105"
+                      />
+                      <div
+                        className={clsx(
+                          'absolute inset-0 transition-colors duration-300',
+                          isDark
+                            ? 'bg-gradient-to-t from-slate-950/80 via-transparent'
+                            : 'bg-gradient-to-t from-slate-900/20 via-transparent'
+                        )}
+                      />
+                      <div className="absolute bottom-4 left-4">
+                        <p
+                          className={clsx(
+                            'text-sm font-semibold uppercase tracking-[0.3em] transition-colors',
+                            isDark ? 'text-emerald-200' : 'text-emerald-600'
+                          )}
+                        >
+                          {story.title}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="p-6">
+                      <p
+                        className={clsx(
+                          'text-sm transition-colors',
+                          isDark ? 'text-slate-200/90' : 'text-slate-600'
+                        )}
+                      >
+                        {story.caption}
+                      </p>
+                    </div>
+                  </motion.div>
+                </Reveal>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section
+          className={clsx(
+            'py-24 transition-colors duration-500',
+            isDark ? 'bg-slate-950' : 'bg-white'
+          )}
+        >
+          <div className="container mx-auto px-4">
+            <Reveal className="mx-auto max-w-5xl text-center" direction="down">
+              <Badge
+                className={clsx(
+                  'mb-4 transition-colors duration-300',
+                  isDark ? 'border border-emerald-300/40 bg-emerald-300/10 text-emerald-200' : 'border border-emerald-200/60 bg-emerald-50 text-emerald-700'
+                )}
+              >
+                Signals that matter
+              </Badge>
+              <h2
+                className={clsx(
+                  'text-3xl font-semibold transition-colors sm:text-4xl',
+                  isDark ? 'text-white' : 'text-slate-900'
+                )}
+              >
+                Data-backed confidence for every partner.
+              </h2>
+            </Reveal>
+
+            <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+              {marketMetrics.map(metric => (
+                <Reveal key={metric.label} className="h-full" direction="up">
+                  <motion.div whileHover={{ y: -10, scale: 1.01 }} transition={{ type: 'spring', stiffness: 200, damping: 18 }} className="h-full">
+                    <div
+                      className={clsx(
+                        'h-full rounded-3xl p-6 text-left shadow-lg transition-colors duration-300',
+                        isDark ? 'border border-white/10 bg-white/5' : 'border border-emerald-100 bg-white'
+                      )}
+                    >
+                      <p className={clsx('text-3xl font-semibold transition-colors', isDark ? 'text-white' : 'text-slate-900')}>
+                        {metric.value}
+                      </p>
+                      <p
+                        className={clsx(
+                          'mt-2 text-sm font-medium uppercase tracking-[0.25em] transition-colors',
+                          isDark ? 'text-emerald-200' : 'text-emerald-600'
+                        )}
+                      >
+                        {metric.label}
+                      </p>
+                      <p className={clsx('mt-4 text-sm transition-colors', isDark ? 'text-slate-200/80' : 'text-slate-600')}>
+                        {metric.helper}
+                      </p>
+                    </div>
+                  </motion.div>
+                </Reveal>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section
+          id="testimonials"
+          className={clsx(
+            'py-24 transition-colors duration-500',
+            isDark ? 'bg-gradient-to-b from-slate-900 to-slate-950' : 'bg-gradient-to-b from-emerald-50 to-white'
+          )}
+        >
+          <div className="container mx-auto px-4">
+            <Reveal className="mx-auto max-w-2xl text-center" direction="down">
+              <Badge
+                className={clsx(
+                  'mb-4 transition-colors duration-300',
+                  isDark ? 'border border-amber-200/40 bg-amber-200/10 text-amber-200' : 'border border-amber-200/60 bg-amber-50 text-amber-700'
+                )}
+              >
+                Partner voices
+              </Badge>
+              <h2
+                className={clsx(
+                  'text-3xl font-semibold transition-colors sm:text-4xl',
+                  isDark ? 'text-white' : 'text-slate-900'
+                )}
+              >
+                Reviews from kitchens, farms, and fulfillment floors.
+              </h2>
+              <p
+                className={clsx(
+                  'mt-4 text-lg transition-colors',
+                  isDark ? 'text-slate-300' : 'text-slate-600'
+                )}
+              >
+                Stories from partners who turned supply headaches into high-performing food experiences.
+              </p>
+            </Reveal>
+
+            <div className="relative mx-auto mt-14 max-w-4xl">
+              <div
+                className={clsx(
+                  'relative overflow-hidden rounded-[32px] shadow-2xl transition-colors duration-500',
+                  isDark ? 'border border-white/10 bg-white/5' : 'border border-emerald-100 bg-white'
+                )}
+              >
+                <AnimatePresence mode="wait">
+                  {(() => {
+                    const testimonial = testimonials[activeTestimonial];
+                    return (
+                      <motion.div
+                        key={testimonial.name}
+                        initial={{ opacity: 0, x: 120 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -120 }}
+                        transition={{ duration: 0.6, ease: 'easeOut' }}
+                        className="relative px-8 py-12 sm:px-16 sm:py-16"
+                      >
+                        <div className="flex min-h-[420px] flex-col items-center justify-center space-y-8 text-center">
+                          <motion.div
+                            initial={{ scale: 0.8, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            transition={{ duration: 0.4, ease: 'easeOut' }}
+                            className={clsx(
+                              'relative h-24 w-24 overflow-hidden rounded-full border-[6px] transition-colors',
+                              isDark ? 'border-emerald-300/60' : 'border-emerald-400/80'
+                            )}
+                          >
+                            <Image
+                              src={testimonial.image}
+                              alt={testimonial.name}
+                              fill
+                              sizes="96px"
+                              className="object-cover"
+                            />
+                          </motion.div>
+                          <motion.div
+                            initial={{ opacity: 0, y: 12 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.1, duration: 0.4, ease: 'easeOut' }}
+                            className="flex items-center justify-center gap-2"
+                          >
+                            {[...Array(testimonial.rating)].map((_, starIndex) => (
+                              <Star
+                                key={`${testimonial.name}-star-${starIndex}`}
+                                className={clsx('h-5 w-5', isDark ? 'fill-amber-300 text-amber-300' : 'fill-amber-400 text-amber-400')}
+                              />
+                            ))}
+                          </motion.div>
+                          <motion.blockquote
+                            initial={{ opacity: 0, y: 16 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.15, duration: 0.5, ease: 'easeOut' }}
+                            className={clsx(
+                              'max-w-3xl text-xl font-medium leading-relaxed transition-colors sm:text-2xl',
+                              isDark ? 'text-slate-100' : 'text-slate-700'
+                            )}
+                          >
+                            &ldquo;{testimonial.content}&rdquo;
+                          </motion.blockquote>
+                          <motion.div
+                            initial={{ opacity: 0, y: 12 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.2, duration: 0.4, ease: 'easeOut' }}
+                            className="space-y-1"
+                          >
+                            <p
+                              className={clsx(
+                                'text-lg font-semibold transition-colors',
+                                isDark ? 'text-white' : 'text-slate-900'
+                              )}
+                            >
+                              {testimonial.name}
+                            </p>
+                            <p
+                              className={clsx(
+                                'text-sm uppercase tracking-[0.3em] transition-colors',
+                                isDark ? 'text-emerald-200' : 'text-emerald-600'
+                              )}
+                            >
+                              {testimonial.role}
+                            </p>
+                          </motion.div>
+                        </div>
+                      </motion.div>
+                    );
+                  })()}
+                </AnimatePresence>
+                <div className="relative flex h-full items-end justify-center space-x-3 pb-6">
+                  {testimonials.map((testimonial, index) => (
+                    <button
+                      key={testimonial.name}
+                      type="button"
+                      onClick={() => setActiveTestimonial(index)}
+                      className={`h-2.5 w-10 rounded-full transition ${
+                        index === activeTestimonial
+                          ? isDark
+                            ? 'bg-emerald-300'
+                            : 'bg-emerald-500'
+                          : isDark
+                            ? 'bg-white/20 hover:bg-white/40'
+                            : 'bg-emerald-100 hover:bg-emerald-200'
+                      }`}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="relative overflow-hidden bg-gradient-to-r from-emerald-500 via-teal-500 to-amber-400 py-24 text-slate-950">
+          <div className="absolute inset-0 bg-white/10 mix-blend-overlay" />
+          <div className="container relative mx-auto px-4">
+            <Reveal className="mx-auto max-w-3xl text-center" delay={0.1}>
+              <Zap className="mx-auto h-14 w-14 text-slate-950/80" />
+              <h2 className="mt-6 text-4xl font-semibold sm:text-5xl">
+                Launch your next chapter with Poultry Market Kenya.
+              </h2>
+              <p className="mt-4 text-lg text-slate-900/80">
+                Secure sourcing, smart delivery, and storytelling that moves Kenyan markets. Let’s build a fresher food future together.
+              </p>
+            </Reveal>
+
+            <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
+              <Link href="/auth/register">
+                <Button size="lg" className="bg-slate-950 text-emerald-300 shadow-lg shadow-slate-900/40 transition hover:scale-[1.03] hover:text-white">
+                  Create your free hub
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </Button>
+              </Link>
+              <Link href="/contact">
+                <Button size="lg" variant="outline" className="border-slate-900 text-slate-900 transition hover:bg-slate-900 hover:text-emerald-200">
+                  Talk to our growth team
+                </Button>
+              </Link>
+            </div>
+            <p className="mt-8 text-center text-sm text-slate-900/70">
+              Early adopters enjoy complimentary packaging audits and launch campaign assets.
+            </p>
+          </div>
+        </section>
+      </main>
+
+      <footer
+        className={clsx(
+          'py-12 transition-colors duration-500',
+          isDark ? 'border-t border-white/10 bg-slate-950' : 'border-t border-emerald-100 bg-white'
+        )}
+      >
+        <div className="container mx-auto grid gap-10 px-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="space-y-4">
+            <Link href="/" className="flex items-center space-x-3">
+              <div className="relative h-10 w-10 overflow-hidden rounded-2xl bg-gradient-to-br from-amber-400 via-rose-400 to-emerald-500">
+                <span className="flex h-full w-full items-center justify-center text-xl">🐔</span>
+              </div>
+              <div>
+                <p className="text-sm font-semibold tracking-[0.18em] text-emerald-300">POULTRY MARKET KENYA</p>
+                <p className={clsx('text-xs transition-colors', isDark ? 'text-slate-300' : 'text-slate-500')}>
+                  Better poultry for every table.
                 </p>
               </div>
-
-              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-                <Link href="/auth/register" className="w-full sm:w-auto">
-                  <Button size="lg" className="w-full sm:w-auto bg-gradient-to-r from-green-500 to-yellow-500 hover:from-green-600 hover:to-yellow-600 text-white shadow-2xl hover:shadow-3xl transform hover:scale-105 transition-all duration-300 group">
-                    Start Shopping Now
-                    <ArrowRight className="ml-2 h-4 w-4 sm:h-5 sm:w-5 group-hover:translate-x-1 transition-transform" />
-                  </Button>
-                </Link>
-                
-                <Button size="lg" variant="outline" className="w-full sm:w-auto border-2 border-green-500 text-green-600 hover:bg-green-50 group">
-                  <Play className="mr-2 h-4 w-4 sm:h-5 sm:w-5 group-hover:scale-110 transition-transform" />
-                  Watch Demo
-                </Button>
-              </div>
-
-              {/* Stats */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 pt-6 sm:pt-8">
-                {stats.map((stat, index) => (
-                  <div key={stat.label} className={`text-center transition-all duration-700 delay-${index * 100} ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
-                    <div className="flex items-center justify-center mb-2">
-                      <stat.icon className="h-5 w-5 sm:h-6 sm:w-6 text-green-600" />
-                    </div>
-                    <div className="text-lg sm:text-2xl font-bold text-gray-800">{stat.value}</div>
-                    <div className="text-xs sm:text-sm text-gray-600">{stat.label}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className={`relative mt-8 lg:mt-0 transition-all duration-1000 delay-300 ${isVisible ? 'translate-x-0 opacity-100' : 'translate-x-20 opacity-0'}`}>
-              <div className="relative">
-                {/* Floating cards animation */}
-                <div className="absolute inset-0 animate-pulse">
-                  <div className="absolute top-10 right-10 w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-r from-green-400 to-yellow-400 rounded-full opacity-20 animate-bounce"></div>
-                  <div className="absolute bottom-20 left-10 w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-r from-orange-400 to-red-400 rounded-full opacity-20 animate-bounce delay-300"></div>
-                </div>
-                
-                <div className="bg-white rounded-3xl shadow-2xl p-6 sm:p-8 transform rotate-2 hover:rotate-0 transition-transform duration-500">
-                  <div className="aspect-square bg-gradient-to-br from-green-100 to-yellow-100 rounded-2xl flex items-center justify-center text-6xl sm:text-8xl">
-                    🐔
-                  </div>
-                  <div className="mt-4 sm:mt-6 space-y-3">
-                    <div className="flex items-center space-x-2">
-                      <div className="flex space-x-1">
-                        {[...Array(5)].map((_, i) => (
-                          <Star key={i} className="h-4 w-4 sm:h-5 sm:w-5 fill-yellow-400 text-yellow-400" />
-                        ))}
-                      </div>
-                      <span className="text-gray-600 text-sm sm:text-base">4.9/5</span>
-                    </div>
-                    <h3 className="text-lg sm:text-xl font-bold text-gray-800">Premium Quality</h3>
-                    <p className="text-gray-600 text-sm sm:text-base">Guaranteed fresh delivery</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Features Section */}
-      <section id="features" className="py-12 sm:py-16 lg:py-20 bg-white">
-        <div className="container mx-auto px-4 sm:px-6">
-          <div className="text-center mb-12 sm:mb-16">
-            <Badge className="bg-green-100 text-green-700 mb-4 text-xs sm:text-sm">
-              Why Choose Us
-            </Badge>
-            <h2 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-bold text-gray-800 mb-4 sm:mb-6">
-              Everything You Need in One
-              <span className="bg-gradient-to-r from-green-600 to-yellow-600 bg-clip-text text-transparent"> Platform</span>
-            </h2>
-            <p className="text-base sm:text-lg lg:text-xl text-gray-600 max-w-3xl mx-auto px-4">
-              From farm to table, we&apos;ve got you covered with cutting-edge technology and unmatched service quality.
+            </Link>
+            <p className={clsx('text-sm transition-colors', isDark ? 'text-slate-300' : 'text-slate-600')}>
+              Connecting conscientious farmers, brilliant chefs, and families seeking freshness. Poultry Market Kenya keeps every link transparent and thriving.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
-            {features.map((feature, index) => (
-              <Card key={feature.title} className={`group hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 cursor-pointer border-0 bg-gradient-to-br ${feature.color} p-1`}>
-                <CardContent className="bg-white m-1 rounded-lg p-4 sm:p-6 h-full">
-                  <div className={`w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-r ${feature.color} flex items-center justify-center mb-4 sm:mb-6 group-hover:scale-110 transition-transform duration-300 mx-auto sm:mx-0`}>
-                    <feature.icon className="h-6 w-6 sm:h-8 sm:w-8 text-white" />
-                  </div>
-                  <h3 className="text-lg sm:text-xl font-bold text-gray-800 mb-2 sm:mb-3 group-hover:text-green-600 transition-colors text-center sm:text-left">
-                    {feature.title}
-                  </h3>
-                  <p className="text-gray-600 leading-relaxed">
-                    {feature.description}
-                  </p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* User Types Section */}
-      <section className="py-20 bg-gradient-to-r from-green-50 to-yellow-50">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl lg:text-5xl font-bold text-gray-800 mb-6">
-              Perfect for
-              <span className="bg-gradient-to-r from-green-600 to-yellow-600 bg-clip-text text-transparent"> Everyone</span>
-            </h2>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-8">
-            {[
-              {
-                title: "🥘 Restaurants & Hotels",
-                description: "Bulk orders with guaranteed quality and timely delivery for your business needs.",
-                features: ["Bulk pricing", "Daily delivery", "Quality guarantee"],
-                cta: "Start Ordering",
-                gradient: "from-blue-500 to-cyan-500"
-              },
-              {
-                title: "🏠 Home Chefs",
-                description: "Fresh, premium poultry products delivered to your doorstep for family meals.",
-                features: ["Small quantities", "Flexible delivery", "Premium quality"],
-                cta: "Shop Now",
-                gradient: "from-green-500 to-emerald-500"
-              },
-              {
-                title: "🚜 Farmers & Suppliers",
-                description: "Sell directly to customers and increase your profits with our platform.",
-                features: ["Direct sales", "Higher profits", "Market reach"],
-                cta: "Become Seller",
-                gradient: "from-orange-500 to-yellow-500"
-              }
-            ].map((userType, index) => (
-              <Card key={userType.title} className="group hover:shadow-2xl transition-all duration-500 hover:-translate-y-4 cursor-pointer overflow-hidden">
-                <CardContent className="p-8">
-                  <div className="text-center mb-6">
-                    <h3 className="text-2xl font-bold text-gray-800 mb-4">{userType.title}</h3>
-                    <p className="text-gray-600 leading-relaxed">{userType.description}</p>
-                  </div>
-                  
-                  <div className="space-y-3 mb-8">
-                    {userType.features.map((feature, i) => (
-                      <div key={i} className="flex items-center space-x-3">
-                        <CheckCircle className="h-5 w-5 text-green-500" />
-                        <span className="text-gray-700">{feature}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  <Button className={`w-full bg-gradient-to-r ${userType.gradient} hover:scale-105 transition-all duration-300 text-white shadow-lg`}>
-                    {userType.cta}
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Testimonials Section */}
-      <section id="testimonials" className="py-20 bg-white">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
-            <Badge className="bg-yellow-100 text-yellow-700 mb-4">
-              Customer Stories
-            </Badge>
-            <h2 className="text-4xl lg:text-5xl font-bold text-gray-800 mb-6">
-              What Our
-              <span className="bg-gradient-to-r from-green-600 to-yellow-600 bg-clip-text text-transparent"> Customers Say</span>
-            </h2>
-          </div>
-
-          <div className="max-w-4xl mx-auto">
-            <div className="relative overflow-hidden rounded-3xl">
-              {testimonials.map((testimonial, index) => (
-                <Card 
-                  key={index}
-                  className={`absolute inset-0 transition-all duration-500 ${
-                    index === activeTestimonial 
-                      ? 'opacity-100 translate-x-0' 
-                      : index < activeTestimonial 
-                        ? 'opacity-0 -translate-x-full' 
-                        : 'opacity-0 translate-x-full'
-                  }`}
-                >
-                  <CardContent className="p-12 text-center">
-                    <div className="flex justify-center mb-6">
-                      {[...Array(testimonial.rating)].map((_, i) => (
-                        <Star key={i} className="h-6 w-6 fill-yellow-400 text-yellow-400" />
-                      ))}
-                    </div>
-                    <blockquote className="text-2xl text-gray-700 mb-8 leading-relaxed">
-                      &ldquo;{testimonial.content}&rdquo;
-                    </blockquote>
-                    <div className="flex items-center justify-center space-x-4">
-                      <div className="w-16 h-16 bg-gradient-to-r from-green-500 to-yellow-500 rounded-full flex items-center justify-center text-white font-bold text-xl">
-                        {testimonial.name.charAt(0)}
-                      </div>
-                      <div className="text-left">
-                        <div className="font-bold text-gray-800">{testimonial.name}</div>
-                        <div className="text-gray-600">{testimonial.role}</div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-
-            {/* Testimonial indicators */}
-            <div className="flex justify-center space-x-2 mt-8">
-              {testimonials.map((_, index) => (
-                <button
-                  key={index}
-                  onClick={() => setActiveTestimonial(index)}
-                  className={`w-3 h-3 rounded-full transition-all duration-300 ${
-                    index === activeTestimonial 
-                      ? 'bg-green-500 scale-125' 
-                      : 'bg-gray-300 hover:bg-gray-400'
-                  }`}
-                />
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="py-20 bg-gradient-to-r from-green-600 via-yellow-500 to-orange-500 relative overflow-hidden">
-        <div className="absolute inset-0 bg-black/10"></div>
-        <div className="container mx-auto px-4 relative text-center text-white">
-          <div className="max-w-4xl mx-auto">
-            <div className="mb-8">
-              <Zap className="h-16 w-16 mx-auto mb-6 animate-bounce" />
-              <h2 className="text-4xl lg:text-6xl font-bold mb-6">
-                Ready to Get Started?
-              </h2>
-              <p className="text-xl lg:text-2xl opacity-90 leading-relaxed">
-                Join thousands of satisfied customers and experience the future of poultry commerce today!
-              </p>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
-              <Link href="/auth/register">
-                <Button size="lg" className="bg-white text-green-600 hover:bg-gray-100 hover:scale-105 transition-all duration-300 shadow-2xl group">
-                  <Award className="mr-2 h-5 w-5 group-hover:rotate-12 transition-transform" />
-                  Create Free Account
-                </Button>
-              </Link>
-              
-              <Link href="/contact">
-                <Button size="lg" variant="outline" className="border-2 border-white text-white hover:bg-white hover:text-green-600 transition-all duration-300">
-                  Contact Sales Team
-                </Button>
-              </Link>
-            </div>
-
-            <div className="mt-12 text-center">
-              <p className="text-lg opacity-75">
-                🎉 Special launch offer: Get 20% off your delivery on first order!
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="bg-gray-900 text-white py-8 sm:py-12">
-        <div className="container mx-auto px-4 sm:px-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8 mb-6 sm:mb-8">
-            <div className="text-center sm:text-left">
-              <div className="flex items-center justify-center sm:justify-start space-x-2 mb-4">
-                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-green-500 to-yellow-500 rounded-xl flex items-center justify-center">
-                  <span className="text-white font-bold text-lg sm:text-xl">🐔</span>
-                </div>
-                <span className="text-xl sm:text-2xl font-bold">PoultryMarket</span>
-              </div>
-              <p className="text-gray-400 leading-relaxed text-sm sm:text-base">
-                Connecting farmers, suppliers, and customers for the freshest poultry products delivered daily.
-              </p>
-            </div>
-            
-            <div className="text-center sm:text-left">
-              <h3 className="font-bold mb-4 text-sm sm:text-base">Quick Links</h3>
-              <div className="space-y-2">
-                <Link href="/products" className="text-gray-400 hover:text-white transition-colors block text-sm">Products</Link>
-                <Link href="/blog" className="text-gray-400 hover:text-white transition-colors block text-sm">Blog</Link>
-                <Link href="/chatbot" className="text-gray-400 hover:text-white transition-colors block text-sm">Chat with AI</Link>
-                
-                <Link href="/contact" className="text-gray-400 hover:text-white transition-colors block text-sm">Contact</Link>
-              </div>
-            </div>
-            
-            <div className="text-center sm:text-left">
-              <h3 className="font-bold mb-4 text-sm sm:text-base">For Business</h3>
-              <div className="space-y-2">
-                <Link href="/auth/register" className="text-gray-400 hover:text-white transition-colors block text-sm">Become Seller</Link>
-                <Link href="/auth/register" className="text-gray-400 hover:text-white transition-colors block text-sm">Delivery Partner</Link>
-                <Link href="/auth/register" className="text-gray-400 hover:text-white transition-colors block text-sm">Company Solutions</Link>
-              </div>
-            </div>
-            
-            <div className="text-center sm:text-left">
-              <h3 className="font-bold mb-4 text-sm sm:text-base">Support</h3>
-              <div className="space-y-2">
-                <Link href="/terms" className="text-gray-400 hover:text-white transition-colors block text-sm">Terms of Service</Link>
-                <Link href="/terms" className="text-gray-400 hover:text-white transition-colors block text-sm">Privacy Policy</Link>
-                <Link href="/contact" className="text-gray-400 hover:text-white transition-colors block text-sm">Help Center</Link>
-              </div>
-            </div>
-          </div>
-          
-          <div className="border-t border-gray-800 pt-6 sm:pt-8 text-center">
-            <p className="text-gray-400 text-xs sm:text-sm">
-              © 2025 PoultryMarket. All rights reserved. Made with ❤️ for farmers and food lovers.
+          <div className={clsx('space-y-3 text-sm transition-colors', isDark ? 'text-slate-300' : 'text-slate-600')}>
+            <p className={clsx('text-xs font-semibold uppercase tracking-[0.35em]', isDark ? 'text-emerald-200' : 'text-emerald-600')}>
+              Platform
             </p>
+            <Link href="/products" className="block transition hover:text-emerald-400">
+              Product catalog
+            </Link>
+            <Link href="/store" className="block transition hover:text-emerald-400">
+              Storefronts
+            </Link>
+            <Link href="/blog" className="block transition hover:text-emerald-400">
+              Field notes blog
+            </Link>
+            <Link href="/chatbot" className="block transition hover:text-emerald-400">
+              AI sourcing copilot
+            </Link>
           </div>
+
+          <div className={clsx('space-y-3 text-sm transition-colors', isDark ? 'text-slate-300' : 'text-slate-600')}>
+            <p className={clsx('text-xs font-semibold uppercase tracking-[0.35em]', isDark ? 'text-emerald-200' : 'text-emerald-600')}>
+              Partners
+            </p>
+            <Link href="/auth/register" className="block transition hover:text-emerald-400">
+              Become a supplier
+            </Link>
+            <Link href="/auth/register" className="block transition hover:text-emerald-400">
+              Join as fulfillment expert
+            </Link>
+            <Link href="/company" className="block transition hover:text-emerald-400">
+              Corporate programs
+            </Link>
+            <Link href="/contact" className="block transition hover:text-emerald-400">
+              Partner success desk
+            </Link>
+          </div>
+
+          <div className={clsx('space-y-3 text-sm transition-colors', isDark ? 'text-slate-300' : 'text-slate-600')}>
+            <p className={clsx('text-xs font-semibold uppercase tracking-[0.35em]', isDark ? 'text-emerald-200' : 'text-emerald-600')}>
+              Support
+            </p>
+            <Link href="/terms" className="block transition hover:text-emerald-400">
+              Terms of service
+            </Link>
+            <Link href="/terms" className="block transition hover:text-emerald-400">
+              Privacy policy
+            </Link>
+            <Link href="/contact" className="block transition hover:text-emerald-400">
+              Help center
+            </Link>
+            <Link href="/contact" className="block transition hover:text-emerald-400">
+              Press & media
+            </Link>
+          </div>
+        </div>
+        <div
+          className={clsx(
+            'mt-12 border-t pt-6 text-center text-xs transition-colors',
+            isDark ? 'border-white/10 text-slate-500' : 'border-emerald-100 text-slate-500'
+          )}
+        >
+          © {new Date().getFullYear()} Poultry Market Kenya. Crafted with care for farmers, food lovers, and future-ready kitchens.
         </div>
       </footer>
     </div>

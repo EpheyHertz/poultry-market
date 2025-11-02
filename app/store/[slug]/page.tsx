@@ -14,6 +14,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useParams } from 'next/navigation';
 import { Suspense } from 'react';
 import { toast } from 'sonner';
+import { formatProductTypeLabel } from '@/lib/utils';
 
 interface StorePageProps {
   params: {
@@ -741,7 +742,7 @@ function StoreContent() {
                             variant="outline" 
                             className="text-xs bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200 text-blue-700 rounded-full hover:bg-gradient-to-r hover:from-blue-100 hover:to-purple-100 transition-all duration-300 font-medium px-3 py-1"
                           >
-                            {product.type.replace('_', ' ')}
+                              {formatProductTypeLabel(product.type, product.customType)}
                           </Badge>
                         </div>
 
