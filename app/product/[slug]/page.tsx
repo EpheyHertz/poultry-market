@@ -105,18 +105,6 @@ function ProductDetailContent() {
   const [timeLeft, setTimeLeft] = useState<any>(null);
 
   useEffect(() => {
-    fetchProduct();
-    fetchUser();
-  }, [slug, fetchProduct, fetchUser]);
-
-  useEffect(() => {
-    if (product) {
-      fetchRelatedProducts();
-      fetchStoreProducts();
-    }
-  }, [product, fetchRelatedProducts, fetchStoreProducts]);
-
-  useEffect(() => {
     if (product?.hasDiscount && product?.discountEndDate) {
       const timer = setInterval(() => {
         const now = new Date().getTime();
@@ -138,7 +126,6 @@ function ProductDetailContent() {
       return () => clearInterval(timer);
     }
   }, [product]);
-
   const fetchProduct = useCallback(async () => {
     try {
       const response = await fetch(`/api/products/${slug}`);
@@ -167,6 +154,11 @@ function ProductDetailContent() {
       console.error('Failed to fetch user:', error);
     }
   }, []);
+
+  useEffect(() => {
+    fetchProduct();
+    fetchUser();
+  }, [fetchProduct, fetchUser]);
 
   const fetchRelatedProducts = useCallback(async () => {
     if (!product?.type || !product?.id) {
@@ -197,6 +189,13 @@ function ProductDetailContent() {
       console.error('Failed to fetch store products:', error);
     }
   }, [product?.id, product?.sellerId]);
+
+  useEffect(() => {
+    if (product) {
+      fetchRelatedProducts();
+      fetchStoreProducts();
+    }
+  }, [product, fetchRelatedProducts, fetchStoreProducts]);
 
   const handleAddToCart = async () => {
     if (!user) {
