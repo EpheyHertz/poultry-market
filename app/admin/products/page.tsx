@@ -86,12 +86,6 @@ export default function AdminProducts() {
     fetchUser();
   }, [router]);
 
-  useEffect(() => {
-    if (user) {
-      fetchProducts();
-    }
-  }, [user, fetchProducts]);
-
   const fetchProducts = useCallback(async () => {
     try {
       const params = new URLSearchParams();
@@ -107,6 +101,12 @@ export default function AdminProducts() {
       console.error('Failed to fetch products:', error);
     }
   }, [typeFilter, sellerFilter]);
+
+  useEffect(() => {
+    if (user) {
+      fetchProducts();
+    }
+  }, [user, fetchProducts]);
 
   const getTypeColor = (type: string) => {
     switch (type) {
