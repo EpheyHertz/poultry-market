@@ -1,8 +1,6 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -14,7 +12,6 @@ import { Separator } from '@/components/ui/separator';
 import { 
   Bold, 
   Italic, 
-  Underline,
   List,
   ListOrdered,
   Link,
@@ -29,10 +26,17 @@ import {
   Upload,
   Plus,
   User,
-  CheckCircle
+  CheckCircle,
+  Palette,
+  Sparkles,
+  Megaphone,
+  BadgeCheck
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Image from 'next/image';
+import MarkdownContent from '@/components/blog/markdown-content';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { cn } from '@/lib/utils';
 
 interface BlogSubmissionData {
   title: string;
@@ -43,6 +47,7 @@ interface BlogSubmissionData {
   category: string;
   tags: string[];
   submissionNotes?: string;
+  accentColor?: string;
 }
 
 interface BlogSubmissionFormProps {
@@ -68,6 +73,43 @@ const BLOG_CATEGORIES = {
   ADVANCED_TECHNIQUES: { name: 'Advanced Techniques', icon: '🎯', description: 'Advanced farming techniques' }
 };
 
+const COLOR_OPTIONS = [
+  { value: 'emerald', label: 'Emerald Burst', previewClass: 'bg-emerald-500' },
+  { value: 'sky', label: 'Sky Glow', previewClass: 'bg-sky-500' },
+  { value: 'violet', label: 'Violet Pop', previewClass: 'bg-violet-500' },
+  { value: 'amber', label: 'Golden Ember', previewClass: 'bg-amber-500' },
+  { value: 'rose', label: 'Rose Punch', previewClass: 'bg-rose-500' },
+];
+
+const GRADIENT_OPTIONS = [
+  { value: 'sunrise', label: 'Sunrise', previewClass: 'bg-gradient-to-r from-amber-400 via-rose-500 to-purple-500' },
+  { value: 'ocean', label: 'Ocean Drive', previewClass: 'bg-gradient-to-r from-sky-400 via-cyan-500 to-blue-600' },
+  { value: 'aurora', label: 'Aurora', previewClass: 'bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-500' },
+  { value: 'lavender', label: 'Lavender Haze', previewClass: 'bg-gradient-to-r from-fuchsia-400 via-violet-500 to-indigo-500' },
+];
+
+const CALLOUT_OPTIONS: Array<{ value: 'TIP' | 'INFO' | 'WARNING' | 'SUCCESS' | 'DANGER'; label: string; description: string; icon: string }> = [
+  { value: 'TIP', label: 'Pro Tip', description: 'Highlight helpful advice', icon: '💡' },
+  { value: 'INFO', label: 'Quick Fact', description: 'Share supporting context', icon: '📘' },
+  { value: 'WARNING', label: 'Heads Up', description: 'Draw attention to risks', icon: '⚠️' },
+  { value: 'SUCCESS', label: 'Win', description: 'Celebrate a result or milestone', icon: '🏆' },
+  { value: 'DANGER', label: 'Critical', description: 'Flag important cautions', icon: '🚨' },
+];
+
+const CTA_OPTIONS = [
+  { value: 'button', label: 'Solid Button', description: 'Bold call-to-action chip' },
+  { value: 'pill', label: 'Soft Pill', description: 'Outlined call-to-action chip' },
+  { value: 'underline', label: 'Accent Underline', description: 'Editorial style link underline' },
+];
+
+const PREVIEW_ACCENTS = [
+  { id: 'emerald', label: 'Emerald', swatch: 'bg-emerald-500', accentHex: '#059669' },
+  { id: 'sky', label: 'Sky', swatch: 'bg-sky-500', accentHex: '#0284c7' },
+  { id: 'violet', label: 'Violet', swatch: 'bg-violet-500', accentHex: '#7c3aed' },
+  { id: 'rose', label: 'Rose', swatch: 'bg-rose-500', accentHex: '#e11d48' },
+  { id: 'amber', label: 'Amber', swatch: 'bg-amber-500', accentHex: '#f59e0b' },
+];
+
 export default function BlogSubmissionForm({ onSubmit, loading = false, currentUser }: BlogSubmissionFormProps) {
   const [formData, setFormData] = useState<BlogSubmissionData>({
     title: '',
@@ -78,6 +120,7 @@ export default function BlogSubmissionForm({ onSubmit, loading = false, currentU
     category: '',
     tags: [],
     submissionNotes: '',
+    accentColor: PREVIEW_ACCENTS[0]?.accentHex,
   });
 
   const [newTag, setNewTag] = useState('');
@@ -329,21 +372,96 @@ export default function BlogSubmissionForm({ onSubmit, loading = false, currentU
     }, 0);
   };
 
-  // Render content preview
-  const renderPreview = () => {
-    return formData.content
-      .replace(/^### (.*$)/gim, '<h3>$1</h3>')
-      .replace(/^## (.*$)/gim, '<h2>$1</h2>')
-      .replace(/^# (.*$)/gim, '<h1>$1</h1>')
-      .replace(/\*\*(.*)\*\*/gim, '<strong>$1</strong>')
-      .replace(/\*(.*)\*/gim, '<em>$1</em>')
-      .replace(/`(.*)`/gim, '<code>$1</code>')
-      .replace(/^> (.*$)/gim, '<blockquote>$1</blockquote>')
-      .replace(/^- (.*$)/gim, '<li>$1</li>')
-      .replace(/^\d+\. (.*$)/gim, '<li>$1</li>')
-      .replace(/\n/gim, '<br>');
+  const insertSpanWithAttribute = (attribute: string, value: string, placeholder: string) => {
+    const textarea = contentRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selection = textarea.value.substring(start, end);
+    const before = textarea.value.substring(0, start);
+    const after = textarea.value.substring(end);
+
+    const innerText = selection || placeholder;
+    const snippet = `<span ${attribute}="${value}">${innerText}</span>`;
+    const updated = before + snippet + after;
+
+    handleChange('content', updated);
+
+    const snippetStart = before.length + snippet.indexOf(innerText);
+    const snippetEnd = snippetStart + innerText.length;
+
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(snippetStart, snippetEnd);
+    }, 0);
   };
 
+  const insertColorSpan = (color: string) => {
+    insertSpanWithAttribute('data-md-color', color, 'Vibrant text goes here');
+  };
+
+  const insertGradientSpan = (gradient: string) => {
+    insertSpanWithAttribute('data-md-gradient', gradient, 'Gradient headline');
+  };
+
+  const insertCallout = (type: (typeof CALLOUT_OPTIONS)[number]) => {
+    const textarea = contentRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selection = textarea.value.substring(start, end);
+    const before = textarea.value.substring(0, start);
+    const after = textarea.value.substring(end);
+
+    const placeholder = selection || 'Share your insight here to help the reader understand the key point.';
+    const lines = placeholder.split('\n');
+    const calloutBody = lines.map(line => `> ${line}`).join('\n');
+
+    const needsLeadingSpacing = before.trim().length > 0 ? '\n\n' : '';
+    const calloutHeader = `> [!${type.value}]\n`;
+    const calloutCore = `${calloutHeader}${calloutBody}\n`;
+    const calloutFooter = after.startsWith('\n') ? '\n' : '\n\n';
+    const snippet = `${needsLeadingSpacing}${calloutCore}${calloutFooter}`;
+
+    const updated = before + snippet + after;
+    handleChange('content', updated);
+
+    const placeholderStart = before.length + needsLeadingSpacing.length + calloutHeader.length + 2;
+    const placeholderEnd = placeholderStart + placeholder.length;
+
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(placeholderStart, placeholderEnd);
+    }, 0);
+  };
+
+  const insertStyledLink = (variant: (typeof CTA_OPTIONS)[number]['value']) => {
+    const textarea = contentRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selection = textarea.value.substring(start, end);
+    const before = textarea.value.substring(0, start);
+    const after = textarea.value.substring(end);
+
+    const linkText = selection || 'Call to action';
+    const snippet = `<a href="https://example.com" data-md-link="${variant}">${linkText}</a>`;
+    const updated = before + snippet + after;
+    handleChange('content', updated);
+
+    const textStart = before.length + snippet.indexOf(linkText);
+    const textEnd = textStart + linkText.length;
+
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(textStart, textEnd);
+    }, 0);
+  };
+
+  // Render content preview
   // Handle form submission
   const handleSubmit = async () => {
     if (!currentUser?.email) {
@@ -514,99 +632,251 @@ export default function BlogSubmissionForm({ onSubmit, loading = false, currentU
 
             {/* Formatting Toolbar */}
             {!contentPreview && (
-              <div className="flex flex-wrap gap-1 p-2 border border-gray-200 rounded-t-md bg-gray-50">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => insertFormatting('bold')}
-                >
-                  <Bold className="h-4 w-4" />
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => insertFormatting('italic')}
-                >
-                  <Italic className="h-4 w-4" />
-                </Button>
-                <Separator orientation="vertical" className="h-6" />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => insertFormatting('heading1')}
-                >
-                  <Heading1 className="h-4 w-4" />
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => insertFormatting('heading2')}
-                >
-                  <Heading2 className="h-4 w-4" />
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => insertFormatting('heading3')}
-                >
-                  <Heading3 className="h-4 w-4" />
-                </Button>
-                <Separator orientation="vertical" className="h-6" />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => insertFormatting('list')}
-                >
-                  <List className="h-4 w-4" />
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => insertFormatting('orderedList')}
-                >
-                  <ListOrdered className="h-4 w-4" />
-                </Button>
-                <Separator orientation="vertical" className="h-6" />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => insertFormatting('quote')}
-                >
-                  <Quote className="h-4 w-4" />
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => insertFormatting('code')}
-                >
-                  <Code className="h-4 w-4" />
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => insertFormatting('link')}
-                >
-                  <Link className="h-4 w-4" />
-                </Button>
+              <div className="rounded-t-md border border-gray-200 bg-gray-50">
+                <div className="flex flex-wrap gap-1 px-2 py-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => insertFormatting('bold')}
+                  >
+                    <Bold className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => insertFormatting('italic')}
+                  >
+                    <Italic className="h-4 w-4" />
+                  </Button>
+                  <Separator orientation="vertical" className="h-6" />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => insertFormatting('heading1')}
+                  >
+                    <Heading1 className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => insertFormatting('heading2')}
+                  >
+                    <Heading2 className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => insertFormatting('heading3')}
+                  >
+                    <Heading3 className="h-4 w-4" />
+                  </Button>
+                  <Separator orientation="vertical" className="h-6" />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => insertFormatting('list')}
+                  >
+                    <List className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => insertFormatting('orderedList')}
+                  >
+                    <ListOrdered className="h-4 w-4" />
+                  </Button>
+                  <Separator orientation="vertical" className="h-6" />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => insertFormatting('quote')}
+                  >
+                    <Quote className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => insertFormatting('code')}
+                  >
+                    <Code className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => insertFormatting('link')}
+                  >
+                    <Link className="h-4 w-4" />
+                  </Button>
+                </div>
+                <Separator />
+                <div className="flex flex-wrap items-center gap-2 px-3 py-2">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button type="button" variant="ghost" size="sm" className="gap-2">
+                        <Palette className="h-4 w-4 text-emerald-600" />
+                        <span className="text-xs font-medium">Text Color</span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-56">
+                      <div className="px-3 py-2 text-xs text-muted-foreground">
+                        Wrap your highlighted text with a vivid color.
+                      </div>
+                      <DropdownMenuSeparator />
+                      {COLOR_OPTIONS.map((option) => (
+                        <DropdownMenuItem
+                          key={option.value}
+                          className="flex items-center gap-3"
+                          onSelect={() => insertColorSpan(option.value)}
+                        >
+                          <span className={cn('h-5 w-5 rounded-full', option.previewClass)} aria-hidden />
+                          <span className="text-sm font-medium text-slate-700 dark:text-slate-200">
+                            {option.label}
+                          </span>
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button type="button" variant="ghost" size="sm" className="gap-2">
+                        <Sparkles className="h-4 w-4 text-violet-600" />
+                        <span className="text-xs font-medium">Gradient Text</span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-60">
+                      <div className="px-3 py-2 text-xs text-muted-foreground">
+                        Add dreamy gradient flourishes to your headline moments.
+                      </div>
+                      <DropdownMenuSeparator />
+                      {GRADIENT_OPTIONS.map((option) => (
+                        <DropdownMenuItem
+                          key={option.value}
+                          className="flex items-center gap-3"
+                          onSelect={() => insertGradientSpan(option.value)}
+                        >
+                          <span className={cn('h-14 w-14 rounded-full border border-slate-200 shadow-sm', option.previewClass)} aria-hidden />
+                          <span className="text-sm font-medium text-slate-700 dark:text-slate-200">
+                            {option.label}
+                          </span>
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button type="button" variant="ghost" size="sm" className="gap-2">
+                        <BadgeCheck className="h-4 w-4 text-sky-600" />
+                        <span className="text-xs font-medium">Callouts</span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-64">
+                      <div className="px-3 py-2 text-xs text-muted-foreground">
+                        Drop rich callout cards to spotlight key ideas.
+                      </div>
+                      <DropdownMenuSeparator />
+                      {CALLOUT_OPTIONS.map((option) => (
+                        <DropdownMenuItem
+                          key={option.value}
+                          className="flex items-start gap-3"
+                          onSelect={() => insertCallout(option)}
+                        >
+                          <span className="text-lg" aria-hidden>{option.icon}</span>
+                          <div className="space-y-1">
+                            <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                              {option.label}
+                            </p>
+                            <p className="text-xs text-muted-foreground">{option.description}</p>
+                          </div>
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button type="button" variant="ghost" size="sm" className="gap-2">
+                        <Megaphone className="h-4 w-4 text-amber-600" />
+                        <span className="text-xs font-medium">CTA Links</span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-60">
+                      <div className="px-3 py-2 text-xs text-muted-foreground">
+                        Style your links as buttons, pills, or editorial accents.
+                      </div>
+                      <DropdownMenuSeparator />
+                      {CTA_OPTIONS.map((option) => (
+                        <DropdownMenuItem
+                          key={option.value}
+                          className="flex flex-col items-start gap-1"
+                          onSelect={() => insertStyledLink(option.value)}
+                        >
+                          <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                            {option.label}
+                          </span>
+                          <span className="text-xs text-muted-foreground">{option.description}</span>
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
               </div>
             )}
 
+            <div className="mt-3 flex flex-wrap items-center gap-3 rounded-md border border-dashed border-emerald-200 bg-emerald-50/60 px-3 py-3 text-xs font-medium text-emerald-700">
+              <div className="flex items-center gap-2 uppercase tracking-wide">
+                <Palette className="h-4 w-4" />
+                Accent Preview
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {PREVIEW_ACCENTS.map((accent) => {
+                  const isActive = formData.accentColor === accent.accentHex;
+                  return (
+                    <button
+                      key={accent.id}
+                      type="button"
+                      onClick={() => handleChange('accentColor', accent.accentHex)}
+                      className={cn(
+                        'flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition-all',
+                        isActive
+                          ? 'border-emerald-500 bg-white text-emerald-700 shadow-sm'
+                          : 'border-transparent bg-white/80 text-slate-600 hover:border-slate-300 hover:text-slate-900'
+                      )}
+                    >
+                      <span className={cn('h-3.5 w-3.5 rounded-full', accent.swatch)} aria-hidden />
+                      {accent.label}
+                      {isActive && <BadgeCheck className="h-3.5 w-3.5 text-emerald-600" />}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             {/* Content Area */}
             {contentPreview ? (
-              <div className="min-h-[300px] p-4 border border-gray-200 rounded-b-md bg-white prose max-w-none">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                  {formData.content}
-                </ReactMarkdown>
+              <div className="mt-3 min-h-[320px] rounded-md border border-gray-200 bg-white p-4 shadow-sm">
+                {formData.content ? (
+                  <MarkdownContent
+                    content={formData.content}
+                    accentColor={formData.accentColor}
+                    className="max-w-none"
+                  />
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Start writing to see your formatted article exactly as readers will view it.
+                  </p>
+                )}
               </div>
             ) : (
               <Textarea
@@ -616,7 +886,7 @@ export default function BlogSubmissionForm({ onSubmit, loading = false, currentU
                 onChange={(e) => handleChange('content', e.target.value)}
                 placeholder="Write your blog content here... Use the toolbar above for formatting."
                 rows={15}
-                className="border-t-0 rounded-t-none focus:ring-0 focus:border-gray-200"
+                className="mt-3 min-h-[320px] rounded-md border border-gray-200 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100"
               />
             )}
           </div>

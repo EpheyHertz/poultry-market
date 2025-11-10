@@ -6,30 +6,22 @@ import { motion } from 'framer-motion';
 import Image from 'next/image';
 import Link from 'next/link';
 import { format } from 'date-fns';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import { 
-  ArrowLeft, 
-  Calendar, 
-  Clock, 
-  Eye, 
-  Heart, 
-  MessageCircle, 
-  Share2, 
-  User, 
+import {
+  ArrowLeft,
+  Calendar,
+  Clock,
+  Eye,
+  MessageCircle,
+  Share2,
+  User,
   Bookmark,
-  BookOpen,
   Facebook,
   Twitter,
   Linkedin,
-  Link as LinkIcon,
   ChevronRight,
-  Home,
-  Menu,
-  X,
   Tag,
   Users,
-  Copy
+  Copy,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -41,6 +33,7 @@ import LikeButton from '@/components/blog/like-button';
 import FollowButton from '@/components/blog/follow-button';
 import { BlogPost, BLOG_CATEGORIES } from '@/types/blog';
 import MarkdownExcerpt from '@/components/blog/markdown-excerpt';
+import MarkdownContent from '@/components/blog/markdown-content';
 
 interface BlogPostPageProps {
   post: BlogPost;
@@ -126,9 +119,9 @@ function MobileBlogPost({ post, relatedPosts = [] }: BlogPostPageProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50 transition-colors dark:bg-slate-950">
       {/* Mobile Navigation Header */}
-      <div className="sticky top-0 z-50 bg-white border-b border-gray-200">
+  <div className="sticky top-0 z-50 border-b border-gray-200 bg-white/95 backdrop-blur-sm transition-colors dark:border-slate-800 dark:bg-slate-950/95">
         <div className="max-w-4xl mx-auto px-3 sm:px-4 lg:px-8">
           <div className="flex items-center justify-between h-14 sm:h-16">
             {/* Mobile Back Button & Breadcrumb */}
@@ -143,24 +136,24 @@ function MobileBlogPost({ post, relatedPosts = [] }: BlogPostPageProps) {
               </Button>
 
               {/* Mobile Breadcrumb - Simplified */}
-              <div className="flex items-center gap-1 sm:gap-2 min-w-0 text-xs sm:text-sm text-gray-600">
+              <div className="flex items-center gap-1 sm:gap-2 min-w-0 text-xs sm:text-sm text-gray-600 dark:text-slate-300">
                 <Link 
                   href="/" 
-                  className="hover:text-emerald-600 transition-colors flex-shrink-0"
+                  className="hover:text-emerald-600 transition-colors flex-shrink-0 dark:hover:text-emerald-400"
                 >
                   Home
                 </Link>
                 <ChevronRight className="h-3 w-3 flex-shrink-0" />
                 <Link 
                   href="/blog" 
-                  className="hover:text-emerald-600 transition-colors flex-shrink-0"
+                  className="hover:text-emerald-600 transition-colors flex-shrink-0 dark:hover:text-emerald-400"
                 >
                   Blog
                 </Link>
                 <ChevronRight className="h-3 w-3 flex-shrink-0" />
                 <Link 
                   href={`/blog/author/${post.author.id}`}
-                  className="hover:text-emerald-600 transition-colors truncate"
+                  className="hover:text-emerald-600 transition-colors truncate dark:hover:text-emerald-400"
                 >
                   {post.author.name}
                 </Link>
@@ -168,7 +161,7 @@ function MobileBlogPost({ post, relatedPosts = [] }: BlogPostPageProps) {
                 {/* Desktop only - Full breadcrumb */}
                 <div className="hidden md:flex items-center gap-2">
                   <ChevronRight className="h-3 w-3 flex-shrink-0" />
-                  <span className="truncate text-gray-900 font-medium">
+                  <span className="truncate font-medium text-gray-900 dark:text-slate-100">
                     {post.title.length > 40 ? `${post.title.substring(0, 40)}...` : post.title}
                   </span>
                 </div>
@@ -190,11 +183,11 @@ function MobileBlogPost({ post, relatedPosts = [] }: BlogPostPageProps) {
               </Button>
 
               {showShareMenu && (
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
+                <div className="absolute right-0 mt-2 w-48 rounded-lg border border-gray-200 bg-white/95 py-2 shadow-lg transition-colors dark:border-slate-800 dark:bg-slate-900/95">
                   {typeof navigator !== 'undefined' && 'share' in navigator && (
                     <button
                       onClick={() => sharePost('native')}
-                      className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center gap-2"
+                      className="flex w-full items-center gap-2 px-4 py-2 text-left text-slate-700 transition-colors hover:bg-gray-50 dark:text-slate-200 dark:hover:bg-slate-800/80"
                     >
                       <Share2 className="h-4 w-4" />
                       Share
@@ -202,28 +195,28 @@ function MobileBlogPost({ post, relatedPosts = [] }: BlogPostPageProps) {
                   )}
                   <button
                     onClick={() => sharePost('facebook')}
-                    className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center gap-2"
+                    className="flex w-full items-center gap-2 px-4 py-2 text-left text-slate-700 transition-colors hover:bg-gray-50 dark:text-slate-200 dark:hover:bg-slate-800/80"
                   >
                     <Facebook className="h-4 w-4" />
                     Facebook
                   </button>
                   <button
                     onClick={() => sharePost('twitter')}
-                    className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center gap-2"
+                    className="flex w-full items-center gap-2 px-4 py-2 text-left text-slate-700 transition-colors hover:bg-gray-50 dark:text-slate-200 dark:hover:bg-slate-800/80"
                   >
                     <Twitter className="h-4 w-4" />
                     Twitter
                   </button>
                   <button
                     onClick={() => sharePost('linkedin')}
-                    className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center gap-2"
+                    className="flex w-full items-center gap-2 px-4 py-2 text-left text-slate-700 transition-colors hover:bg-gray-50 dark:text-slate-200 dark:hover:bg-slate-800/80"
                   >
                     <Linkedin className="h-4 w-4" />
                     LinkedIn
                   </button>
                   <button
                     onClick={() => sharePost('copy')}
-                    className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center gap-2"
+                    className="flex w-full items-center gap-2 px-4 py-2 text-left text-slate-700 transition-colors hover:bg-gray-50 dark:text-slate-200 dark:hover:bg-slate-800/80"
                   >
                     <Copy className="h-4 w-4" />
                     Copy Link
@@ -249,15 +242,15 @@ function MobileBlogPost({ post, relatedPosts = [] }: BlogPostPageProps) {
           </div>
 
           {/* Title - Mobile Responsive */}
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-bold text-gray-900 mb-4 sm:mb-6 leading-tight">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-bold text-gray-900 dark:text-slate-100 mb-4 sm:mb-6 leading-tight">
             {post.title}
           </h1>
 
           {/* Meta Information - Mobile Responsive */}
-          <div className="flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center gap-3 sm:gap-6 text-sm text-gray-600 mb-4 sm:mb-6">
+          <div className="flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center gap-3 sm:gap-6 text-sm text-gray-600 dark:text-slate-300 mb-4 sm:mb-6">
             {/* Author Info */}
             <div className="flex items-center gap-2 sm:gap-3">
-              <div className="h-8 w-8 sm:h-10 sm:w-10 bg-emerald-600 rounded-full flex items-center justify-center flex-shrink-0">
+              <div className="h-8 w-8 sm:h-10 sm:w-10 bg-emerald-600 rounded-full flex items-center justify-center flex-shrink-0 shadow-inner shadow-emerald-500/40 dark:shadow-emerald-400/30">
                 {post.author.avatar ? (
                   <Image
                     src={post.author.avatar}
@@ -273,12 +266,12 @@ function MobileBlogPost({ post, relatedPosts = [] }: BlogPostPageProps) {
               <div className="min-w-0 flex-1">
                 <Link 
                   href={`/blog/author/${post.author.id}`} 
-                  className="font-medium text-gray-900 hover:text-emerald-600 transition-colors truncate block"
+                  className="font-medium text-gray-900 hover:text-emerald-600 transition-colors truncate block dark:text-slate-100 dark:hover:text-emerald-400"
                 >
                   {post.author.name}
                 </Link>
                 {post.author._count && (
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-gray-500 dark:text-slate-400">
                     {post.author._count.blogPosts} posts • {post.author._count.followers} followers
                   </p>
                 )}
@@ -328,15 +321,15 @@ function MobileBlogPost({ post, relatedPosts = [] }: BlogPostPageProps) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.3 }}
-          className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 py-4 border-y border-gray-200 mb-6 sm:mb-8"
+          className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 py-4 border-y border-gray-200/70 dark:border-slate-800/80 mb-6 sm:mb-8"
         >
           <div className="flex items-center gap-4 sm:gap-6">
             <LikeButton postId={post.id} initialCount={post._count?.likedBy || 0} />
-            <div className="flex items-center gap-1 sm:gap-2 text-gray-600">
+            <div className="flex items-center gap-1 sm:gap-2 text-gray-600 dark:text-slate-300">
               <MessageCircle className="h-4 w-4 sm:h-5 sm:w-5" />
               <span className="text-sm sm:text-base">{post._count?.comments || 0}</span>
             </div>
-            <button className="flex items-center gap-1 sm:gap-2 text-gray-600 hover:text-emerald-500 transition-colors">
+            <button className="flex items-center gap-1 sm:gap-2 text-gray-600 transition-colors hover:text-emerald-500 dark:text-slate-300 dark:hover:text-emerald-400">
               <Bookmark className={`h-4 w-4 sm:h-5 sm:w-5 ${isSaved ? 'fill-emerald-500 text-emerald-500' : ''}`} />
               <span className="text-sm sm:text-base">0</span>
             </button>
@@ -353,50 +346,12 @@ function MobileBlogPost({ post, relatedPosts = [] }: BlogPostPageProps) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.4 }}
-          className="prose prose-lg max-w-none prose-emerald mb-8 sm:mb-12"
+          className="mb-8 sm:mb-12"
         >
-          <div className="text-base sm:text-lg leading-relaxed text-gray-700">
-            <ReactMarkdown 
-              remarkPlugins={[remarkGfm]}
-              components={{
-                img: ({ src, alt, ...props }) => (
-                  <div className="relative my-6 sm:my-8">
-                    <Image
-                      src={src || ''}
-                      alt={alt || ''}
-                      width={800}
-                      height={400}
-                      className="rounded-lg sm:rounded-xl object-cover w-full"
-                    />
-                  </div>
-                ),
-                h1: ({ children }) => <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-4 sm:mb-6 mt-6 sm:mt-8">{children}</h1>,
-                h2: ({ children }) => <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-3 sm:mb-4 mt-6 sm:mt-8">{children}</h2>,
-                h3: ({ children }) => <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 mb-2 sm:mb-3 mt-4 sm:mt-6">{children}</h3>,
-                p: ({ children }) => <p className="mb-4 sm:mb-6 text-sm sm:text-base leading-relaxed text-gray-700">{children}</p>,
-                ul: ({ children }) => <ul className="mb-4 sm:mb-6 pl-4 sm:pl-6 space-y-1 sm:space-y-2 list-disc list-inside text-gray-700">{children}</ul>,
-                ol: ({ children }) => <ol className="mb-4 sm:mb-6 pl-4 sm:pl-6 space-y-1 sm:space-y-2 list-decimal list-inside text-gray-700">{children}</ol>,
-                li: ({ children }) => <li className="text-sm sm:text-base leading-relaxed">{children}</li>,
-                blockquote: ({ children }) => (
-                  <blockquote className="border-l-4 border-emerald-500 pl-4 sm:pl-6 py-2 sm:py-4 my-4 sm:my-6 bg-emerald-50 italic text-sm sm:text-base text-gray-700">
-                    {children}
-                  </blockquote>
-                ),
-                code: ({ children, ...props }) => (
-                  <code className="bg-gray-100 text-gray-800 px-2 py-1 rounded text-sm" {...props}>
-                    {children}
-                  </code>
-                ),
-                pre: ({ children, ...props }) => (
-                  <pre className="bg-gray-100 p-4 rounded-lg overflow-x-auto text-sm my-4" {...props}>
-                    {children}
-                  </pre>
-                ),
-              }}
-            >
-              {post.content}
-            </ReactMarkdown>
-          </div>
+          <MarkdownContent
+            content={post.content}
+            className="rounded-2xl border border-slate-200/70 bg-white px-4 py-6 shadow-lg shadow-emerald-500/5 ring-1 ring-transparent backdrop-blur-sm transition-colors dark:border-slate-800 dark:bg-slate-950/60 dark:shadow-emerald-500/10 sm:px-8 sm:py-10"
+          />
         </motion.div>
 
         {/* Tags - Mobile Responsive */}
@@ -411,7 +366,7 @@ function MobileBlogPost({ post, relatedPosts = [] }: BlogPostPageProps) {
             <div className="flex flex-wrap gap-2 sm:gap-3">
               {post.tags.map((tagRelation, index) => (
                 <Link key={tagRelation.tag.id} href={`/blog?tag=${tagRelation.tag.slug}`}>
-                  <Badge variant="secondary" className="hover:bg-emerald-100 hover:text-emerald-700 inline-flex items-center">
+                  <Badge variant="secondary" className="inline-flex items-center transition-colors hover:bg-emerald-100 hover:text-emerald-700 dark:bg-slate-900/80 dark:text-slate-200 dark:hover:bg-emerald-500/20 dark:hover:text-emerald-300">
                     <Tag className="h-3 w-3 mr-1" />
                     {tagRelation.tag.name}
                   </Badge>
@@ -508,7 +463,7 @@ function MobileBlogPost({ post, relatedPosts = [] }: BlogPostPageProps) {
                   <Link
                     key={relatedPost.id}
                     href={`/blog/${authorName}/${relatedPost.slug}`}
-                    className="group block bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-lg transition-all duration-300"
+                    className="group block rounded-lg border border-gray-200 bg-white/95 sm:rounded-xl shadow-sm overflow-hidden transition-all duration-300 hover:shadow-lg dark:border-slate-800 dark:bg-slate-900/80"
                   >
                     {relatedPost.featuredImage && (
                       <div className="relative aspect-video overflow-hidden">
