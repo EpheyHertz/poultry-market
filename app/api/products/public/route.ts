@@ -4,11 +4,16 @@ import { prisma } from '@/lib/prisma'
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
-    const search = searchParams.get('search')
-    const type = searchParams.get('type')
-    const tag = searchParams.get('tag')
-    const minPrice = searchParams.get('minPrice')
-    const maxPrice = searchParams.get('maxPrice')
+  const search = searchParams.get('search')
+  const type = searchParams.get('type')
+  const category = searchParams.get('category')
+  const location = searchParams.get('location')
+  const customType = searchParams.get('customType')
+  const singleTag = searchParams.get('tag')
+  const tagsParam = searchParams.get('tags')
+  const multiTagParams = searchParams.getAll('tag')
+  const minPrice = searchParams.get('minPrice')
+  const maxPrice = searchParams.get('maxPrice')
     const sortBy = searchParams.get('sortBy') || 'createdAt'
     const sortOrder = searchParams.get('sortOrder') || 'desc'
     const page = parseInt(searchParams.get('page') || '1')
@@ -34,6 +39,39 @@ export async function GET(request: NextRequest) {
       where.type = type
     }
 
+    if (customType) {
+      where.customType = {
+        equals: customType,
+        mode: 'insensitive'
+      }
+    }
+
+    if (category) {
+      where.categories = {
+        some: {
+          category: {
+            OR: [
+              { slug: { equals: category, mode: 'insensitive' } },
+              { id: category },
+              { name: { equals: category, mode: 'insensitive' } }
+            ]
+          }
+        }
+      }
+    }
+
+    if (location) {
+      where.seller = {
+        is: {
+          OR: [
+            { location: { equals: location, mode: 'insensitive' } },
+            { deliveryCounties: { has: location } },
+            { deliveryProvinces: { has: location } }
+          ]
+        }
+      }
+    }
+
     // Price range filter
     if (minPrice || maxPrice) {
       where.price = {}
@@ -41,11 +79,24 @@ export async function GET(request: NextRequest) {
       if (maxPrice) where.price.lte = parseFloat(maxPrice)
     }
 
-    // Tag filter
-    if (tag) {
+    // Tag filter (supports single and multiple tags)
+    const combinedTags = new Set<string>()
+    if (tagsParam) {
+      tagsParam.split(',').filter(Boolean).forEach(tagValue => combinedTags.add(tagValue))
+    }
+    multiTagParams.forEach(tagValue => {
+      if (tagValue) combinedTags.add(tagValue)
+    })
+    if (singleTag) {
+      combinedTags.add(singleTag)
+    }
+
+    if (combinedTags.size > 0) {
       where.tags = {
         some: {
-          tag: tag
+          tag: {
+            in: Array.from(combinedTags)
+          }
         }
       }
     }
@@ -131,6 +182,95 @@ export async function GET(request: NextRequest) {
       }
     })
 
+    const [types, customTypes, tags, categories, sellersWithLocations, priceRange] = await Promise.all([
+      prisma.product.groupBy({
+        by: ['type'],
+        where: { isActive: true, stock: { gt: 0 } },
+        _count: { type: true }
+      }),
+      prisma.product.groupBy({
+        by: ['customType'],
+        where: {
+          isActive: true,
+          stock: { gt: 0 },
+          type: 'CUSTOM',
+          customType: { not: null }
+        },
+        _count: { customType: true }
+      }),
+      prisma.productTag.groupBy({
+        by: ['tag'],
+        _count: { tag: true }
+      }),
+      prisma.category.findMany({
+        where: {
+          products: {
+            some: {
+              product: {
+                isActive: true,
+                stock: { gt: 0 }
+              }
+            }
+          }
+        },
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          _count: {
+            select: {
+              products: true
+            }
+          }
+        },
+        orderBy: {
+          name: 'asc'
+        }
+      }),
+      prisma.product.findMany({
+        where: {
+          isActive: true,
+          stock: { gt: 0 },
+          seller: {
+            isNot: {}
+          }
+        },
+        distinct: ['sellerId'],
+        select: {
+          seller: {
+            select: {
+              location: true,
+              deliveryCounties: true,
+              deliveryProvinces: true
+            }
+          }
+        }
+      }),
+      prisma.product.aggregate({
+        where: { isActive: true },
+        _min: { price: true },
+        _max: { price: true }
+      })
+    ])
+
+    const locationSet = new Set<string>()
+    sellersWithLocations.forEach(entry => {
+      const seller = entry.seller
+      if (!seller) return
+
+      if (seller.location) {
+        locationSet.add(seller.location)
+      }
+
+      seller.deliveryCounties?.forEach(county => {
+        if (county) locationSet.add(county)
+      })
+
+      seller.deliveryProvinces?.forEach(province => {
+        if (province) locationSet.add(province)
+      })
+    })
+
     return NextResponse.json({
       products: productsWithDetails,
       pagination: {
@@ -140,20 +280,26 @@ export async function GET(request: NextRequest) {
         pages: Math.ceil(total / limit)
       },
       filters: {
-        types: await prisma.product.groupBy({
-          by: ['type'],
-          where: { isActive: true },
-          _count: { type: true }
-        }),
-        tags: await prisma.productTag.groupBy({
-          by: ['tag'],
-          _count: { tag: true }
-        }),
-        priceRange: await prisma.product.aggregate({
-          where: { isActive: true },
-          _min: { price: true },
-          _max: { price: true }
-        })
+        types: [
+          ...types
+            .filter(typeEntry => typeEntry.type !== 'CUSTOM')
+            .map(typeEntry => ({
+              type: typeEntry.type,
+              customType: null,
+              count: typeEntry._count.type
+            })),
+          ...customTypes
+            .filter(customEntry => customEntry.customType)
+            .map(customEntry => ({
+              type: 'CUSTOM',
+              customType: customEntry.customType,
+              count: customEntry._count.customType
+            }))
+        ],
+        tags,
+        categories,
+        locations: Array.from(locationSet).sort((a, b) => a.localeCompare(b)),
+        priceRange
       }
     })
   } catch (error) {

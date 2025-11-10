@@ -14,5 +14,10 @@ export function formatProductTypeLabel(type?: string | null, customType?: string
     return customType;
   }
 
-  return type.replace(/_/g, ' ');
+  return type
+    .toLowerCase()
+    .split('_')
+    .filter(Boolean)
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
 }
