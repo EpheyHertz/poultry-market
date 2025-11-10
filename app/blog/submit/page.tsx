@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import PublicNavbar from '@/components/layout/public-navbar';
@@ -22,30 +22,108 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
+type CurrentUser = {
+  id: string;
+  name: string | null;
+  email: string | null;
+  phone?: string | null;
+};
+
 export default function BlogSubmissionPage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
+  const [isUserLoading, setIsUserLoading] = useState(true);
+  const [userError, setUserError] = useState<string | null>(null);
+  const loginPath = '/auth/login?next=/blog/submit';
 
-  const handleSubmit = async (formData: any) => {
+  const fetchCurrentUser = useCallback(async () => {
+    setIsUserLoading(true);
+    setUserError(null);
+
+    try {
+      const response = await fetch('/api/auth/me', {
+        method: 'GET',
+        credentials: 'include',
+      });
+
+      if (response.ok) {
+        const data: CurrentUser = await response.json();
+        setCurrentUser(data);
+        return;
+      }
+
+      if (response.status === 401) {
+        setCurrentUser(null);
+        return;
+      }
+
+      const errorData = await response.json().catch(() => null);
+      setCurrentUser(null);
+      setUserError(errorData?.error || 'We could not load your account details.');
+    } catch (error) {
+      console.error('Failed to fetch current user:', error);
+      setCurrentUser(null);
+      setUserError('We could not load your account. Please try again.');
+    } finally {
+      setIsUserLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchCurrentUser();
+  }, [fetchCurrentUser]);
+
+  const handleSubmit = async (formData: {
+    title: string;
+    content: string;
+    excerpt?: string;
+    featuredImage?: string;
+    images: string[];
+    category: string;
+    tags: string[];
+    submissionNotes?: string;
+  }) => {
+    if (!currentUser || !currentUser.email) {
+      toast.error('Please sign in before submitting a blog post.');
+      router.push(loginPath);
+      return;
+    }
+
     setIsSubmitting(true);
     
+    const payload = {
+      ...formData,
+      featuredImage: formData.featuredImage || undefined,
+      excerpt: formData.excerpt || undefined,
+      submissionNotes: formData.submissionNotes || undefined,
+    };
+
     try {
       const response = await fetch('/api/blog/submit', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        credentials: 'include',
+        body: JSON.stringify(payload),
       });
 
       if (response.ok) {
         setSubmitted(true);
         toast.success('Blog post submitted successfully! We\'ll review it within 24-48 hours.');
-      } else {
-        const errorData = await response.json();
-        toast.error(errorData.error || 'Failed to submit blog post');
+        return;
       }
+
+      if (response.status === 401) {
+        toast.error('Your session expired. Please sign in again.');
+        router.push(loginPath);
+        return;
+      }
+
+      const errorData = await response.json().catch(() => null);
+      toast.error(errorData?.error || 'Failed to submit blog post');
     } catch (error) {
       console.error('Error submitting blog post:', error);
       toast.error('Failed to submit blog post. Please try again.');
@@ -76,6 +154,9 @@ export default function BlogSubmissionPage() {
             <p className="text-lg text-gray-600 mb-8 max-w-2xl mx-auto">
               Thank you for contributing to our poultry knowledge hub! Your blog post has been submitted 
               and is now under review by our editorial team.
+            </p>
+            <p className="text-sm text-gray-500 mb-10 max-w-2xl mx-auto">
+              We&apos;ve emailed you a confirmation and alerted the PoultryMarket editorial team so you&apos;ll stay updated at each review step.
             </p>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -163,10 +244,50 @@ export default function BlogSubmissionPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="p-6">
-                  <BlogSubmissionForm 
-                    onSubmit={handleSubmit} 
-                    loading={isSubmitting}
-                  />
+                  {isUserLoading ? (
+                    <div className="py-12 text-center text-sm text-gray-500">
+                      Checking your account details...
+                    </div>
+                  ) : currentUser ? (
+                    <BlogSubmissionForm
+                      onSubmit={handleSubmit}
+                      loading={isSubmitting}
+                      currentUser={currentUser}
+                    />
+                  ) : (
+                    <div className="space-y-6 text-center">
+                      <div className="space-y-2">
+                        <h3 className="text-xl font-semibold text-gray-900">
+                          {userError ? 'We hit a snag loading your account' : 'Sign in to share your story'}
+                        </h3>
+                        <p className="text-sm text-gray-600">
+                          {userError
+                            ? 'Please refresh and try again. If the issue persists, sign in again to continue.'
+                            : 'Please sign in to connect your submission to your PoultryMarket profile and receive status updates.'}
+                        </p>
+                      </div>
+                      {userError && (
+                        <div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                          {userError}
+                        </div>
+                      )}
+                      <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
+                        <Button
+                          onClick={() => router.push(loginPath)}
+                          className="bg-emerald-600 hover:bg-emerald-700"
+                        >
+                          Sign in to continue
+                        </Button>
+                        <Button
+                          variant="outline"
+                          onClick={fetchCurrentUser}
+                          disabled={isUserLoading}
+                        >
+                          Refresh status
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </motion.div>

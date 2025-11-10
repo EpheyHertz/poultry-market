@@ -29,8 +29,7 @@ import {
   Upload,
   Plus,
   User,
-  Mail,
-  Phone
+  CheckCircle
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Image from 'next/image';
@@ -38,20 +37,22 @@ import Image from 'next/image';
 interface BlogSubmissionData {
   title: string;
   content: string;
-  excerpt: string;
-  featuredImage: string;
+  excerpt?: string;
+  featuredImage?: string;
   images: string[];
   category: string;
   tags: string[];
-  submissionNotes: string;
-  authorName: string;
-  authorEmail: string;
-  authorPhone?: string;
+  submissionNotes?: string;
 }
 
 interface BlogSubmissionFormProps {
   onSubmit: (data: BlogSubmissionData) => Promise<void>;
   loading?: boolean;
+  currentUser?: {
+    name?: string | null;
+    email?: string | null;
+    phone?: string | null;
+  };
 }
 
 const BLOG_CATEGORIES = {
@@ -67,7 +68,7 @@ const BLOG_CATEGORIES = {
   ADVANCED_TECHNIQUES: { name: 'Advanced Techniques', icon: '🎯', description: 'Advanced farming techniques' }
 };
 
-export default function BlogSubmissionForm({ onSubmit, loading = false }: BlogSubmissionFormProps) {
+export default function BlogSubmissionForm({ onSubmit, loading = false, currentUser }: BlogSubmissionFormProps) {
   const [formData, setFormData] = useState<BlogSubmissionData>({
     title: '',
     content: '',
@@ -77,9 +78,6 @@ export default function BlogSubmissionForm({ onSubmit, loading = false }: BlogSu
     category: '',
     tags: [],
     submissionNotes: '',
-    authorName: '',
-    authorEmail: '',
-    authorPhone: ''
   });
 
   const [newTag, setNewTag] = useState('');
@@ -348,6 +346,16 @@ export default function BlogSubmissionForm({ onSubmit, loading = false }: BlogSu
 
   // Handle form submission
   const handleSubmit = async () => {
+    if (!currentUser?.email) {
+      toast.error('Please log in to submit a blog post.');
+      return;
+    }
+
+    if (!currentUser?.name) {
+      toast.error('Please update your profile with your name before submitting.');
+      return;
+    }
+
     // Validation
     if (!formData.title.trim()) {
       toast.error('Title is required');
@@ -361,21 +369,6 @@ export default function BlogSubmissionForm({ onSubmit, loading = false }: BlogSu
       toast.error('Category is required');
       return;
     }
-    if (!formData.authorName.trim()) {
-      toast.error('Author name is required');
-      return;
-    }
-    if (!formData.authorEmail.trim()) {
-      toast.error('Author email is required');
-      return;
-    }
-
-    // Email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(formData.authorEmail)) {
-      toast.error('Please enter a valid email address');
-      return;
-    }
 
     // Content length validation
     if (formData.content.trim().length < 300) {
@@ -383,54 +376,64 @@ export default function BlogSubmissionForm({ onSubmit, loading = false }: BlogSu
       return;
     }
 
-    await onSubmit(formData);
+    const payload: BlogSubmissionData = {
+      ...formData,
+      featuredImage: formData.featuredImage?.trim() ? formData.featuredImage.trim() : undefined,
+      excerpt: formData.excerpt?.trim() ? formData.excerpt.trim() : undefined,
+      submissionNotes: formData.submissionNotes?.trim() ? formData.submissionNotes.trim() : undefined,
+    };
+
+    await onSubmit(payload);
   };
+
+  const contributorName = currentUser?.name?.trim() || 'Name not set';
+  const contributorEmail = currentUser?.email?.trim() || 'Email not set';
+  const contributorPhone = currentUser?.phone?.trim() || 'Phone not provided';
+  const profileIncomplete = !currentUser?.name || !currentUser?.email;
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      {/* Author Information */}
+      {/* Contributor profile */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <User className="h-5 w-5 text-blue-600" />
-            Author Information
+            Contributor Profile
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Your PoultryMarket profile identifies you as the author. Update your account details to change what appears
+            here.
+          </p>
           <div className="grid md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="authorName">Full Name *</Label>
-              <Input
-                id="authorName"
-                value={formData.authorName}
-                onChange={(e) => handleChange('authorName', e.target.value)}
-                placeholder="Your full name"
-                className="mt-1"
-              />
+            <div className="space-y-2">
+              <Label htmlFor="author-name">Author name</Label>
+              <Input id="author-name" value={contributorName} readOnly disabled />
             </div>
-            
-            <div>
-              <Label htmlFor="authorEmail">Email Address *</Label>
-              <Input
-                id="authorEmail"
-                type="email"
-                value={formData.authorEmail}
-                onChange={(e) => handleChange('authorEmail', e.target.value)}
-                placeholder="your.email@example.com"
-                className="mt-1"
-              />
+            <div className="space-y-2">
+              <Label htmlFor="author-email">Author email</Label>
+              <Input id="author-email" value={contributorEmail} readOnly disabled />
             </div>
           </div>
-          
-          <div>
-            <Label htmlFor="authorPhone">Phone Number (Optional)</Label>
-            <Input
-              id="authorPhone"
-              value={formData.authorPhone}
-              onChange={(e) => handleChange('authorPhone', e.target.value)}
-              placeholder="+254 XXX XXX XXX"
-              className="mt-1"
-            />
+          <div className="grid md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="author-phone">Phone (optional)</Label>
+              <Input id="author-phone" value={contributorPhone} readOnly disabled />
+            </div>
+            <div className="space-y-2">
+              <Label>Status</Label>
+              {profileIncomplete ? (
+                <div className="p-3 rounded-md border border-yellow-200 bg-yellow-50 text-sm text-yellow-800">
+                  Complete your profile with your name and a verified email so we can credit your submission properly.
+                </div>
+              ) : (
+                <div className="p-3 rounded-md border border-emerald-200 bg-emerald-50 text-sm text-emerald-700 flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4" />
+                  Profile ready for submission
+                </div>
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>

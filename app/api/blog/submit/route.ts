@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-
+import { getCurrentUser } from '@/lib/auth';
+import { sendBlogSubmissionAcknowledgmentToAuthor, sendBlogSubmissionToAdmin } from '@/lib/email';
 import { z } from 'zod';
 
 // Blog submission schema
@@ -38,9 +39,6 @@ const blogSubmissionSchema = z.object({
   ]),
   tags: z.array(z.string()).optional().default([]),
   submissionNotes: z.string().optional(),
-  authorName: z.string().min(1, 'Author name is required'),
-  authorEmail: z.string().email('Valid email is required'),
-  authorPhone: z.string().optional(),
 });
 
 // Generate URL-friendly slug from title
@@ -61,6 +59,11 @@ function calculateReadingTime(content: string): number {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
+    const user = await getCurrentUser();
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized. Kindly login to create a blog.' }, { status: 401 });
+    }
     
     // Debug: Log the received data (remove in production)
     console.log('Received blog submission data:', {
@@ -70,7 +73,7 @@ export async function POST(request: NextRequest) {
       category: body.category,
     });
 
-    const validatedData = blogSubmissionSchema.parse(body);
+  const validatedData = blogSubmissionSchema.parse(body);
 
     // Generate unique slug
     let baseSlug = generateSlug(validatedData.title);
@@ -86,26 +89,23 @@ export async function POST(request: NextRequest) {
     const readingTime = calculateReadingTime(validatedData.content);
 
     // Check if user already exists or create a new one
-    let author = await prisma.user.findUnique({
-      where: { email: validatedData.authorEmail }
+    const author = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+      }
     });
 
-    if (!author) {
-      // Create a new user account for the blog contributor
-      author = await prisma.user.create({
-        data: {
-          email: validatedData.authorEmail,
-          name: validatedData.authorName,
-          phone: validatedData.authorPhone,
-          role: 'CUSTOMER', // Default role for blog contributors
-          isVerified: false, // They'll need to verify their email
-        }
-      });
+    if (!author || !author.email) {
+      return NextResponse.json({ error: 'Author not found. Ensure you are logged in.' }, { status: 400 });
     }
 
     // Create or connect tags
     const tagConnections = await Promise.all(
-      validatedData.tags.map(async (tagName) => {
+      (validatedData.tags || []).map(async (tagName) => {
         const tagSlug = generateSlug(tagName);
         
         // Find or create tag
@@ -168,12 +168,13 @@ export async function POST(request: NextRequest) {
     });
 
     // Send notification to admins about new submission
-    // try {
-    //   await sendBlogSubmissionToAdmin(blogPost);
-    // } catch (emailError) {
-    //   console.error('Error sending admin notification:', emailError);
-    //   // Don't fail the submission if email fails
-    // }
+    try {
+  await sendBlogSubmissionToAdmin(blogPost);
+  await sendBlogSubmissionAcknowledgmentToAuthor(blogPost);
+    } catch (emailError) {
+      console.error('Error sending admin notification:', emailError);
+      // Don't fail the submission if email fails
+    }
 
     return NextResponse.json({
       success: true,

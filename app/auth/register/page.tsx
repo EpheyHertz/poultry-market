@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, Suspense } from 'react';
+import { useEffect, useMemo, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ArrowLeft, Eye, EyeOff, UserPlus, Shield, Users, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import Loading from '@/components/loading';
+import { sanitizeNextRedirect } from '@/lib/utils';
 
 // Form UI moved inside Suspense-wrapped inner component
 function RegisterForm() {
@@ -30,6 +31,9 @@ function RegisterForm() {
   const [isVisible, setIsVisible] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
+  const rawNext = searchParams?.get('next');
+  const nextPath = useMemo(() => sanitizeNextRedirect(rawNext), [rawNext]);
+  const loginHref = nextPath ? `/auth/login?next=${encodeURIComponent(nextPath)}` : '/auth/login';
 
   useEffect(() => {
     setIsVisible(true);
@@ -68,8 +72,8 @@ function RegisterForm() {
       const data = await response.json();
 
       if (response.ok) {
-        toast.success('Account created successfully!');
-        router.push('/auth/login');
+  toast.success('Account created successfully!');
+  router.push(loginHref);
       } else {
         setError(data.error || 'Registration failed');
       }
@@ -296,7 +300,7 @@ function RegisterForm() {
                 <div className="text-center">
                   <p className="text-gray-600">
                     Already have an account?{' '}
-                    <Link href="/auth/login" className="text-green-600 hover:text-green-700 font-semibold transition-colors duration-300 hover:underline">
+                    <Link href={loginHref} className="text-green-600 hover:text-green-700 font-semibold transition-colors duration-300 hover:underline">
                       Sign in here
                     </Link>
                   </p>

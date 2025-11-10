@@ -21,3 +21,25 @@ export function formatProductTypeLabel(type?: string | null, customType?: string
     .map(word => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ');
 }
+
+export function sanitizeNextRedirect(path?: string | null) {
+  if (!path) {
+    return null;
+  }
+
+  const trimmed = path.trim();
+
+  if (!trimmed.startsWith('/')) {
+    return null;
+  }
+
+  if (trimmed.startsWith('//')) {
+    return null;
+  }
+
+  if (trimmed.includes('://')) {
+    return null;
+  }
+
+  return trimmed;
+}

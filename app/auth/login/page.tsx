@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useMemo, useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -12,6 +12,7 @@ import GoogleSignIn from '@/components/auth/google-signin';
 import Link from 'next/link';
 import { ArrowLeft, Eye, EyeOff, Zap, Shield, LogIn } from 'lucide-react';
 import { toast } from 'sonner';
+import { sanitizeNextRedirect } from '@/lib/utils';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -22,6 +23,42 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [isVisible, setIsVisible] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const rawNext = searchParams?.get('next');
+  const nextPath = useMemo(() => sanitizeNextRedirect(rawNext), [rawNext]);
+  const registerHref = nextPath ? `/auth/register?next=${encodeURIComponent(nextPath)}` : '/auth/register';
+  const forgotPasswordHref = nextPath ? `/auth/forgot-password?next=${encodeURIComponent(nextPath)}` : '/auth/forgot-password';
+
+  const redirectToRoleDashboard = (role?: string | null) => {
+    switch (role) {
+      case 'ADMIN':
+        router.push('/admin/dashboard');
+        return;
+      case 'SELLER':
+        router.push('/seller/dashboard');
+        return;
+      case 'COMPANY':
+        router.push('/company/dashboard');
+        return;
+      case 'STAKEHOLDER':
+        router.push('/stakeholder/dashboard');
+        return;
+      case 'DELIVERY_AGENT':
+        router.push('/delivery-agent/dashboard');
+        return;
+      default:
+        router.push('/customer/dashboard');
+    }
+  };
+
+  const redirectAfterLogin = (role?: string | null) => {
+    if (nextPath) {
+      router.push(nextPath);
+      return;
+    }
+
+    redirectToRoleDashboard(role);
+  };
 
   useEffect(() => {
     setIsVisible(true);
@@ -45,27 +82,7 @@ export default function LoginPage() {
 
       if (response.ok) {
         toast.success('Login successful!');
-
-        // Redirect based on user role
-        switch (data.user.role) {
-          case 'ADMIN':
-            router.push('/admin/dashboard');
-            break;
-          case 'SELLER':
-            router.push('/seller/dashboard');
-            break;
-          case 'COMPANY':
-            router.push('/company/dashboard');
-            break;
-          case 'STAKEHOLDER':
-            router.push('/stakeholder/dashboard');
-            break;
-          case 'DELIVERY_AGENT':
-            router.push('/delivery-agent/dashboard');
-            break;
-          default:
-            router.push('/customer/dashboard');
-        }
+        redirectAfterLogin(data?.user?.role);
       } else {
         setError(data.error || 'Login failed');
       }
@@ -100,7 +117,7 @@ export default function LoginPage() {
 
       if (response.ok) {
         toast.success('Google login successful!');
-        router.push('/customer/dashboard');
+        redirectAfterLogin(data?.user?.role ?? 'CUSTOMER');
       } else {
         setError(data.error || 'Google login failed');
       }
@@ -254,7 +271,7 @@ export default function LoginPage() {
                   </div>
 
                   <div className="text-right">
-                    <Link href="/auth/forgot-password" className="text-green-600 hover:text-green-700 font-medium transition-colors duration-300 hover:underline">
+                    <Link href={forgotPasswordHref} className="text-green-600 hover:text-green-700 font-medium transition-colors duration-300 hover:underline">
                       Forgot password?
                     </Link>
                   </div>
@@ -281,7 +298,7 @@ export default function LoginPage() {
                 <div className="text-center">
                   <p className="text-gray-600">
                     Don&apos;t have an account?{' '}
-                    <Link href="/auth/register" className="text-green-600 hover:text-green-700 font-semibold transition-colors duration-300 hover:underline">
+                    <Link href={registerHref} className="text-green-600 hover:text-green-700 font-semibold transition-colors duration-300 hover:underline">
                       Sign up here
                     </Link>
                   </p>

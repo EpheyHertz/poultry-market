@@ -31,7 +31,192 @@ export async function sendEmail({
   }
 }
 
+type BlogEmailPayload = {
+  title: string
+  slug?: string | null
+  category?: string | null
+  submissionNotes?: string | null
+  featuredImage?: string | null
+  readingTime?: number | null
+  submittedAt?: Date | string | null
+  author?: {
+    id?: string | null
+    name?: string | null
+    email?: string | null
+  }
+  tags?: Array<{ tag: { name: string } }>
+}
+
+const resolveAppUrl = () =>
+  process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || 'https://poultrymarket.co.ke'
+
+const formatKenyanDateTime = (value?: Date | string | null) => {
+  if (!value) {
+    return 'Just now'
+  }
+
+  const date = typeof value === 'string' ? new Date(value) : value
+
+  try {
+    return new Intl.DateTimeFormat('en-KE', {
+      dateStyle: 'long',
+      timeStyle: 'short',
+      timeZone: 'Africa/Nairobi',
+    }).format(date)
+  } catch (error) {
+    console.warn('Failed to format Kenyan date:', error)
+    return date.toISOString()
+  }
+}
+
 export const emailTemplates = {
+  blogSubmissionAcknowledgment: (
+    blogPost: BlogEmailPayload,
+    options: { appUrl?: string } = {}
+  ) => {
+    const appUrl = options.appUrl || resolveAppUrl()
+    const reviewUrl = `${appUrl.replace(/\/$/, '')}/my-blogs`
+    const submittedAt = formatKenyanDateTime(blogPost.submittedAt)
+    const authorName = blogPost.author?.name?.trim() || 'Poultry enthusiast'
+
+    return `<!DOCTYPE html>
+    <html lang="en">
+      <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>We received your blog submission</title>
+      </head>
+      <body style="margin:0;padding:0;font-family:'Segoe UI',Arial,sans-serif;background-color:#f5f7fb;color:#1f2937;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f5f7fb;padding:24px 0;">
+          <tr>
+            <td align="center">
+              <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 20px 35px -28px rgba(15,118,110,0.55);">
+                <tr>
+                  <td style="background:linear-gradient(120deg,#047857 0%,#0f766e 100%);padding:36px 40px;color:#ffffff;">
+                    <h1 style="margin:0;font-size:26px;font-weight:700;">We have your blog submission! 📝</h1>
+                    <p style="margin:12px 0 0;font-size:16px;color:rgba(255,255,255,0.85);">Submitted on ${submittedAt}</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:32px 40px 16px;">
+                    <h2 style="margin:0 0 12px;font-size:22px;font-weight:600;color:#0f172a;">Hello ${authorName},</h2>
+                    <p style="margin:0 0 16px;line-height:1.6;">Thank you for sharing your knowledge with the PoultryMarket community. We have received your article <strong>"${blogPost.title}"</strong> and our support team is already preparing it for review.</p>
+                    <p style="margin:0 0 16px;line-height:1.6;">Here is what happens next:</p>
+                    <ul style="margin:0 0 16px;padding-left:20px;line-height:1.6;">
+                      <li style="margin-bottom:8px;">Our editorial support team will review your submission within <strong>24-48 hours</strong>.</li>
+                      <li style="margin-bottom:8px;">You will receive another email as soon as your blog is approved or if we need additional details.</li>
+                      <li style="margin-bottom:8px;">Once approved, your story goes live on PoultryMarket and you can share it across all your social channels directly from the blog page.</li>
+                    </ul>
+                    <p style="margin:0 0 16px;line-height:1.6;">You can track the status of your submission at any time:</p>
+                    <div style="text-align:center;margin:28px 0;">
+                      <a href="${reviewUrl}" style="display:inline-block;background:linear-gradient(120deg,#0d9488 0%,#14b8a6 100%);color:#ffffff;text-decoration:none;padding:14px 32px;border-radius:999px;font-weight:600;font-size:16px;">Track my submission</a>
+                    </div>
+                    <div style="background-color:#f8fafc;border-radius:12px;padding:20px;margin:0 0 24px;border:1px solid #e2e8f0;">
+                      <h3 style="margin:0 0 8px;font-size:16px;color:#0f172a;">Submission summary</h3>
+                      <p style="margin:4px 0;font-size:14px;color:#475569;"><strong>Category:</strong> ${blogPost.category || 'General'}</p>
+                      ${blogPost.readingTime ? `<p style="margin:4px 0;font-size:14px;color:#475569;"><strong>Estimated reading time:</strong> ${blogPost.readingTime} min</p>` : ''}
+                      ${blogPost.tags && blogPost.tags.length ? `<p style="margin:4px 0;font-size:14px;color:#475569;"><strong>Tags:</strong> ${blogPost.tags.map(tag => tag.tag.name).join(', ')}</p>` : ''}
+                      ${blogPost.submissionNotes ? `<p style="margin:12px 0 0;font-size:14px;color:#475569;line-height:1.6;"><strong>Your notes:</strong> ${blogPost.submissionNotes}</p>` : ''}
+                    </div>
+                    <p style="margin:0 0 24px;line-height:1.6;">We are grateful to have you as part of the PoultryMarket community. Every article strengthens our collective knowledge and supports farmers across the region.</p>
+                    <p style="margin:0;font-weight:600;">Thank you for being part of the community and sharing your expertise!</p>
+                    <p style="margin:8px 0 0;color:#0f172a;font-weight:500;">The PoultryMarket Support Team</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="background-color:#f1f5f9;padding:20px 24px;text-align:center;font-size:12px;color:#64748b;">
+                    <p style="margin:0;">You are receiving this email because you submitted a blog post on PoultryMarket.</p>
+                    <p style="margin:8px 0 0;">Need help? Email us at <a href="mailto:${process.env.SUPPORT_EMAIL || 'support@poultrymarket.co.ke'}" style="color:#0f766e;text-decoration:none;">${process.env.SUPPORT_EMAIL || 'support@poultrymarket.co.ke'}</a></p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </body>
+    </html>`
+  },
+  blogSubmissionAdminNotification: (
+    blogPost: BlogEmailPayload,
+    options: { appUrl?: string } = {}
+  ) => {
+    const appUrl = options.appUrl || resolveAppUrl()
+    const moderationUrl = `${appUrl.replace(/\/$/, '')}/admin/blog/pending`
+    const submittedAt = formatKenyanDateTime(blogPost.submittedAt)
+    const authorName = blogPost.author?.name?.trim() || 'Unnamed contributor'
+    const authorEmail = blogPost.author?.email || '—'
+    const tagsList = blogPost.tags && blogPost.tags.length
+      ? blogPost.tags.map(tag => tag.tag.name).join(', ')
+      : 'None provided'
+
+    return `<!DOCTYPE html>
+    <html lang="en">
+      <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>New blog submission</title>
+      </head>
+      <body style="margin:0;padding:0;font-family:'Segoe UI',Arial,sans-serif;background-color:#0f172a;color:#111827;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#0f172a;padding:32px 0;">
+          <tr>
+            <td align="center">
+              <table role="presentation" width="640" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:12px;overflow:hidden;">
+                <tr>
+                  <td style="background:linear-gradient(90deg,#0f766e 0%,#0ea5e9 100%);padding:28px 32px;color:#ffffff;">
+                    <h1 style="margin:0;font-size:24px;font-weight:700;">New blog submission waiting for review</h1>
+                    <p style="margin:10px 0 0;font-size:15px;color:rgba(255,255,255,0.85);">${submittedAt}</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:28px 32px;">
+                    <p style="margin:0 0 16px;line-height:1.6;">A new blog article has just been submitted on PoultryMarket.</p>
+                    <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin:0 0 24px;border-collapse:collapse;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;">
+                      <tr style="background-color:#f8fafc;">
+                        <td style="padding:16px 20px;font-size:14px;color:#0f172a;width:40%;font-weight:600;">Title</td>
+                        <td style="padding:16px 20px;font-size:14px;color:#1e293b;">${blogPost.title}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding:16px 20px;font-size:14px;color:#0f172a;font-weight:600;">Author</td>
+                        <td style="padding:16px 20px;font-size:14px;color:#1e293b;">${authorName} &lt;${authorEmail}&gt;</td>
+                      </tr>
+                      <tr style="background-color:#f8fafc;">
+                        <td style="padding:16px 20px;font-size:14px;color:#0f172a;font-weight:600;">Category</td>
+                        <td style="padding:16px 20px;font-size:14px;color:#1e293b;">${blogPost.category || 'Not set'}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding:16px 20px;font-size:14px;color:#0f172a;font-weight:600;">Tags</td>
+                        <td style="padding:16px 20px;font-size:14px;color:#1e293b;">${tagsList}</td>
+                      </tr>
+                      ${blogPost.readingTime ? `<tr style="background-color:#f8fafc;"><td style="padding:16px 20px;font-size:14px;color:#0f172a;font-weight:600;">Reading time</td><td style="padding:16px 20px;font-size:14px;color:#1e293b;">${blogPost.readingTime} min</td></tr>` : ''}
+                      <tr>
+                        <td style="padding:16px 20px;font-size:14px;color:#0f172a;font-weight:600;">Submitted</td>
+                        <td style="padding:16px 20px;font-size:14px;color:#1e293b;">${submittedAt}</td>
+                      </tr>
+                      ${blogPost.submissionNotes ? `<tr style="background-color:#f8fafc;"><td style="padding:16px 20px;font-size:14px;color:#0f172a;font-weight:600;">Contributor notes</td><td style="padding:16px 20px;font-size:14px;color:#1e293b;line-height:1.6;">${blogPost.submissionNotes}</td></tr>` : ''}
+                    </table>
+                    ${blogPost.featuredImage ? `<div style="margin:0 0 24px;">
+                      <p style="margin:0 0 8px;font-size:14px;color:#0f172a;font-weight:600;">Featured image preview</p>
+                      <img src="${blogPost.featuredImage}" alt="Featured image" style="width:100%;max-height:280px;object-fit:cover;border-radius:12px;border:1px solid #e2e8f0;" />
+                    </div>` : ''}
+                    <div style="text-align:center;margin:0 0 24px;">
+                      <a href="${moderationUrl}" style="display:inline-block;background:linear-gradient(120deg,#2563eb 0%,#38bdf8 100%);color:#ffffff;text-decoration:none;padding:14px 30px;border-radius:10px;font-weight:600;font-size:16px;">Review submission</a>
+                    </div>
+                    <p style="margin:0;color:#475569;font-size:13px;line-height:1.6;">The post is currently marked as <strong>pending approval</strong>. Please review, make any necessary edits, and approve or reject it from the admin dashboard.</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="background-color:#0f172a;color:#94a3b8;text-align:center;padding:18px 24px;font-size:12px;">
+                    <p style="margin:0;">This message was sent to the PoultryMarket editorial team.</p>
+                    <p style="margin:8px 0 0;">Need to update notification recipients? Adjust the BLOG_ADMIN_EMAIL or SUPPORT_EMAIL environment variables.</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </body>
+    </html>`
+  },
   welcome: (name: string, message: string) => `
     <!DOCTYPE html>
     <html>
@@ -1329,4 +1514,54 @@ export const emailTemplates = {
     </body>
     </html>
   `,
+}
+
+type BlogEmailOptions = {
+  appUrl?: string
+}
+
+export async function sendBlogSubmissionAcknowledgmentToAuthor(
+  blogPost: BlogEmailPayload,
+  options: BlogEmailOptions = {}
+) {
+  const recipient = blogPost.author?.email
+
+  if (!recipient) {
+    throw new Error('Cannot send blog acknowledgment without author email')
+  }
+
+  const html = emailTemplates.blogSubmissionAcknowledgment(blogPost, {
+    appUrl: options.appUrl,
+  })
+
+  const subject = `We received your blog submission: ${blogPost.title}`
+
+  return sendEmail({
+    to: recipient,
+    subject,
+    html,
+  })
+}
+
+export async function sendBlogSubmissionToAdmin(
+  blogPost: BlogEmailPayload,
+  options: BlogEmailOptions = {}
+) {
+  const to = process.env.BLOG_ADMIN_EMAIL || process.env.SUPPORT_EMAIL
+
+  if (!to) {
+    throw new Error('Cannot send blog submission notification without admin email configured')
+  }
+
+  const html = emailTemplates.blogSubmissionAdminNotification(blogPost, {
+    appUrl: options.appUrl,
+  })
+
+  const subject = `New blog submission awaiting review: ${blogPost.title}`
+
+  return sendEmail({
+    to,
+    subject,
+    html,
+  })
 }
