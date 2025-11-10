@@ -33,6 +33,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import MarkdownExcerpt from '@/components/blog/markdown-excerpt';
 
 interface BlogPost {
   id: string;
@@ -226,9 +227,11 @@ export default function MobileBlogPost({ params, initialPost }: Props) {
 
           {/* Excerpt */}
           {post.excerpt && (
-            <p className="text-lg text-gray-600 mb-6">
-              {post.excerpt}
-            </p>
+            <MarkdownExcerpt
+              content={post.excerpt}
+              clampLines={4}
+              className="text-lg text-gray-600 mb-6"
+            />
           )}
 
           {/* Meta Information */}
@@ -484,9 +487,11 @@ export default function MobileBlogPost({ params, initialPost }: Props) {
                         {relatedPost.title}
                       </h4>
                     </Link>
-                    <p className="text-xs text-gray-600 line-clamp-2 mb-3">
-                      {relatedPost.excerpt}
-                    </p>
+                    <MarkdownExcerpt
+                      content={relatedPost.excerpt}
+                      clampLines={2}
+                      className="text-xs text-gray-600 mb-3"
+                    />
                     <div className="flex items-center justify-between text-xs text-gray-500">
                       <span>{relatedPost.author.name}</span>
                       <span>{relatedPost.publishedAt ? format(new Date(relatedPost.publishedAt), 'MMM d') : 'Date N/A'}</span>

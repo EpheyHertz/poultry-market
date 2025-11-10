@@ -39,6 +39,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { toast } from 'sonner';
+import MarkdownExcerpt from '@/components/blog/markdown-excerpt';
 
 interface BlogPost {
   id: string;
@@ -629,9 +630,11 @@ export default function AuthorProfilePage({ params }: Props) {
                         </Link>
 
                         {post.excerpt && (
-                          <p className="text-gray-600 line-clamp-3 leading-relaxed">
-                            {post.excerpt}
-                          </p>
+                          <MarkdownExcerpt
+                            content={post.excerpt}
+                            clampLines={3}
+                            className="text-gray-600"
+                          />
                         )}
 
                         {/* Tags */}

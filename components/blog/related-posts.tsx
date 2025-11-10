@@ -16,6 +16,7 @@ import {
   TrendingUp,
   ThumbsUp
 } from 'lucide-react';
+import MarkdownExcerpt from '@/components/blog/markdown-excerpt';
 
 interface BlogPost {
   id: string;
@@ -208,8 +209,12 @@ export default function RelatedPosts({
                     <CardTitle className="text-lg leading-tight group-hover:text-emerald-700 transition-colors line-clamp-2">
                       {post.title}
                     </CardTitle>
-                    <CardDescription className="line-clamp-2 text-gray-600">
-                      {post.excerpt}
+                    <CardDescription className="text-gray-600">
+                      <MarkdownExcerpt
+                        content={post.excerpt}
+                        clampLines={2}
+                        className="text-xs sm:text-sm text-gray-600"
+                      />
                     </CardDescription>
                   </CardHeader>
 

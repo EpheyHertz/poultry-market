@@ -27,6 +27,7 @@ import {
   Heart
 } from 'lucide-react';
 import { toast } from 'sonner';
+import MarkdownExcerpt from '@/components/blog/markdown-excerpt';
 
 interface BlogPost {
   id: string;
@@ -351,9 +352,11 @@ export default function BlogContent() {
                           </h3>
                           
                           {post.excerpt && (
-                            <p className="text-sm sm:text-base text-gray-600 line-clamp-2 leading-relaxed">
-                              {post.excerpt}
-                            </p>
+                            <MarkdownExcerpt
+                              content={post.excerpt}
+                              clampLines={2}
+                              className="text-sm sm:text-base text-gray-600"
+                            />
                           )}
                           
                           {/* Author and Stats */}
@@ -561,9 +564,11 @@ export default function BlogContent() {
 
                                   {/* Excerpt */}
                                   {post.excerpt && (
-                                    <p className="text-sm sm:text-base text-gray-600 line-clamp-3 sm:line-clamp-2 leading-relaxed">
-                                      {post.excerpt}
-                                    </p>
+                                    <MarkdownExcerpt
+                                      content={post.excerpt}
+                                      clampLines={2}
+                                      className="text-sm sm:text-base text-gray-600"
+                                    />
                                   )}
                                 </div>
 

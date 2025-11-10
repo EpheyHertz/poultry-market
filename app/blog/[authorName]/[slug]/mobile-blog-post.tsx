@@ -40,6 +40,7 @@ import BlogComments from '@/components/blog/blog-comments';
 import LikeButton from '@/components/blog/like-button';
 import FollowButton from '@/components/blog/follow-button';
 import { BlogPost, BLOG_CATEGORIES } from '@/types/blog';
+import MarkdownExcerpt from '@/components/blog/markdown-excerpt';
 
 interface BlogPostPageProps {
   post: BlogPost;
@@ -523,9 +524,11 @@ function MobileBlogPost({ post, relatedPosts = [] }: BlogPostPageProps) {
                       <h4 className="font-semibold text-gray-900 mb-2 text-sm sm:text-base line-clamp-2 group-hover:text-emerald-600 transition-colors">
                         {relatedPost.title}
                       </h4>
-                      <p className="text-xs sm:text-sm text-gray-600 mb-2 line-clamp-2">
-                        {relatedPost.excerpt}
-                      </p>
+                      <MarkdownExcerpt
+                        content={relatedPost.excerpt}
+                        clampLines={2}
+                        className="text-xs sm:text-sm text-gray-600 mb-2"
+                      />
                       <div className="flex items-center justify-between">
                         <span className="text-xs text-gray-500">
                           {format(new Date(relatedPost.publishedAt || relatedPost.createdAt), 'MMM d')}

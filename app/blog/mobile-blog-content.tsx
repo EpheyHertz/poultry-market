@@ -27,6 +27,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
+import MarkdownExcerpt from '@/components/blog/markdown-excerpt';
 
 interface BlogPost {
   id: string;
@@ -414,9 +415,11 @@ export default function MobileBlogContent() {
                                     <h3 className="font-bold mb-3 line-clamp-2 text-xl leading-tight hover:text-emerald-600 transition-colors duration-200 group-hover/link:text-emerald-700">
                                       {post.title}
                                     </h3>
-                                    <p className="text-gray-600 text-sm line-clamp-3 leading-relaxed">
-                                      {post.excerpt}
-                                    </p>
+                                    <MarkdownExcerpt
+                                      content={post.excerpt}
+                                      clampLines={3}
+                                      className="text-gray-600 text-sm"
+                                    />
                                   </Link>
                                 </div>
                                 
@@ -527,9 +530,11 @@ export default function MobileBlogContent() {
                                     <h3 className="font-bold mb-2 line-clamp-2 text-lg leading-tight hover:text-emerald-600 transition-colors duration-200 group-hover/link:text-emerald-700">
                                       {post.title}
                                     </h3>
-                                    <p className="text-gray-600 text-sm line-clamp-2 leading-relaxed mb-3">
-                                      {post.excerpt}
-                                    </p>
+                                    <MarkdownExcerpt
+                                      content={post.excerpt}
+                                      clampLines={2}
+                                      className="text-gray-600 text-sm mb-3"
+                                    />
                                   </Link>
                                   
                                   {/* Tags */}
