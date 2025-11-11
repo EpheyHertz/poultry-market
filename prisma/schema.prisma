@@ -20,14 +20,19 @@ enum UserRole {
 }
 
 enum OrderStatus {
-  PENDING
-  CONFIRMED
-  PACKED
-  DISPATCHED
-  OUT_FOR_DELIVERY
-  DELIVERED
-  CANCELLED
-  REJECTED
+  PENDING           // Order created, awaiting payment
+  PAYMENT_PENDING   // Payment initiated but not confirmed
+  PAID              // Payment confirmed, awaiting seller approval
+  APPROVED          // Seller approved, order in progress
+  PACKED            // Seller packed the order
+  READY_FOR_DELIVERY // Ready to be picked up/dispatched
+  IN_TRANSIT        // Out for delivery
+  REACHED_COLLECTION_POINT // At collection point
+  READY_FOR_PICKUP  // Ready for customer pickup
+  DELIVERED         // Delivered to customer
+  COMPLETED         // Customer confirmed receipt
+  CANCELLED         // Order cancelled
+  REJECTED          // Seller rejected the order
 }
 
 enum ProductType {
@@ -72,12 +77,14 @@ enum PaymentType {
 }
 
 enum PaymentStatus {
-  UNPAID
-  PENDING
-  SUBMITTED
-  APPROVED
-  REJECTED
-  REFUNDED
+  UNPAID      // No payment initiated
+  PENDING     // Payment initiated, awaiting confirmation
+  SUBMITTED   // Manual payment submitted, awaiting admin verification
+  CONFIRMED   // Payment confirmed (by admin for manual, or auto for M-Pesa)
+  APPROVED    // Payment approved by admin
+  REJECTED    // Payment rejected by admin
+  REFUNDED    // Payment refunded
+  FAILED      // Payment failed
 }
 
 enum PaymentInvoiceStatus {
@@ -193,6 +200,8 @@ model User {
 
   // Customer relationships
   orders          Order[]
+  sellerOrders    Order[] @relation("SellerOrders")
+  approvedOrders  Order[] @relation("OrderApprovals")
   hatchingRequests HatchingRequest[]
   applications    Application[]
   reviews         Review[]
@@ -330,11 +339,30 @@ model Order {
   paymentDetails String?
   paymentPhone   String?
   paymentReference String?
+  paymentMethod  PaymentMethod @default(MPESA)
 
   // Enhanced delivery fields
   deliveryCounty    String?
   deliveryProvince  String?
+  deliveryAddress   String?
   sellerHandlesDelivery Boolean @default(false)
+
+  // Seller approval tracking
+  sellerId          String?
+  seller            User?       @relation("SellerOrders", fields: [sellerId], references: [id])
+  approvedAt        DateTime?
+  approvedBy        String?
+  approver          User?       @relation("OrderApprovals", fields: [approvedBy], references: [id])
+
+  // Delivery proof and completion
+  deliveryProofImages String[]  @default([])
+  deliveryProofMessage String?
+  completedAt       DateTime?
+  markedReceivedAt  DateTime?
+  
+  // Review tracking
+  isReviewed        Boolean     @default(false)
+  reviewId          String?
 
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
@@ -347,8 +375,35 @@ model Order {
   paymentApprovals PaymentApprovalLog[]
   chats      Chat[]
   invoice    Invoice?
+  timeline   OrderTimeline[]
 
   @@map("orders")
+}
+
+model OrderTimeline {
+  id          String   @id @default(cuid())
+  orderId     String
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  
+  // Activity tracking
+  action      String   // e.g., "Order Created", "Payment Confirmed", "Seller Approved", "Status Updated", "Completed"
+  description String?
+  oldStatus   String?  // Previous order status (if status change)
+  newStatus   String?  // New order status (if status change)
+  
+  // Actor tracking
+  actorId     String?
+  actorRole   String?  // ADMIN, SELLER, CUSTOMER, SYSTEM
+  actorName   String?  // Name of person/system that performed the action
+  
+  // Additional metadata
+  metadata    String?  // JSON string for additional data
+  
+  createdAt   DateTime @default(now())
+
+  @@map("order_timeline")
+  @@index([orderId])
+  @@index([createdAt])
 }
 
 model OrderItem {

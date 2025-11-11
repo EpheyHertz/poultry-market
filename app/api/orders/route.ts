@@ -14,6 +14,7 @@ import {
   formatPaymentAmount,
   LipiaPaymentError
 } from '@/lib/lipia'
+import { logOrderCreated, logPaymentSubmitted } from '@/lib/order-timeline'
 export async function GET(request: NextRequest) {
   try {
     const user = await getCurrentUser()
@@ -503,6 +504,24 @@ const serverTotal = rawTotal % 1 <= 0.4
 
       return [updatedOrder, paymentRecord, null] // STK Push response will be set if initiated
     }, { timeout: 35000 })
+
+    // Create timeline events for order creation and payment submission
+    await logOrderCreated(
+      order.id,
+      user.id,
+      user.name,
+      paymentPreference === 'BEFORE_DELIVERY' ? 'Prepaid' : 'Cash on Delivery'
+    )
+
+    if (paymentPreference === 'BEFORE_DELIVERY') {
+      await logPaymentSubmitted(
+        order.id,
+        user.id,
+        user.name,
+        paymentType === PaymentMethod.MPESA ? 'M-Pesa' : 'Cash',
+        serverTotal
+      )
+    }
 
     // Mark IntaSend invoice as used if this was a manual payment with a valid invoice
     if (isValidInvoice && body?.paymentDetails?.reference) {

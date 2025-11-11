@@ -48,7 +48,7 @@ export async function POST(
 
     // Update payment status
     const newPaymentStatus = action === 'APPROVE' ? PaymentStatus.APPROVED : PaymentStatus.REJECTED
-    const newOrderStatus = action === 'APPROVE' ? OrderStatus.CONFIRMED : order.status
+    const newOrderStatus = action === 'APPROVE' ? OrderStatus.APPROVED : order.status
 
     const updatedOrder = await prisma.order.update({
       where: { id: id },

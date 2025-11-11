@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'
 import { createNotification, notificationTemplates } from '@/lib/notifications'
-import { User } from '@prisma/client' // ✅ add this
+import { User, OrderStatus } from '@prisma/client' 
 
 export async function POST(request: NextRequest) {
   const id = request.nextUrl.pathname.split('/').pop() || ''
@@ -109,7 +109,7 @@ const order = await prisma.order.findUnique({
 
     await prisma.order.update({
       where: { id: order.id },
-      data: { status: 'DISPATCHED' }
+      data: { status: OrderStatus.IN_TRANSIT }
     })
 
     const template = notificationTemplates.orderDispatched(

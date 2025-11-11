@@ -69,6 +69,12 @@ async function sendEmailNotification(data: NotificationData, userEmail: string, 
       case 'Payment Approved':
         emailTemplate = emailTemplates.paymentApproved(userName, data.message)
         break
+      case 'Payment Confirmed':
+        emailTemplate = emailTemplates.paymentApproved(userName, data.message)
+        break
+      case 'Order Approved':
+        emailTemplate = emailTemplates.orderConfirmed(userName, data.message)
+        break
       case 'Payment Rejected':
         emailTemplate = emailTemplates.paymentRejected(userName, data.message)
         break
@@ -279,6 +285,16 @@ export const notificationTemplates = {
   paymentApproved: (orderNumber: string) => ({
     title: 'Payment Approved',
     message: `Your payment for order #${orderNumber} has been approved. Your order will be processed shortly.`
+  }),
+
+  paymentConfirmed: (orderNumber: string, amount: number) => ({
+    title: 'Payment Confirmed',
+    message: `Payment of KES ${amount} for order #${orderNumber} has been confirmed. Your order is now being processed.`
+  }),
+
+  orderApproved: (orderNumber: string) => ({
+    title: 'Order Approved',
+    message: `Your order #${orderNumber} has been approved by the seller and is being prepared.`
   }),
 
   paymentRejected: (orderNumber: string, reason?: string) => ({

@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { PaymentStatus, OrderStatus } from '@prisma/client';
+import { logPaymentConfirmed } from '@/lib/order-timeline';
+import { createNotification, notificationTemplates } from '@/lib/notifications';
 
 // Lipia callback response structure
 interface LipiaCallbackData {
@@ -62,19 +65,19 @@ export async function POST(
     }
 
     // Determine payment status based on result code
-    let newStatus: 'APPROVED' | 'REJECTED';
+    let newStatus: PaymentStatus;
     let failureReason: string | null = null;
 
     if (callbackData.ResultCode === 0) {
       // Successful payment
-      newStatus = 'APPROVED';
+      newStatus = PaymentStatus.CONFIRMED;
     } else if (callbackData.ResultCode === 1032) {
       // User cancelled
-      newStatus = 'REJECTED';
+      newStatus = PaymentStatus.REJECTED;
       failureReason = 'Payment cancelled by user';
     } else {
       // Payment failed
-      newStatus = 'REJECTED';
+      newStatus = PaymentStatus.FAILED;
       failureReason = callbackData.ResultDesc || 'Payment failed';
     }
 
@@ -92,18 +95,100 @@ export async function POST(
     });
 
     // Update order status if payment was successful
-    if (newStatus === 'APPROVED') {
-      await prisma.order.update({
-        where: { id: orderId },
-        data: {
-          status: 'CONFIRMED',
-          updatedAt: new Date()
-        }
+    if (newStatus === PaymentStatus.CONFIRMED) {
+      // Update order in transaction
+      await prisma.$transaction(async (tx) => {
+        await tx.order.update({
+          where: { id: orderId },
+          data: {
+            paymentStatus: PaymentStatus.CONFIRMED,
+            status: OrderStatus.PAID,
+            updatedAt: new Date()
+          }
+        });
+
+        // Create payment approval log
+        await tx.paymentApprovalLog.create({
+          data: {
+            orderId: orderId,
+            approverId: 'SYSTEM',
+            action: 'APPROVED',
+            notes: `M-Pesa payment automatically verified. Receipt: ${callbackData.MpesaReceiptNumber}`,
+          },
+        });
       });
 
-      // TODO: Send confirmation email to customer
-      // TODO: Send notification to seller
-      // TODO: Update inventory if needed
+      // Log timeline event
+      await logPaymentConfirmed(orderId, 'SYSTEM', 'System', true);
+
+      // Get sellers from order items
+      const order = await prisma.order.findUnique({
+        where: { id: orderId },
+        include: {
+          customer: true,
+          items: {
+            include: {
+              product: {
+                include: {
+                  seller: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      if (order) {
+        const sellerIds = new Set(
+          order.items.map((item) => item.product.sellerId)
+        );
+
+        // Notify sellers
+        for (const sellerId of Array.from(sellerIds)) {
+          const template = notificationTemplates.paymentConfirmed(
+            orderId.slice(-8),
+            order.total
+          );
+
+          await createNotification({
+            receiverId: sellerId,
+            orderId: orderId,
+            type: 'EMAIL',
+            title: template.title,
+            message: template.message,
+          });
+
+          await createNotification({
+            receiverId: sellerId,
+            orderId: orderId,
+            type: 'SMS',
+            title: template.title,
+            message: template.message,
+          });
+        }
+
+        // Notify customer
+        const customerTemplate = notificationTemplates.paymentConfirmed(
+          orderId.slice(-8),
+          order.total
+        );
+
+        await createNotification({
+          receiverId: order.customerId,
+          orderId: orderId,
+          type: 'EMAIL',
+          title: customerTemplate.title,
+          message: customerTemplate.message,
+        });
+
+        await createNotification({
+          receiverId: order.customerId,
+          orderId: orderId,
+          type: 'SMS',
+          title: customerTemplate.title,
+          message: customerTemplate.message,
+        });
+      }
       
       console.log('Payment completed successfully:', {
         orderId,

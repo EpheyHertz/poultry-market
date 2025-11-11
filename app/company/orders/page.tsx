@@ -9,8 +9,8 @@ import { OrderList } from '@/components/orders/order-list';
 import { OrderDetailsCard } from '@/components/orders/order-details-card';
 import { OrderTimeline } from '@/components/orders/order-timeline';
 import {
-  MarkReceivedModal,
-  ReviewModal,
+  ApproveOrderModal,
+  UpdateStatusModal,
 } from '@/components/orders/order-action-modals';
 import {
   Dialog,
@@ -23,35 +23,38 @@ import {
   Clock,
   CheckCircle,
   Truck,
+  AlertCircle,
   Loader2,
-  ShoppingBag,
+  TrendingUp,
+  DollarSign,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface OrderStats {
   totalOrders: number;
-  pending: number;
-  inTransit: number;
-  delivered: number;
+  pendingApproval: number;
+  inProgress: number;
   completed: number;
+  totalRevenue: number;
+  averageOrderValue: number;
 }
 
-export default function CustomerOrdersPage() {
+export default function CompanyOrdersPage() {
   const [user, setUser] = useState<any>(null);
   const [orders, setOrders] = useState<any[]>([]);
   const [stats, setStats] = useState<OrderStats>({
     totalOrders: 0,
-    pending: 0,
-    inTransit: 0,
-    delivered: 0,
+    pendingApproval: 0,
+    inProgress: 0,
     completed: 0,
+    totalRevenue: 0,
+    averageOrderValue: 0,
   });
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
-  const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showTimelineModal, setShowTimelineModal] = useState(false);
-  const [showReceivedModal, setShowReceivedModal] = useState(false);
-  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [showApproveModal, setShowApproveModal] = useState(false);
+  const [showUpdateStatusModal, setShowUpdateStatusModal] = useState(false);
   const [timeline, setTimeline] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [timelineLoading, setTimelineLoading] = useState(false);
@@ -64,7 +67,7 @@ export default function CustomerOrdersPage() {
         const response = await fetch('/api/auth/me');
         if (response.ok) {
           const userData = await response.json();
-          if (userData.role !== 'CUSTOMER') {
+          if (userData.role !== 'COMPANY') {
             router.push('/');
             return;
           }
@@ -84,7 +87,8 @@ export default function CustomerOrdersPage() {
   const fetchOrders = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/customer/orders');
+      // Company uses the seller orders endpoint since they have similar access
+      const response = await fetch('/api/seller/orders');
       if (!response.ok) {
         throw new Error('Failed to fetch orders');
       }
@@ -93,19 +97,25 @@ export default function CustomerOrdersPage() {
       
       // Calculate stats
       const totalOrders = data.orders.length;
-      const pending = data.orders.filter((o: any) => 
-        ['PENDING', 'PAID', 'APPROVED', 'PACKED', 'READY_FOR_DELIVERY'].includes(o.status)
+      const pendingApproval = data.orders.filter((o: any) => 
+        o.status === 'PAID' && o.paymentStatus === 'CONFIRMED'
       ).length;
-      const inTransit = data.orders.filter((o: any) => o.status === 'IN_TRANSIT').length;
-      const delivered = data.orders.filter((o: any) => o.status === 'DELIVERED').length;
+      const inProgress = data.orders.filter((o: any) => 
+        ['APPROVED', 'PACKED', 'READY_FOR_DELIVERY', 'IN_TRANSIT', 'DELIVERED'].includes(o.status)
+      ).length;
       const completed = data.orders.filter((o: any) => o.status === 'COMPLETED').length;
+      const totalRevenue = data.orders
+        .filter((o: any) => o.status === 'COMPLETED')
+        .reduce((sum: number, o: any) => sum + o.total, 0);
+      const averageOrderValue = totalOrders > 0 ? totalRevenue / completed || 0 : 0;
 
       setStats({
         totalOrders,
-        pending,
-        inTransit,
-        delivered,
+        pendingApproval,
+        inProgress,
         completed,
+        totalRevenue,
+        averageOrderValue,
       });
     } catch (error: any) {
       toast({
@@ -157,23 +167,18 @@ export default function CustomerOrdersPage() {
     }
   };
 
-  const handleMarkReceived = () => {
-    setShowReceivedModal(true);
+  const handleApprove = () => {
+    setShowApproveModal(true);
   };
 
-  const handleReview = () => {
-    // If order has multiple items, show the first one for now
-    // In a real app, you might want to let the user select which product to review
-    if (selectedOrder?.items && selectedOrder.items.length > 0) {
-      setSelectedProduct(selectedOrder.items[0].product);
-      setShowReviewModal(true);
-    }
+  const handleUpdateStatus = () => {
+    setShowUpdateStatusModal(true);
   };
 
   const handleActionSuccess = () => {
     fetchOrders();
-    setShowReceivedModal(false);
-    setShowReviewModal(false);
+    setShowApproveModal(false);
+    setShowUpdateStatusModal(false);
     setShowDetailsModal(false);
   };
 
@@ -182,10 +187,12 @@ export default function CustomerOrdersPage() {
     setSelectedOrder(null);
   };
 
-  const pendingOrders = orders.filter((o) => 
-    ['PENDING', 'PAID', 'APPROVED', 'PACKED', 'READY_FOR_DELIVERY'].includes(o.status)
+  const pendingApprovalOrders = orders.filter((o) => 
+    o.status === 'PAID' && o.paymentStatus === 'CONFIRMED'
   );
-  const inTransitOrders = orders.filter((o) => o.status === 'IN_TRANSIT');
+  const inProgressOrders = orders.filter((o) => 
+    ['APPROVED', 'PACKED', 'READY_FOR_DELIVERY', 'IN_TRANSIT'].includes(o.status)
+  );
   const deliveredOrders = orders.filter((o) => o.status === 'DELIVERED');
   const completedOrders = orders.filter((o) => o.status === 'COMPLETED');
 
@@ -204,18 +211,18 @@ export default function CustomerOrdersPage() {
       <div className="space-y-6">
         {/* Header */}
         <div>
-          <h1 className="text-3xl font-bold">My Orders</h1>
+          <h1 className="text-3xl font-bold">Company Orders Management</h1>
           <p className="text-muted-foreground mt-2">
-            Track and manage your orders
+            Monitor and manage all company product orders
           </p>
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
           <Card>
             <CardHeader className="pb-3">
               <CardDescription className="flex items-center gap-2">
-                <ShoppingBag className="h-4 w-4" />
+                <Package className="h-4 w-4" />
                 Total Orders
               </CardDescription>
               <CardTitle className="text-3xl">{stats.totalOrders}</CardTitle>
@@ -224,28 +231,19 @@ export default function CustomerOrdersPage() {
           <Card>
             <CardHeader className="pb-3">
               <CardDescription className="flex items-center gap-2">
-                <Clock className="h-4 w-4" />
-                Processing
+                <AlertCircle className="h-4 w-4" />
+                Pending Approval
               </CardDescription>
-              <CardTitle className="text-3xl text-blue-600">{stats.pending}</CardTitle>
+              <CardTitle className="text-3xl text-amber-600">{stats.pendingApproval}</CardTitle>
             </CardHeader>
           </Card>
           <Card>
             <CardHeader className="pb-3">
               <CardDescription className="flex items-center gap-2">
                 <Truck className="h-4 w-4" />
-                In Transit
+                In Progress
               </CardDescription>
-              <CardTitle className="text-3xl text-amber-600">{stats.inTransit}</CardTitle>
-            </CardHeader>
-          </Card>
-          <Card>
-            <CardHeader className="pb-3">
-              <CardDescription className="flex items-center gap-2">
-                <Package className="h-4 w-4" />
-                Delivered
-              </CardDescription>
-              <CardTitle className="text-3xl text-emerald-600">{stats.delivered}</CardTitle>
+              <CardTitle className="text-3xl text-blue-600">{stats.inProgress}</CardTitle>
             </CardHeader>
           </Card>
           <Card>
@@ -257,6 +255,28 @@ export default function CustomerOrdersPage() {
               <CardTitle className="text-3xl text-emerald-600">{stats.completed}</CardTitle>
             </CardHeader>
           </Card>
+          <Card>
+            <CardHeader className="pb-3">
+              <CardDescription className="flex items-center gap-2">
+                <DollarSign className="h-4 w-4" />
+                Total Revenue
+              </CardDescription>
+              <CardTitle className="text-2xl text-emerald-600">
+                KES {stats.totalRevenue.toLocaleString()}
+              </CardTitle>
+            </CardHeader>
+          </Card>
+          <Card>
+            <CardHeader className="pb-3">
+              <CardDescription className="flex items-center gap-2">
+                <TrendingUp className="h-4 w-4" />
+                Avg Order Value
+              </CardDescription>
+              <CardTitle className="text-2xl text-blue-600">
+                KES {Math.round(stats.averageOrderValue).toLocaleString()}
+              </CardTitle>
+            </CardHeader>
+          </Card>
         </div>
 
         {/* Orders List with Tabs */}
@@ -265,11 +285,11 @@ export default function CustomerOrdersPage() {
             <TabsTrigger value="all">
               All ({orders.length})
             </TabsTrigger>
-            <TabsTrigger value="pending">
-              Processing ({pendingOrders.length})
+            <TabsTrigger value="approval">
+              Needs Approval ({pendingApprovalOrders.length})
             </TabsTrigger>
-            <TabsTrigger value="transit">
-              In Transit ({inTransitOrders.length})
+            <TabsTrigger value="progress">
+              In Progress ({inProgressOrders.length})
             </TabsTrigger>
             <TabsTrigger value="delivered">
               Delivered ({deliveredOrders.length})
@@ -283,28 +303,25 @@ export default function CustomerOrdersPage() {
             <OrderList
               orders={orders}
               onViewDetails={handleViewDetails}
-              showCustomer={false}
-              showSeller={true}
+              showCustomer={true}
               loading={loading}
             />
           </TabsContent>
 
-          <TabsContent value="pending">
+          <TabsContent value="approval">
             <OrderList
-              orders={pendingOrders}
+              orders={pendingApprovalOrders}
               onViewDetails={handleViewDetails}
-              showCustomer={false}
-              showSeller={true}
+              showCustomer={true}
               loading={loading}
             />
           </TabsContent>
 
-          <TabsContent value="transit">
+          <TabsContent value="progress">
             <OrderList
-              orders={inTransitOrders}
+              orders={inProgressOrders}
               onViewDetails={handleViewDetails}
-              showCustomer={false}
-              showSeller={true}
+              showCustomer={true}
               loading={loading}
             />
           </TabsContent>
@@ -313,8 +330,7 @@ export default function CustomerOrdersPage() {
             <OrderList
               orders={deliveredOrders}
               onViewDetails={handleViewDetails}
-              showCustomer={false}
-              showSeller={true}
+              showCustomer={true}
               loading={loading}
             />
           </TabsContent>
@@ -323,8 +339,7 @@ export default function CustomerOrdersPage() {
             <OrderList
               orders={completedOrders}
               onViewDetails={handleViewDetails}
-              showCustomer={false}
-              showSeller={true}
+              showCustomer={true}
               loading={loading}
             />
           </TabsContent>
@@ -342,17 +357,17 @@ export default function CustomerOrdersPage() {
               order={selectedOrder}
               showActions={true}
               onViewTimeline={handleViewTimeline}
-              onMarkReceived={
-                ['DELIVERED', 'IN_TRANSIT', 'READY_FOR_DELIVERY'].includes(selectedOrder.status)
-                  ? handleMarkReceived
+              onApprove={
+                selectedOrder.status === 'PAID' && selectedOrder.paymentStatus === 'CONFIRMED'
+                  ? handleApprove
                   : undefined
               }
-              onReview={
-                selectedOrder.status === 'COMPLETED' && !selectedOrder.isReviewed
-                  ? handleReview
+              onUpdateStatus={
+                ['APPROVED', 'PACKED', 'READY_FOR_DELIVERY', 'IN_TRANSIT'].includes(selectedOrder.status)
+                  ? handleUpdateStatus
                   : undefined
               }
-              userRole="CUSTOMER"
+              userRole="COMPANY"
             />
           )}
         </DialogContent>
@@ -377,25 +392,19 @@ export default function CustomerOrdersPage() {
       {/* Action Modals */}
       {selectedOrder && (
         <>
-          <MarkReceivedModal
-            isOpen={showReceivedModal}
-            onClose={() => setShowReceivedModal(false)}
+          <ApproveOrderModal
+            isOpen={showApproveModal}
+            onClose={() => setShowApproveModal(false)}
             orderId={selectedOrder.id}
             onSuccess={handleActionSuccess}
           />
-          {selectedProduct && (
-            <ReviewModal
-              isOpen={showReviewModal}
-              onClose={() => {
-                setShowReviewModal(false);
-                setSelectedProduct(null);
-              }}
-              orderId={selectedOrder.id}
-              productId={selectedProduct.id}
-              productName={selectedProduct.name}
-              onSuccess={handleActionSuccess}
-            />
-          )}
+          <UpdateStatusModal
+            isOpen={showUpdateStatusModal}
+            onClose={() => setShowUpdateStatusModal(false)}
+            orderId={selectedOrder.id}
+            currentStatus={selectedOrder.status}
+            onSuccess={handleActionSuccess}
+          />
         </>
       )}
     </DashboardLayout>
