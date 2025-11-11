@@ -65,7 +65,7 @@ export async function PUT(
     let orderStatus: OrderStatus | null = null
     switch (status) {
       case 'PICKED_UP':
-        orderStatus = 'OUT_FOR_DELIVERY'
+        orderStatus = OrderStatus.IN_TRANSIT
         break
       case 'DELIVERED':
         orderStatus = 'DELIVERED'
