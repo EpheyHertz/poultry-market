@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { OrderStatus } from '@prisma/client'
 import { getCurrentUser } from '@/lib/auth'
 import { createNotification, notificationTemplates } from '@/lib/notifications'
 
@@ -40,7 +41,7 @@ export async function POST(
     if (status === 'CONFIRMED') {
       await prisma.order.update({
         where: { id: payment.orderId },
-        data: { status: 'CONFIRMED' }
+        data: { status: OrderStatus.PAID }
       })
 
       // Send notification
