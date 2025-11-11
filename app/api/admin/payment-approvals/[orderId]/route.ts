@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
       ? PaymentStatus.APPROVED 
       : PaymentStatus.REJECTED
     const newOrderStatus = action === 'APPROVE' 
-      ? OrderStatus.CONFIRMED 
+      ? OrderStatus.APPROVED 
       : OrderStatus.REJECTED
 
     const updatedOrder = await prisma.$transaction(async (tx) => {
