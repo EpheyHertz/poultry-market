@@ -24,6 +24,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.9,
     },
     {
+      url: `${baseUrl}/blog`,
+      lastModified: new Date(),
+      changeFrequency: 'daily' as const,
+      priority: 0.9,
+    },
+    {
       url: `${baseUrl}/categories`,
       lastModified: new Date(),
       changeFrequency: 'weekly' as const,
@@ -69,7 +75,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   try {
     // Use Promise.allSettled to prevent one query failure from breaking everything
-    const [productsResult, categoriesResult, sellersResult] = await Promise.allSettled([
+    const [productsResult, categoriesResult, sellersResult, blogPostsResult] = await Promise.allSettled([
       // Dynamic product routes with timeout
       prisma.product.findMany({
         where: {
@@ -79,7 +85,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
           }
         },
         select: {
-          id: true,
+          slug: true,
           updatedAt: true,
         },
         take: 1000, // Limit to prevent timeout
@@ -107,13 +113,30 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
           updatedAt: true,
         },
         take: 500, // Limit to prevent timeout
+      }),
+      
+      // Dynamic blog post routes
+      prisma.blogPost.findMany({
+        where: {
+          status: 'PUBLISHED'
+        },
+        select: {
+          slug: true,
+          updatedAt: true,
+          author: {
+            select: {
+              name: true
+            }
+          }
+        },
+        take: 1000, // Limit to prevent timeout
       })
     ])
 
     // Handle products
     const productRoutes = productsResult.status === 'fulfilled' 
       ? productsResult.value.map((product) => ({
-          url: `${baseUrl}/product/${product.id}`,
+          url: `${baseUrl}/product/${product.slug}`,
           lastModified: product.updatedAt,
           changeFrequency: 'weekly' as const,
           priority: 0.8,
@@ -140,12 +163,23 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         }))
       : []
 
+    // Handle blog posts
+    const blogRoutes = blogPostsResult.status === 'fulfilled'
+      ? blogPostsResult.value.map((post) => ({
+          url: `${baseUrl}/blog/${post.author.name.replace(/\s+/g, '-').toLowerCase()}/${post.slug}`,
+          lastModified: post.updatedAt,
+          changeFrequency: 'weekly' as const,
+          priority: 0.7,
+        }))
+      : []
+
     // Combine all routes
     return [
       ...staticRoutes,
       ...productRoutes,
       ...categoryRoutes,
       ...sellerRoutes,
+      ...blogRoutes,
     ]
 
   } catch (error) {

@@ -238,8 +238,78 @@ export default async function BlogPostPage({ params }: Props) {
   // Fetch related posts
   const relatedPosts = await getRelatedPosts(post.id, post.category, post.authorId);
 
+  // Generate structured data for SEO
+  const blogPostingSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'BlogPosting',
+    headline: post.title,
+    description: post.excerpt || post.metaDescription || '',
+    image: post.featuredImage || '',
+    author: {
+      '@type': 'Person',
+      name: post.author.name,
+      url: `https://poultrymarketke.vercel.app/blog/${resolvedParams.authorName}`,
+    },
+    publisher: {
+      '@type': 'Organization',
+      name: 'PoultryMarket Kenya',
+      logo: {
+        '@type': 'ImageObject',
+        url: 'https://poultrymarketke.vercel.app/images/logo.png',
+      },
+    },
+    datePublished: post.publishedAt ? new Date(post.publishedAt).toISOString() : new Date(post.createdAt).toISOString(),
+    dateModified: new Date(post.updatedAt).toISOString(),
+    mainEntityOfPage: {
+      '@type': 'WebPage',
+      '@id': `https://poultrymarketke.vercel.app/blog/${resolvedParams.authorName}/${post.slug}`,
+    },
+    keywords: post.tags.map(t => t.tag.name).join(', '),
+    articleSection: post.category,
+    wordCount: post.content.split(/\s+/).length,
+  };
+
+  const breadcrumbSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      {
+        '@type': 'ListItem',
+        position: 1,
+        name: 'Home',
+        item: 'https://poultrymarketke.vercel.app',
+      },
+      {
+        '@type': 'ListItem',
+        position: 2,
+        name: 'Blog',
+        item: 'https://poultrymarketke.vercel.app/blog',
+      },
+      {
+        '@type': 'ListItem',
+        position: 3,
+        name: post.author.name,
+        item: `https://poultrymarketke.vercel.app/blog/${resolvedParams.authorName}`,
+      },
+      {
+        '@type': 'ListItem',
+        position: 4,
+        name: post.title,
+        item: `https://poultrymarketke.vercel.app/blog/${resolvedParams.authorName}/${post.slug}`,
+      },
+    ],
+  };
+
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(blogPostingSchema) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
+      />
       <PublicNavbar />
       <MobileBlogPost post={post} relatedPosts={relatedPosts} />
     </>

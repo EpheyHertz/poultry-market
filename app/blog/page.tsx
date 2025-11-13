@@ -2,17 +2,60 @@ import { Suspense } from 'react';
 import { Metadata } from 'next';
 import PublicNavbar from '@/components/layout/public-navbar';
 import MobileBlogContent from './mobile-blog-content';
+import { seoConfig } from '@/lib/seo';
 
 export const metadata: Metadata = {
-  title: 'Blog | PoultryHub - Expert Insights & Industry News',
-  description: 'Discover the latest insights, tips, and expert advice in the poultry industry. From farming techniques to market trends, stay informed with PoultryHub Blog.',
-  keywords: 'poultry blog, farming tips, poultry health, feed nutrition, market trends, industry news',
+  title: 'Poultry Blog - Expert Insights, Tips & Industry News',
+  description: 'Discover the latest insights, tips, and expert advice in the poultry industry. From farming techniques to market trends, stay informed with comprehensive guides and articles.',
+  keywords: [
+    'poultry blog',
+    'farming tips',
+    'poultry health',
+    'feed nutrition',
+    'market trends',
+    'industry news',
+    'poultry farming Kenya',
+    'chicken farming tips',
+    'poultry diseases',
+    'poultry management',
+    ...seoConfig.keywords.slice(0, 5),
+  ],
   openGraph: {
-    title: 'PoultryHub Blog - Expert Insights & Industry News',
-    description: 'Stay informed with the latest poultry industry insights, farming tips, and expert advice.',
+    title: 'Poultry Blog - Expert Insights & Industry News',
+    description: 'Stay informed with the latest poultry industry insights, farming tips, and expert advice from professionals.',
     type: 'website',
-    url: '/blog'
-  }
+    url: `${seoConfig.siteUrl}/blog`,
+    siteName: seoConfig.siteName,
+    images: [
+      {
+        url: `${seoConfig.siteUrl}/images/blog-og.jpg`,
+        width: 1200,
+        height: 630,
+        alt: 'PoultryMarket Kenya Blog',
+      },
+    ],
+    locale: 'en_KE',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Poultry Blog - Expert Insights & Industry News',
+    description: 'Stay informed with the latest poultry industry insights, farming tips, and expert advice.',
+    images: [`${seoConfig.siteUrl}/images/blog-og.jpg`],
+  },
+  alternates: {
+    canonical: `${seoConfig.siteUrl}/blog`,
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
 };
 
 function BlogLoadingSkeleton() {
@@ -53,8 +96,58 @@ function BlogLoadingSkeleton() {
 }
 
 export default function BlogPage() {
+  // Generate structured data for blog page
+  const structuredData = {
+    '@context': 'https://schema.org',
+    '@type': 'Blog',
+    name: 'PoultryMarket Kenya Blog',
+    description: 'Expert insights, tips, and advice for the poultry industry in Kenya.',
+    url: `${seoConfig.siteUrl}/blog`,
+    publisher: {
+      '@type': 'Organization',
+      name: seoConfig.siteName,
+      logo: {
+        '@type': 'ImageObject',
+        url: `${seoConfig.siteUrl}/images/logo.png`,
+      },
+    },
+    inLanguage: 'en-KE',
+    isPartOf: {
+      '@type': 'WebSite',
+      name: seoConfig.siteName,
+      url: seoConfig.siteUrl,
+    },
+  };
+
+  const breadcrumbSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      {
+        '@type': 'ListItem',
+        position: 1,
+        name: 'Home',
+        item: seoConfig.siteUrl,
+      },
+      {
+        '@type': 'ListItem',
+        position: 2,
+        name: 'Blog',
+        item: `${seoConfig.siteUrl}/blog`,
+      },
+    ],
+  };
+
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
+      />
       <PublicNavbar showAuth />
       <Suspense fallback={<BlogLoadingSkeleton />}>
         <MobileBlogContent />

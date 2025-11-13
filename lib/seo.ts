@@ -222,3 +222,44 @@ export const generateBreadcrumbStructuredData = (items: Array<{ name: string; ur
     item: item.url ? `https://poultrymarketke.vercel.app${item.url}` : undefined,
   })),
 });
+
+export const generateBlogPostingStructuredData = (blog: {
+  title: string;
+  description: string;
+  author: { name: string; url?: string };
+  image?: string;
+  publishedAt: string;
+  updatedAt: string;
+  url: string;
+  keywords?: string;
+  category?: string;
+  wordCount?: number;
+}) => ({
+  '@context': 'https://schema.org',
+  '@type': 'BlogPosting',
+  headline: blog.title,
+  description: blog.description,
+  image: blog.image || `${seoConfig.siteUrl}/images/default-blog.jpg`,
+  author: {
+    '@type': 'Person',
+    name: blog.author.name,
+    url: blog.author.url || seoConfig.siteUrl,
+  },
+  publisher: {
+    '@type': 'Organization',
+    name: seoConfig.siteName,
+    logo: {
+      '@type': 'ImageObject',
+      url: `${seoConfig.siteUrl}/images/logo.png`,
+    },
+  },
+  datePublished: blog.publishedAt,
+  dateModified: blog.updatedAt,
+  mainEntityOfPage: {
+    '@type': 'WebPage',
+    '@id': blog.url,
+  },
+  keywords: blog.keywords,
+  articleSection: blog.category,
+  wordCount: blog.wordCount,
+});
