@@ -172,27 +172,3 @@ export default async function ProductLayout({ params, children }: Props) {
     </>
   );
 }
-
-// Generate static paths for products
-export async function generateStaticParams() {
-  try {
-    const products = await prisma.product.findMany({
-      where: {
-        stock: {
-          gt: 0,
-        },
-      },
-      select: {
-        slug: true,
-      },
-      take: 100, // Limit for build performance
-    });
-
-    return products.map((product) => ({
-      slug: product.slug,
-    }));
-  } catch (error) {
-    console.error('Error generating static params for products:', error);
-    return [];
-  }
-}
