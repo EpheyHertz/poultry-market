@@ -32,7 +32,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'Blog - Poultry Market KE | Farming Tips & Industry Insights',
     description: 'Discover expert poultry farming tips, industry insights, and success stories from Kenya\'s leading poultry marketplace.',
-    url: 'https://poultrymarket.co.ke/blog',
+    url: 'https://poultrymarketke.vercel.app/blog',
     siteName: 'Poultry Market KE',
     locale: 'en_US',
     type: 'website',
@@ -53,7 +53,7 @@ export const metadata: Metadata = {
     creator: '@PoultryMarketKE',
   },
   alternates: {
-    canonical: 'https://poultrymarket.co.ke/blog',
+    canonical: 'https://poultrymarketke.vercel.app/blog',
   },
   category: 'Agriculture',
 };

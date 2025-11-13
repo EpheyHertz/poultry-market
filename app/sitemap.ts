@@ -80,9 +80,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       prisma.product.findMany({
         where: {
           isActive: true,
-          seller: {
-            isVerified: true
-          }
         },
         select: {
           slug: true,
@@ -135,52 +132,73 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
     // Handle products
     const productRoutes = productsResult.status === 'fulfilled' 
-      ? productsResult.value.map((product) => ({
-          url: `${baseUrl}/product/${product.slug}`,
-          lastModified: product.updatedAt,
-          changeFrequency: 'weekly' as const,
-          priority: 0.8,
-        }))
+      ? productsResult.value
+          .filter(product => product.slug) // Only include products with slugs
+          .map((product) => ({
+            url: `${baseUrl}/product/${product.slug}`,
+            lastModified: product.updatedAt,
+            changeFrequency: 'weekly' as const,
+            priority: 0.8,
+          }))
       : []
 
     // Handle categories
     const categoryRoutes = categoriesResult.status === 'fulfilled'
-      ? categoriesResult.value.map((category) => ({
-          url: `${baseUrl}/categories/${category.slug}`,
-          lastModified: category.updatedAt,
-          changeFrequency: 'weekly' as const,
-          priority: 0.7,
-        }))
+      ? categoriesResult.value
+          .filter(category => category.slug) // Only include categories with slugs
+          .map((category) => ({
+            url: `${baseUrl}/categories/${category.slug}`,
+            lastModified: category.updatedAt,
+            changeFrequency: 'weekly' as const,
+            priority: 0.7,
+          }))
       : []
 
     // Handle sellers
     const sellerRoutes = sellersResult.status === 'fulfilled'
-      ? sellersResult.value.map((seller) => ({
-          url: `${baseUrl}/store/${seller.dashboardSlug}`,
-          lastModified: seller.updatedAt,
-          changeFrequency: 'weekly' as const,
-          priority: 0.6,
-        }))
+      ? sellersResult.value
+          .filter(seller => seller.dashboardSlug) // Only include sellers with dashboardSlug
+          .map((seller) => ({
+            url: `${baseUrl}/store/${seller.dashboardSlug}`,
+            lastModified: seller.updatedAt,
+            changeFrequency: 'weekly' as const,
+            priority: 0.6,
+          }))
       : []
 
     // Handle blog posts
     const blogRoutes = blogPostsResult.status === 'fulfilled'
-      ? blogPostsResult.value.map((post) => ({
-          url: `${baseUrl}/blog/${post.author.name.replace(/\s+/g, '-').toLowerCase()}/${post.slug}`,
-          lastModified: post.updatedAt,
-          changeFrequency: 'weekly' as const,
-          priority: 0.7,
-        }))
+      ? blogPostsResult.value
+          .filter(post => post.slug && post.author?.name) // Only include posts with slugs and author names
+          .map((post) => ({
+            url: `${baseUrl}/blog/${post.author.name.replace(/\s+/g, '-').toLowerCase()}/${post.slug}`,
+            lastModified: post.updatedAt,
+            changeFrequency: 'weekly' as const,
+            priority: 0.7,
+          }))
       : []
 
     // Combine all routes
-    return [
+    const allRoutes = [
       ...staticRoutes,
       ...productRoutes,
       ...categoryRoutes,
       ...sellerRoutes,
       ...blogRoutes,
-    ]
+    ];
+
+    // Log sitemap stats in development
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Sitemap generated:');
+      console.log(`- Static routes: ${staticRoutes.length}`);
+      console.log(`- Product routes: ${productRoutes.length}`);
+      console.log(`- Category routes: ${categoryRoutes.length}`);
+      console.log(`- Seller routes: ${sellerRoutes.length}`);
+      console.log(`- Blog routes: ${blogRoutes.length}`);
+      console.log(`- Total: ${allRoutes.length}`);
+    }
+
+    return allRoutes;
 
   } catch (error) {
     console.error('Error generating sitemap:', error)

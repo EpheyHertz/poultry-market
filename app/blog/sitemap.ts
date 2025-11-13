@@ -2,7 +2,7 @@ import { MetadataRoute } from 'next';
 import { prisma } from '@/lib/prisma';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = 'https://poultrymarket.co.ke';
+  const baseUrl = 'https://poultrymarketke.vercel.app';
 
   try {
     // Get all published blog posts
@@ -13,6 +13,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       select: {
         slug: true,
         updatedAt: true,
+        author: {
+          select: {
+            name: true,
+          },
+        },
       },
       orderBy: {
         updatedAt: 'desc',
@@ -23,7 +28,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const categories = await prisma.blogPost.findMany({
       where: {
         status: 'PUBLISHED',
-        category: { not: null as any },
       },
       select: {
         category: true,
@@ -49,12 +53,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ];
 
     // Individual blog posts
-    const postRoutes: MetadataRoute.Sitemap = posts.map((post) => ({
-      url: `${baseUrl}/blog/${post.slug}`,
-      lastModified: post.updatedAt,
-      changeFrequency: 'weekly' as const,
-      priority: 0.7,
-    }));
+    const postRoutes: MetadataRoute.Sitemap = posts
+      .filter((post) => post.slug && post.author?.name)
+      .map((post) => ({
+        url: `${baseUrl}/blog/${post.author.name.replace(/\s+/g, '-').toLowerCase()}/${post.slug}`,
+        lastModified: post.updatedAt,
+        changeFrequency: 'weekly' as const,
+        priority: 0.7,
+      }));
 
     // Category pages
     const categoryRoutes: MetadataRoute.Sitemap = categories
