@@ -217,6 +217,247 @@ export const emailTemplates = {
       </body>
     </html>`
   },
+  commentApprovedPostAuthor: (
+    payload: {
+      postTitle: string
+      postSlug?: string | null
+      postAuthor?: { name?: string | null } | null
+      commentAuthor?: { name?: string | null } | null
+      guestName?: string | null
+      commentContent: string
+    },
+    options: { appUrl?: string } = {}
+  ) => {
+    const baseUrl = (options.appUrl || resolveAppUrl()).replace(/\/$/, '')
+    const commenterName = payload.commentAuthor?.name?.trim() || payload.guestName?.trim() || 'A reader'
+    const sourcePreview = payload.commentContent?.trim() || ''
+    const truncatedPreview = sourcePreview.length > 320 ? `${sourcePreview.slice(0, 317)}...` : sourcePreview
+    const safePreview = escapeHtml(truncatedPreview || 'No additional text provided.')
+    const authorSlug = toAuthorSlug(payload.postAuthor?.name)
+    const postUrl = payload.postSlug
+      ? `${baseUrl}/blog/${encodeURIComponent(authorSlug)}/${payload.postSlug}`
+      : `${baseUrl}/blog`
+    const manageUrl = `${baseUrl}/admin/blog/comments`
+
+    return `<!DOCTYPE html>
+    <html lang="en">
+      <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>New comment approved</title>
+      </head>
+      <body style="margin:0;padding:0;font-family:'Segoe UI',Arial,sans-serif;background-color:#f5f7fb;color:#0f172a;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#e2e8f0;padding:24px 0;">
+          <tr>
+            <td align="center">
+              <table role="presentation" width="640" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:14px;overflow:hidden;box-shadow:0 20px 35px -30px rgba(15,118,110,0.45);">
+                <tr>
+                  <td style="background:linear-gradient(120deg,#0d9488 0%,#22d3ee 100%);padding:28px 32px;color:#ffffff;">
+                    <h1 style="margin:0;font-size:24px;font-weight:700;">${commenterName}'s comment is live</h1>
+                    <p style="margin:10px 0 0;font-size:15px;color:rgba(255,255,255,0.85);">Approved for “${payload.postTitle}”</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:28px 32px;">
+                    <p style="margin:0 0 16px;line-height:1.6;">A new comment has just been approved on your blog post <strong>“${payload.postTitle}”</strong>. Here is a quick preview:</p>
+                    <blockquote style="margin:0 0 20px;padding:18px 22px;border-left:4px solid #0d9488;background-color:#f8fafc;border-radius:10px;font-style:italic;color:#0f172a;line-height:1.5;">${safePreview}</blockquote>
+                    <p style="margin:0 0 24px;line-height:1.6;">Visit your post to engage with the commenter or continue the conversation from the admin comments dashboard.</p>
+                    <div style="text-align:center;margin:0 0 24px;">
+                      <a href="${postUrl}" style="display:inline-block;background:linear-gradient(120deg,#2563eb 0%,#38bdf8 100%);color:#ffffff;text-decoration:none;padding:14px 28px;border-radius:999px;font-weight:600;font-size:15px;margin-right:12px;">View post</a>
+                      <a href="${manageUrl}" style="display:inline-block;background:linear-gradient(120deg,#047857 0%,#0f766e 100%);color:#ffffff;text-decoration:none;padding:14px 28px;border-radius:999px;font-weight:600;font-size:15px;">Manage comments</a>
+                    </div>
+                    <p style="margin:0;color:#475569;font-size:13px;">Thank you for keeping the PoultryMarket community active.</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="background-color:#f1f5f9;padding:18px 24px;font-size:12px;color:#64748b;text-align:center;">
+                    <p style="margin:0;">You are receiving this email because you own “${payload.postTitle}”.</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </body>
+    </html>`
+  },
+  commentApprovedCommentAuthor: (
+    payload: {
+      postTitle: string
+      postSlug?: string | null
+      postAuthor?: { name?: string | null } | null
+      commentAuthor?: { name?: string | null } | null
+      guestName?: string | null
+      commentContent: string
+    },
+    options: { appUrl?: string; adminBlogUrl?: string } = {}
+  ) => {
+    const baseUrl = (options.appUrl || resolveAppUrl()).replace(/\/$/, '')
+    const commenterName = payload.commentAuthor?.name?.trim() || payload.guestName?.trim() || 'there'
+    const authorName = payload.postAuthor?.name?.trim() || 'the blog author'
+    const sourcePreview = payload.commentContent?.trim() || ''
+    const truncatedPreview = sourcePreview.length > 320 ? `${sourcePreview.slice(0, 317)}...` : sourcePreview
+    const safePreview = escapeHtml(truncatedPreview || 'Your comment is now visible to everyone.')
+    const authorSlug = toAuthorSlug(payload.postAuthor?.name)
+    const postUrl = payload.postSlug
+      ? `${baseUrl}/blog/${encodeURIComponent(authorSlug)}/${payload.postSlug}`
+      : `${baseUrl}/blog`
+
+    return `<!DOCTYPE html>
+    <html lang="en">
+      <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Your comment was approved</title>
+      </head>
+      <body style="margin:0;padding:0;font-family:'Segoe UI',Arial,sans-serif;background-color:#ffffff;color:#0f172a;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#ecfeff;padding:24px 0;">
+          <tr>
+            <td align="center">
+              <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:18px;overflow:hidden;border:1px solid #bae6fd;">
+                <tr>
+                  <td style="background:linear-gradient(135deg,#38bdf8 0%,#22d3ee 100%);padding:32px;color:#ffffff;">
+                    <h1 style="margin:0;font-size:24px;font-weight:700;">Your comment is now live 🎉</h1>
+                    <p style="margin:12px 0 0;font-size:15px;color:rgba(255,255,255,0.9);">Post: “${payload.postTitle}”</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:28px 32px;">
+                    <p style="margin:0 0 16px;line-height:1.6;">Hi ${commenterName},</p>
+                    <p style="margin:0 0 16px;line-height:1.6;">Great news! The PoultryMarket team approved your comment on <strong>${payload.postTitle}</strong> by ${authorName}. Here’s a preview of what readers can see:</p>
+                    <blockquote style="margin:0 0 20px;padding:18px 22px;border-left:4px solid #38bdf8;background-color:#f0f9ff;border-radius:10px;font-style:italic;color:#0f172a;line-height:1.5;">${safePreview}</blockquote>
+                    <p style="margin:0 0 20px;line-height:1.6;">Feel free to jump back into the conversation.</p>
+                    <div style="text-align:center;margin:0 0 24px;">
+                      <a href="${postUrl}" style="display:inline-block;background:linear-gradient(120deg,#0ea5e9 0%,#38bdf8 100%);color:#ffffff;text-decoration:none;padding:14px 30px;border-radius:12px;font-weight:600;font-size:15px;">View your comment</a>
+                    </div>
+                    ${options.adminBlogUrl ? `<div style="text-align:center;margin:0 0 24px;">
+                      <a href="${options.adminBlogUrl}" style="display:inline-block;background:linear-gradient(120deg,#0d9488 0%,#34d399 100%);color:#ffffff;text-decoration:none;padding:12px 26px;border-radius:999px;font-weight:600;font-size:14px;">Manage your blog</a>
+                    </div>` : ''}
+                    <p style="margin:0;color:#475569;font-size:13px;">Thanks for keeping our community insightful and respectful.</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="background-color:#f0f9ff;padding:16px 24px;text-align:center;font-size:12px;color:#0c4a6e;">
+                    <p style="margin:0;">You are receiving this email because you recently commented on “${payload.postTitle}”.</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </body>
+    </html>`
+  },
+  weeklyAuthorAnalyticsDigest: (
+    payload: WeeklyAuthorAnalyticsPayload,
+    options: { appUrl?: string } = {}
+  ) => {
+    const baseUrl = (options.appUrl || resolveAppUrl()).replace(/\/$/, '')
+    const dashboardUrl = `${baseUrl}/my-blogs`
+    const authorName = payload.author.name?.trim() || 'there'
+    const timeframeLabel = payload.timeframe.label || 'Past 7 days'
+    const timeframeRange = `${formatKenyanDateTime(payload.timeframe.start)} — ${formatKenyanDateTime(payload.timeframe.end)}`
+    const prettyNumber = (value: number) => value.toLocaleString('en-KE')
+    const authorSlug = toAuthorSlug(payload.author.name)
+
+    const topPostsMarkup = payload.topPosts.length
+      ? payload.topPosts
+          .map((post, index) => {
+            const safeTitle = escapeHtml(post.title)
+            const postUrl = post.slug
+              ? `${baseUrl}/blog/${encodeURIComponent(authorSlug)}/${post.slug}`
+              : dashboardUrl
+            const publishedAt = formatKenyanDateTime(post.publishedAt)
+
+            return `<div style="display:flex;align-items:center;justify-content:space-between;border:1px solid #e2e8f0;border-radius:14px;padding:14px 18px;margin-bottom:12px;">
+              <div style="display:flex;align-items:flex-start;gap:14px;">
+                <div style="width:32px;height:32px;border-radius:999px;background-color:#ecfdf5;color:#047857;font-weight:600;display:flex;align-items:center;justify-content:center;">${index + 1}</div>
+                <div>
+                  <p style="margin:0;font-size:15px;font-weight:600;color:#0f172a;">${safeTitle}</p>
+                  <p style="margin:6px 0 0;font-size:12px;color:#475569;">${publishedAt}</p>
+                  <a href="${postUrl}" style="display:inline-block;margin-top:6px;font-size:12px;color:#047857;text-decoration:none;">View performance →</a>
+                </div>
+              </div>
+              <div style="display:flex;gap:18px;font-size:12px;color:#0f172a;">
+                <span>👁️ ${prettyNumber(post.views)}</span>
+                <span>❤️ ${prettyNumber(post.likes)}</span>
+                <span>💬 ${prettyNumber(post.comments)}</span>
+              </div>
+            </div>`
+          })
+          .join('')
+      : `<p style="margin:0;font-size:14px;color:#475569;">No standout posts in this window. Publish or promote a story to re-engage your readers.</p>`
+
+    return `<!DOCTYPE html>
+    <html lang="en">
+      <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Weekly blog analytics</title>
+      </head>
+      <body style="margin:0;padding:0;background-color:#f1f5f9;font-family:'Segoe UI',Arial,sans-serif;color:#0f172a;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="padding:30px 0;">
+          <tr>
+            <td align="center">
+              <table role="presentation" width="640" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:18px;overflow:hidden;box-shadow:0 25px 45px -32px rgba(15,118,110,0.5);">
+                <tr>
+                  <td style="background:linear-gradient(120deg,#0d9488 0%,#14b8a6 100%);padding:32px 36px;color:#ffffff;">
+                    <p style="margin:0 0 6px;font-size:14px;letter-spacing:0.08em;text-transform:uppercase;color:rgba(255,255,255,0.85);">Weekly Analytics</p>
+                    <h1 style="margin:0;font-size:26px;font-weight:700;">Hi ${authorName}, here is how your blog performed</h1>
+                    <p style="margin:12px 0 0;font-size:15px;color:rgba(255,255,255,0.9);">${timeframeLabel} · ${timeframeRange}</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:32px 36px;">
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:28px;">
+                      <div style="border:1px solid #e2e8f0;border-radius:14px;padding:18px;">
+                        <p style="margin:0;font-size:13px;text-transform:uppercase;color:#64748b;letter-spacing:0.05em;">Total Views</p>
+                        <p style="margin:8px 0 0;font-size:28px;font-weight:700;color:#0f172a;">${prettyNumber(payload.stats.totalViews)}</p>
+                        <p style="margin:6px 0 0;font-size:12px;color:#16a34a;">Across ${payload.stats.publishedPosts} published posts</p>
+                      </div>
+                      <div style="border:1px solid #e2e8f0;border-radius:14px;padding:18px;">
+                        <p style="margin:0;font-size:13px;text-transform:uppercase;color:#64748b;letter-spacing:0.05em;">Likes & Love</p>
+                        <p style="margin:8px 0 0;font-size:28px;font-weight:700;color:#0f172a;">${prettyNumber(payload.stats.totalLikes)}</p>
+                        <p style="margin:6px 0 0;font-size:12px;color:#f97316;">Readers engaged with your stories</p>
+                      </div>
+                      <div style="border:1px solid #e2e8f0;border-radius:14px;padding:18px;">
+                        <p style="margin:0;font-size:13px;text-transform:uppercase;color:#64748b;letter-spacing:0.05em;">Community Replies</p>
+                        <p style="margin:8px 0 0;font-size:28px;font-weight:700;color:#0f172a;">${prettyNumber(payload.stats.totalComments)}</p>
+                        <p style="margin:6px 0 0;font-size:12px;color:#6366f1;">${prettyNumber(payload.stats.commentsThisWeek)} new this week</p>
+                      </div>
+                    </div>
+
+                    <div style="border:1px solid #e2e8f0;border-radius:16px;padding:24px;margin-bottom:28px;background-color:#f8fafc;">
+                      <h2 style="margin:0 0 14px;font-size:18px;color:#0f172a;">Weekly highlights</h2>
+                      <ul style="margin:0;padding-left:20px;color:#475569;line-height:1.6;font-size:14px;">
+                        <li>${payload.stats.postsPublishedThisWeek} new ${payload.stats.postsPublishedThisWeek === 1 ? 'post' : 'posts'} published</li>
+                        <li>${prettyNumber(payload.stats.commentsThisWeek)} reader comments arrived in the past week</li>
+                        <li>Average reading time ${payload.stats.avgReadingTime ? `${payload.stats.avgReadingTime} min` : 'not set yet'} · keep stories concise and helpful</li>
+                      </ul>
+                    </div>
+
+                    <div style="margin-bottom:28px;">
+                      <h2 style="margin:0 0 14px;font-size:18px;color:#0f172a;">Top performing posts</h2>
+                      ${topPostsMarkup}
+                    </div>
+
+                    <div style="text-align:center;margin-top:10px;">
+                      <a href="${dashboardUrl}" style="display:inline-block;background:linear-gradient(120deg,#2563eb 0%,#38bdf8 100%);color:#ffffff;text-decoration:none;padding:14px 32px;border-radius:999px;font-weight:600;font-size:15px;">Open my blog dashboard</a>
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="background-color:#f8fafc;padding:18px 24px;text-align:center;color:#475569;font-size:12px;">
+                    <p style="margin:0;">Need ideas to boost engagement? Reply to this email and we will help craft your next article.</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </body>
+    </html>`
+  },
   welcome: (name: string, message: string) => `
     <!DOCTYPE html>
     <html>
@@ -1520,6 +1761,65 @@ type BlogEmailOptions = {
   appUrl?: string
 }
 
+type CommentApprovalEmailPayload = {
+  postTitle: string
+  postSlug?: string | null
+  postAuthor?: {
+    id?: string | null
+    name?: string | null
+    email?: string | null
+  } | null
+  commentContent: string
+  commentAuthor?: {
+    id?: string | null
+    name?: string | null
+    email?: string | null
+    role?: string | null
+  } | null
+  guestName?: string | null
+  guestEmail?: string | null
+}
+
+type CommentApprovalEmailOptions = {
+  appUrl?: string
+}
+
+type WeeklyAuthorAnalyticsPayload = {
+  author: {
+    id?: string | null
+    name?: string | null
+    email?: string | null
+  }
+  stats: {
+    totalPosts: number
+    publishedPosts: number
+    postsPublishedThisWeek: number
+    totalViews: number
+    totalLikes: number
+    totalComments: number
+    commentsThisWeek: number
+    avgReadingTime?: number | null
+  }
+  timeframe: {
+    label: string
+    start: string | Date
+    end: string | Date
+  }
+  topPosts: Array<{
+    id: string
+    title: string
+    slug?: string | null
+    views: number
+    likes: number
+    comments: number
+    publishedAt?: string | Date | null
+  }>
+}
+
+type WeeklyAuthorAnalyticsOptions = {
+  appUrl?: string
+}
+
 export async function sendBlogSubmissionAcknowledgmentToAuthor(
   blogPost: BlogEmailPayload,
   options: BlogEmailOptions = {}
@@ -1564,4 +1864,95 @@ export async function sendBlogSubmissionToAdmin(
     subject,
     html,
   })
+}
+
+export async function sendCommentApprovalNotifications(
+  payload: CommentApprovalEmailPayload,
+  options: CommentApprovalEmailOptions = {}
+) {
+  const baseAppUrl = (options.appUrl || resolveAppUrl()).replace(/\/$/, '')
+  const operations: Promise<unknown>[] = []
+
+  if (payload.postAuthor?.email) {
+    const html = emailTemplates.commentApprovedPostAuthor(payload, {
+      appUrl: baseAppUrl,
+    })
+
+    operations.push(
+      sendEmail({
+        to: payload.postAuthor.email,
+        subject: `New comment on ${payload.postTitle}`,
+        html,
+      })
+    )
+  }
+
+  const commentRecipient = payload.commentAuthor?.email || payload.guestEmail
+  if (commentRecipient) {
+    const adminBlogUrl =
+      payload.commentAuthor?.role === 'ADMIN' && payload.commentAuthor?.id
+        ? `${baseAppUrl}/blog/author/${payload.commentAuthor.id}`
+        : undefined
+
+    const html = emailTemplates.commentApprovedCommentAuthor(payload, {
+      appUrl: baseAppUrl,
+      adminBlogUrl,
+    })
+
+    operations.push(
+      sendEmail({
+        to: commentRecipient,
+        subject: `Your comment on ${payload.postTitle} is live`,
+        html,
+      })
+    )
+  }
+
+  if (!operations.length) {
+    return []
+  }
+
+  return Promise.allSettled(operations)
+}
+
+export async function sendWeeklyBlogAnalyticsDigest(
+  payload: WeeklyAuthorAnalyticsPayload,
+  options: WeeklyAuthorAnalyticsOptions = {}
+) {
+  if (!payload.author?.email) {
+    throw new Error('Cannot send analytics digest without author email')
+  }
+
+  const html = emailTemplates.weeklyAuthorAnalyticsDigest(payload, {
+    appUrl: options.appUrl,
+  })
+
+  const subject = `Weekly blog analytics · ${payload.timeframe.label}`
+
+  return sendEmail({
+    to: payload.author.email,
+    subject,
+    html,
+  })
+}
+
+const escapeHtml = (value?: string | null) => {
+  if (!value) {
+    return ''
+  }
+
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+const toAuthorSlug = (name?: string | null) => {
+  if (!name) {
+    return 'blog-author'
+  }
+
+  return name.trim().toLowerCase().replace(/\s+/g, '-') || 'blog-author'
 }

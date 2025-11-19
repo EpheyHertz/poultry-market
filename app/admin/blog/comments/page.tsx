@@ -48,7 +48,8 @@ import {
   TrendingUp,
   Users,
   Heart,
-  Reply
+  Reply,
+  Loader2
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import Link from 'next/link';
@@ -100,12 +101,16 @@ export default function CommentModerationPage() {
   const [filters, setFilters] = useState<CommentModerationFilters>({
     status: 'pending',
     search: '',
-    postId: ''
+    postId: 'all'
   });
   const [selectedComment, setSelectedComment] = useState<BlogComment | null>(null);
   const [moderationAction, setModerationAction] = useState<'approve' | 'reject' | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [posts, setPosts] = useState<Array<{ id: string; title: string }>>([]);
+  const [actionLoading, setActionLoading] = useState<{
+    id: string;
+    action: 'approve' | 'reject';
+  } | null>(null);
 
   // Fetch current user
   useEffect(() => {
@@ -142,7 +147,7 @@ export default function CommentModerationPage() {
       if (filters.search) {
         params.set('search', filters.search);
       }
-      if (filters.postId) {
+      if (filters.postId && filters.postId !== 'all') {
         params.set('postId', filters.postId);
       }
       params.set('includeUnapproved', 'true');
@@ -183,6 +188,7 @@ export default function CommentModerationPage() {
 
   const handleModeration = async (commentId: string, action: 'approve' | 'reject', reason?: string) => {
     try {
+      setActionLoading({ id: commentId, action });
       const response = await fetch(`/api/blog/comments/${commentId}/moderate`, {
         method: 'POST',
         headers: {
@@ -204,7 +210,7 @@ export default function CommentModerationPage() {
       });
 
       // Refresh comments
-      fetchComments();
+      await fetchComments();
       
       // Reset states
       setSelectedComment(null);
@@ -218,6 +224,8 @@ export default function CommentModerationPage() {
         description: 'Failed to moderate comment',
         variant: 'destructive',
       });
+    } finally {
+      setActionLoading(null);
     }
   };
 
@@ -252,7 +260,7 @@ export default function CommentModerationPage() {
   // Show loading state while fetching user
   if (!user) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-sky-50 to-indigo-100 flex items-center justify-center">
         <motion.div 
           className="text-center"
           initial={{ opacity: 0, scale: 0.8 }}
@@ -273,7 +281,7 @@ export default function CommentModerationPage() {
   if (loading) {
     return (
       <DashboardLayout user={user}>
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex items-center justify-center">
+        <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-sky-50 to-indigo-100 flex items-center justify-center">
           <motion.div 
             className="text-center"
             initial={{ opacity: 0, scale: 0.8 }}
@@ -299,7 +307,7 @@ export default function CommentModerationPage() {
   return (
     <DashboardLayout user={user}>
       <motion.div 
-        className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50"
+        className="min-h-screen bg-gradient-to-br from-emerald-50 via-sky-50 to-indigo-100"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.6 }}
@@ -340,13 +348,13 @@ export default function CommentModerationPage() {
 
           {/* Stats Cards */}
           <motion.div 
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8"
+            className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-8"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
           >
             <motion.div whileHover={{ scale: 1.02, y: -2 }} transition={{ type: "spring", stiffness: 300 }}>
-              <Card className="bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-200 shadow-sm hover:shadow-md transition-all duration-300">
+              <Card className="bg-gradient-to-br from-amber-50 via-amber-100 to-yellow-100 border-yellow-200 shadow-md hover:shadow-lg transition-all duration-300">
                 <CardContent className="p-4">
                   <div className="flex items-center space-x-3">
                     <div className="p-2 bg-yellow-500 rounded-lg">
@@ -362,7 +370,7 @@ export default function CommentModerationPage() {
             </motion.div>
 
             <motion.div whileHover={{ scale: 1.02, y: -2 }} transition={{ type: "spring", stiffness: 300 }}>
-              <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200 shadow-sm hover:shadow-md transition-all duration-300">
+              <Card className="bg-gradient-to-br from-emerald-50 via-green-50 to-green-100 border-green-200 shadow-md hover:shadow-lg transition-all duration-300">
                 <CardContent className="p-4">
                   <div className="flex items-center space-x-3">
                     <div className="p-2 bg-green-500 rounded-lg">
@@ -378,7 +386,7 @@ export default function CommentModerationPage() {
             </motion.div>
 
             <motion.div whileHover={{ scale: 1.02, y: -2 }} transition={{ type: "spring", stiffness: 300 }}>
-              <Card className="bg-gradient-to-br from-red-50 to-red-100 border-red-200 shadow-sm hover:shadow-md transition-all duration-300">
+              <Card className="bg-gradient-to-br from-rose-50 via-pink-50 to-red-100 border-red-200 shadow-md hover:shadow-lg transition-all duration-300">
                 <CardContent className="p-4">
                   <div className="flex items-center space-x-3">
                     <div className="p-2 bg-red-500 rounded-lg">
@@ -394,7 +402,7 @@ export default function CommentModerationPage() {
             </motion.div>
 
             <motion.div whileHover={{ scale: 1.02, y: -2 }} transition={{ type: "spring", stiffness: 300 }}>
-              <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200 shadow-sm hover:shadow-md transition-all duration-300">
+              <Card className="bg-gradient-to-br from-sky-50 via-blue-50 to-indigo-100 border-blue-200 shadow-md hover:shadow-lg transition-all duration-300">
                 <CardContent className="p-4">
                   <div className="flex items-center space-x-3">
                     <div className="p-2 bg-blue-500 rounded-lg">
@@ -454,7 +462,7 @@ export default function CommentModerationPage() {
                         <SelectValue placeholder="All posts" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">All posts</SelectItem>
+                        <SelectItem value="all">All posts</SelectItem>
                         {posts.map((post) => (
                           <SelectItem key={post.id} value={post.id}>
                             {post.title}
@@ -529,7 +537,12 @@ export default function CommentModerationPage() {
               </motion.div>
             ) : (
               <AnimatePresence>
-                {filteredComments.map((comment, index) => (
+                {filteredComments.map((comment, index) => {
+                  const isCommentActionLoading = actionLoading?.id === comment.id;
+                  const isApproveLoading = isCommentActionLoading && actionLoading?.action === 'approve';
+                  const isRejectLoading = isCommentActionLoading && actionLoading?.action === 'reject';
+
+                  return (
                   <motion.div
                     key={comment.id}
                     initial={{ opacity: 0, y: 20 }}
@@ -624,9 +637,19 @@ export default function CommentModerationPage() {
                                   }}
                                   size="sm"
                                   className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-2 w-full sm:w-auto"
+                                  disabled={isCommentActionLoading}
                                 >
-                                  <ThumbsUp className="h-4 w-4" />
-                                  Approve
+                                  {isApproveLoading ? (
+                                    <>
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                      Approving...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <ThumbsUp className="h-4 w-4" />
+                                      Approve
+                                    </>
+                                  )}
                                 </Button>
                               </motion.div>
                               
@@ -639,9 +662,19 @@ export default function CommentModerationPage() {
                                   variant="outline"
                                   size="sm"
                                   className="border-red-200 text-red-600 hover:bg-red-50 flex items-center gap-2 w-full sm:w-auto"
+                                  disabled={isCommentActionLoading}
                                 >
-                                  <ThumbsDown className="h-4 w-4" />
-                                  Reject
+                                  {isRejectLoading ? (
+                                    <>
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                      Rejecting...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <ThumbsDown className="h-4 w-4" />
+                                      Reject
+                                    </>
+                                  )}
                                 </Button>
                               </motion.div>
                             </div>
@@ -679,7 +712,8 @@ export default function CommentModerationPage() {
                       </CardContent>
                     </Card>
                   </motion.div>
-                ))}
+                  );
+                })}
               </AnimatePresence>
             )}
           </motion.div>
@@ -700,12 +734,13 @@ export default function CommentModerationPage() {
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogCancel disabled={!!actionLoading}>Cancel</AlertDialogCancel>
                 <AlertDialogAction
                   onClick={() => selectedComment && handleModeration(selectedComment.id, 'approve')}
                   className="bg-green-600 hover:bg-green-700"
+                  disabled={!!actionLoading}
                 >
-                  Approve Comment
+                  {actionLoading ? 'Approving...' : 'Approve Comment'}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
@@ -736,12 +771,13 @@ export default function CommentModerationPage() {
                 />
               </div>
               <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogCancel disabled={!!actionLoading}>Cancel</AlertDialogCancel>
                 <AlertDialogAction
                   onClick={() => selectedComment && handleModeration(selectedComment.id, 'reject', rejectionReason)}
                   className="bg-red-600 hover:bg-red-700 text-white"
+                  disabled={!!actionLoading}
                 >
-                  Reject Comment
+                  {actionLoading ? 'Rejecting...' : 'Reject Comment'}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>

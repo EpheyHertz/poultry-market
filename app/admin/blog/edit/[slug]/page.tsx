@@ -176,7 +176,7 @@ export default function EditBlogPostPage({ params }: Props) {
   // Show loading state while fetching user
   if (!user) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-sky-50 to-white flex items-center justify-center">
         <motion.div 
           className="text-center"
           initial={{ opacity: 0, scale: 0.8 }}
@@ -197,7 +197,7 @@ export default function EditBlogPostPage({ params }: Props) {
   if (fetchLoading) {
     return (
       <DashboardLayout user={user}>
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex items-center justify-center">
+        <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-sky-50 to-white flex items-center justify-center">
           <motion.div 
             className="text-center"
             initial={{ opacity: 0, scale: 0.8 }}
@@ -219,7 +219,7 @@ export default function EditBlogPostPage({ params }: Props) {
   if (!initialData) {
     return (
       <DashboardLayout user={user}>
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex items-center justify-center">
+        <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-sky-50 to-white flex items-center justify-center">
           <motion.div 
             className="text-center"
             initial={{ opacity: 0, scale: 0.8 }}
@@ -243,7 +243,7 @@ export default function EditBlogPostPage({ params }: Props) {
   return (
     <DashboardLayout user={user}>
       <motion.div 
-        className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50"
+        className="min-h-screen bg-gradient-to-br from-emerald-50 via-sky-50 to-white"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.6 }}
@@ -274,10 +274,10 @@ export default function EditBlogPostPage({ params }: Props) {
                 </motion.div>
                 
                 <div>
-                  <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold bg-gradient-to-r from-gray-900 via-blue-900 to-indigo-900 bg-clip-text text-transparent">
+                  <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold bg-gradient-to-r from-emerald-700 via-sky-700 to-blue-800 bg-clip-text text-transparent">
                     Edit Blog Post
                   </h1>
-                  <p className="text-gray-600 mt-1 text-sm sm:text-base">
+                  <p className="text-slate-600 mt-1 text-sm sm:text-base">
                     Make changes to your blog post
                   </p>
                   {initialData.title && (
@@ -292,7 +292,7 @@ export default function EditBlogPostPage({ params }: Props) {
                 <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                   <Badge 
                     variant={initialData.status === 'PUBLISHED' ? 'default' : 'secondary'}
-                    className="bg-white/50 border-blue-200"
+                    className="bg-white/70 border-sky-200 text-sky-700"
                   >
                     <Globe className="h-3 w-3 mr-1" />
                     {initialData.status}
@@ -301,7 +301,7 @@ export default function EditBlogPostPage({ params }: Props) {
                 
                 {initialData.featured && (
                   <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                    <Badge variant="outline" className="bg-yellow-50 border-yellow-200 text-yellow-700">
+                    <Badge variant="outline" className="bg-white/70 border-emerald-200 text-emerald-700">
                       ⭐ Featured
                     </Badge>
                   </motion.div>
@@ -309,7 +309,7 @@ export default function EditBlogPostPage({ params }: Props) {
 
                 {postStats && (
                   <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                    <Badge variant="outline" className="bg-green-50 border-green-200 text-green-700">
+                    <Badge variant="outline" className="bg-white/70 border-emerald-200 text-emerald-700">
                       <Eye className="h-3 w-3 mr-1" />
                       {postStats.views} views
                     </Badge>
@@ -322,7 +322,7 @@ export default function EditBlogPostPage({ params }: Props) {
           {/* Post Stats Cards */}
           {postStats && (
             <motion.div 
-              className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8"
+              className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-8"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.2 }}
@@ -331,15 +331,15 @@ export default function EditBlogPostPage({ params }: Props) {
                 whileHover={{ scale: 1.02, y: -2 }}
                 transition={{ type: "spring", stiffness: 300 }}
               >
-                <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200 shadow-sm hover:shadow-md transition-all duration-300">
+                <Card className="bg-gradient-to-br from-sky-50 via-cyan-50 to-sky-100 border-sky-200 shadow-sm hover:shadow-md transition-all duration-300">
                   <CardContent className="p-4">
                     <div className="flex items-center space-x-3">
-                      <div className="p-2 bg-blue-500 rounded-lg">
+                      <div className="p-2 bg-sky-500 rounded-lg">
                         <Eye className="h-4 w-4 text-white" />
                       </div>
                       <div>
-                        <p className="text-blue-600 font-medium text-sm">Views</p>
-                        <p className="text-blue-900 font-bold text-lg">{postStats.views}</p>
+                        <p className="text-sky-600 font-medium text-sm">Views</p>
+                        <p className="text-sky-900 font-bold text-lg">{postStats.views}</p>
                       </div>
                     </div>
                   </CardContent>
@@ -350,15 +350,15 @@ export default function EditBlogPostPage({ params }: Props) {
                 whileHover={{ scale: 1.02, y: -2 }}
                 transition={{ type: "spring", stiffness: 300 }}
               >
-                <Card className="bg-gradient-to-br from-red-50 to-red-100 border-red-200 shadow-sm hover:shadow-md transition-all duration-300">
+                <Card className="bg-gradient-to-br from-emerald-50 via-emerald-50 to-emerald-100 border-emerald-200 shadow-sm hover:shadow-md transition-all duration-300">
                   <CardContent className="p-4">
                     <div className="flex items-center space-x-3">
-                      <div className="p-2 bg-red-500 rounded-lg">
+                      <div className="p-2 bg-emerald-500 rounded-lg">
                         <Heart className="h-4 w-4 text-white" />
                       </div>
                       <div>
-                        <p className="text-red-600 font-medium text-sm">Likes</p>
-                        <p className="text-red-900 font-bold text-lg">{postStats.likes}</p>
+                        <p className="text-emerald-600 font-medium text-sm">Likes</p>
+                        <p className="text-emerald-900 font-bold text-lg">{postStats.likes}</p>
                       </div>
                     </div>
                   </CardContent>
@@ -369,15 +369,15 @@ export default function EditBlogPostPage({ params }: Props) {
                 whileHover={{ scale: 1.02, y: -2 }}
                 transition={{ type: "spring", stiffness: 300 }}
               >
-                <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200 shadow-sm hover:shadow-md transition-all duration-300">
+                <Card className="bg-gradient-to-br from-teal-50 via-sky-50 to-cyan-100 border-cyan-200 shadow-sm hover:shadow-md transition-all duration-300">
                   <CardContent className="p-4">
                     <div className="flex items-center space-x-3">
-                      <div className="p-2 bg-green-500 rounded-lg">
+                      <div className="p-2 bg-cyan-500 rounded-lg">
                         <MessageSquare className="h-4 w-4 text-white" />
                       </div>
                       <div>
-                        <p className="text-green-600 font-medium text-sm">Comments</p>
-                        <p className="text-green-900 font-bold text-lg">{postStats.comments}</p>
+                        <p className="text-cyan-700 font-medium text-sm">Comments</p>
+                        <p className="text-cyan-900 font-bold text-lg">{postStats.comments}</p>
                       </div>
                     </div>
                   </CardContent>
@@ -388,15 +388,15 @@ export default function EditBlogPostPage({ params }: Props) {
                 whileHover={{ scale: 1.02, y: -2 }}
                 transition={{ type: "spring", stiffness: 300 }}
               >
-                <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200 shadow-sm hover:shadow-md transition-all duration-300">
+                <Card className="bg-gradient-to-br from-blue-50 via-sky-50 to-emerald-50 border-blue-200 shadow-sm hover:shadow-md transition-all duration-300">
                   <CardContent className="p-4">
                     <div className="flex items-center space-x-3">
-                      <div className="p-2 bg-purple-500 rounded-lg">
+                      <div className="p-2 bg-blue-500 rounded-lg">
                         <Calendar className="h-4 w-4 text-white" />
                       </div>
                       <div>
-                        <p className="text-purple-600 font-medium text-sm">Updated</p>
-                        <p className="text-purple-900 font-bold text-xs">
+                        <p className="text-blue-600 font-medium text-sm">Updated</p>
+                        <p className="text-blue-900 font-bold text-xs">
                           {new Date(postStats.updatedAt).toLocaleDateString()}
                         </p>
                       </div>
@@ -413,11 +413,11 @@ export default function EditBlogPostPage({ params }: Props) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.3 }}
           >
-            <Card className="bg-white/70 backdrop-blur-sm border-gray-200 shadow-lg">
-              <CardHeader className="border-b bg-gradient-to-r from-gray-50 to-gray-100">
+            <Card className="bg-white/80 backdrop-blur-md border-emerald-100 shadow-lg">
+              <CardHeader className="border-b bg-gradient-to-r from-emerald-50 via-sky-50 to-white">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0">
                   <div>
-                    <CardTitle className="flex items-center gap-2 text-gray-900">
+                    <CardTitle className="flex items-center gap-2 text-slate-900">
                       <Edit className="h-5 w-5" />
                       Blog Editor
                     </CardTitle>
@@ -432,7 +432,7 @@ export default function EditBlogPostPage({ params }: Props) {
                         variant="outline"
                         size="sm"
                         onClick={() => setIsPreviewMode(!isPreviewMode)}
-                        className="flex items-center gap-2"
+                        className="flex items-center gap-2 text-emerald-700 border-emerald-200 hover:bg-emerald-50"
                       >
                         <Eye className="h-4 w-4" />
                         <span className="hidden sm:inline">

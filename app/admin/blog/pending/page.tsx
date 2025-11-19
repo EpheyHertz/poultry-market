@@ -317,7 +317,7 @@ export default function BlogPendingPage() {
   // Show loading state while fetching user
   if (!user) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-sky-50 to-white flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Loading dashboard...</p>
@@ -330,7 +330,8 @@ export default function BlogPendingPage() {
   if (reviewMode && selectedPost) {
     return (
       <DashboardLayout user={user}>
-        <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+        <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-sky-50 to-white">
+          <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
           {/* Header */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 space-y-4 sm:space-y-0">
             <div className="flex items-center space-x-4">
@@ -615,6 +616,7 @@ export default function BlogPendingPage() {
               </Card>
             </div>
           </div>
+          </div>
         </div>
       </DashboardLayout>
     );
@@ -623,7 +625,7 @@ export default function BlogPendingPage() {
   // Main list view
   return (
     <DashboardLayout user={user}>
-      <div className="space-y-6 p-4 sm:p-6 lg:p-8">
+      <div className="space-y-6 p-4 sm:p-6 lg:p-8 min-h-screen bg-gradient-to-br from-emerald-50 via-sky-50 to-white">
         {/* Header */}
         <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
           <div>

@@ -80,7 +80,8 @@ import {
   Award,
   Target,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Loader2
 } from 'lucide-react';
 
 interface BlogPost {
@@ -158,18 +159,50 @@ const STATUS_CONFIG = {
   ARCHIVED: { icon: Archive, color: 'bg-gray-100 text-gray-600', label: 'Archived' }
 };
 
+const DEFAULT_PAGINATION: Pagination = {
+  currentPage: 1,
+  totalPages: 1,
+  totalPosts: 0,
+  hasNextPage: false,
+  hasPrevPage: false,
+};
+
+const QUICK_ACTIONS = [
+  {
+    title: 'Review pending posts',
+    description: 'Approve or reject submissions before publishing.',
+    href: '/admin/blog/pending',
+    icon: Clock,
+    cardClass: 'border border-amber-200 from-amber-50 via-orange-50 to-orange-100',
+    iconClass: 'bg-white/70 text-amber-700',
+    buttonLabel: 'Open review queue',
+  },
+  {
+    title: 'Moderate comments',
+    description: 'Approve, reject, or reply to community feedback.',
+    href: '/admin/blog/comments',
+    icon: MessageSquare,
+    cardClass: 'border border-sky-200 from-sky-50 via-blue-50 to-indigo-100',
+    iconClass: 'bg-white/70 text-sky-700',
+    buttonLabel: 'Go to moderation',
+  },
+  {
+    title: 'Create new article',
+    description: 'Craft fresh poultry insights for the marketplace.',
+    href: '/admin/blog/new',
+    icon: PenTool,
+    cardClass: 'border border-emerald-200 from-emerald-50 via-green-50 to-emerald-100',
+    iconClass: 'bg-white/70 text-emerald-700',
+    buttonLabel: 'Start writing',
+  },
+];
+
 export default function AdminBlogPage() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [posts, setPosts] = useState<BlogPost[]>([]);
   const [stats, setStats] = useState<BlogStats | null>(null);
-  const [pagination, setPagination] = useState<Pagination>({
-    currentPage: 1,
-    totalPages: 1,
-    totalPosts: 0,
-    hasNextPage: false,
-    hasPrevPage: false
-  });
+  const [pagination, setPagination] = useState<Pagination>(DEFAULT_PAGINATION);
   const [loading, setLoading] = useState(true);
   const [statsLoading, setStatsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -180,6 +213,7 @@ export default function AdminBlogPage() {
   const [selectedPosts, setSelectedPosts] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState('overview');
   const [deletePostSlug, setDeletePostSlug] = useState<string | null>(null);
+  const [analyticsEmailLoading, setAnalyticsEmailLoading] = useState<string | null>(null);
 
   // Fetch current user
   useEffect(() => {
@@ -238,14 +272,14 @@ export default function AdminBlogPage() {
 
       const data = await response.json();
       setPosts(data.posts || []);
-      setPagination(data.pagination || pagination);
+      setPagination((prev) => data.pagination || prev || DEFAULT_PAGINATION);
     } catch (error) {
       console.error('Error fetching posts:', error);
       toast.error('Failed to load blog posts');
     } finally {
       setLoading(false);
     }
-  }, [pagination]);
+  }, []);
 
   useEffect(() => {
     if (user) {
@@ -301,6 +335,32 @@ export default function AdminBlogPage() {
     }
   };
 
+  const handleSendAnalyticsEmail = async (post: BlogPost) => {
+    try {
+      setAnalyticsEmailLoading(post.id);
+      const response = await fetch('/api/admin/blog/analytics/email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ authorId: post.author.id }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || 'Failed to send analytics email');
+      }
+
+      const data = await response.json();
+      toast.success(data.message || 'Weekly analytics email sent');
+    } catch (error) {
+      console.error('Error sending analytics email:', error);
+      toast.error(
+        error instanceof Error ? error.message : 'Failed to send analytics email'
+      );
+    } finally {
+      setAnalyticsEmailLoading(null);
+    }
+  };
+
   // Format date helper
   const formatDate = (dateString: string) => {
     return formatDistanceToNow(new Date(dateString), { addSuffix: true });
@@ -346,7 +406,7 @@ export default function AdminBlogPage() {
 
   return (
     <DashboardLayout user={user}>
-      <div className="space-y-6 p-4 sm:p-6 lg:p-8">
+      <div className="space-y-6 p-4 sm:p-6 lg:p-8 min-h-screen bg-gradient-to-br from-emerald-50 via-sky-50 to-white">
         {/* Header */}
         <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
           <div>
@@ -355,6 +415,11 @@ export default function AdminBlogPage() {
           </div>
           
           <div className="flex flex-col space-y-2 sm:flex-row sm:space-y-0 sm:space-x-3">
+            <Button onClick={() => router.push('/admin/blog/comments')} variant="outline" size="sm">
+              <MessageSquare className="h-4 w-4 mr-2" />
+              <span className="hidden sm:inline">Moderate Comments</span>
+              <span className="sm:hidden">Comments</span>
+            </Button>
             <Button onClick={() => router.push('/admin/blog/pending')} variant="outline" size="sm">
               <Clock className="h-4 w-4 mr-2" />
               <span className="hidden sm:inline">Pending Reviews</span>
@@ -367,6 +432,31 @@ export default function AdminBlogPage() {
             </Button>
           </div>
         </div>
+
+          {/* Quick navigation */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+            {QUICK_ACTIONS.map((action) => {
+              const Icon = action.icon;
+              return (
+                <Card key={action.title} className={`bg-gradient-to-br ${action.cardClass}`}>
+                  <CardContent className="p-4 flex flex-col h-full justify-between">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <p className="font-semibold text-gray-900">{action.title}</p>
+                        <p className="text-sm text-gray-600 mt-1">{action.description}</p>
+                      </div>
+                      <div className={`p-3 rounded-full ${action.iconClass}`}>
+                        <Icon className="h-5 w-5" />
+                      </div>
+                    </div>
+                    <Button asChild variant="secondary" className="mt-4 bg-white/70 text-gray-900 hover:bg-white">
+                      <Link href={action.href}>{action.buttonLabel}</Link>
+                    </Button>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -390,7 +480,7 @@ export default function AdminBlogPage() {
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-6 mt-6">
             {/* Stats Cards */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -723,6 +813,22 @@ export default function AdminBlogPage() {
                                   <Edit className="h-4 w-4 mr-2" />
                                   Edit
                                 </Link>
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => handleSendAnalyticsEmail(post)}
+                                disabled={analyticsEmailLoading === post.id}
+                              >
+                                {analyticsEmailLoading === post.id ? (
+                                  <>
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                    Sending analytics...
+                                  </>
+                                ) : (
+                                  <>
+                                    <BarChart3 className="h-4 w-4 mr-2" />
+                                    Send weekly analytics
+                                  </>
+                                )}
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => setDeletePostSlug(post.slug)}>
                                 <Trash2 className="h-4 w-4 mr-2" />

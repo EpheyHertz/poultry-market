@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { sendCommentApprovalNotifications } from '@/lib/email';
 import { z } from 'zod';
 
 const moderateCommentSchema = z.object({
@@ -43,6 +44,7 @@ export async function POST(request: NextRequest) {
             id: true,
             name: true,
             email: true,
+            role: true,
           },
         },
         post: {
@@ -50,6 +52,13 @@ export async function POST(request: NextRequest) {
             id: true,
             title: true,
             slug: true,
+            author: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
           },
         },
       },
@@ -88,8 +97,19 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      // TODO: Send notification to comment author about approval
-      // This would integrate with your notification system
+      try {
+        await sendCommentApprovalNotifications({
+          postTitle: comment.post.title,
+          postSlug: comment.post.slug,
+          postAuthor: comment.post.author,
+          commentContent: comment.content,
+          commentAuthor: comment.author,
+          guestName: comment.guestName,
+          guestEmail: comment.guestEmail,
+        });
+      } catch (notificationError) {
+        console.error('Comment approval email failed:', notificationError);
+      }
 
       return NextResponse.json({
         message: 'Comment approved successfully',

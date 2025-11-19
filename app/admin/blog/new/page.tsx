@@ -104,7 +104,7 @@ export default function NewBlogPostPage() {
   // Show loading state while fetching user
   if (!user) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-sky-50 to-white flex items-center justify-center">
         <motion.div 
           className="text-center"
           initial={{ opacity: 0, scale: 0.8 }}
@@ -125,7 +125,7 @@ export default function NewBlogPostPage() {
   return (
     <DashboardLayout user={user}>
       <motion.div 
-        className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50"
+        className="min-h-screen bg-gradient-to-br from-emerald-50 via-sky-50 to-white"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.6 }}
@@ -156,10 +156,10 @@ export default function NewBlogPostPage() {
                 </motion.div>
                 
                 <div>
-                  <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold bg-gradient-to-r from-gray-900 via-blue-900 to-indigo-900 bg-clip-text text-transparent">
+                  <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold bg-gradient-to-r from-emerald-700 via-sky-700 to-blue-800 bg-clip-text text-transparent">
                     Create New Blog Post
                   </h1>
-                  <p className="text-gray-600 mt-1 text-sm sm:text-base">
+                  <p className="text-slate-600 mt-1 text-sm sm:text-base">
                     Share your knowledge with the poultry farming community
                   </p>
                 </div>
@@ -167,14 +167,14 @@ export default function NewBlogPostPage() {
 
               <div className="flex items-center space-x-3">
                 <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                  <Badge variant="outline" className="bg-white/50 border-blue-200 text-blue-700">
+                  <Badge variant="outline" className="bg-white/70 border-sky-200 text-sky-700">
                     <FileText className="h-3 w-3 mr-1" />
                     New Post
                   </Badge>
                 </motion.div>
                 
                 <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                  <Badge variant="outline" className="bg-white/50 border-green-200 text-green-700">
+                  <Badge variant="outline" className="bg-white/70 border-emerald-200 text-emerald-700">
                     <Clock className="h-3 w-3 mr-1" />
                     Draft Mode
                   </Badge>
@@ -185,7 +185,7 @@ export default function NewBlogPostPage() {
 
           {/* Quick Stats Cards */}
           <motion.div 
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8"
+            className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-8"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
@@ -194,15 +194,15 @@ export default function NewBlogPostPage() {
               whileHover={{ scale: 1.02, y: -2 }}
               transition={{ type: "spring", stiffness: 300 }}
             >
-              <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200 shadow-sm hover:shadow-md transition-all duration-300">
+              <Card className="bg-gradient-to-br from-sky-50 via-cyan-50 to-sky-100 border-sky-200 shadow-sm hover:shadow-md transition-all duration-300">
                 <CardContent className="p-4">
                   <div className="flex items-center space-x-3">
-                    <div className="p-2 bg-blue-500 rounded-lg">
+                    <div className="p-2 bg-sky-500 rounded-lg">
                       <FileText className="h-5 w-5 text-white" />
                     </div>
                     <div>
-                      <p className="text-blue-600 font-medium text-sm">Blog Posts</p>
-                      <p className="text-blue-900 font-bold text-lg">Create</p>
+                      <p className="text-sky-600 font-medium text-sm">Blog Posts</p>
+                      <p className="text-sky-900 font-bold text-lg">Create</p>
                     </div>
                   </div>
                 </CardContent>
@@ -213,7 +213,7 @@ export default function NewBlogPostPage() {
               whileHover={{ scale: 1.02, y: -2 }}
               transition={{ type: "spring", stiffness: 300 }}
             >
-              <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200 shadow-sm hover:shadow-md transition-all duration-300">
+              <Card className="bg-gradient-to-br from-emerald-50 via-emerald-50 to-emerald-100 border-emerald-200 shadow-sm hover:shadow-md transition-all duration-300">
                 <CardContent className="p-4">
                   <div className="flex items-center space-x-3">
                     <div className="p-2 bg-green-500 rounded-lg">
@@ -232,15 +232,15 @@ export default function NewBlogPostPage() {
               whileHover={{ scale: 1.02, y: -2 }}
               transition={{ type: "spring", stiffness: 300 }}
             >
-              <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200 shadow-sm hover:shadow-md transition-all duration-300">
+              <Card className="bg-gradient-to-br from-teal-50 via-sky-50 to-cyan-100 border-cyan-200 shadow-sm hover:shadow-md transition-all duration-300">
                 <CardContent className="p-4">
                   <div className="flex items-center space-x-3">
-                    <div className="p-2 bg-purple-500 rounded-lg">
+                    <div className="p-2 bg-cyan-500 rounded-lg">
                       <Eye className="h-5 w-5 text-white" />
                     </div>
                     <div>
-                      <p className="text-purple-600 font-medium text-sm">Preview</p>
-                      <p className="text-purple-900 font-bold text-lg">Available</p>
+                      <p className="text-cyan-700 font-medium text-sm">Preview</p>
+                      <p className="text-cyan-900 font-bold text-lg">Available</p>
                     </div>
                   </div>
                 </CardContent>
@@ -251,15 +251,15 @@ export default function NewBlogPostPage() {
               whileHover={{ scale: 1.02, y: -2 }}
               transition={{ type: "spring", stiffness: 300 }}
             >
-              <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200 shadow-sm hover:shadow-md transition-all duration-300">
+              <Card className="bg-gradient-to-br from-blue-50 via-sky-50 to-emerald-50 border-blue-200 shadow-sm hover:shadow-md transition-all duration-300">
                 <CardContent className="p-4">
                   <div className="flex items-center space-x-3">
-                    <div className="p-2 bg-orange-500 rounded-lg">
+                    <div className="p-2 bg-blue-500 rounded-lg">
                       <Globe className="h-5 w-5 text-white" />
                     </div>
                     <div>
-                      <p className="text-orange-600 font-medium text-sm">SEO Tools</p>
-                      <p className="text-orange-900 font-bold text-lg">Ready</p>
+                      <p className="text-blue-600 font-medium text-sm">SEO Tools</p>
+                      <p className="text-blue-900 font-bold text-lg">Ready</p>
                     </div>
                   </div>
                 </CardContent>
@@ -273,11 +273,11 @@ export default function NewBlogPostPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.3 }}
           >
-            <Card className="bg-white/70 backdrop-blur-sm border-gray-200 shadow-lg">
-              <CardHeader className="border-b bg-gradient-to-r from-gray-50 to-gray-100">
+            <Card className="bg-white/80 backdrop-blur-md border-emerald-100 shadow-lg">
+              <CardHeader className="border-b bg-gradient-to-r from-emerald-50 via-sky-50 to-white">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0">
                   <div>
-                    <CardTitle className="text-gray-900">Blog Editor</CardTitle>
+                    <CardTitle className="text-slate-900">Blog Editor</CardTitle>
                     <CardDescription>
                       Create engaging content for your audience
                     </CardDescription>
@@ -289,7 +289,7 @@ export default function NewBlogPostPage() {
                         variant="outline"
                         size="sm"
                         onClick={() => setIsPreviewMode(!isPreviewMode)}
-                        className="flex items-center gap-2"
+                        className="flex items-center gap-2 text-emerald-700 border-emerald-200 hover:bg-emerald-50"
                       >
                         <Eye className="h-4 w-4" />
                         <span className="hidden sm:inline">
