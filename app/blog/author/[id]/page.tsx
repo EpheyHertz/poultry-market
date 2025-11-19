@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect, use } from 'react';
+import { useState, useEffect, use, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -36,7 +36,12 @@ import {
   List,
   Filter,
   Search,
-  ChevronRight
+  ChevronRight,
+  PenTool,
+  BarChart3,
+  ShieldCheck,
+  Zap,
+  Sparkles
 } from 'lucide-react';
 import { toast } from 'sonner';
 import MarkdownExcerpt from '@/components/blog/markdown-excerpt';
@@ -209,6 +214,159 @@ export default function AuthorProfilePage({ params }: Props) {
     return filtered;
   };
 
+  const filteredPosts = getFilteredPosts();
+  const categories = Array.from(new Set(author?.blogPosts?.map(post => post.category) || [])) as string[];
+  const analytics = useMemo(() => {
+    if (!author?.blogPosts || author.blogPosts.length === 0) {
+      return null;
+    }
+
+    const posts = author.blogPosts;
+    const totals = posts.reduce(
+      (acc, post) => {
+        const views = post.viewCount || 0;
+        const likes = post._count?.likedBy || 0;
+        const comments = post._count?.comments || 0;
+        const readingTime = post.readingTime || 0;
+
+        acc.views += views;
+        acc.likes += likes;
+        acc.comments += comments;
+        acc.readingTime += readingTime;
+        return acc;
+      },
+      { views: 0, likes: 0, comments: 0, readingTime: 0 }
+    );
+
+    const publishedPosts = posts.filter(post => post.publishedAt);
+    const trendSource = [...publishedPosts]
+      .sort((a, b) => new Date(a.publishedAt).getTime() - new Date(b.publishedAt).getTime())
+      .slice(-8)
+      .map(post => ({
+        label: new Date(post.publishedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        views: post.viewCount || 0,
+        likes: post._count?.likedBy || 0,
+        comments: post._count?.comments || 0
+      }));
+
+    const trendMax = trendSource.reduce((max, point) => Math.max(max, point.views), 0) || 1;
+
+    const categoriesMap = posts.reduce<Record<string, { count: number; views: number }>>((acc, post) => {
+      if (!acc[post.category]) {
+        acc[post.category] = { count: 0, views: 0 };
+      }
+      acc[post.category].count += 1;
+      acc[post.category].views += post.viewCount || 0;
+      return acc;
+    }, {});
+
+    const categoryBreakdown = Object.entries(categoriesMap)
+      .map(([category, stats]) => ({ category, ...stats }))
+      .sort((a, b) => b.views - a.views)
+      .slice(0, 4);
+
+    const topPosts = [...posts]
+      .sort((a, b) => {
+        const aScore = (a.viewCount || 0) * 0.6 + (a._count?.likedBy || 0) * 0.3 + (a._count?.comments || 0) * 0.1;
+        const bScore = (b.viewCount || 0) * 0.6 + (b._count?.likedBy || 0) * 0.3 + (b._count?.comments || 0) * 0.1;
+        return bScore - aScore;
+      })
+      .slice(0, 3);
+
+    return {
+      totals,
+      avgReadingTime: posts.length ? Math.max(1, Math.round(totals.readingTime / posts.length)) : null,
+      trend: trendSource,
+      trendMax,
+      categoryBreakdown,
+      topPosts
+    };
+  }, [author]);
+
+  const authorServices = useMemo(() => {
+    const isOwner = currentUser && author && currentUser.id === author.id;
+
+    return [
+      {
+        title: 'Content Studio',
+        description: 'Draft, edit, and submit your poultry insights in one place.',
+        href: isOwner ? '/my-blogs' : '/blog',
+        accent: 'from-emerald-500/90 via-emerald-400 to-lime-400',
+        icon: PenTool,
+        cta: isOwner ? 'Open workspace' : 'Browse posts'
+      },
+      {
+        title: 'Performance Pulse',
+        description: 'Track views, likes, and reader engagement instantly.',
+        href: '#author-analytics',
+        accent: 'from-blue-500/90 via-sky-500 to-cyan-400',
+        icon: BarChart3,
+        cta: 'View insights'
+      },
+      {
+        title: 'Collaboration Desk',
+        description: 'Partner with brands, request sponsorships, or pitch ideas.',
+        href: '/contact',
+        accent: 'from-purple-500/90 via-pink-500 to-rose-400',
+        icon: Sparkles,
+        cta: 'Pitch now'
+      },
+      {
+        title: 'Creator Care',
+        description: 'Need help? Talk to editorial support for fast resolutions.',
+        href: '/contact',
+        accent: 'from-amber-500/90 via-orange-500 to-red-400',
+        icon: ShieldCheck,
+        cta: 'Get support'
+      }
+    ];
+  }, [author, currentUser]);
+
+  const sparklinePoints = useMemo(() => {
+    if (!analytics?.trend.length) return '';
+    const points = analytics.trend.map((point, index) => {
+      const x = analytics.trend.length === 1 ? 0 : (index / (analytics.trend.length - 1)) * 100;
+      const y = 100 - (point.views / (analytics.trendMax || 1)) * 100;
+      return `${x},${y}`;
+    });
+    return points.join(' ');
+  }, [analytics]);
+  const latestTrendPoint = analytics?.trend?.[analytics.trend.length - 1] || null;
+  const totalPostsCount = author?.blogPosts?.length || 0;
+  const publishedPostsCount = author?.blogPosts?.filter(post => post.publishedAt)?.length || 0;
+  const overviewMetrics = analytics
+    ? [
+        {
+          label: 'Total Views',
+          value: analytics.totals.views.toLocaleString(),
+          helper: 'Lifetime views on published stories',
+          icon: Eye,
+          accent: 'text-emerald-600'
+        },
+        {
+          label: 'Reader Interactions',
+          value: (analytics.totals.likes + analytics.totals.comments).toLocaleString(),
+          helper: 'Likes + comments combined',
+          icon: Heart,
+          accent: 'text-rose-500'
+        },
+        {
+          label: 'Avg. Reading Time',
+          value: analytics.avgReadingTime ? `${analytics.avgReadingTime} min` : '—',
+          helper: 'Per article',
+          icon: Clock,
+          accent: 'text-indigo-600'
+        },
+        {
+          label: 'Published Articles',
+          value: publishedPostsCount.toString(),
+          helper: `${totalPostsCount} total drafts & published`,
+          icon: BookOpen,
+          accent: 'text-sky-600'
+        }
+      ]
+    : [];
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -241,9 +399,6 @@ export default function AuthorProfilePage({ params }: Props) {
       </div>
     );
   }
-
-  const filteredPosts = getFilteredPosts();
-  const categories = Array.from(new Set(author.blogPosts?.map(post => post.category) || [])) as string[];
 
   return (
     <>
@@ -303,9 +458,207 @@ export default function AuthorProfilePage({ params }: Props) {
             {/* Author Info */}
             <div className="space-y-4 mb-8">
               <div>
-                <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-2">
+                <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-12">
                   {author.name}
                 </h1>
+
+              {/* Creator Services Hub */}
+              <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 -mt-10 relative z-10">
+                <div className="bg-white/90 backdrop-blur-xl border border-white/60 rounded-3xl shadow-2xl p-6 sm:p-8">
+                  <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-600">Creator services</p>
+                      <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mt-2">Your personal control center</h2>
+                      <p className="text-gray-600 mt-2 max-w-2xl">
+                        Launch new stories, monitor performance, and request support without leaving this page.
+                      </p>
+                    </div>
+                    <Badge variant="outline" className="self-start lg:self-auto text-emerald-700 border-emerald-200 bg-emerald-50">Always-on helpdesk</Badge>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+                    {authorServices.map((service) => (
+                      <Card
+                        key={service.title}
+                        className={`h-full bg-gradient-to-br ${service.accent} text-white border-none shadow-xl overflow-hidden`}
+                      >
+                        <CardContent className="p-5 flex flex-col h-full">
+                          <div className="flex items-center justify-between mb-4">
+                            <div className="h-12 w-12 rounded-2xl bg-white/20 flex items-center justify-center">
+                              <service.icon className="h-6 w-6" />
+                            </div>
+                            <span className="text-xs uppercase tracking-wider bg-white/20 px-3 py-1 rounded-full">Service</span>
+                          </div>
+                          <div className="space-y-2 flex-1">
+                            <h3 className="text-lg font-semibold leading-tight">{service.title}</h3>
+                            <p className="text-sm text-white/80 leading-relaxed">{service.description}</p>
+                          </div>
+                          <Button asChild variant="secondary" className="mt-4 bg-white/90 text-gray-900 hover:bg-white">
+                            <Link href={service.href}>{service.cta}</Link>
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Analytics + Insights */}
+              {analytics && (
+                <section id="author-analytics" className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-10">
+                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500">Performance overview</p>
+                      <h2 className="text-2xl font-bold text-gray-900 mt-2">Analytics built for storytellers</h2>
+                      <p className="text-gray-600 mt-2">Understand what readers love and spot the next big opportunity.</p>
+                    </div>
+                    {latestTrendPoint && (
+                      <div className="bg-gray-900 text-white rounded-2xl px-5 py-4 shadow-lg w-full md:w-auto">
+                        <p className="text-xs uppercase tracking-[0.2em] text-gray-400">Latest spike</p>
+                        <div className="flex items-center gap-3 mt-1">
+                          <Zap className="h-5 w-5 text-amber-300" />
+                          <div>
+                            <p className="text-lg font-semibold">{latestTrendPoint.views.toLocaleString()} views</p>
+                            <p className="text-xs text-gray-400">Recorded {latestTrendPoint.label}</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="grid gap-6 lg:grid-cols-3">
+                    <Card className="lg:col-span-2 border-gray-100 shadow-lg">
+                      <CardHeader>
+                        <CardTitle className="flex items-center justify-between">
+                          <span>Engagement trend</span>
+                          <span className="text-sm font-normal text-gray-500">Last {analytics.trend.length || 0} articles</span>
+                        </CardTitle>
+                        <CardDescription>Views per publication</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        {sparklinePoints ? (
+                          <div className="space-y-4">
+                            <div className="relative w-full h-32">
+                              <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 w-full h-full">
+                                <defs>
+                                  <linearGradient id="authorSparkline" x1="0%" y1="0%" x2="0%" y2="100%">
+                                    <stop offset="0%" stopColor="#10b981" stopOpacity="0.8" />
+                                    <stop offset="100%" stopColor="#10b981" stopOpacity="0.1" />
+                                  </linearGradient>
+                                </defs>
+                                <polyline
+                                  fill="none"
+                                  stroke="url(#authorSparkline)"
+                                  strokeWidth="3"
+                                  strokeLinecap="round"
+                                  points={sparklinePoints}
+                                />
+                              </svg>
+                            </div>
+                            <div className="flex flex-wrap gap-3 text-xs sm:text-sm text-gray-500">
+                              {analytics.trend.map(point => (
+                                <div key={point.label} className="flex items-center gap-1">
+                                  <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                                  {point.label}: {point.views.toLocaleString()} views
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="text-gray-500 text-sm">Publish a few more posts to unlock trend insights.</p>
+                        )}
+                      </CardContent>
+                    </Card>
+
+                    <Card className="border-gray-100 shadow-lg">
+                      <CardHeader>
+                        <CardTitle>Snapshot</CardTitle>
+                        <CardDescription>Key metrics at a glance</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="grid grid-cols-1 gap-4">
+                          {overviewMetrics.map(metric => (
+                            <div key={metric.label} className="flex items-start gap-3 rounded-2xl border border-gray-100 p-3">
+                              <div className={`rounded-xl bg-gray-50 p-2 ${metric.accent}`}>
+                                <metric.icon className="h-4 w-4" />
+                              </div>
+                              <div>
+                                <p className="text-xs uppercase tracking-wide text-gray-500">{metric.label}</p>
+                                <p className="text-xl font-semibold text-gray-900">{metric.value}</p>
+                                <p className="text-xs text-gray-500">{metric.helper}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  <div className="grid gap-6 lg:grid-cols-3 mt-6">
+                    <Card className="border-gray-100 shadow-lg">
+                      <CardHeader>
+                        <CardTitle>Top performing posts</CardTitle>
+                        <CardDescription>Based on views, likes, and comments</CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        {analytics.topPosts.length ? (
+                          analytics.topPosts.map((post, index) => (
+                            <div key={post.id} className="flex items-center justify-between gap-3 p-3 rounded-2xl bg-gray-50">
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs text-gray-500">#{index + 1}</p>
+                                <Link
+                                  href={`/blog/${author.name.replace(/\s+/g, '-').toLowerCase()}/${post.slug}`}
+                                  className="font-semibold text-sm text-gray-900 line-clamp-2 hover:text-emerald-600"
+                                >
+                                  {post.title}
+                                </Link>
+                                <p className="text-xs text-gray-500 mt-1">
+                                  {new Date(post.publishedAt || Date.now()).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                </p>
+                              </div>
+                              <div className="text-right text-xs text-gray-500 space-y-1">
+                                <p>{(post.viewCount || 0).toLocaleString()} views</p>
+                                <p>{post._count?.likedBy || 0} likes</p>
+                                <p>{post._count?.comments || 0} comments</p>
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <p className="text-sm text-gray-500">No data yet. Publish a story to populate this section.</p>
+                        )}
+                      </CardContent>
+                    </Card>
+
+                    <Card className="border-gray-100 shadow-lg lg:col-span-2">
+                      <CardHeader>
+                        <CardTitle>Audience favourites</CardTitle>
+                        <CardDescription>Top categories attracting readers</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        {analytics.categoryBreakdown.length ? (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {analytics.categoryBreakdown.map(category => (
+                              <div key={category.category} className="border border-gray-100 rounded-2xl p-4">
+                                <p className="text-sm font-semibold text-gray-900">{BLOG_CATEGORIES[category.category as keyof typeof BLOG_CATEGORIES]?.name || category.category}</p>
+                                <p className="text-xs text-gray-500">
+                                  {category.count} {category.count === 1 ? 'post' : 'posts'} · {category.views.toLocaleString()} views
+                                </p>
+                                <div className="mt-3 h-2 rounded-full bg-gray-100 overflow-hidden">
+                                  <div
+                                    className="h-full bg-gradient-to-r from-emerald-500 to-emerald-300"
+                                    style={{ width: `${Math.min(100, (category.views / (analytics.totals.views || 1)) * 100)}%` }}
+                                  />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-gray-500">Start publishing to learn which topics resonate most.</p>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </div>
+                </section>
+              )}
                 <p className="text-lg sm:text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed">
                   {author.bio || 'Passionate poultry farmer and industry expert sharing knowledge and experiences.'}
                 </p>

@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import type { LucideIcon } from 'lucide-react';
 import { 
   Calendar, 
   Clock, 
@@ -60,7 +61,21 @@ interface BlogPost {
   };
 }
 
-const statusConfig = {
+type StatusDisplayConfig = {
+  label: string;
+  color: string;
+  icon: LucideIcon;
+  description: string;
+};
+
+const fallbackStatusInfo: StatusDisplayConfig = {
+  label: 'Processing',
+  color: 'bg-blue-100 text-blue-800',
+  icon: AlertCircle,
+  description: 'Your post status is updating. Please refresh in a moment.'
+};
+
+const baseStatusConfig = {
   PENDING_APPROVAL: {
     label: 'Pending Review',
     color: 'bg-yellow-100 text-yellow-800',
@@ -85,7 +100,9 @@ const statusConfig = {
     icon: FileText,
     description: 'Your post is saved as a draft'
   }
-};
+} satisfies Record<BlogPost['status'], StatusDisplayConfig>;
+
+const statusConfig: Record<string, StatusDisplayConfig> = baseStatusConfig;
 
 export default function MyBlogsPage() {
   const [user, setUser] = useState<any>(null);
@@ -351,7 +368,7 @@ export default function MyBlogsPage() {
             </Card>
           ) : (
             filteredAndSortedBlogs.map((blog, index) => {
-              const statusInfo = statusConfig[blog.status];
+              const statusInfo = statusConfig[blog.status] ?? fallbackStatusInfo;
               const StatusIcon = statusInfo.icon;
               
               return (
