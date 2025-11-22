@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, Suspense, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
@@ -40,6 +40,62 @@ interface BlogPostPageProps {
   relatedPosts?: BlogPost[];
 }
 
+const CONTENT_CHARS_PER_CHUNK = 3600;
+
+function chunkMarkdownContent(content: string, maxLength: number = CONTENT_CHARS_PER_CHUNK): string[] {
+  if (!content) {
+    return [];
+  }
+
+  if (content.length <= maxLength) {
+    return [content];
+  }
+
+  const paragraphs = content.split(/\n{2,}/);
+  const chunks: string[] = [];
+  let buffer = '';
+
+  paragraphs.forEach((paragraph) => {
+    const trimmed = paragraph.trim();
+    if (!trimmed) {
+      return;
+    }
+
+    if (trimmed.length >= maxLength * 1.2) {
+      if (buffer) {
+        chunks.push(buffer.trim());
+        buffer = '';
+      }
+      let cursor = 0;
+      while (cursor < trimmed.length) {
+        const slice = trimmed.slice(cursor, cursor + maxLength).trim();
+        if (slice) {
+          chunks.push(slice);
+        }
+        cursor += maxLength;
+      }
+      return;
+    }
+
+    const candidate = buffer ? `${buffer}\n\n${trimmed}` : trimmed;
+    if (candidate.length > maxLength && buffer) {
+      chunks.push(buffer.trim());
+      buffer = trimmed;
+    } else if (candidate.length > maxLength) {
+      chunks.push(trimmed);
+      buffer = '';
+    } else {
+      buffer = candidate;
+    }
+  });
+
+  if (buffer.trim()) {
+    chunks.push(buffer.trim());
+  }
+
+  return chunks.length ? chunks : [content];
+}
+
 function MobileBlogPost({ post, relatedPosts = [] }: BlogPostPageProps) {
   const router = useRouter();
   const [showShareMenu, setShowShareMenu] = useState(false);
@@ -48,6 +104,16 @@ function MobileBlogPost({ post, relatedPosts = [] }: BlogPostPageProps) {
   const [isSaved, setIsSaved] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [visibleChunks, setVisibleChunks] = useState(1);
+  const contentChunks = useMemo(() => chunkMarkdownContent(post.content || '', CONTENT_CHARS_PER_CHUNK), [post.content]);
+
+  useEffect(() => {
+    setVisibleChunks(contentChunks.length ? 1 : 0);
+  }, [post.id, contentChunks.length]);
+
+  const displayedChunks = contentChunks.slice(0, Math.min(visibleChunks, contentChunks.length));
+  const hasMoreChunks = visibleChunks < contentChunks.length;
+  const remainingChunks = Math.max(contentChunks.length - visibleChunks, 0);
 
   const isOwnPost = currentUser?.id === post.author.id;
 
@@ -116,6 +182,14 @@ function MobileBlogPost({ post, relatedPosts = [] }: BlogPostPageProps) {
         break;
     }
     setShowShareMenu(false);
+  };
+
+  const handleManualLoadMore = () => {
+    setVisibleChunks((prev) => Math.min(prev + 1, contentChunks.length));
+  };
+
+  const handleShowAllContent = () => {
+    setVisibleChunks(contentChunks.length);
   };
 
   return (
@@ -348,10 +422,48 @@ function MobileBlogPost({ post, relatedPosts = [] }: BlogPostPageProps) {
           transition={{ duration: 0.6, delay: 0.4 }}
           className="mb-8 sm:mb-12"
         >
-          <MarkdownContent
-            content={post.content}
-            className="rounded-2xl border border-slate-200/70 bg-white px-4 py-6 shadow-lg shadow-emerald-500/5 ring-1 ring-transparent backdrop-blur-sm transition-colors dark:border-slate-800 dark:bg-slate-950/60 dark:shadow-emerald-500/10 sm:px-8 sm:py-10"
-          />
+          <div className="rounded-2xl border border-slate-200/70 bg-white px-4 py-6 shadow-lg shadow-emerald-500/5 ring-1 ring-transparent backdrop-blur-sm transition-colors dark:border-slate-800 dark:bg-slate-950/60 dark:shadow-emerald-500/10 sm:px-8 sm:py-10">
+            {displayedChunks.map((chunk, index) => (
+              <MarkdownContent
+                key={`post-chunk-${index}`}
+                content={chunk}
+                className={index > 0 ? 'pt-6 mt-6 border-t border-slate-200/70 dark:border-slate-800/80' : undefined}
+              />
+            ))}
+
+            {hasMoreChunks && (
+              <div className="mt-8 flex flex-col items-center gap-3 text-center">
+                <div className="relative w-full">
+                  <div className="pointer-events-none absolute inset-x-0 -top-16 h-16 bg-gradient-to-b from-transparent via-white/80 to-white dark:via-slate-950/60 dark:to-slate-950" />
+                </div>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={handleManualLoadMore}
+                    className="rounded-full"
+                  >
+                    Read more
+                  </Button>
+                  {remainingChunks > 1 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleShowAllContent}
+                      className="rounded-full"
+                    >
+                      Show full article
+                    </Button>
+                  )}
+                </div>
+                <p className="text-xs text-gray-500 dark:text-slate-400">
+                  {remainingChunks === 1
+                    ? 'Tap to reveal the final section.'
+                    : `Tap to reveal ${remainingChunks} more sections.`}
+                </p>
+              </div>
+            )}
+          </div>
         </motion.div>
 
         {/* Tags - Mobile Responsive */}
