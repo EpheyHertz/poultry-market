@@ -10,41 +10,63 @@ interface Props {
   children: React.ReactNode;
 }
 
-async function getProduct(slug: string) {
-  try {
-    const product = await prisma.product.findUnique({
-      where: { slug },
-      include: {
-        seller: {
-          select: {
-            id: true,
-            name: true,
-            avatar: true,
-          },
-        },
-        reviews: {
-          select: {
-            rating: true,
-          },
-        },
-        _count: {
-          select: {
-            reviews: true,
-          },
-        },
-      },
+const productInclude = {
+  seller: {
+    select: {
+      id: true,
+      name: true,
+      avatar: true,
+    },
+  },
+  reviews: {
+    select: {
+      rating: true,
+    },
+  },
+  _count: {
+    select: {
+      reviews: true,
+    },
+  },
+} as const;
+
+async function findProduct(where: { slug?: string; id?: string }) {
+  if (where.slug) {
+    return prisma.product.findUnique({
+      where: { slug: where.slug },
+      include: productInclude,
     });
+  } else if (where.id) {
+    return prisma.product.findUnique({
+      where: { id: where.id },
+      include: productInclude,
+    });
+  }
+  return null;
+}
+
+async function getProduct(identifier: string) {
+  try {
+    // Try by slug first
+    let product = await findProduct({ slug: identifier });
+
+    // Fallback to ID if slug lookup fails
+    if (!product) {
+      product = await findProduct({ id: identifier });
+    }
 
     if (!product) return null;
 
     // Calculate average rating
     const totalRating = product.reviews.reduce((sum, review) => sum + review.rating, 0);
     const averageRating = product.reviews.length > 0 ? totalRating / product.reviews.length : 0;
+    const canonicalSlug = product.slug || product.id;
 
     return {
       ...product,
       averageRating,
       reviewCount: product._count.reviews,
+      canonicalSlug,
     };
   } catch (error) {
     console.error('Error fetching product for metadata:', error);
@@ -66,7 +88,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const title = `${product.name} - ${product.type}`;
   const description = product.description.substring(0, 160) + '...';
   const imageUrl = product.images[0] || `${seoConfig.siteUrl}/images/default-product.jpg`;
-  const url = `${seoConfig.siteUrl}/product/${slug}`;
+  const url = `${seoConfig.siteUrl}/product/${product.canonicalSlug}`;
   const price = product.price;
   const currency = 'KES';
   const availability = product.stock > 0 ? 'in stock' : 'out of stock';
@@ -149,13 +171,14 @@ export default async function ProductLayout({ params, children }: Props) {
     brand: product.seller?.name,
     sku: product.id,
     store: product.seller,
+    slug: product.canonicalSlug,
   });
 
   const breadcrumbSchema = generateBreadcrumbStructuredData([
     { name: 'Home', url: '/' },
     { name: 'Products', url: '/products' },
     { name: product.type, url: `/products?type=${product.type}` },
-    { name: product.name, url: `/product/${slug}` },
+    { name: product.name, url: `/product/${product.canonicalSlug}` },
   ]);
 
   return (
