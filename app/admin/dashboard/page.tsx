@@ -3,6 +3,7 @@ import { getCurrentUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import DashboardLayout from '@/components/layout/dashboard-layout';
 import { DashboardContent, DashboardGrid, DashboardCard, DashboardSection } from '@/components/layout/dashboard-content';
+import ApiKeyManager from '@/components/api-keys/api-key-manager';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -346,6 +347,11 @@ export default async function AdminDashboard() {
             )}
           </CardContent>
         </DashboardCard>
+
+        <ApiKeyManager
+          title="API Keys"
+          description="Create, rotate, and revoke keys used by partner dashboards and automations."
+        />
       </DashboardContent>
     </DashboardLayout>
   );

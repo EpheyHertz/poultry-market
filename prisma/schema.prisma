@@ -260,6 +260,9 @@ model User {
   blogComments          BlogComment[]
   moderatedComments     BlogComment[] @relation("CommentModerator")
   approvedBlogPosts     BlogPost[]    @relation("BlogPostApprovedBy")
+
+  // API keys
+  apiKeys               ApiKey[]
   
   // Social interactions
   blogPostLikes         BlogPostLike[]    @relation("BlogPostLikes")
@@ -1044,6 +1047,12 @@ enum BlogPostStatus {
   ARCHIVED
 }
 
+enum ApiKeyStatus {
+  ACTIVE
+  INACTIVE
+  REVOKED
+}
+
 enum BlogPostCategory {
   FARMING_TIPS
   POULTRY_HEALTH
@@ -1228,7 +1237,23 @@ model BlogCommentLike {
   comment   BlogComment @relation("BlogCommentLikes", fields: [commentId], references: [id], onDelete: Cascade)
   
   createdAt DateTime @default(now())
-  
   @@unique([userId, commentId])
   @@map("blog_comment_likes")
+}
+
+model ApiKey {
+  id          String        @id @default(cuid())
+  userId      String
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  hashedKey   String
+  lastFour    String        @db.VarChar(10)
+  status      ApiKeyStatus  @default(ACTIVE)
+  lastUsedAt  DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([userId])
+  @@map("api_keys")
 }

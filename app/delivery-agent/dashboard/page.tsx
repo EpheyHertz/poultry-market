@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/layout/dashboard-layout';
 import DeliveryAgentPhotos from '@/components/delivery-agent/delivery-agent-photos';
+import ApiKeyManager from '@/components/api-keys/api-key-manager';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -480,6 +481,11 @@ export default function DeliveryAgentDashboard() {
             <DeliveryAgentPhotos />
           </TabsContent>
         </Tabs>
+
+        <ApiKeyManager
+          title="API Keys"
+          description="Generate keys for mobile tools, delivery scanners, or third-party logistics apps."
+        />
 
         {/* Status Update Modal */}
         {showStatusModal && (

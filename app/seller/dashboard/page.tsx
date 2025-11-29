@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { getCurrentUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import DashboardLayout from '@/components/layout/dashboard-layout';
+import ApiKeyManager from '@/components/api-keys/api-key-manager';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -249,6 +250,11 @@ export default async function SellerDashboard() {
             )}
           </CardContent>
         </Card>
+
+        <ApiKeyManager
+          title="API Keys"
+          description="Use API keys to connect store data with external apps or automation scripts."
+        />
       </div>
     </DashboardLayout>
   );

@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { getCurrentUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import DashboardLayout from '@/components/layout/dashboard-layout';
+import ApiKeyManager from '@/components/api-keys/api-key-manager';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -251,6 +252,11 @@ export default async function StakeholderDashboard() {
             </div>
           </CardContent>
         </Card>
+
+        <ApiKeyManager
+          title="API Keys"
+          description="Distribute or rotate keys for stakeholder analytics and reporting integrations."
+        />
       </div>
     </DashboardLayout>
   );
