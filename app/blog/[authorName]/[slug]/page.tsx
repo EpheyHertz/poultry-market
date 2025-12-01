@@ -4,12 +4,14 @@ import { prisma } from '@/lib/prisma';
 import PublicNavbar from '@/components/layout/public-navbar';
 import MobileBlogPost from './mobile-blog-post';
 
-interface Props {
-  params: Promise<{
-    authorName: string;
-    slug: string;
-  }>;
+export const dynamic = 'force-dynamic';
+
+interface Params {
+  authorName: string;
+  slug: string;
 }
+
+type ParamsInput = Params | Promise<Params>;
 
 async function getBlogPost(authorName: string, slug: string) {
   try {
@@ -172,7 +174,7 @@ async function getRelatedPosts(postId: string, category: string, authorId: strin
   }
 }
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+export async function generateMetadata({ params }: { params: ParamsInput }): Promise<Metadata> {
   const resolvedParams = await params;
   const post = await getBlogPost(resolvedParams.authorName, resolvedParams.slug);
   
@@ -222,7 +224,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-export default async function BlogPostPage({ params }: Props) {
+export default async function BlogPostPage({ params }: { params: ParamsInput }) {
   const resolvedParams = await params;
   const post = await getBlogPost(resolvedParams.authorName, resolvedParams.slug);
 
@@ -314,31 +316,4 @@ export default async function BlogPostPage({ params }: Props) {
       <MobileBlogPost post={post} relatedPosts={relatedPosts} />
     </>
   );
-}
-
-// Generate static paths for published blog posts
-export async function generateStaticParams() {
-  try {
-    const posts = await prisma.blogPost.findMany({
-      where: {
-        status: 'PUBLISHED'
-      },
-      include: {
-        author: {
-          select: {
-            name: true
-          }
-        }
-      },
-      take: 100 // Limit for build performance
-    });
-
-    return posts.map((post) => ({
-      authorName: post.author.name.replace(/\s+/g, '-').toLowerCase(),
-      slug: post.slug,
-    }));
-  } catch (error) {
-    console.error('Error generating static params:', error);
-    return [];
-  }
 }
