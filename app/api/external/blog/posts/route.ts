@@ -5,6 +5,37 @@ import { authenticateApiKey } from '@/lib/api-keys';
 import { createNotification } from '@/lib/notifications';
 import { BlogPostCategory, BlogPostStatus } from '@prisma/client';
 
+const submissionRateLimit = new Map<string, { count: number; resetTime: number }>();
+const SUBMISSION_RATE_LIMIT_MAX = 5;
+const SUBMISSION_RATE_LIMIT_WINDOW = 15 * 60 * 1000;
+
+function checkRateLimit(key: string) {
+  const now = Date.now();
+  const snapshot = submissionRateLimit.get(key);
+
+  if (!snapshot || now > snapshot.resetTime) {
+    submissionRateLimit.set(key, { count: 1, resetTime: now + SUBMISSION_RATE_LIMIT_WINDOW });
+    return { allowed: true, remaining: SUBMISSION_RATE_LIMIT_MAX - 1 };
+  }
+
+  if (snapshot.count >= SUBMISSION_RATE_LIMIT_MAX) {
+    return { allowed: false, remaining: 0 };
+  }
+
+  snapshot.count += 1;
+  return { allowed: true, remaining: SUBMISSION_RATE_LIMIT_MAX - snapshot.count };
+}
+
+function getClientIdentifier(apiKey: string | null, request: Request) {
+  if (apiKey) {
+    return `apiKey:${apiKey}`;
+  }
+
+  const forwarded = request.headers.get('x-forwarded-for');
+  const ip = forwarded ? forwarded.split(',')[0].trim() : request.headers.get('x-real-ip') || 'unknown';
+  return `ip:${ip}`;
+}
+
 const payloadSchema = z.object({
   title: z.string().min(5).max(200),
   content: z.string().min(50),
@@ -25,6 +56,22 @@ export async function POST(request: Request) {
     }
 
     const { user } = authResult;
+
+    const identifier = getClientIdentifier(apiKey, request);
+    const rateLimitResult = checkRateLimit(identifier);
+    if (!rateLimitResult.allowed) {
+      return NextResponse.json({
+        error: 'Too many blog submissions. Please wait before trying again.',
+      }, {
+        status: 429,
+        headers: {
+          'Retry-After': (SUBMISSION_RATE_LIMIT_WINDOW / 1000).toString(),
+          'X-RateLimit-Limit': SUBMISSION_RATE_LIMIT_MAX.toString(),
+          'X-RateLimit-Remaining': rateLimitResult.remaining.toString(),
+        },
+      });
+    }
+
     const payload = await request.json();
     const parsed = payloadSchema.safeParse(payload);
 
@@ -140,7 +187,13 @@ export async function POST(request: Request) {
       status: blogPost.status,
       slug: blogPost.slug,
       author: blogPost.author,
-    }, { status: 201 });
+    }, {
+      status: 201,
+      headers: {
+        'X-RateLimit-Limit': SUBMISSION_RATE_LIMIT_MAX.toString(),
+        'X-RateLimit-Remaining': rateLimitResult.remaining.toString(),
+      },
+    });
   } catch (error) {
     console.error('External blog post error', error);
     return NextResponse.json({ error: 'Failed to create blog post' }, { status: 500 });
