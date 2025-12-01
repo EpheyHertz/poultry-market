@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { BlogPostCategory } from '@prisma/client';
 
 // Create blog post schema
 const createBlogPostSchema = z.object({
@@ -12,18 +13,7 @@ const createBlogPostSchema = z.object({
   images: z.array(z.string().url()).max(3, 'Maximum 3 images allowed').optional().default([]),
   metaDescription: z.string().max(160).optional(),
   metaKeywords: z.string().optional(),
-  category: z.enum([
-    'FARMING_TIPS',
-    'POULTRY_HEALTH',
-    'FEED_NUTRITION',
-    'EQUIPMENT_GUIDES',
-    'MARKET_TRENDS',
-    'SUCCESS_STORIES',
-    'INDUSTRY_NEWS',
-    'SEASONAL_ADVICE',
-    'BEGINNER_GUIDES',
-    'ADVANCED_TECHNIQUES'
-  ]),
+  category: z.nativeEnum(BlogPostCategory),
   tags: z.array(z.string()).optional().default([]),
   status: z.enum(['DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'REJECTED', 'PUBLISHED', 'ARCHIVED']).default('DRAFT'),
   featured: z.boolean().default(false),

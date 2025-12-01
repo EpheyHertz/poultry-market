@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { authenticateApiKey } from '@/lib/api-keys';
+import { createNotification } from '@/lib/notifications';
 import { BlogPostCategory, BlogPostStatus } from '@prisma/client';
 
 const payloadSchema = z.object({
@@ -110,6 +111,29 @@ export async function POST(request: Request) {
         },
       },
     });
+
+    if (status === 'PENDING_APPROVAL') {
+      try {
+        const adminUsers = await prisma.user.findMany({
+          where: { role: 'ADMIN', isActive: true },
+          select: { id: true },
+        });
+
+        await Promise.all(
+          adminUsers.map((admin) =>
+            createNotification({
+              receiverId: admin.id,
+              senderId: user.id,
+              type: 'EMAIL',
+              title: 'New Blog Submission Pending Approval',
+              message: `Blog "${data.title}" was submitted by ${user.name} and is waiting for your review.`,
+            }),
+          ),
+        );
+      } catch (notificationError) {
+        console.error('Failed to notify admins about blog submission', notificationError);
+      }
+    }
 
     return NextResponse.json({
       id: blogPost.id,
