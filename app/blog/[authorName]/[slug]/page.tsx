@@ -11,8 +11,6 @@ interface Params {
   slug: string;
 }
 
-type ParamsInput = Params | Promise<Params>;
-
 async function getBlogPost(authorName: string, slug: string) {
   try {
     // First, find the author by name
@@ -174,7 +172,7 @@ async function getRelatedPosts(postId: string, category: string, authorId: strin
   }
 }
 
-export async function generateMetadata({ params }: { params: ParamsInput }): Promise<Metadata> {
+export async function generateMetadata({ params }: { params: Promise<Params> }): Promise<Metadata> {
   const resolvedParams = await params;
   const post = await getBlogPost(resolvedParams.authorName, resolvedParams.slug);
   
@@ -224,7 +222,7 @@ export async function generateMetadata({ params }: { params: ParamsInput }): Pro
   };
 }
 
-export default async function BlogPostPage({ params }: { params: ParamsInput }) {
+export default async function BlogPostPage({ params }: { params: Promise<Params> }) {
   const resolvedParams = await params;
   const post = await getBlogPost(resolvedParams.authorName, resolvedParams.slug);
 
