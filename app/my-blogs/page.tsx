@@ -40,6 +40,16 @@ import { toast } from 'sonner';
 import Link from 'next/link';
 import Image from 'next/image';
 import PublicNavbar from '@/components/layout/public-navbar';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface BlogPost {
   id: string;
@@ -48,11 +58,11 @@ interface BlogPost {
   excerpt: string;
   featuredImage?: string;
   category: string;
-  status: 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED' | 'DRAFT';
-  submittedAt?: Date;
-  publishedAt?: Date;
+  status: 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED' | 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
+  submittedAt?: string | null;
+  publishedAt?: string | null;
   readingTime: number;
-  rejectionReason?: string;
+  rejectionReason?: string | null;
   views: number;
   author: {
     id: string;
@@ -88,6 +98,12 @@ const baseStatusConfig = {
     icon: CheckCircle,
     description: 'Your post is live and visible to readers'
   },
+  PUBLISHED: {
+    label: 'Published',
+    color: 'bg-green-100 text-green-800',
+    icon: CheckCircle,
+    description: 'Your post is live and visible to readers'
+  },
   REJECTED: {
     label: 'Rejected',
     color: 'bg-red-100 text-red-800',
@@ -99,6 +115,12 @@ const baseStatusConfig = {
     color: 'bg-gray-100 text-gray-800',
     icon: FileText,
     description: 'Your post is saved as a draft'
+  },
+  ARCHIVED: {
+    label: 'Archived',
+    color: 'bg-slate-100 text-slate-700',
+    icon: FileText,
+    description: 'This post has been archived and is hidden from readers'
   }
 } satisfies Record<BlogPost['status'], StatusDisplayConfig>;
 
@@ -111,6 +133,8 @@ export default function MyBlogsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('newest');
+  const [blogPendingDeletion, setBlogPendingDeletion] = useState<BlogPost | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -169,25 +193,30 @@ export default function MyBlogsPage() {
       }
     });
 
-  const deleteBlog = async (blogId: string) => {
-    if (!confirm('Are you sure you want to delete this blog post? This action cannot be undone.')) {
+  const confirmDelete = async () => {
+    if (!blogPendingDeletion) {
       return;
     }
 
     try {
-      const response = await fetch(`/api/blog/posts/${blogId}`, {
+      setDeleting(true);
+      const response = await fetch(`/api/blog/posts/${blogPendingDeletion.slug}`, {
         method: 'DELETE'
       });
 
       if (response.ok) {
-        setBlogs(blogs.filter(blog => blog.id !== blogId));
+        setBlogs(prev => prev.filter(blog => blog.id !== blogPendingDeletion.id));
         toast.success('Blog post deleted successfully');
+        setBlogPendingDeletion(null);
       } else {
-        toast.error('Failed to delete blog post');
+        const errorData = await response.json().catch(() => null);
+        toast.error(errorData?.error || 'Failed to delete blog post');
       }
     } catch (error) {
       console.error('Error deleting blog:', error);
       toast.error('An error occurred while deleting the blog post');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -219,10 +248,11 @@ export default function MyBlogsPage() {
   const stats = getStatusStats();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
-      <PublicNavbar />
-      
-      <div className="max-w-6xl mx-auto px-4 py-8">
+    <>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+        <PublicNavbar />
+        
+        <div className="max-w-6xl mx-auto px-4 py-8">
         {/* Header */}
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
@@ -412,7 +442,7 @@ export default function MyBlogsPage() {
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
-                                  {blog.status === 'APPROVED' && (
+                                  {['APPROVED', 'PUBLISHED'].includes(blog.status) && (
                                     <DropdownMenuItem asChild>
                                       <Link href={`/blog/${user?.name.replace(/\s+/g, '-').toLowerCase()}/${blog.slug}`}>
                                         <Eye className="mr-2 h-4 w-4" />
@@ -420,16 +450,16 @@ export default function MyBlogsPage() {
                                       </Link>
                                     </DropdownMenuItem>
                                   )}
-                                  {(blog.status === 'DRAFT' || blog.status === 'REJECTED') && (
+                                  {['DRAFT', 'REJECTED', 'PENDING_APPROVAL'].includes(blog.status) && (
                                     <DropdownMenuItem asChild>
-                                      <Link href={`/blog/edit/${blog.id}`}>
+                                      <Link href={`/blog/edit/${blog.slug}`}>
                                         <Edit className="mr-2 h-4 w-4" />
                                         Edit
                                       </Link>
                                     </DropdownMenuItem>
                                   )}
-                                  <DropdownMenuItem 
-                                    onClick={() => deleteBlog(blog.id)}
+                                  <DropdownMenuItem
+                                    onClick={() => setBlogPendingDeletion(blog)}
                                     className="text-red-600"
                                   >
                                     <Trash2 className="mr-2 h-4 w-4" />
@@ -493,7 +523,36 @@ export default function MyBlogsPage() {
             })
           )}
         </motion.div>
+        </div>
       </div>
-    </div>
+
+      <AlertDialog
+        open={!!blogPendingDeletion}
+        onOpenChange={(open) => {
+          if (!open && !deleting) {
+            setBlogPendingDeletion(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete &quot;{blogPendingDeletion?.title}&quot;?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action permanently removes the blog post and its analytics from your dashboard. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              disabled={deleting}
+              className="bg-red-600 text-white hover:bg-red-700 focus:ring-red-500"
+            >
+              {deleting ? 'Deleting…' : 'Delete Post'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

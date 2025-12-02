@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -58,6 +58,9 @@ interface BlogSubmissionFormProps {
     email?: string | null;
     phone?: string | null;
   };
+  initialData?: Partial<BlogSubmissionData>;
+  mode?: 'create' | 'edit';
+  submitLabel?: string;
 }
 
 const BLOG_CATEGORIES = {
@@ -110,17 +113,24 @@ const PREVIEW_ACCENTS = [
   { id: 'amber', label: 'Amber', swatch: 'bg-amber-500', accentHex: '#f59e0b' },
 ];
 
-export default function BlogSubmissionForm({ onSubmit, loading = false, currentUser }: BlogSubmissionFormProps) {
+export default function BlogSubmissionForm({
+  onSubmit,
+  loading = false,
+  currentUser,
+  initialData,
+  mode = 'create',
+  submitLabel,
+}: BlogSubmissionFormProps) {
   const [formData, setFormData] = useState<BlogSubmissionData>({
-    title: '',
-    content: '',
-    excerpt: '',
-    featuredImage: '',
-    images: [],
-    category: '',
-    tags: [],
-    submissionNotes: '',
-    accentColor: PREVIEW_ACCENTS[0]?.accentHex,
+    title: initialData?.title ?? '',
+    content: initialData?.content ?? '',
+    excerpt: initialData?.excerpt ?? '',
+    featuredImage: initialData?.featuredImage ?? '',
+    images: initialData?.images ?? [],
+    category: initialData?.category ?? '',
+    tags: initialData?.tags ?? [],
+    submissionNotes: initialData?.submissionNotes ?? '',
+    accentColor: initialData?.accentColor ?? PREVIEW_ACCENTS[0]?.accentHex,
   });
 
   const [newTag, setNewTag] = useState('');
@@ -129,6 +139,23 @@ export default function BlogSubmissionForm({ onSubmit, loading = false, currentU
   const [imagePreviews, setImagePreviews] = useState<{ url: string; name: string; size: number }[]>([]);
   const contentRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!initialData) return;
+    setFormData(prev => ({
+      ...prev,
+      ...initialData,
+      title: initialData.title ?? prev.title,
+      content: initialData.content ?? prev.content,
+      excerpt: initialData.excerpt ?? prev.excerpt,
+      featuredImage: initialData.featuredImage ?? '',
+      images: initialData.images ?? [],
+      category: initialData.category ?? '',
+      tags: initialData.tags ?? [],
+      submissionNotes: initialData.submissionNotes ?? '',
+      accentColor: initialData.accentColor ?? prev.accentColor,
+    }));
+  }, [initialData]);
 
   // Handle form field changes
   const handleChange = (field: keyof BlogSubmissionData, value: any) => {
@@ -508,6 +535,9 @@ export default function BlogSubmissionForm({ onSubmit, loading = false, currentU
   const contributorEmail = currentUser?.email?.trim() || 'Email not set';
   const contributorPhone = currentUser?.phone?.trim() || 'Phone not provided';
   const profileIncomplete = !currentUser?.name || !currentUser?.email;
+  const isEditMode = mode === 'edit';
+  const primaryLabel = submitLabel || (isEditMode ? 'Save Updates' : 'Submit Blog Post');
+  const loadingLabel = isEditMode ? 'Saving...' : 'Submitting...';
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -1080,10 +1110,10 @@ export default function BlogSubmissionForm({ onSubmit, loading = false, currentU
           {loading ? (
             <>
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-              Submitting...
+              {loadingLabel}
             </>
           ) : (
-            'Submit Blog Post'
+            primaryLabel
           )}
         </Button>
       </div>
