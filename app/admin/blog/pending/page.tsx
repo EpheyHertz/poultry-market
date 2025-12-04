@@ -223,15 +223,15 @@ export default function BlogPendingPage() {
     }
   }, [currentPage, searchTerm, statusFilter, user, fetchPosts]);
 
-  // Handle approval/rejection
-  const handleApprovalAction = async (slug: string, action: 'approve' | 'reject') => {
+  // Handle approval/rejection/publish/reapprove
+  const handleApprovalAction = async (slug: string, action: 'approve' | 'reject' | 'publish' | 'reapprove') => {
     try {
       setProcessing(true);
 
       const requestData: any = {
         action,
-        publishImmediately: action === 'approve' ? publishImmediately : false,
-        featured: action === 'approve' ? makeFeatured : false,
+        publishImmediately: ['approve', 'reapprove'].includes(action) ? publishImmediately : false,
+        featured: ['approve', 'reapprove', 'publish'].includes(action) ? makeFeatured : false,
       };
 
       if (action === 'reject' && rejectionReason.trim()) {
@@ -571,14 +571,37 @@ export default function BlogPendingPage() {
                   )}
 
                   {selectedPost.status === 'APPROVED' && (
-                    <div className="text-center py-4">
-                      <CheckCircle className="h-12 w-12 text-green-600 mx-auto mb-2" />
-                      <p className="text-green-800 font-medium">Post Approved</p>
-                      {selectedPost.approvedAt && (
-                        <p className="text-sm text-gray-600 mt-1">
-                          Approved on {formatDate(selectedPost.approvedAt)}
-                        </p>
-                      )}
+                    <div className="space-y-4">
+                      <div className="text-center py-2">
+                        <CheckCircle className="h-10 w-10 text-green-600 mx-auto mb-2" />
+                        <p className="text-green-800 font-medium">Post Approved</p>
+                        {selectedPost.approvedAt && (
+                          <p className="text-sm text-gray-600 mt-1">
+                            Approved on {formatDate(selectedPost.approvedAt)}
+                          </p>
+                        )}
+                      </div>
+                      
+                      <Separator />
+                      
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <label className="text-sm font-medium">Mark as Featured</label>
+                          <Switch
+                            checked={makeFeatured}
+                            onCheckedChange={setMakeFeatured}
+                          />
+                        </div>
+                      </div>
+                      
+                      <Button
+                        onClick={() => handleApprovalAction(selectedPost.slug, 'publish')}
+                        disabled={processing}
+                        className="w-full bg-blue-600 hover:bg-blue-700"
+                      >
+                        <CheckCircle className="h-4 w-4 mr-2" />
+                        {processing ? 'Publishing...' : 'Publish Now'}
+                      </Button>
                     </div>
                   )}
 
@@ -595,21 +618,63 @@ export default function BlogPendingPage() {
                   )}
 
                   {selectedPost.status === 'REJECTED' && (
-                    <div className="text-center py-4">
-                      <XCircle className="h-12 w-12 text-red-600 mx-auto mb-2" />
-                      <p className="text-red-800 font-medium">Post Rejected</p>
-                      {selectedPost.rejectedAt && (
-                        <p className="text-sm text-gray-600 mt-1">
-                          Rejected on {formatDate(selectedPost.rejectedAt)}
-                        </p>
-                      )}
-                      {selectedPost.rejectionReason && (
-                        <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
-                          <p className="text-sm text-red-800">
-                            <strong>Reason:</strong> {selectedPost.rejectionReason}
+                    <div className="space-y-4">
+                      <div className="text-center py-2">
+                        <XCircle className="h-10 w-10 text-red-600 mx-auto mb-2" />
+                        <p className="text-red-800 font-medium">Post Rejected</p>
+                        {selectedPost.rejectedAt && (
+                          <p className="text-sm text-gray-600 mt-1">
+                            Rejected on {formatDate(selectedPost.rejectedAt)}
                           </p>
+                        )}
+                        {selectedPost.rejectionReason && (
+                          <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg text-left">
+                            <p className="text-sm text-red-800">
+                              <strong>Reason:</strong> {selectedPost.rejectionReason}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                      
+                      <Separator />
+                      
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <label className="text-sm font-medium">Publish Immediately</label>
+                          <Switch
+                            checked={publishImmediately}
+                            onCheckedChange={setPublishImmediately}
+                          />
                         </div>
-                      )}
+                        <div className="flex items-center justify-between">
+                          <label className="text-sm font-medium">Mark as Featured</label>
+                          <Switch
+                            checked={makeFeatured}
+                            onCheckedChange={setMakeFeatured}
+                          />
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Button
+                          onClick={() => handleApprovalAction(selectedPost.slug, 'reapprove')}
+                          disabled={processing}
+                          className="w-full bg-green-600 hover:bg-green-700"
+                        >
+                          <ThumbsUp className="h-4 w-4 mr-2" />
+                          {processing ? 'Processing...' : (publishImmediately ? 'Reapprove & Publish' : 'Reapprove Post')}
+                        </Button>
+                        
+                        <Button
+                          onClick={() => handleApprovalAction(selectedPost.slug, 'publish')}
+                          disabled={processing}
+                          variant="outline"
+                          className="w-full border-blue-300 text-blue-700 hover:bg-blue-50"
+                        >
+                          <CheckCircle className="h-4 w-4 mr-2" />
+                          {processing ? 'Publishing...' : 'Publish Directly'}
+                        </Button>
+                      </div>
                     </div>
                   )}
                 </CardContent>

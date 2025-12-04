@@ -3,11 +3,11 @@ import { getCurrentUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 
-// Approval/rejection schema
+// Approval/rejection/publish schema
 const approvalSchema = z.object({
-  action: z.enum(['approve', 'reject']),
+  action: z.enum(['approve', 'reject', 'publish', 'reapprove']),
   rejectionReason: z.string().optional(),
-  publishImmediately: z.boolean().default(false),
+  publishImmediately: z.boolean().default(true),
   featured: z.boolean().default(false),
 });
 
@@ -61,10 +61,18 @@ export async function PATCH(
       );
     }
 
-    // Check if post is in a state that can be approved/rejected
-    if (!['PENDING_APPROVAL', 'REJECTED'].includes(existingPost.status)) {
+    // Validate status transitions based on action
+    const validTransitions: Record<string, string[]> = {
+      approve: ['PENDING_APPROVAL', 'REJECTED'],
+      reject: ['PENDING_APPROVAL', 'APPROVED'],
+      publish: ['APPROVED', 'PENDING_APPROVAL', 'REJECTED'],
+      reapprove: ['REJECTED'],
+    };
+
+    const allowedStatuses = validTransitions[action] || [];
+    if (!allowedStatuses.includes(existingPost.status)) {
       return NextResponse.json(
-        { error: 'Blog post is not pending approval' },
+        { error: `Cannot ${action} a post with status ${existingPost.status}` },
         { status: 400 }
       );
     }
@@ -88,6 +96,25 @@ export async function PATCH(
       updateData.rejectedAt = new Date();
       updateData.approvedAt = null;
       updateData.rejectionReason = rejectionReason || 'Post does not meet our guidelines';
+    } else if (action === 'publish') {
+      // Directly publish a post (from APPROVED, PENDING_APPROVAL, or even REJECTED)
+      updateData.status = 'PUBLISHED';
+      updateData.publishedAt = new Date();
+      updateData.approvedAt = updateData.approvedAt || new Date();
+      updateData.rejectedAt = null;
+      updateData.rejectionReason = null;
+      updateData.featured = featured;
+    } else if (action === 'reapprove') {
+      // Reapprove a rejected post (sets to pending or approved based on publishImmediately)
+      updateData.status = publishImmediately ? 'PUBLISHED' : 'APPROVED';
+      updateData.approvedAt = new Date();
+      updateData.rejectedAt = null;
+      updateData.rejectionReason = null;
+      updateData.featured = featured;
+      
+      if (publishImmediately) {
+        updateData.publishedAt = new Date();
+      }
     }
 
     // Update the blog post
@@ -115,11 +142,16 @@ export async function PATCH(
     // TODO: Send notification email to the author
     // This would be implemented in the notifications system
 
+    const actionMessages: Record<string, string> = {
+      approve: publishImmediately ? 'Blog post approved and published successfully' : 'Blog post approved successfully',
+      reject: 'Blog post rejected',
+      publish: 'Blog post published successfully',
+      reapprove: publishImmediately ? 'Blog post reapproved and published successfully' : 'Blog post reapproved successfully',
+    };
+
     return NextResponse.json({
       success: true,
-      message: action === 'approve' 
-        ? `Blog post ${publishImmediately ? 'approved and published' : 'approved'} successfully`
-        : 'Blog post rejected',
+      message: actionMessages[action] || 'Blog post updated',
       blogPost: {
         id: updatedPost.id,
         title: updatedPost.title,
