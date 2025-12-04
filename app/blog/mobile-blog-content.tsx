@@ -20,7 +20,10 @@ import {
   Eye,
   Menu,
   X,
-  Users
+  Users,
+  Loader2,
+  ArrowRight,
+  BookOpen
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -82,6 +85,14 @@ interface Tag {
   postCount?: number;
 }
 
+interface Pagination {
+  currentPage: number;
+  totalPages: number;
+  totalPosts: number;
+  hasNextPage: boolean;
+  hasPrevPage: boolean;
+}
+
 export default function MobileBlogContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -96,6 +107,9 @@ export default function MobileBlogContent() {
   const [sortBy, setSortBy] = useState(searchParams?.get('sort') || 'latest');
   const [showFilters, setShowFilters] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [pagination, setPagination] = useState<Pagination | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Check for mobile viewport
   useEffect(() => {
@@ -105,10 +119,16 @@ export default function MobileBlogContent() {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  const fetchPosts = useCallback(async () => {
+  const fetchPosts = useCallback(async (page = 1, append = false) => {
     try {
-      setLoading(true);
+      if (append) {
+        setLoadingMore(true);
+      } else {
+        setLoading(true);
+      }
       const params = new URLSearchParams();
+      params.set('page', page.toString());
+      params.set('limit', '10');
       if (searchQuery) params.set('search', searchQuery);
       if (selectedCategory) params.set('category', selectedCategory);
       if (selectedTag) params.set('tag', selectedTag);
@@ -117,14 +137,27 @@ export default function MobileBlogContent() {
       const response = await fetch(`/api/blog/posts?${params}`);
       if (response.ok) {
         const data = await response.json();
-        setPosts(data.posts || []);
+        if (append) {
+          setPosts(prev => [...prev, ...(data.posts || [])]);
+        } else {
+          setPosts(data.posts || []);
+        }
+        setPagination(data.pagination || null);
+        setCurrentPage(page);
       }
     } catch (error) {
       console.error('Error fetching posts:', error);
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   }, [searchQuery, selectedCategory, selectedTag, sortBy]);
+
+  const loadMorePosts = () => {
+    if (pagination?.hasNextPage && !loadingMore) {
+      fetchPosts(currentPage + 1, true);
+    }
+  };
 
   const fetchMetadata = useCallback(async () => {
     try {
@@ -148,7 +181,7 @@ export default function MobileBlogContent() {
   }, []);
 
   useEffect(() => {
-    fetchPosts();
+    fetchPosts(1, false);
     fetchMetadata();
   }, [fetchPosts, fetchMetadata]);
 
@@ -160,6 +193,8 @@ export default function MobileBlogContent() {
     } else {
       params.delete(key);
     }
+    // Reset to page 1 when filters change
+    setCurrentPage(1);
     router.push(`/blog?${params.toString()}`);
   };
 
@@ -173,6 +208,7 @@ export default function MobileBlogContent() {
     setSelectedCategory('');
     setSelectedTag('');
     setSortBy('latest');
+    setCurrentPage(1);
     router.push('/blog');
   };
 
@@ -609,6 +645,101 @@ export default function MobileBlogContent() {
                       ))}
                     </div>
                   </div>
+                )}
+
+                {/* Find More Blogs Section */}
+                {pagination && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3 }}
+                    className="mt-8"
+                  >
+                    <Card className="overflow-hidden border-0 shadow-lg bg-gradient-to-br from-emerald-50 via-white to-emerald-50">
+                      <CardContent className="p-6 sm:p-8">
+                        <div className="text-center space-y-4">
+                          {/* Stats */}
+                          <div className="flex items-center justify-center gap-2 text-emerald-600">
+                            <BookOpen className="h-5 w-5" />
+                            <span className="text-sm font-medium">
+                              Showing {posts.length} of {pagination.totalPosts} articles
+                            </span>
+                          </div>
+
+                          {/* Progress bar */}
+                          <div className="max-w-xs mx-auto">
+                            <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                              <motion.div
+                                className="h-full bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-full"
+                                initial={{ width: 0 }}
+                                animate={{ width: `${Math.min((posts.length / pagination.totalPosts) * 100, 100)}%` }}
+                                transition={{ duration: 0.5, ease: "easeOut" }}
+                              />
+                            </div>
+                          </div>
+
+                          {pagination.hasNextPage ? (
+                            <>
+                              <div className="space-y-2">
+                                <h3 className="text-lg font-bold text-gray-900">
+                                  Discover More Articles
+                                </h3>
+                                <p className="text-gray-600 text-sm max-w-md mx-auto">
+                                  {pagination.totalPosts - posts.length} more articles waiting for you. 
+                                  Keep exploring expert insights and tips!
+                                </p>
+                              </div>
+
+                              <Button
+                                onClick={loadMorePosts}
+                                disabled={loadingMore}
+                                size="lg"
+                                className="bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white px-8 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 group"
+                              >
+                                {loadingMore ? (
+                                  <>
+                                    <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                                    Loading...
+                                  </>
+                                ) : (
+                                  <>
+                                    <span>Find More Blogs</span>
+                                    <ArrowRight className="h-5 w-5 ml-2 group-hover:translate-x-1 transition-transform" />
+                                  </>
+                                )}
+                              </Button>
+
+                              {/* Page indicator */}
+                              <p className="text-xs text-gray-500">
+                                Page {pagination.currentPage} of {pagination.totalPages}
+                              </p>
+                            </>
+                          ) : (
+                            <div className="space-y-3 py-4">
+                              <div className="flex items-center justify-center gap-2 text-emerald-600">
+                                <span className="text-2xl">🎉</span>
+                              </div>
+                              <h3 className="text-lg font-bold text-gray-900">
+                                You&apos;ve explored all articles!
+                              </h3>
+                              <p className="text-gray-600 text-sm max-w-md mx-auto">
+                                You&apos;ve reached the end. Check back soon for new content or browse by category.
+                              </p>
+                              {(selectedCategory || selectedTag || searchQuery) && (
+                                <Button
+                                  onClick={clearFilters}
+                                  variant="outline"
+                                  className="mt-2"
+                                >
+                                  Browse All Articles
+                                </Button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
                 )}
               </div>
             )}
