@@ -46,6 +46,59 @@ const payloadSchema = z.object({
   metaDescription: z.string().max(160).optional(),
 });
 
+/**
+ * Calculate precise reading time in minutes based on content analysis.
+ * - Average adult reading speed: ~200-250 WPM for technical content
+ * - Accounts for code blocks (slower reading), images, and headings
+ */
+function calculateReadingTime(content: string): number {
+  const WORDS_PER_MINUTE = 220; // Conservative estimate for technical/blog content
+  const CODE_BLOCK_SECONDS = 12; // Extra seconds per code block
+  const IMAGE_SECONDS = 10; // Seconds to process each image reference
+  const HEADING_SECONDS = 2; // Brief pause per heading
+
+  // Strip HTML tags for accurate word count
+  const textOnly = content
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/```[\s\S]*?```/g, (match) => {
+      // Replace code blocks with marker to count them separately
+      return ' __CODE_BLOCK__ ';
+    })
+    .replace(/`[^`]+`/g, ' '); // Remove inline code
+
+  // Count words (split on whitespace, filter empty)
+  const words = textOnly
+    .split(/\s+/)
+    .filter((word) => word.length > 0 && word !== '__CODE_BLOCK__');
+  const wordCount = words.length;
+
+  // Count code blocks (fenced with ```)
+  const codeBlockMatches = content.match(/```[\s\S]*?```/g);
+  const codeBlockCount = codeBlockMatches ? codeBlockMatches.length : 0;
+
+  // Count images (markdown ![...](...) or <img> tags)
+  const imageMatches = content.match(/!\[.*?\]\(.*?\)|<img[^>]*>/gi);
+  const imageCount = imageMatches ? imageMatches.length : 0;
+
+  // Count headings (markdown # or <h1>-<h6>)
+  const headingMatches = content.match(/^#{1,6}\s|<h[1-6][^>]*>/gim);
+  const headingCount = headingMatches ? headingMatches.length : 0;
+
+  // Base reading time from words
+  const baseMinutes = wordCount / WORDS_PER_MINUTE;
+
+  // Additional time for code blocks, images, headings (convert to minutes)
+  const codeTime = (codeBlockCount * CODE_BLOCK_SECONDS) / 60;
+  const imageTime = (imageCount * IMAGE_SECONDS) / 60;
+  const headingTime = (headingCount * HEADING_SECONDS) / 60;
+
+  const totalMinutes = baseMinutes + codeTime + imageTime + headingTime;
+
+  // Round to nearest 0.5 for precision, minimum 1 minute
+  const rounded = Math.round(totalMinutes * 2) / 2;
+  return Math.max(1, rounded);
+}
+
 export async function POST(request: Request) {
   try {
     const apiKey = request.headers.get('x-api-key');
@@ -128,6 +181,9 @@ export async function POST(request: Request) {
       }),
     );
 
+    // Calculate precise reading time
+    const readingTime = calculateReadingTime(data.content);
+
     const blogPost = await prisma.blogPost.create({
       data: {
         title: data.title,
@@ -141,6 +197,7 @@ export async function POST(request: Request) {
         metaDescription: data.metaDescription,
         submittedAt,
         publishedAt,
+        readingTime,
         images: [],
         tags: tagConnections.length
           ? {
@@ -186,6 +243,7 @@ export async function POST(request: Request) {
       id: blogPost.id,
       status: blogPost.status,
       slug: blogPost.slug,
+      readingTime: blogPost.readingTime,
       author: blogPost.author,
     }, {
       status: 201,
