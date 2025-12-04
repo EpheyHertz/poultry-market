@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, Suspense, useMemo } from 'react';
+import React, { useState, useEffect, Suspense, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
@@ -109,27 +109,44 @@ function MobileBlogPost({ post, relatedPosts = [] }: BlogPostPageProps) {
   const [visibleChunks, setVisibleChunks] = useState(1);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [isNearBottom, setIsNearBottom] = useState(false);
+  const [isExpandingContent, setIsExpandingContent] = useState(false);
+  const scrollDebounceRef = useRef<NodeJS.Timeout | null>(null);
   const contentChunks = useMemo(() => chunkMarkdownContent(post.content || '', CONTENT_CHARS_PER_CHUNK), [post.content]);
 
   // Track scroll position for back to top/bottom button
   useEffect(() => {
     const handleScroll = () => {
-      const scrollTop = window.scrollY;
-      const windowHeight = window.innerHeight;
-      const documentHeight = document.documentElement.scrollHeight;
+      // Skip scroll updates during content expansion to prevent dancing
+      if (isExpandingContent) return;
       
-      // Show button after scrolling 400px
-      setShowScrollButton(scrollTop > 400);
+      // Debounce scroll updates
+      if (scrollDebounceRef.current) {
+        clearTimeout(scrollDebounceRef.current);
+      }
       
-      // Check if near bottom (within 600px of bottom)
-      setIsNearBottom(scrollTop + windowHeight >= documentHeight - 600);
+      scrollDebounceRef.current = setTimeout(() => {
+        const scrollTop = window.scrollY;
+        const windowHeight = window.innerHeight;
+        const documentHeight = document.documentElement.scrollHeight;
+        
+        // Show button after scrolling 400px
+        setShowScrollButton(scrollTop > 400);
+        
+        // Check if near bottom (within 600px of bottom)
+        setIsNearBottom(scrollTop + windowHeight >= documentHeight - 600);
+      }, 100);
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
     handleScroll(); // Check initial position
     
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      if (scrollDebounceRef.current) {
+        clearTimeout(scrollDebounceRef.current);
+      }
+    };
+  }, [isExpandingContent]);
 
   // Scroll to top function
   const scrollToTop = () => {
@@ -219,11 +236,33 @@ function MobileBlogPost({ post, relatedPosts = [] }: BlogPostPageProps) {
   };
 
   const handleManualLoadMore = () => {
-    setVisibleChunks((prev) => Math.min(prev + 1, contentChunks.length));
+    if (isExpandingContent) return; // Prevent multiple clicks
+    
+    setIsExpandingContent(true);
+    
+    // Use requestAnimationFrame to ensure smooth expansion
+    requestAnimationFrame(() => {
+      setVisibleChunks((prev) => Math.min(prev + 1, contentChunks.length));
+      
+      // Reset expanding state after a short delay to allow DOM to settle
+      setTimeout(() => {
+        setIsExpandingContent(false);
+      }, 300);
+    });
   };
 
   const handleShowAllContent = () => {
-    setVisibleChunks(contentChunks.length);
+    if (isExpandingContent) return; // Prevent multiple clicks
+    
+    setIsExpandingContent(true);
+    
+    requestAnimationFrame(() => {
+      setVisibleChunks(contentChunks.length);
+      
+      setTimeout(() => {
+        setIsExpandingContent(false);
+      }, 500);
+    });
   };
 
   return (
@@ -475,15 +514,24 @@ function MobileBlogPost({ post, relatedPosts = [] }: BlogPostPageProps) {
                     variant="default"
                     size="sm"
                     onClick={handleManualLoadMore}
-                    className="rounded-full"
+                    disabled={isExpandingContent}
+                    className="rounded-full min-w-[120px]"
                   >
-                    Read more
+                    {isExpandingContent ? (
+                      <span className="flex items-center gap-2">
+                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                        Loading...
+                      </span>
+                    ) : (
+                      'Read more'
+                    )}
                   </Button>
                   {remainingChunks > 1 && (
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={handleShowAllContent}
+                      disabled={isExpandingContent}
                       className="rounded-full"
                     >
                       Show full article
