@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, Suspense, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import Link from 'next/link';
 import { format } from 'date-fns';
@@ -22,6 +22,8 @@ import {
   Tag,
   Users,
   Copy,
+  ArrowUp,
+  ArrowDown,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -105,7 +107,39 @@ function MobileBlogPost({ post, relatedPosts = [] }: BlogPostPageProps) {
   const [isFollowing, setIsFollowing] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [visibleChunks, setVisibleChunks] = useState(1);
+  const [showScrollButton, setShowScrollButton] = useState(false);
+  const [isNearBottom, setIsNearBottom] = useState(false);
   const contentChunks = useMemo(() => chunkMarkdownContent(post.content || '', CONTENT_CHARS_PER_CHUNK), [post.content]);
+
+  // Track scroll position for back to top/bottom button
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollTop = window.scrollY;
+      const windowHeight = window.innerHeight;
+      const documentHeight = document.documentElement.scrollHeight;
+      
+      // Show button after scrolling 400px
+      setShowScrollButton(scrollTop > 400);
+      
+      // Check if near bottom (within 600px of bottom)
+      setIsNearBottom(scrollTop + windowHeight >= documentHeight - 600);
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll(); // Check initial position
+    
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Scroll to top function
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Scroll to bottom function
+  const scrollToBottom = () => {
+    window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' });
+  };
 
   useEffect(() => {
     setVisibleChunks(contentChunks.length ? 1 : 0);
@@ -613,6 +647,49 @@ function MobileBlogPost({ post, relatedPosts = [] }: BlogPostPageProps) {
           </motion.div>
         )}
       </div>
+
+      {/* Floating Back to Top/Bottom Button */}
+      <AnimatePresence>
+        {showScrollButton && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.8, y: 20 }}
+            transition={{ duration: 0.2 }}
+            className="fixed bottom-6 right-6 z-50 flex flex-col gap-2"
+          >
+            {/* Scroll to Top */}
+            <motion.button
+              onClick={scrollToTop}
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.95 }}
+              className={`p-3 rounded-full shadow-lg transition-all duration-300 ${
+                !isNearBottom 
+                  ? 'bg-emerald-600 text-white hover:bg-emerald-700' 
+                  : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
+              }`}
+              aria-label="Scroll to top"
+            >
+              <ArrowUp className="h-5 w-5" />
+            </motion.button>
+
+            {/* Scroll to Bottom */}
+            <motion.button
+              onClick={scrollToBottom}
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.95 }}
+              className={`p-3 rounded-full shadow-lg transition-all duration-300 ${
+                isNearBottom 
+                  ? 'bg-emerald-600 text-white hover:bg-emerald-700' 
+                  : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
+              }`}
+              aria-label="Scroll to bottom"
+            >
+              <ArrowDown className="h-5 w-5" />
+            </motion.button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

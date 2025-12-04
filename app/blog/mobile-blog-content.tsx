@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -23,7 +23,10 @@ import {
   Users,
   Loader2,
   ArrowRight,
-  BookOpen
+  BookOpen,
+  ArrowUp,
+  ArrowDown,
+  ChevronsUpDown
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -110,6 +113,41 @@ export default function MobileBlogContent() {
   const [pagination, setPagination] = useState<Pagination | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [navigating, setNavigating] = useState(false);
+  const [searchInput, setSearchInput] = useState(searchParams?.get('search') || '');
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [showScrollButton, setShowScrollButton] = useState(false);
+  const [isNearBottom, setIsNearBottom] = useState(false);
+
+  // Track scroll position for back to top/bottom button
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollTop = window.scrollY;
+      const windowHeight = window.innerHeight;
+      const documentHeight = document.documentElement.scrollHeight;
+      
+      // Show button after scrolling 300px
+      setShowScrollButton(scrollTop > 300);
+      
+      // Check if near bottom (within 500px of bottom)
+      setIsNearBottom(scrollTop + windowHeight >= documentHeight - 500);
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll(); // Check initial position
+    
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Scroll to top function
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Scroll to bottom function
+  const scrollToBottom = () => {
+    window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' });
+  };
 
   // Check for mobile viewport
   useEffect(() => {
@@ -198,17 +236,48 @@ export default function MobileBlogContent() {
     router.push(`/blog?${params.toString()}`);
   };
 
-  const handleSearch = (value: string) => {
-    setSearchQuery(value);
-    updateURL('search', value);
+  // Debounced search - waits 500ms after user stops typing
+  const handleSearchInput = (value: string) => {
+    setSearchInput(value);
+    
+    // Clear existing timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    
+    // Set new timeout for debounced search
+    searchTimeoutRef.current = setTimeout(() => {
+      setSearchQuery(value);
+      updateURL('search', value);
+    }, 500);
+  };
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Handle navigation to blog post with loading state
+  const handlePostClick = (e: React.MouseEvent, url: string) => {
+    e.preventDefault();
+    setNavigating(true);
+    router.push(url);
   };
 
   const clearFilters = () => {
     setSearchQuery('');
+    setSearchInput('');
     setSelectedCategory('');
     setSelectedTag('');
     setSortBy('latest');
     setCurrentPage(1);
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
     router.push('/blog');
   };
 
@@ -234,10 +303,15 @@ export default function MobileBlogContent() {
               <Input
                 type="text"
                 placeholder="Search articles..."
-                value={searchQuery}
-                onChange={(e) => handleSearch(e.target.value)}
+                value={searchInput}
+                onChange={(e) => handleSearchInput(e.target.value)}
                 className="pl-10 bg-white text-gray-900 border-0 h-10 text-sm"
               />
+              {searchInput !== searchQuery && (
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  <Loader2 className="h-4 w-4 text-gray-400 animate-spin" />
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -390,6 +464,11 @@ export default function MobileBlogContent() {
                   Clear Filters
                 </Button>
               </Card>
+            ) : navigating ? (
+              <div className="flex flex-col items-center justify-center py-20 space-y-4">
+                <Loader2 className="h-10 w-10 text-emerald-600 animate-spin" />
+                <p className="text-gray-600 font-medium">Loading article...</p>
+              </div>
             ) : (
               <div className="space-y-6">
                 {/* Featured Posts */}
@@ -447,7 +526,12 @@ export default function MobileBlogContent() {
                               </div>
                               <CardContent className="p-6 flex-1 flex flex-col justify-between">
                                 <div className="space-y-4">
-                                  <Link href={`/blog/${post.author.name.replace(/\s+/g, '-').toLowerCase()}/${post.slug}`} className="block group/link">
+                                  <Link 
+                                    href={`/blog/${post.author.name.replace(/\s+/g, '-').toLowerCase()}/${post.slug}`} 
+                                    className="block group/link"
+                                    prefetch={false}
+                                    onClick={(e) => handlePostClick(e, `/blog/${post.author.name.replace(/\s+/g, '-').toLowerCase()}/${post.slug}`)}
+                                  >
                                     <h3 className="font-bold mb-3 line-clamp-2 text-xl leading-tight hover:text-emerald-600 transition-colors duration-200 group-hover/link:text-emerald-700">
                                       {post.title}
                                     </h3>
@@ -562,7 +646,12 @@ export default function MobileBlogContent() {
                               </div>
                               <CardContent className="p-5 flex-1 flex flex-col justify-between">
                                 <div className="space-y-3">
-                                  <Link href={`/blog/${post.author.name.replace(/\s+/g, '-').toLowerCase()}/${post.slug}`} className="block group/link">
+                                  <Link 
+                                    href={`/blog/${post.author.name.replace(/\s+/g, '-').toLowerCase()}/${post.slug}`} 
+                                    className="block group/link"
+                                    prefetch={false}
+                                    onClick={(e) => handlePostClick(e, `/blog/${post.author.name.replace(/\s+/g, '-').toLowerCase()}/${post.slug}`)}
+                                  >
                                     <h3 className="font-bold mb-2 line-clamp-2 text-lg leading-tight hover:text-emerald-600 transition-colors duration-200 group-hover/link:text-emerald-700">
                                       {post.title}
                                     </h3>
@@ -746,6 +835,49 @@ export default function MobileBlogContent() {
           </div>
         </div>
       </div>
+
+      {/* Floating Back to Top/Bottom Button */}
+      <AnimatePresence>
+        {showScrollButton && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.8, y: 20 }}
+            transition={{ duration: 0.2 }}
+            className="fixed bottom-6 right-6 z-50 flex flex-col gap-2"
+          >
+            {/* Scroll to Top */}
+            <motion.button
+              onClick={scrollToTop}
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.95 }}
+              className={`p-3 rounded-full shadow-lg transition-all duration-300 ${
+                !isNearBottom 
+                  ? 'bg-emerald-600 text-white hover:bg-emerald-700' 
+                  : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
+              }`}
+              aria-label="Scroll to top"
+            >
+              <ArrowUp className="h-5 w-5" />
+            </motion.button>
+
+            {/* Scroll to Bottom */}
+            <motion.button
+              onClick={scrollToBottom}
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.95 }}
+              className={`p-3 rounded-full shadow-lg transition-all duration-300 ${
+                isNearBottom 
+                  ? 'bg-emerald-600 text-white hover:bg-emerald-700' 
+                  : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
+              }`}
+              aria-label="Scroll to bottom"
+            >
+              <ArrowDown className="h-5 w-5" />
+            </motion.button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
