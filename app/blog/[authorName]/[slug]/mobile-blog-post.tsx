@@ -110,43 +110,42 @@ function MobileBlogPost({ post, relatedPosts = [] }: BlogPostPageProps) {
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [isNearBottom, setIsNearBottom] = useState(false);
   const [isExpandingContent, setIsExpandingContent] = useState(false);
-  const scrollDebounceRef = useRef<NodeJS.Timeout | null>(null);
+  const isExpandingRef = useRef(false); // Ref for immediate access in scroll handler
   const contentChunks = useMemo(() => chunkMarkdownContent(post.content || '', CONTENT_CHARS_PER_CHUNK), [post.content]);
 
   // Track scroll position for back to top/bottom button
   useEffect(() => {
+    let ticking = false;
+    
     const handleScroll = () => {
-      // Skip scroll updates during content expansion to prevent dancing
-      if (isExpandingContent) return;
+      // Skip scroll updates during content expansion using ref (immediate access)
+      if (isExpandingRef.current) return;
       
-      // Debounce scroll updates
-      if (scrollDebounceRef.current) {
-        clearTimeout(scrollDebounceRef.current);
+      if (!ticking) {
+        requestAnimationFrame(() => {
+          if (!isExpandingRef.current) {
+            const scrollTop = window.scrollY;
+            const windowHeight = window.innerHeight;
+            const documentHeight = document.documentElement.scrollHeight;
+            
+            // Show button after scrolling 400px
+            setShowScrollButton(scrollTop > 400);
+            
+            // Check if near bottom (within 600px of bottom)
+            setIsNearBottom(scrollTop + windowHeight >= documentHeight - 600);
+          }
+          ticking = false;
+        });
+        ticking = true;
       }
-      
-      scrollDebounceRef.current = setTimeout(() => {
-        const scrollTop = window.scrollY;
-        const windowHeight = window.innerHeight;
-        const documentHeight = document.documentElement.scrollHeight;
-        
-        // Show button after scrolling 400px
-        setShowScrollButton(scrollTop > 400);
-        
-        // Check if near bottom (within 600px of bottom)
-        setIsNearBottom(scrollTop + windowHeight >= documentHeight - 600);
-      }, 100);
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
-    handleScroll(); // Check initial position
     
     return () => {
       window.removeEventListener('scroll', handleScroll);
-      if (scrollDebounceRef.current) {
-        clearTimeout(scrollDebounceRef.current);
-      }
     };
-  }, [isExpandingContent]);
+  }, []);
 
   // Scroll to top function
   const scrollToTop = () => {
@@ -236,33 +235,50 @@ function MobileBlogPost({ post, relatedPosts = [] }: BlogPostPageProps) {
   };
 
   const handleManualLoadMore = () => {
-    if (isExpandingContent) return; // Prevent multiple clicks
+    if (isExpandingRef.current) return; // Prevent multiple clicks
     
+    // Set refs and state to block scroll handling
+    isExpandingRef.current = true;
     setIsExpandingContent(true);
     
-    // Use requestAnimationFrame to ensure smooth expansion
+    // Save current scroll position before expanding
+    const scrollY = window.scrollY;
+    
+    // Directly update visible chunks
+    setVisibleChunks((prev) => Math.min(prev + 1, contentChunks.length));
+    
+    // Restore scroll position immediately after state update
     requestAnimationFrame(() => {
-      setVisibleChunks((prev) => Math.min(prev + 1, contentChunks.length));
-      
-      // Reset expanding state after a short delay to allow DOM to settle
-      setTimeout(() => {
-        setIsExpandingContent(false);
-      }, 300);
+      window.scrollTo(0, scrollY);
     });
+    
+    // Reset after DOM has settled
+    setTimeout(() => {
+      isExpandingRef.current = false;
+      setIsExpandingContent(false);
+    }, 500);
   };
 
   const handleShowAllContent = () => {
-    if (isExpandingContent) return; // Prevent multiple clicks
+    if (isExpandingRef.current) return; // Prevent multiple clicks
     
+    isExpandingRef.current = true;
     setIsExpandingContent(true);
     
+    // Save current scroll position before expanding
+    const scrollY = window.scrollY;
+    
+    setVisibleChunks(contentChunks.length);
+    
+    // Restore scroll position immediately after state update
     requestAnimationFrame(() => {
-      setVisibleChunks(contentChunks.length);
-      
-      setTimeout(() => {
-        setIsExpandingContent(false);
-      }, 500);
+      window.scrollTo(0, scrollY);
     });
+    
+    setTimeout(() => {
+      isExpandingRef.current = false;
+      setIsExpandingContent(false);
+    }, 700);
   };
 
   return (
@@ -497,11 +513,12 @@ function MobileBlogPost({ post, relatedPosts = [] }: BlogPostPageProps) {
         >
           <div className="rounded-2xl border border-slate-200/70 bg-white px-4 py-6 shadow-lg shadow-emerald-500/5 ring-1 ring-transparent backdrop-blur-sm transition-colors dark:border-slate-800 dark:bg-slate-950/60 dark:shadow-emerald-500/10 sm:px-8 sm:py-10">
             {displayedChunks.map((chunk, index) => (
-              <MarkdownContent
-                key={`post-chunk-${index}`}
-                content={chunk}
-                className={index > 0 ? 'pt-6 mt-6 border-t border-slate-200/70 dark:border-slate-800/80' : undefined}
-              />
+              <div
+                key={`post-chunk-${post.id}-${index}`}
+                className={index > 0 ? 'pt-6 mt-6 border-t border-slate-200/70 dark:border-slate-800/80' : ''}
+              >
+                <MarkdownContent content={chunk} />
+              </div>
             ))}
 
             {hasMoreChunks && (
