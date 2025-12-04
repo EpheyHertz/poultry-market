@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, Suspense, useMemo, useRef } from 'react';
+import React, { useState, useEffect, Suspense, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
@@ -109,38 +109,24 @@ function MobileBlogPost({ post, relatedPosts = [] }: BlogPostPageProps) {
   const [visibleChunks, setVisibleChunks] = useState(1);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [isNearBottom, setIsNearBottom] = useState(false);
-  const [isExpandingContent, setIsExpandingContent] = useState(false);
-  const isExpandingRef = useRef(false); // Ref for immediate access in scroll handler
   const contentChunks = useMemo(() => chunkMarkdownContent(post.content || '', CONTENT_CHARS_PER_CHUNK), [post.content]);
 
   // Track scroll position for back to top/bottom button
   useEffect(() => {
-    let ticking = false;
-    
     const handleScroll = () => {
-      // Skip scroll updates during content expansion using ref (immediate access)
-      if (isExpandingRef.current) return;
+      const scrollTop = window.scrollY;
+      const windowHeight = window.innerHeight;
+      const documentHeight = document.documentElement.scrollHeight;
       
-      if (!ticking) {
-        requestAnimationFrame(() => {
-          if (!isExpandingRef.current) {
-            const scrollTop = window.scrollY;
-            const windowHeight = window.innerHeight;
-            const documentHeight = document.documentElement.scrollHeight;
-            
-            // Show button after scrolling 400px
-            setShowScrollButton(scrollTop > 400);
-            
-            // Check if near bottom (within 600px of bottom)
-            setIsNearBottom(scrollTop + windowHeight >= documentHeight - 600);
-          }
-          ticking = false;
-        });
-        ticking = true;
-      }
+      // Show button after scrolling 400px
+      setShowScrollButton(scrollTop > 400);
+      
+      // Check if near bottom (within 600px of bottom)
+      setIsNearBottom(scrollTop + windowHeight >= documentHeight - 600);
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll(); // Initial check
     
     return () => {
       window.removeEventListener('scroll', handleScroll);
@@ -235,50 +221,11 @@ function MobileBlogPost({ post, relatedPosts = [] }: BlogPostPageProps) {
   };
 
   const handleManualLoadMore = () => {
-    if (isExpandingRef.current) return; // Prevent multiple clicks
-    
-    // Set refs and state to block scroll handling
-    isExpandingRef.current = true;
-    setIsExpandingContent(true);
-    
-    // Save current scroll position before expanding
-    const scrollY = window.scrollY;
-    
-    // Directly update visible chunks
     setVisibleChunks((prev) => Math.min(prev + 1, contentChunks.length));
-    
-    // Restore scroll position immediately after state update
-    requestAnimationFrame(() => {
-      window.scrollTo(0, scrollY);
-    });
-    
-    // Reset after DOM has settled
-    setTimeout(() => {
-      isExpandingRef.current = false;
-      setIsExpandingContent(false);
-    }, 500);
   };
 
   const handleShowAllContent = () => {
-    if (isExpandingRef.current) return; // Prevent multiple clicks
-    
-    isExpandingRef.current = true;
-    setIsExpandingContent(true);
-    
-    // Save current scroll position before expanding
-    const scrollY = window.scrollY;
-    
     setVisibleChunks(contentChunks.length);
-    
-    // Restore scroll position immediately after state update
-    requestAnimationFrame(() => {
-      window.scrollTo(0, scrollY);
-    });
-    
-    setTimeout(() => {
-      isExpandingRef.current = false;
-      setIsExpandingContent(false);
-    }, 700);
   };
 
   return (
@@ -531,24 +478,15 @@ function MobileBlogPost({ post, relatedPosts = [] }: BlogPostPageProps) {
                     variant="default"
                     size="sm"
                     onClick={handleManualLoadMore}
-                    disabled={isExpandingContent}
                     className="rounded-full min-w-[120px]"
                   >
-                    {isExpandingContent ? (
-                      <span className="flex items-center gap-2">
-                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                        Loading...
-                      </span>
-                    ) : (
-                      'Read more'
-                    )}
+                    Read more
                   </Button>
                   {remainingChunks > 1 && (
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={handleShowAllContent}
-                      disabled={isExpandingContent}
                       className="rounded-full"
                     >
                       Show full article
