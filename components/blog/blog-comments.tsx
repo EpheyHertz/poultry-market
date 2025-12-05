@@ -264,19 +264,19 @@ export default function BlogComments({ postId, comments: initialComments, onComm
   };
 
   const CommentCard = ({ comment, isReply = false }: { comment: Comment; isReply?: boolean }) => (
-    <Card className={`${isReply ? 'ml-4 sm:ml-8 border-l-4 border-l-emerald-200 dark:border-l-emerald-600' : ''} mb-3 sm:mb-4 border-slate-200 dark:border-slate-800`}>
-      <CardHeader className="pb-2 sm:pb-3 px-3 sm:px-6">
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex items-center space-x-2 sm:space-x-3 min-w-0">
-            <Avatar className="h-7 w-7 sm:h-8 sm:w-8 flex-shrink-0">
+    <Card className={`${isReply ? 'ml-3 sm:ml-8 border-l-2 sm:border-l-4 border-l-emerald-200 dark:border-l-emerald-600' : ''} mb-3 sm:mb-4 border-slate-200 dark:border-slate-800 overflow-hidden max-w-full`}>
+      <CardHeader className="pb-2 sm:pb-3 px-2 sm:px-6">
+        <div className="flex items-start justify-between gap-1 sm:gap-2">
+          <div className="flex items-center space-x-1.5 sm:space-x-3 min-w-0 flex-1">
+            <Avatar className="h-6 w-6 sm:h-8 sm:w-8 flex-shrink-0">
               <AvatarImage src={comment.author?.avatar} />
               <AvatarFallback>
                 <User className="h-3 w-3 sm:h-4 sm:w-4" />
               </AvatarFallback>
             </Avatar>
-            <div className="min-w-0">
-              <div className="flex items-center flex-wrap gap-1 sm:gap-2">
-                <span className="font-medium text-xs sm:text-sm truncate dark:text-slate-100">
+            <div className="min-w-0 flex-1 overflow-hidden">
+              <div className="flex items-center flex-wrap gap-0.5 sm:gap-2">
+                <span className="font-medium text-[11px] sm:text-sm truncate max-w-[100px] sm:max-w-none dark:text-slate-100">
                   {comment.author?.name || comment.guestName}
                 </span>
                 {comment.isEdited && (
@@ -301,13 +301,13 @@ export default function BlogComments({ postId, comments: initialComments, onComm
           {canModifyComment(comment) && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                  <MoreHorizontal className="h-4 w-4" />
+                <Button variant="ghost" size="sm" className="h-6 w-6 sm:h-8 sm:w-8 p-0 flex-shrink-0">
+                  <MoreHorizontal className="h-3 w-3 sm:h-4 sm:w-4" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => startEdit(comment)}>
-                  <Edit3 className="h-4 w-4 mr-2" />
+              <DropdownMenuContent align="end" className="min-w-[120px]">
+                <DropdownMenuItem onClick={() => startEdit(comment)} className="text-xs sm:text-sm">
+                  <Edit3 className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
                   Edit
                 </DropdownMenuItem>
                 <DropdownMenuItem 
@@ -315,9 +315,9 @@ export default function BlogComments({ postId, comments: initialComments, onComm
                     setCommentToDelete(comment.id);
                     setDeleteDialogOpen(true);
                   }}
-                  className="text-red-600"
+                  className="text-red-600 text-xs sm:text-sm"
                 >
-                  <Trash2 className="h-4 w-4 mr-2" />
+                  <Trash2 className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
                   Delete
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -326,7 +326,7 @@ export default function BlogComments({ postId, comments: initialComments, onComm
         </div>
       </CardHeader>
 
-      <CardContent className="pt-0 px-3 sm:px-6">
+      <CardContent className="pt-0 px-2 sm:px-6 overflow-hidden">
         {editingComment === comment.id ? (
           <div className="space-y-3 sm:space-y-4">
             <Textarea
@@ -334,7 +334,7 @@ export default function BlogComments({ postId, comments: initialComments, onComm
               onChange={(e) => setEditContent(e.target.value)}
               placeholder="Edit your comment..."
               rows={3}
-              className="text-sm min-h-[70px] dark:bg-slate-800 dark:border-slate-700"
+              className="text-xs sm:text-sm min-h-[60px] sm:min-h-[70px] dark:bg-slate-800 dark:border-slate-700"
             />
             
             <BlogImageUpload
@@ -357,7 +357,7 @@ export default function BlogComments({ postId, comments: initialComments, onComm
           </div>
         ) : (
           <>
-            <div className="text-gray-700 dark:text-slate-300 mb-2 sm:mb-3 whitespace-pre-wrap text-sm sm:text-base">
+            <div className="text-gray-700 dark:text-slate-300 mb-2 sm:mb-3 whitespace-pre-wrap break-words overflow-wrap-anywhere text-xs sm:text-sm leading-relaxed max-w-full overflow-hidden">
               {comment.content}
             </div>
 
@@ -377,7 +377,7 @@ export default function BlogComments({ postId, comments: initialComments, onComm
               </div>
             )}
 
-            <div className="flex items-center gap-1 sm:gap-2">
+            <div className="flex items-center gap-1">
               <CommentLikeButton 
                 commentId={comment.id} 
                 userAuthenticated={!!user} 
@@ -386,9 +386,9 @@ export default function BlogComments({ postId, comments: initialComments, onComm
                 variant="ghost"
                 size="sm"
                 onClick={() => setReplyingTo(replyingTo === comment.id ? null : comment.id)}
-                className="h-7 sm:h-8 px-2 sm:px-3 text-xs sm:text-sm"
+                className="h-6 sm:h-8 px-1.5 sm:px-3 text-[10px] sm:text-sm"
               >
-                <Reply className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                <Reply className="h-3 w-3 mr-0.5 sm:mr-2" />
                 Reply
               </Button>
             </div>
@@ -415,150 +415,150 @@ export default function BlogComments({ postId, comments: initialComments, onComm
         <>
           {/* New Comment Form */}
           <Card className="border-slate-200 dark:border-slate-800">
-        <CardHeader className="pb-2 sm:pb-4">
-          <h4 className="font-semibold text-sm sm:text-base text-gray-900 dark:text-slate-100">Leave a Comment</h4>
-        </CardHeader>
-        <CardContent className="space-y-3 sm:space-y-4 px-3 sm:px-6">
-          {!user && (
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
-              <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
-                  Name *
-                </label>
-                <input
-                  type="text"
-                  value={guestName}
-                  onChange={(e) => setGuestName(e.target.value)}
-                  placeholder="Your name"
-                  className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
-                  Email *
-                </label>
-                <input
-                  type="email"
-                  value={guestEmail}
-                  onChange={(e) => setGuestEmail(e.target.value)}
-                  placeholder="your@email.com"
-                  className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  required
-                />
-              </div>
-            </div>
-          )}
-
-          <Textarea
-            value={newComment}
-            onChange={(e) => setNewComment(e.target.value)}
-            placeholder={user ? 'Share your thoughts...' : 'Share your thoughts... (Your comment will be reviewed before appearing)'}
-            rows={3}
-            className="text-sm sm:text-base min-h-[80px] sm:min-h-[100px] dark:bg-slate-800 dark:border-slate-700"
-          />
-
-          <BlogImageUpload
-            images={newCommentImages}
-            onImagesChange={setNewCommentImages}
-            maxImages={2}
-            maxFileSize={5 * 1024 * 1024} // 5MB for comments
-          />
-
-          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
-            <span className="text-xs sm:text-sm text-gray-500 dark:text-slate-400 order-2 sm:order-1">
-              {!user && 'Your comment will be reviewed before appearing.'}
-            </span>
-            <Button
-              onClick={() => handleSubmitComment()}
-              disabled={isSubmitting}
-              className="w-full sm:w-auto order-1 sm:order-2"
-              size="sm"
-            >
-              <Send className="h-4 w-4 mr-2" />
-              {isSubmitting ? 'Submitting...' : 'Post Comment'}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Comments List */}
-      <div className="space-y-4">
-        {comments.map((comment) => (
-          <div key={comment.id}>
-            <CommentCard comment={comment} />
-            
-            {/* Reply Form */}
-            {replyingTo === comment.id && (
-              <Card className="ml-4 sm:ml-8 mb-3 sm:mb-4 bg-gray-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800">
-                <CardContent className="p-3 sm:p-4 space-y-2 sm:space-y-3">
-                  <Textarea
-                    value={newComment}
-                    onChange={(e) => setNewComment(e.target.value)}
-                    placeholder="Reply to this comment..."
-                    rows={2}
-                    className="text-sm min-h-[60px] dark:bg-slate-800 dark:border-slate-700"
-                  />
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      onClick={() => handleSubmitComment(comment.id)}
-                      disabled={isSubmitting}
-                      size="sm"
-                      className="text-xs sm:text-sm"
-                    >
-                      <Send className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                      Reply
-                    </Button>
-                    <Button
-                      onClick={() => setReplyingTo(null)}
-                      variant="outline"
-                      size="sm"
-                      className="text-xs sm:text-sm"
-                    >
-                      Cancel
-                    </Button>
+            <CardHeader className="pb-2 sm:pb-4">
+              <h4 className="font-semibold text-sm sm:text-base text-gray-900 dark:text-slate-100">Leave a Comment</h4>
+            </CardHeader>
+            <CardContent className="space-y-3 sm:space-y-4 px-3 sm:px-6">
+              {!user && (
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+                  <div>
+                    <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
+                      Name *
+                    </label>
+                    <input
+                      type="text"
+                      value={guestName}
+                      onChange={(e) => setGuestName(e.target.value)}
+                      placeholder="Your name"
+                      className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      required
+                    />
                   </div>
-                </CardContent>
-              </Card>
-            )}
+                  <div>
+                    <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
+                      Email *
+                    </label>
+                    <input
+                      type="email"
+                      value={guestEmail}
+                      onChange={(e) => setGuestEmail(e.target.value)}
+                      placeholder="your@email.com"
+                      className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      required
+                    />
+                  </div>
+                </div>
+              )}
 
-            {/* Replies */}
-            {comment.replies && comment.replies.length > 0 && (
-              <div className="space-y-2">
-                {comment.replies.map((reply) => (
-                  <CommentCard key={reply.id} comment={reply} isReply />
-                ))}
+              <Textarea
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                placeholder={user ? 'Share your thoughts...' : 'Share your thoughts... (Your comment will be reviewed before appearing)'}
+                rows={3}
+                className="text-sm sm:text-base min-h-[80px] sm:min-h-[100px] dark:bg-slate-800 dark:border-slate-700"
+              />
+
+              <BlogImageUpload
+                images={newCommentImages}
+                onImagesChange={setNewCommentImages}
+                maxImages={2}
+                maxFileSize={5 * 1024 * 1024} // 5MB for comments
+              />
+
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+                <span className="text-xs sm:text-sm text-gray-500 dark:text-slate-400 order-2 sm:order-1">
+                  {!user && 'Your comment will be reviewed before appearing.'}
+                </span>
+                <Button
+                  onClick={() => handleSubmitComment()}
+                  disabled={isSubmitting}
+                  className="w-full sm:w-auto order-1 sm:order-2"
+                  size="sm"
+                >
+                  <Send className="h-4 w-4 mr-2" />
+                  {isSubmitting ? 'Submitting...' : 'Post Comment'}
+                </Button>
               </div>
-            )}
-          </div>
-        ))}
-      </div>
+            </CardContent>
+          </Card>
 
-      {comments.length === 0 && (
-        <Card className="border-slate-200 dark:border-slate-800">
-          <CardContent className="p-6 sm:p-8 text-center text-gray-500 dark:text-slate-400">
-            <MessageCircle className="h-10 w-10 sm:h-12 sm:w-12 mx-auto mb-3 sm:mb-4 text-gray-400 dark:text-slate-500" />
-            <p className="text-sm sm:text-base">No comments yet. Be the first to share your thoughts!</p>
-          </CardContent>
-        </Card>
-      )}
-      </>
+          {/* Comments List */}
+          <div className="space-y-3 sm:space-y-4">
+            {comments.map((comment) => (
+              <div key={comment.id}>
+                <CommentCard comment={comment} />
+                
+                {/* Reply Form */}
+                {replyingTo === comment.id && (
+                  <Card className="ml-3 sm:ml-8 mb-3 sm:mb-4 bg-gray-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 overflow-hidden">
+                    <CardContent className="p-2 sm:p-4 space-y-2 sm:space-y-3">
+                      <Textarea
+                        value={newComment}
+                        onChange={(e) => setNewComment(e.target.value)}
+                        placeholder="Reply to this comment..."
+                        rows={2}
+                        className="text-xs sm:text-sm min-h-[50px] sm:min-h-[60px] dark:bg-slate-800 dark:border-slate-700"
+                      />
+                      <div className="flex flex-wrap gap-1.5 sm:gap-2">
+                        <Button
+                          onClick={() => handleSubmitComment(comment.id)}
+                          disabled={isSubmitting}
+                          size="sm"
+                          className="text-[10px] sm:text-sm h-7 sm:h-8 px-2 sm:px-3"
+                        >
+                          <Send className="h-3 w-3 mr-1" />
+                          Reply
+                        </Button>
+                        <Button
+                          onClick={() => setReplyingTo(null)}
+                          variant="outline"
+                          size="sm"
+                          className="text-[10px] sm:text-sm h-7 sm:h-8 px-2 sm:px-3"
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Replies */}
+                {comment.replies && comment.replies.length > 0 && (
+                  <div className="space-y-2 sm:space-y-3 mt-2 sm:mt-3">
+                    {comment.replies.map((reply) => (
+                      <CommentCard key={reply.id} comment={reply} isReply />
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {comments.length === 0 && (
+            <Card className="border-slate-200 dark:border-slate-800">
+              <CardContent className="p-6 sm:p-8 text-center text-gray-500 dark:text-slate-400">
+                <MessageCircle className="h-10 w-10 sm:h-12 sm:w-12 mx-auto mb-3 sm:mb-4 text-gray-400 dark:text-slate-500" />
+                <p className="text-sm sm:text-base">No comments yet. Be the first to share your thoughts!</p>
+              </CardContent>
+            </Card>
+          )}
+        </>
       )}
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent className="max-w-[90vw] sm:max-w-lg mx-auto">
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Comment</AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogTitle className="text-base sm:text-lg">Delete Comment</AlertDialogTitle>
+            <AlertDialogDescription className="text-sm">
               Are you sure you want to delete this comment? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
+            <AlertDialogCancel className="w-full sm:w-auto mt-0">Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => commentToDelete && handleDeleteComment(commentToDelete)}
-              className="bg-red-600 hover:bg-red-700"
+              className="bg-red-600 hover:bg-red-700 w-full sm:w-auto"
             >
               Delete
             </AlertDialogAction>
