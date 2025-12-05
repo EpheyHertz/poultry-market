@@ -264,39 +264,36 @@ export default function BlogComments({ postId, comments: initialComments, onComm
   };
 
   const CommentCard = ({ comment, isReply = false }: { comment: Comment; isReply?: boolean }) => (
-    <Card className={`${isReply ? 'ml-8 border-l-4 border-l-emerald-200' : ''} mb-4`}>
-      <CardHeader className="pb-3">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center space-x-3">
-            <Avatar className="h-8 w-8">
+    <Card className={`${isReply ? 'ml-4 sm:ml-8 border-l-4 border-l-emerald-200 dark:border-l-emerald-600' : ''} mb-3 sm:mb-4 border-slate-200 dark:border-slate-800`}>
+      <CardHeader className="pb-2 sm:pb-3 px-3 sm:px-6">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex items-center space-x-2 sm:space-x-3 min-w-0">
+            <Avatar className="h-7 w-7 sm:h-8 sm:w-8 flex-shrink-0">
               <AvatarImage src={comment.author?.avatar} />
               <AvatarFallback>
-                <User className="h-4 w-4" />
+                <User className="h-3 w-3 sm:h-4 sm:w-4" />
               </AvatarFallback>
             </Avatar>
-            <div>
-              <div className="flex items-center space-x-2">
-                <span className="font-medium text-sm">
+            <div className="min-w-0">
+              <div className="flex items-center flex-wrap gap-1 sm:gap-2">
+                <span className="font-medium text-xs sm:text-sm truncate dark:text-slate-100">
                   {comment.author?.name || comment.guestName}
                 </span>
                 {comment.isEdited && (
-                  <Badge variant="outline" className="text-xs">
+                  <Badge variant="outline" className="text-[10px] sm:text-xs px-1 py-0">
                     Edited
                   </Badge>
                 )}
                 {!comment.isApproved && (
-                  <Badge variant="secondary" className="text-xs">
-                    <AlertCircle className="h-3 w-3 mr-1" />
-                    Pending approval
+                  <Badge variant="secondary" className="text-[10px] sm:text-xs px-1 py-0">
+                    <AlertCircle className="h-2 w-2 sm:h-3 sm:w-3 mr-0.5 sm:mr-1" />
+                    Pending
                   </Badge>
                 )}
               </div>
-              <div className="flex items-center text-xs text-gray-500 mt-1">
-                <Calendar className="h-3 w-3 mr-1" />
-                <span>{formatDate(comment.createdAt)}</span>
-                {comment.isEdited && comment.editedAt && (
-                  <span className="ml-2">• Edited {formatDate(comment.editedAt)}</span>
-                )}
+              <div className="flex items-center text-[10px] sm:text-xs text-gray-500 dark:text-slate-400 mt-0.5 sm:mt-1">
+                <Calendar className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-1 flex-shrink-0" />
+                <span className="truncate">{formatDate(comment.createdAt)}</span>
               </div>
             </div>
           </div>
@@ -329,14 +326,15 @@ export default function BlogComments({ postId, comments: initialComments, onComm
         </div>
       </CardHeader>
 
-      <CardContent className="pt-0">
+      <CardContent className="pt-0 px-3 sm:px-6">
         {editingComment === comment.id ? (
-          <div className="space-y-4">
+          <div className="space-y-3 sm:space-y-4">
             <Textarea
               value={editContent}
               onChange={(e) => setEditContent(e.target.value)}
               placeholder="Edit your comment..."
               rows={3}
+              className="text-sm min-h-[70px] dark:bg-slate-800 dark:border-slate-700"
             />
             
             <BlogImageUpload
@@ -346,25 +344,25 @@ export default function BlogComments({ postId, comments: initialComments, onComm
               maxFileSize={5 * 1024 * 1024} // 5MB for comments
             />
 
-            <div className="flex space-x-2">
-              <Button onClick={() => handleEditComment(comment.id)} size="sm">
-                <Check className="h-4 w-4 mr-2" />
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={() => handleEditComment(comment.id)} size="sm" className="text-xs sm:text-sm">
+                <Check className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                 Save
               </Button>
-              <Button onClick={cancelEdit} variant="outline" size="sm">
-                <X className="h-4 w-4 mr-2" />
+              <Button onClick={cancelEdit} variant="outline" size="sm" className="text-xs sm:text-sm">
+                <X className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                 Cancel
               </Button>
             </div>
           </div>
         ) : (
           <>
-            <div className="text-gray-700 mb-3 whitespace-pre-wrap">
+            <div className="text-gray-700 dark:text-slate-300 mb-2 sm:mb-3 whitespace-pre-wrap text-sm sm:text-base">
               {comment.content}
             </div>
 
             {comment.images && comment.images.length > 0 && (
-              <div className="grid grid-cols-2 gap-3 mb-3">
+              <div className="grid grid-cols-2 gap-2 sm:gap-3 mb-2 sm:mb-3">
                 {comment.images.map((image, index) => (
                   <div key={index} className="relative">
                     <Image
@@ -372,14 +370,14 @@ export default function BlogComments({ postId, comments: initialComments, onComm
                       alt={`Comment image ${index + 1}`}
                       width={200}
                       height={150}
-                      className="w-full h-24 object-cover rounded-lg"
+                      className="w-full h-20 sm:h-24 object-cover rounded-lg"
                     />
                   </div>
                 ))}
               </div>
             )}
 
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center gap-1 sm:gap-2">
               <CommentLikeButton 
                 commentId={comment.id} 
                 userAuthenticated={!!user} 
@@ -388,8 +386,9 @@ export default function BlogComments({ postId, comments: initialComments, onComm
                 variant="ghost"
                 size="sm"
                 onClick={() => setReplyingTo(replyingTo === comment.id ? null : comment.id)}
+                className="h-7 sm:h-8 px-2 sm:px-3 text-xs sm:text-sm"
               >
-                <Reply className="h-4 w-4 mr-2" />
+                <Reply className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                 Reply
               </Button>
             </div>
@@ -400,10 +399,10 @@ export default function BlogComments({ postId, comments: initialComments, onComm
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div className="flex items-center space-x-2">
-        <MessageCircle className="h-6 w-6 text-emerald-600" />
-        <h3 className="text-xl font-bold text-gray-900">
+        <MessageCircle className="h-5 w-5 sm:h-6 sm:w-6 text-emerald-600" />
+        <h3 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-slate-100">
           Comments ({comments.length})
         </h3>
       </div>
@@ -415,15 +414,15 @@ export default function BlogComments({ postId, comments: initialComments, onComm
       ) : (
         <>
           {/* New Comment Form */}
-          <Card>
-        <CardHeader>
-          <h4 className="font-semibold">Leave a Comment</h4>
+          <Card className="border-slate-200 dark:border-slate-800">
+        <CardHeader className="pb-2 sm:pb-4">
+          <h4 className="font-semibold text-sm sm:text-base text-gray-900 dark:text-slate-100">Leave a Comment</h4>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-3 sm:space-y-4 px-3 sm:px-6">
           {!user && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                   Name *
                 </label>
                 <input
@@ -431,12 +430,12 @@ export default function BlogComments({ postId, comments: initialComments, onComm
                   value={guestName}
                   onChange={(e) => setGuestName(e.target.value)}
                   placeholder="Your name"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                   Email *
                 </label>
                 <input
@@ -444,7 +443,7 @@ export default function BlogComments({ postId, comments: initialComments, onComm
                   value={guestEmail}
                   onChange={(e) => setGuestEmail(e.target.value)}
                   placeholder="your@email.com"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   required
                 />
               </div>
@@ -455,7 +454,8 @@ export default function BlogComments({ postId, comments: initialComments, onComm
             value={newComment}
             onChange={(e) => setNewComment(e.target.value)}
             placeholder={user ? 'Share your thoughts...' : 'Share your thoughts... (Your comment will be reviewed before appearing)'}
-            rows={4}
+            rows={3}
+            className="text-sm sm:text-base min-h-[80px] sm:min-h-[100px] dark:bg-slate-800 dark:border-slate-700"
           />
 
           <BlogImageUpload
@@ -465,13 +465,15 @@ export default function BlogComments({ postId, comments: initialComments, onComm
             maxFileSize={5 * 1024 * 1024} // 5MB for comments
           />
 
-          <div className="flex justify-between items-center">
-            <span className="text-sm text-gray-500">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+            <span className="text-xs sm:text-sm text-gray-500 dark:text-slate-400 order-2 sm:order-1">
               {!user && 'Your comment will be reviewed before appearing.'}
             </span>
             <Button
               onClick={() => handleSubmitComment()}
               disabled={isSubmitting}
+              className="w-full sm:w-auto order-1 sm:order-2"
+              size="sm"
             >
               <Send className="h-4 w-4 mr-2" />
               {isSubmitting ? 'Submitting...' : 'Post Comment'}
@@ -488,27 +490,30 @@ export default function BlogComments({ postId, comments: initialComments, onComm
             
             {/* Reply Form */}
             {replyingTo === comment.id && (
-              <Card className="ml-8 mb-4 bg-gray-50">
-                <CardContent className="p-4 space-y-3">
+              <Card className="ml-4 sm:ml-8 mb-3 sm:mb-4 bg-gray-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800">
+                <CardContent className="p-3 sm:p-4 space-y-2 sm:space-y-3">
                   <Textarea
                     value={newComment}
                     onChange={(e) => setNewComment(e.target.value)}
                     placeholder="Reply to this comment..."
-                    rows={3}
+                    rows={2}
+                    className="text-sm min-h-[60px] dark:bg-slate-800 dark:border-slate-700"
                   />
-                  <div className="flex space-x-2">
+                  <div className="flex flex-wrap gap-2">
                     <Button
                       onClick={() => handleSubmitComment(comment.id)}
                       disabled={isSubmitting}
                       size="sm"
+                      className="text-xs sm:text-sm"
                     >
-                      <Send className="h-4 w-4 mr-2" />
+                      <Send className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                       Reply
                     </Button>
                     <Button
                       onClick={() => setReplyingTo(null)}
                       variant="outline"
                       size="sm"
+                      className="text-xs sm:text-sm"
                     >
                       Cancel
                     </Button>
@@ -530,10 +535,10 @@ export default function BlogComments({ postId, comments: initialComments, onComm
       </div>
 
       {comments.length === 0 && (
-        <Card>
-          <CardContent className="p-8 text-center text-gray-500">
-            <MessageCircle className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-            <p>No comments yet. Be the first to share your thoughts!</p>
+        <Card className="border-slate-200 dark:border-slate-800">
+          <CardContent className="p-6 sm:p-8 text-center text-gray-500 dark:text-slate-400">
+            <MessageCircle className="h-10 w-10 sm:h-12 sm:w-12 mx-auto mb-3 sm:mb-4 text-gray-400 dark:text-slate-500" />
+            <p className="text-sm sm:text-base">No comments yet. Be the first to share your thoughts!</p>
           </CardContent>
         </Card>
       )}
