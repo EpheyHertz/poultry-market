@@ -1,5 +1,5 @@
 import { NextResponse, NextRequest } from 'next/server';
-import { verifyToken } from '@/lib/auth'; // Ensure this works in Edge runtime
+import { verifyToken } from '@/lib/auth-edge'; // Edge-compatible auth utilities
 
 export const config = {
   matcher: [

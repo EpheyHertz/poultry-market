@@ -88,37 +88,37 @@ const fallbackStatusInfo: StatusDisplayConfig = {
 const baseStatusConfig = {
   PENDING_APPROVAL: {
     label: 'Pending Review',
-    color: 'bg-yellow-100 text-yellow-800',
+    color: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300',
     icon: Clock,
     description: 'Your post is being reviewed by our team'
   },
   APPROVED: {
     label: 'Published',
-    color: 'bg-green-100 text-green-800',
+    color: 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300',
     icon: CheckCircle,
     description: 'Your post is live and visible to readers'
   },
   PUBLISHED: {
     label: 'Published',
-    color: 'bg-green-100 text-green-800',
+    color: 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300',
     icon: CheckCircle,
     description: 'Your post is live and visible to readers'
   },
   REJECTED: {
     label: 'Rejected',
-    color: 'bg-red-100 text-red-800',
+    color: 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300',
     icon: XCircle,
     description: 'Your post needs revisions before publication'
   },
   DRAFT: {
     label: 'Draft',
-    color: 'bg-gray-100 text-gray-800',
+    color: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300',
     icon: FileText,
     description: 'Your post is saved as a draft'
   },
   ARCHIVED: {
     label: 'Archived',
-    color: 'bg-slate-100 text-slate-700',
+    color: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400',
     icon: FileText,
     description: 'This post has been archived and is hidden from readers'
   }
@@ -135,6 +135,8 @@ export default function MyBlogsPage() {
   const [sortBy, setSortBy] = useState<string>('newest');
   const [blogPendingDeletion, setBlogPendingDeletion] = useState<BlogPost | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const postsPerPage = 10;
   const router = useRouter();
 
   useEffect(() => {
@@ -193,6 +195,16 @@ export default function MyBlogsPage() {
       }
     });
 
+  // Pagination logic
+  const totalPages = Math.ceil(filteredAndSortedBlogs.length / postsPerPage);
+  const startIndex = (currentPage - 1) * postsPerPage;
+  const paginatedBlogs = filteredAndSortedBlogs.slice(startIndex, startIndex + postsPerPage);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, statusFilter, sortBy]);
+
   const confirmDelete = async () => {
     if (!blogPendingDeletion) {
       return;
@@ -233,12 +245,12 @@ export default function MyBlogsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 dark:from-slate-950 dark:to-slate-900">
         <PublicNavbar />
         <div className="max-w-6xl mx-auto px-4 py-8">
           <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="text-gray-600 mt-4">Loading your blog posts...</p>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 dark:border-blue-400 mx-auto"></div>
+            <p className="text-gray-600 dark:text-gray-400 mt-4">Loading your blog posts...</p>
           </div>
         </div>
       </div>
@@ -249,7 +261,7 @@ export default function MyBlogsPage() {
 
   return (
     <>
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 dark:from-slate-950 dark:to-slate-900">
         <PublicNavbar />
         
         <div className="max-w-6xl mx-auto px-4 py-8">
@@ -261,8 +273,8 @@ export default function MyBlogsPage() {
         >
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">My Blog Posts</h1>
-              <p className="text-gray-600 mt-2">
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">My Blog Posts</h1>
+              <p className="text-gray-600 dark:text-gray-400 mt-2">
                 Manage and track your submitted blog posts
               </p>
             </div>
@@ -282,43 +294,43 @@ export default function MyBlogsPage() {
           transition={{ delay: 0.1 }}
           className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-8"
         >
-          <Card>
+          <Card className="dark:bg-slate-800/50 dark:border-slate-700/50">
             <CardContent className="p-4">
               <div className="text-center">
-                <div className="text-2xl font-bold text-gray-900">{stats.total}</div>
-                <div className="text-sm text-gray-600">Total Posts</div>
+                <div className="text-2xl font-bold text-gray-900 dark:text-white">{stats.total}</div>
+                <div className="text-sm text-gray-600 dark:text-gray-400">Total Posts</div>
               </div>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="dark:bg-slate-800/50 dark:border-slate-700/50">
             <CardContent className="p-4">
               <div className="text-center">
-                <div className="text-2xl font-bold text-yellow-600">{stats.pending}</div>
-                <div className="text-sm text-gray-600">Pending</div>
+                <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{stats.pending}</div>
+                <div className="text-sm text-gray-600 dark:text-gray-400">Pending</div>
               </div>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="dark:bg-slate-800/50 dark:border-slate-700/50">
             <CardContent className="p-4">
               <div className="text-center">
-                <div className="text-2xl font-bold text-green-600">{stats.approved}</div>
-                <div className="text-sm text-gray-600">Published</div>
+                <div className="text-2xl font-bold text-green-600 dark:text-green-400">{stats.approved}</div>
+                <div className="text-sm text-gray-600 dark:text-gray-400">Published</div>
               </div>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="dark:bg-slate-800/50 dark:border-slate-700/50">
             <CardContent className="p-4">
               <div className="text-center">
-                <div className="text-2xl font-bold text-red-600">{stats.rejected}</div>
-                <div className="text-sm text-gray-600">Rejected</div>
+                <div className="text-2xl font-bold text-red-600 dark:text-red-400">{stats.rejected}</div>
+                <div className="text-sm text-gray-600 dark:text-gray-400">Rejected</div>
               </div>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="dark:bg-slate-800/50 dark:border-slate-700/50">
             <CardContent className="p-4">
               <div className="text-center">
-                <div className="text-2xl font-bold text-gray-600">{stats.draft}</div>
-                <div className="text-sm text-gray-600">Drafts</div>
+                <div className="text-2xl font-bold text-gray-600 dark:text-gray-400">{stats.draft}</div>
+                <div className="text-sm text-gray-600 dark:text-gray-400">Drafts</div>
               </div>
             </CardContent>
           </Card>
@@ -332,7 +344,7 @@ export default function MyBlogsPage() {
           className="flex flex-col sm:flex-row gap-4 mb-8"
         >
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-gray-500" />
             <Input
               placeholder="Search your blog posts..."
               value={searchQuery}
@@ -374,13 +386,13 @@ export default function MyBlogsPage() {
           className="space-y-6"
         >
           {filteredAndSortedBlogs.length === 0 ? (
-            <Card className="text-center py-12">
+            <Card className="text-center py-12 dark:bg-slate-800/50 dark:border-slate-700/50">
               <CardContent>
-                <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                <FileText className="h-12 w-12 text-gray-400 dark:text-gray-600 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
                   {blogs.length === 0 ? 'No blog posts yet' : 'No posts found'}
                 </h3>
-                <p className="text-gray-600 mb-6">
+                <p className="text-gray-600 dark:text-gray-400 mb-6">
                   {blogs.length === 0 
                     ? 'Start sharing your poultry knowledge with the community!'
                     : 'Try adjusting your search or filter criteria.'
@@ -397,7 +409,8 @@ export default function MyBlogsPage() {
               </CardContent>
             </Card>
           ) : (
-            filteredAndSortedBlogs.map((blog, index) => {
+            <>
+            {paginatedBlogs.map((blog, index) => {
               const statusInfo = statusConfig[blog.status] ?? fallbackStatusInfo;
               const StatusIcon = statusInfo.icon;
               
@@ -408,7 +421,7 @@ export default function MyBlogsPage() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.1 }}
                 >
-                  <Card className="hover:shadow-lg transition-shadow duration-200">
+                  <Card className="hover:shadow-lg transition-shadow duration-200 dark:bg-slate-800/50 dark:border-slate-700/50">
                     <CardContent className="p-6">
                       <div className="flex flex-col lg:flex-row gap-6">
                         {/* Featured Image */}
@@ -427,7 +440,7 @@ export default function MyBlogsPage() {
                         {/* Content */}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between mb-2">
-                            <h3 className="text-xl font-semibold text-gray-900 truncate pr-4">
+                            <h3 className="text-xl font-semibold text-gray-900 dark:text-white truncate pr-4">
                               {blog.title}
                             </h3>
                             <div className="flex items-center gap-2 flex-shrink-0">
@@ -470,25 +483,25 @@ export default function MyBlogsPage() {
                             </div>
                           </div>
                           
-                          <p className="text-gray-600 mb-4 line-clamp-2">
+                          <p className="text-gray-600 dark:text-gray-400 mb-4 line-clamp-2">
                             {blog.excerpt}
                           </p>
                           
                           {/* Rejection Reason */}
                           {blog.status === 'REJECTED' && blog.rejectionReason && (
-                            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                            <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg">
                               <div className="flex items-start gap-2">
-                                <AlertCircle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
+                                <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
                                 <div>
-                                  <p className="text-sm font-medium text-red-800">Feedback from Review</p>
-                                  <p className="text-sm text-red-700 mt-1">{blog.rejectionReason}</p>
+                                  <p className="text-sm font-medium text-red-800 dark:text-red-300">Feedback from Review</p>
+                                  <p className="text-sm text-red-700 dark:text-red-400 mt-1">{blog.rejectionReason}</p>
                                 </div>
                               </div>
                             </div>
                           )}
                           
                           {/* Meta Information */}
-                          <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">
+                          <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500 dark:text-gray-500">
                             <div className="flex items-center gap-1">
                               <Calendar className="h-4 w-4" />
                               {blog.submittedAt ? (
@@ -520,7 +533,71 @@ export default function MyBlogsPage() {
                   </Card>
                 </motion.div>
               );
-            })
+            })}
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="flex flex-col items-center gap-4 mt-8">
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    disabled={currentPage === 1}
+                    className="dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
+                  >
+                    Previous
+                  </Button>
+                  
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => {
+                      // Show first page, last page, current page, and pages around current
+                      const showPage = page === 1 || 
+                                      page === totalPages || 
+                                      (page >= currentPage - 1 && page <= currentPage + 1);
+                      const showEllipsis = (page === 2 && currentPage > 3) || 
+                                          (page === totalPages - 1 && currentPage < totalPages - 2);
+                      
+                      if (showEllipsis && !showPage) {
+                        return <span key={page} className="px-2 text-gray-400 dark:text-slate-500">...</span>;
+                      }
+                      
+                      if (!showPage) return null;
+                      
+                      return (
+                        <Button
+                          key={page}
+                          variant={currentPage === page ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setCurrentPage(page)}
+                          className={currentPage === page 
+                            ? "bg-emerald-600 hover:bg-emerald-700 text-white" 
+                            : "dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"}
+                        >
+                          {page}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    disabled={currentPage === totalPages}
+                    className="dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
+                  >
+                    Next
+                  </Button>
+                </div>
+
+                {/* Results info */}
+                <p className="text-sm text-gray-500 dark:text-slate-400">
+                  Showing {startIndex + 1}-{Math.min(startIndex + postsPerPage, filteredAndSortedBlogs.length)} of {filteredAndSortedBlogs.length} posts
+                </p>
+              </div>
+            )}
+            </>
           )}
         </motion.div>
         </div>

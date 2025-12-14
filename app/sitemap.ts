@@ -75,7 +75,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   try {
     // Use Promise.allSettled to prevent one query failure from breaking everything
-    const [productsResult, categoriesResult, sellersResult, blogPostsResult] = await Promise.allSettled([
+    const [productsResult, categoriesResult, sellersResult, blogPostsResult, authorProfilesResult] = await Promise.allSettled([
       // Dynamic product routes with timeout
       prisma.product.findMany({
         where: {
@@ -127,6 +127,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
           }
         },
         take: 1000, // Limit to prevent timeout
+      }),
+      
+      // Dynamic author profile routes
+      prisma.authorProfile.findMany({
+        where: {
+          isPublic: true
+        },
+        select: {
+          username: true,
+          updatedAt: true
+        },
+        take: 500
       })
     ])
 
@@ -178,6 +190,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
           }))
       : []
 
+    // Handle author profiles
+    const authorRoutes = authorProfilesResult.status === 'fulfilled'
+      ? authorProfilesResult.value
+          .filter(profile => profile.username)
+          .map((profile) => ({
+            url: `${baseUrl}/author/${profile.username}`,
+            lastModified: profile.updatedAt,
+            changeFrequency: 'weekly' as const,
+            priority: 0.6,
+          }))
+      : []
+
     // Combine all routes
     const allRoutes = [
       ...staticRoutes,
@@ -185,6 +209,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       ...categoryRoutes,
       ...sellerRoutes,
       ...blogRoutes,
+      ...authorRoutes,
     ];
 
     // Log sitemap stats in development

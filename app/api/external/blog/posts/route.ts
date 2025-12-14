@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { authenticateApiKey } from '@/lib/api-keys';
 import { createNotification } from '@/lib/notifications';
+import { getOrCreateAuthorProfile } from '@/lib/author';
 import { BlogPostCategory, BlogPostStatus } from '@prisma/client';
 
 const submissionRateLimit = new Map<string, { count: number; resetTime: number }>();
@@ -99,6 +100,39 @@ function calculateReadingTime(content: string): number {
   return Math.max(1, rounded);
 }
 
+/**
+ * Generate table of contents from content headings
+ */
+function generateTableOfContents(content: string): { id: string; text: string; level: number }[] {
+  const toc: { id: string; text: string; level: number }[] = [];
+  
+  // Match markdown headings (## Heading)
+  const markdownHeadings = content.matchAll(/^(#{1,6})\s+(.+)$/gm);
+  for (const match of markdownHeadings) {
+    const level = match[1].length;
+    const text = match[2].trim();
+    const id = text
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '');
+    toc.push({ id, text, level });
+  }
+  
+  // Match HTML headings (<h1>Heading</h1>)
+  const htmlHeadings = content.matchAll(/<h([1-6])[^>]*>([^<]+)<\/h\1>/gi);
+  for (const match of htmlHeadings) {
+    const level = parseInt(match[1]);
+    const text = match[2].trim();
+    const id = text
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '');
+    toc.push({ id, text, level });
+  }
+  
+  return toc;
+}
+
 export async function POST(request: Request) {
   try {
     const apiKey = request.headers.get('x-api-key');
@@ -136,12 +170,17 @@ export async function POST(request: Request) {
     let status: BlogPostStatus = 'PENDING_APPROVAL';
     let publishedAt: Date | null = null;
     let submittedAt: Date | null = new Date();
+    let approvedAt: Date | null = null;
 
     if (user.role === 'ADMIN') {
       status = 'PUBLISHED';
       publishedAt = new Date();
+      approvedAt = new Date();
       submittedAt = null;
     }
+
+    // Get or create AuthorProfile for the user (auto-creates if doesn't exist)
+    const { id: authorProfileId } = await getOrCreateAuthorProfile(user.id);
 
     const slugBase =
       data.title
@@ -181,8 +220,18 @@ export async function POST(request: Request) {
       }),
     );
 
-    // Calculate precise reading time
+    // Calculate precise reading time and word count
     const readingTime = calculateReadingTime(data.content);
+    
+    // Calculate word count
+    const textOnly = data.content
+      .replace(/<[^>]*>/g, ' ')
+      .replace(/```[\s\S]*?```/g, ' ')
+      .replace(/`[^`]+`/g, ' ');
+    const wordCount = textOnly.split(/\s+/).filter((word: string) => word.length > 0).length;
+    
+    // Generate table of contents
+    const tableOfContents = generateTableOfContents(data.content);
 
     const blogPost = await prisma.blogPost.create({
       data: {
@@ -193,11 +242,17 @@ export async function POST(request: Request) {
         category: data.category,
         status,
         authorId: user.id,
+        authorProfileId, // Link to AuthorProfile (auto-created if needed)
         slug,
         metaDescription: data.metaDescription,
         submittedAt,
         publishedAt,
+        approvedAt,
+        approvedBy: user.role === 'ADMIN' ? user.id : null, // Self-approved for admins
         readingTime,
+        estimatedReadTime: readingTime,
+        wordCount,
+        tableOfContents: tableOfContents.length > 0 ? tableOfContents : undefined,
         images: [],
         tags: tagConnections.length
           ? {
@@ -213,6 +268,24 @@ export async function POST(request: Request) {
             role: true,
           },
         },
+        authorProfile: {
+          select: {
+            id: true,
+            displayName: true,
+            username: true,
+            avatarUrl: true,
+            bio: true,
+            isVerified: true,
+          },
+        },
+      },
+    });
+
+    // Update AuthorProfile stats
+    await prisma.authorProfile.update({
+      where: { id: authorProfileId },
+      data: {
+        totalPosts: { increment: 1 },
       },
     });
 
@@ -244,7 +317,16 @@ export async function POST(request: Request) {
       status: blogPost.status,
       slug: blogPost.slug,
       readingTime: blogPost.readingTime,
+      wordCount: blogPost.wordCount,
+      tableOfContents: blogPost.tableOfContents,
       author: blogPost.author,
+      authorProfile: blogPost.authorProfile,
+      authorUrl: blogPost.authorProfile 
+        ? `/author/${blogPost.authorProfile.username}` 
+        : null,
+      postUrl: blogPost.authorProfile 
+        ? `/blog/${blogPost.authorProfile.username}/${blogPost.slug}`
+        : `/blog/${blogPost.slug}`,
     }, {
       status: 201,
       headers: {

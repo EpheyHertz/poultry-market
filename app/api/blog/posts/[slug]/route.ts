@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { sendBlogSubmissionAcknowledgmentToAuthor, sendBlogSubmissionToAdmin, emailTemplates, sendEmail } from '@/lib/email';
 
 // Update blog post schema
 const updateBlogPostSchema = z.object({
@@ -25,6 +26,7 @@ const updateBlogPostSchema = z.object({
     'ADVANCED_TECHNIQUES'
   ]).optional(),
   tags: z.array(z.string()).optional(),
+  submissionNotes: z.string().optional(),
   status: z.enum(['DRAFT', 'PUBLISHED', 'ARCHIVED']).optional(),
   featured: z.boolean().optional(),
   publishedAt: z.string().datetime().optional(),
@@ -229,14 +231,22 @@ export async function PUT(
     const pathParts = request.nextUrl.pathname.split('/');
     const slug = pathParts[pathParts.length - 1] || ''; // Get the last part (slug)
     
-    // Find existing post
+    // Find existing post with full details for email
     const existingPost = await prisma.blogPost.findUnique({
       where: { slug },
-      select: { 
-        id: true, 
-        authorId: true, 
-        title: true,
-        content: true 
+      include: { 
+        author: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          }
+        },
+        tags: {
+          include: {
+            tag: true
+          }
+        }
       }
     });
 
@@ -247,7 +257,7 @@ export async function PUT(
       );
     }
 
-    // Check permissions
+    // Check permissions - ALL blogs are editable by their owner
     const isAuthor = user.id === existingPost.authorId;
     const isAdmin = user.role === 'ADMIN';
 
@@ -262,6 +272,35 @@ export async function PUT(
     const validatedData = updateBlogPostSchema.parse(body);
 
     let updateData: any = { ...validatedData };
+    let requiresReapproval = false;
+    const previousStatus = existingPost.status;
+
+    // Check if content has meaningfully changed (requires re-approval for published posts)
+    const contentChanged = validatedData.title !== existingPost.title || 
+                          validatedData.content !== existingPost.content ||
+                          validatedData.excerpt !== existingPost.excerpt;
+
+    // If the post is published/approved and content changed, mark for re-approval
+    if ((previousStatus === 'PUBLISHED' || previousStatus === 'APPROVED') && contentChanged && !isAdmin) {
+      updateData.status = 'PENDING_APPROVAL';
+      updateData.submittedAt = new Date();
+      requiresReapproval = true;
+    }
+
+    // If the post was rejected and being resubmitted
+    if (previousStatus === 'REJECTED') {
+      updateData.status = 'PENDING_APPROVAL';
+      updateData.submittedAt = new Date();
+      updateData.rejectionReason = null; // Clear previous rejection reason
+      requiresReapproval = true;
+    }
+
+    // If the post was a draft and being submitted
+    if (previousStatus === 'DRAFT' && contentChanged) {
+      updateData.status = 'PENDING_APPROVAL';
+      updateData.submittedAt = new Date();
+      requiresReapproval = true;
+    }
 
     // Generate new slug if title changed
     if (validatedData.title && validatedData.title !== existingPost.title) {
@@ -284,8 +323,8 @@ export async function PUT(
       updateData.readingTime = calculateReadingTime(validatedData.content);
     }
 
-    // Handle status changes
-    if (validatedData.status === 'PUBLISHED' && !updateData.publishedAt) {
+    // Handle status changes (admin only)
+    if (validatedData.status === 'PUBLISHED' && isAdmin && !updateData.publishedAt) {
       updateData.publishedAt = new Date();
     }
 
@@ -346,9 +385,75 @@ export async function PUT(
       }
     });
 
+    // Send email notifications if re-approval is required
+    if (requiresReapproval) {
+      try {
+        // Send confirmation to author
+        if (updatedPost.author.email) {
+          const authorHtml = emailTemplates.blogSubmissionAcknowledgment(
+            {
+              title: updatedPost.title,
+              slug: updatedPost.slug,
+              category: updatedPost.category,
+              submissionNotes: updatedPost.submissionNotes,
+              featuredImage: updatedPost.featuredImage,
+              readingTime: updatedPost.readingTime,
+              submittedAt: updatedPost.submittedAt || new Date(),
+              author: {
+                id: updatedPost.author.id,
+                name: updatedPost.author.name,
+                email: updatedPost.author.email,
+              },
+              tags: updatedPost.tags,
+            },
+            { variant: 'edit' }
+          );
+
+          await sendEmail({
+            to: updatedPost.author.email,
+            subject: `Your blog update "${updatedPost.title}" is under review`,
+            html: authorHtml,
+          });
+        }
+
+        // Send notification to admin
+        const adminEmail = process.env.BLOG_ADMIN_EMAIL || process.env.SUPPORT_EMAIL;
+        if (adminEmail) {
+          const adminHtml = emailTemplates.blogSubmissionAdminNotification(
+            {
+              title: updatedPost.title,
+              slug: updatedPost.slug,
+              category: updatedPost.category,
+              submissionNotes: updatedPost.submissionNotes,
+              featuredImage: updatedPost.featuredImage,
+              readingTime: updatedPost.readingTime,
+              submittedAt: updatedPost.submittedAt || new Date(),
+              author: {
+                id: updatedPost.author.id,
+                name: updatedPost.author.name,
+                email: updatedPost.author.email,
+              },
+              tags: updatedPost.tags,
+            },
+            { variant: 'edit' }
+          );
+
+          await sendEmail({
+            to: adminEmail,
+            subject: `Blog Update Pending Review: "${updatedPost.title}"`,
+            html: adminHtml,
+          });
+        }
+      } catch (emailError) {
+        console.error('Failed to send blog update notification emails:', emailError);
+        // Don't fail the request if email fails
+      }
+    }
+
     return NextResponse.json({
       ...updatedPost,
-      tags: updatedPost.tags.map(t => t.tag)
+      tags: updatedPost.tags.map(t => t.tag),
+      resubmitted: requiresReapproval
     });
 
   } catch (error) {

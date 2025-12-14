@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { getOrCreateAuthorProfile } from '@/lib/author';
 import { z } from 'zod';
 import { BlogPostCategory } from '@prisma/client';
 
@@ -228,6 +229,9 @@ export async function POST(request: NextRequest) {
       ? validatedData.publishedAt ? new Date(validatedData.publishedAt) : new Date()
       : null;
 
+    // Get or create author profile (auto-creates if user doesn't have one)
+    const { id: authorProfileId, isNew: isNewProfile } = await getOrCreateAuthorProfile(user.id);
+
     // Create blog post
     const blogPost = await prisma.blogPost.create({
       data: {
@@ -235,6 +239,7 @@ export async function POST(request: NextRequest) {
         slug,
         readingTime,
         authorId: user.id,
+        authorProfileId,
         publishedAt,
         scheduledAt: validatedData.scheduledAt ? new Date(validatedData.scheduledAt) : null,
         tags: {

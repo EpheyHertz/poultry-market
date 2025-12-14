@@ -134,7 +134,7 @@ export default function BlogSubmissionPage() {
 
   if (submitted) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-blue-50">
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-blue-50 dark:from-slate-950 dark:to-slate-900">
         <PublicNavbar />
         
         <div className="container mx-auto px-4 py-16 max-w-4xl">
@@ -143,44 +143,44 @@ export default function BlogSubmissionPage() {
             animate={{ opacity: 1, y: 0 }}
             className="text-center"
           >
-            <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-8">
-              <CheckCircle className="h-12 w-12 text-green-600" />
+            <div className="w-24 h-24 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-8">
+              <CheckCircle className="h-12 w-12 text-green-600 dark:text-green-400" />
             </div>
             
-            <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
+            <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-4">
               Submission Successful! 🎉
             </h1>
             
-            <p className="text-lg text-gray-600 mb-8 max-w-2xl mx-auto">
+            <p className="text-lg text-gray-600 dark:text-gray-300 mb-8 max-w-2xl mx-auto">
               Thank you for contributing to our poultry knowledge hub! Your blog post has been submitted 
               and is now under review by our editorial team.
             </p>
-            <p className="text-sm text-gray-500 mb-10 max-w-2xl mx-auto">
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-10 max-w-2xl mx-auto">
               We&apos;ve emailed you a confirmation and alerted the PoultryMarket editorial team so you&apos;ll stay updated at each review step.
             </p>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-              <Card className="border-0 shadow-lg">
+              <Card className="border-0 shadow-lg dark:bg-slate-800/50 dark:border dark:border-slate-700/50">
                 <CardContent className="p-6 text-center">
-                  <Clock className="h-8 w-8 text-blue-600 mx-auto mb-3" />
-                  <h3 className="font-semibold mb-2">Review Process</h3>
-                  <p className="text-sm text-gray-600">24-48 hours review time</p>
+                  <Clock className="h-8 w-8 text-blue-600 dark:text-blue-400 mx-auto mb-3" />
+                  <h3 className="font-semibold mb-2 dark:text-white">Review Process</h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">24-48 hours review time</p>
                 </CardContent>
               </Card>
               
-              <Card className="border-0 shadow-lg">
+              <Card className="border-0 shadow-lg dark:bg-slate-800/50 dark:border dark:border-slate-700/50">
                 <CardContent className="p-6 text-center">
-                  <Send className="h-8 w-8 text-emerald-600 mx-auto mb-3" />
-                  <h3 className="font-semibold mb-2">Email Updates</h3>
-                  <p className="text-sm text-gray-600">You&apos;ll receive notifications</p>
+                  <Send className="h-8 w-8 text-emerald-600 dark:text-emerald-400 mx-auto mb-3" />
+                  <h3 className="font-semibold mb-2 dark:text-white">Email Updates</h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">You&apos;ll receive notifications</p>
                 </CardContent>
               </Card>
               
-              <Card className="border-0 shadow-lg">
+              <Card className="border-0 shadow-lg dark:bg-slate-800/50 dark:border dark:border-slate-700/50">
                 <CardContent className="p-6 text-center">
-                  <Star className="h-8 w-8 text-yellow-600 mx-auto mb-3" />
-                  <h3 className="font-semibold mb-2">Publication</h3>
-                  <p className="text-sm text-gray-600">Live on our blog once approved</p>
+                  <Star className="h-8 w-8 text-yellow-600 dark:text-yellow-400 mx-auto mb-3" />
+                  <h3 className="font-semibold mb-2 dark:text-white">Publication</h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Live on our blog once approved</p>
                 </CardContent>
               </Card>
             </div>
@@ -188,7 +188,7 @@ export default function BlogSubmissionPage() {
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button 
                 onClick={() => router.push('/blog')}
-                className="bg-emerald-600 hover:bg-emerald-700"
+                className="bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-600"
               >
                 View Blog
               </Button>
@@ -198,6 +198,7 @@ export default function BlogSubmissionPage() {
                   setSubmitted(false);
                   window.location.reload();
                 }}
+                className="dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
               >
                 Submit Another Post
               </Button>
@@ -209,7 +210,7 @@ export default function BlogSubmissionPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-blue-50">
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-blue-50 dark:from-slate-950 dark:to-slate-900">
       <PublicNavbar />
       
       <div className="container mx-auto px-4 py-8 max-w-6xl">
@@ -218,7 +219,7 @@ export default function BlogSubmissionPage() {
           <Button 
             variant="ghost" 
             onClick={() => router.back()}
-            className="gap-2 hover:bg-white/50"
+            className="gap-2 hover:bg-white/50 dark:hover:bg-slate-800/50 dark:text-slate-300"
           >
             <ArrowLeft className="h-4 w-4" />
             Back
@@ -233,7 +234,7 @@ export default function BlogSubmissionPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
             >
-              <Card className="border-0 shadow-lg">
+              <Card className="border-0 shadow-lg dark:bg-slate-800/50 dark:border dark:border-slate-700/50">
                 <CardHeader className="bg-gradient-to-r from-emerald-600 to-blue-600 text-white rounded-t-lg">
                   <CardTitle className="text-2xl flex items-center gap-2">
                     <FileText className="h-6 w-6" />
@@ -245,7 +246,7 @@ export default function BlogSubmissionPage() {
                 </CardHeader>
                 <CardContent className="p-6">
                   {isUserLoading ? (
-                    <div className="py-12 text-center text-sm text-gray-500">
+                    <div className="py-12 text-center text-sm text-gray-500 dark:text-gray-400">
                       Checking your account details...
                     </div>
                   ) : currentUser ? (
@@ -257,24 +258,24 @@ export default function BlogSubmissionPage() {
                   ) : (
                     <div className="space-y-6 text-center">
                       <div className="space-y-2">
-                        <h3 className="text-xl font-semibold text-gray-900">
+                        <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
                           {userError ? 'We hit a snag loading your account' : 'Sign in to share your story'}
                         </h3>
-                        <p className="text-sm text-gray-600">
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
                           {userError
                             ? 'Please refresh and try again. If the issue persists, sign in again to continue.'
                             : 'Please sign in to connect your submission to your PoultryMarket profile and receive status updates.'}
                         </p>
                       </div>
                       {userError && (
-                        <div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                        <div className="rounded-md border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/30 p-4 text-sm text-red-700 dark:text-red-300">
                           {userError}
                         </div>
                       )}
                       <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
                         <Button
                           onClick={() => router.push(loginPath)}
-                          className="bg-emerald-600 hover:bg-emerald-700"
+                          className="bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-600"
                         >
                           Sign in to continue
                         </Button>
@@ -282,6 +283,7 @@ export default function BlogSubmissionPage() {
                           variant="outline"
                           onClick={fetchCurrentUser}
                           disabled={isUserLoading}
+                          className="dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
                         >
                           Refresh status
                         </Button>
@@ -302,29 +304,29 @@ export default function BlogSubmissionPage() {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.6, delay: 0.2 }}
               >
-                <Card className="border-0 shadow-lg">
+                <Card className="border-0 shadow-lg dark:bg-slate-800/50 dark:border dark:border-slate-700/50">
                   <CardHeader>
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <Lightbulb className="h-5 w-5 text-yellow-600" />
+                    <CardTitle className="text-lg flex items-center gap-2 dark:text-white">
+                      <Lightbulb className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
                       Writing Guidelines
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <div className="space-y-3 text-sm">
+                    <div className="space-y-3 text-sm dark:text-gray-300">
                       <div className="flex items-start gap-2">
-                        <div className="w-2 h-2 bg-emerald-600 rounded-full mt-1.5 flex-shrink-0"></div>
+                        <div className="w-2 h-2 bg-emerald-600 dark:bg-emerald-400 rounded-full mt-1.5 flex-shrink-0"></div>
                         <span>Use clear, engaging titles that describe your content</span>
                       </div>
                       <div className="flex items-start gap-2">
-                        <div className="w-2 h-2 bg-emerald-600 rounded-full mt-1.5 flex-shrink-0"></div>
+                        <div className="w-2 h-2 bg-emerald-600 dark:bg-emerald-400 rounded-full mt-1.5 flex-shrink-0"></div>
                         <span>Include practical tips and actionable advice</span>
                       </div>
                       <div className="flex items-start gap-2">
-                        <div className="w-2 h-2 bg-emerald-600 rounded-full mt-1.5 flex-shrink-0"></div>
+                        <div className="w-2 h-2 bg-emerald-600 dark:bg-emerald-400 rounded-full mt-1.5 flex-shrink-0"></div>
                         <span>Support your points with personal experience or data</span>
                       </div>
                       <div className="flex items-start gap-2">
-                        <div className="w-2 h-2 bg-emerald-600 rounded-full mt-1.5 flex-shrink-0"></div>
+                        <div className="w-2 h-2 bg-emerald-600 dark:bg-emerald-400 rounded-full mt-1.5 flex-shrink-0"></div>
                         <span>Use markdown formatting for better readability</span>
                       </div>
                     </div>
@@ -338,34 +340,34 @@ export default function BlogSubmissionPage() {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.6, delay: 0.4 }}
               >
-                <Card className="border-0 shadow-lg">
+                <Card className="border-0 shadow-lg dark:bg-slate-800/50 dark:border dark:border-slate-700/50">
                   <CardHeader>
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <Target className="h-5 w-5 text-blue-600" />
+                    <CardTitle className="text-lg flex items-center gap-2 dark:text-white">
+                      <Target className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                       Why Contribute?
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="space-y-3">
-                      <div className="flex items-center gap-3 p-3 bg-emerald-50 rounded-lg">
-                        <Users className="h-5 w-5 text-emerald-600" />
+                      <div className="flex items-center gap-3 p-3 bg-emerald-50 dark:bg-emerald-900/30 rounded-lg">
+                        <Users className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
                         <div>
-                          <div className="font-medium text-sm">Share Knowledge</div>
-                          <div className="text-xs text-gray-600">Help fellow farmers succeed</div>
+                          <div className="font-medium text-sm dark:text-white">Share Knowledge</div>
+                          <div className="text-xs text-gray-600 dark:text-gray-400">Help fellow farmers succeed</div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg">
-                        <Star className="h-5 w-5 text-blue-600" />
+                      <div className="flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
+                        <Star className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                         <div>
-                          <div className="font-medium text-sm">Build Authority</div>
-                          <div className="text-xs text-gray-600">Establish yourself as an expert</div>
+                          <div className="font-medium text-sm dark:text-white">Build Authority</div>
+                          <div className="text-xs text-gray-600 dark:text-gray-400">Establish yourself as an expert</div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-3 p-3 bg-yellow-50 rounded-lg">
-                        <Sparkles className="h-5 w-5 text-yellow-600" />
+                      <div className="flex items-center gap-3 p-3 bg-yellow-50 dark:bg-yellow-900/30 rounded-lg">
+                        <Sparkles className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
                         <div>
-                          <div className="font-medium text-sm">Community Impact</div>
-                          <div className="text-xs text-gray-600">Make a difference in agriculture</div>
+                          <div className="font-medium text-sm dark:text-white">Community Impact</div>
+                          <div className="text-xs text-gray-600 dark:text-gray-400">Make a difference in agriculture</div>
                         </div>
                       </div>
                     </div>
@@ -379,10 +381,10 @@ export default function BlogSubmissionPage() {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.6, delay: 0.6 }}
               >
-                <Card className="border-0 shadow-lg">
+                <Card className="border-0 shadow-lg bg-white dark:bg-slate-800/50 dark:border dark:border-slate-700/50">
                   <CardHeader>
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <CheckCircle className="h-5 w-5 text-green-600" />
+                    <CardTitle className="text-lg flex items-center gap-2 dark:text-white">
+                      <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
                       Review Process
                     </CardTitle>
                   </CardHeader>
@@ -393,10 +395,10 @@ export default function BlogSubmissionPage() {
                       transition={{ delay: 0.8, duration: 0.3 }}
                       className="flex items-center space-x-3"
                     >
-                      <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                      <Badge variant="outline" className="bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-700">
                         Step 1
                       </Badge>
-                      <span className="text-sm">Submit your post for review</span>
+                      <span className="text-sm dark:text-gray-300">Submit your post for review</span>
                     </motion.div>
                     <motion.div 
                       initial={{ opacity: 0, x: -20 }}
@@ -404,10 +406,10 @@ export default function BlogSubmissionPage() {
                       transition={{ delay: 1.0, duration: 0.3 }}
                       className="flex items-center space-x-3"
                     >
-                      <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">
+                      <Badge variant="outline" className="bg-yellow-50 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-300 border-yellow-200 dark:border-yellow-700">
                         Step 2
                       </Badge>
-                      <span className="text-sm">Our team reviews within 24-48 hours</span>
+                      <span className="text-sm dark:text-gray-300">Our team reviews within 24-48 hours</span>
                     </motion.div>
                     <motion.div 
                       initial={{ opacity: 0, x: -20 }}
@@ -415,10 +417,10 @@ export default function BlogSubmissionPage() {
                       transition={{ delay: 1.2, duration: 0.3 }}
                       className="flex items-center space-x-3"
                     >
-                      <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">
+                      <Badge variant="outline" className="bg-emerald-50 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-700">
                         Step 3
                       </Badge>
-                      <span className="text-sm">You&apos;ll receive an email notification</span>
+                      <span className="text-sm dark:text-gray-300">You&apos;ll receive an email notification</span>
                     </motion.div>
                     <motion.div 
                       initial={{ opacity: 0, x: -20 }}
@@ -426,10 +428,10 @@ export default function BlogSubmissionPage() {
                       transition={{ delay: 1.4, duration: 0.3 }}
                       className="flex items-center space-x-3"
                     >
-                      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                      <Badge variant="outline" className="bg-green-50 dark:bg-green-900/40 text-green-700 dark:text-green-300 border-green-200 dark:border-green-700">
                         Step 4
                       </Badge>
-                      <span className="text-sm">If approved, your post goes live</span>
+                      <span className="text-sm dark:text-gray-300">If approved, your post goes live</span>
                     </motion.div>
                   </CardContent>
                 </Card>

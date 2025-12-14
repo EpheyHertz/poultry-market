@@ -2,6 +2,7 @@ import './globals.css';
 import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import { Toaster } from '@/components/ui/sonner';
+import { ThemeProvider } from '@/components/theme';
 import { seoConfig, structuredData } from '@/lib/seo';
 
 const inter = Inter({ 
@@ -96,7 +97,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={inter.variable}>
+    <html lang="en" className={inter.variable} suppressHydrationWarning>
       <head>
         {/* Structured Data */}
         <script
@@ -150,8 +151,15 @@ export default function RootLayout({
         <link rel="alternate" hrefLang="x-default" href={seoConfig.siteUrl} />
       </head>
       <body className={inter.className}>
-        {children}
-        <Toaster />
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          {children}
+          <Toaster />
+        </ThemeProvider>
       </body>
     </html>
   );

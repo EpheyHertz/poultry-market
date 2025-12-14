@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
+import { ThemeToggle } from '@/components/theme';
 
 interface User {
   id: string;
@@ -94,7 +95,7 @@ export default function PublicNavbar({ showAuth = true }: PublicNavbarProps) {
 
   return (
     <>
-      <nav className="sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-200">
+      <nav className="sticky top-0 z-50 bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border-b border-gray-200 dark:border-slate-700">
         <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6">
           <div className="flex items-center justify-between h-12 sm:h-16">
             {/* Logo - Mobile First */}
@@ -103,9 +104,9 @@ export default function PublicNavbar({ showAuth = true }: PublicNavbarProps) {
                 whileHover={{ scale: 1.05, rotate: 5 }}
                 transition={{ type: "spring", stiffness: 400, damping: 10 }}
               >
-                <Bird className="h-6 w-6 sm:h-7 sm:w-7 text-emerald-600" />
+                <Bird className="h-6 w-6 sm:h-7 sm:w-7 text-emerald-600 dark:text-emerald-400" />
               </motion.div>
-              <span className="text-base sm:text-lg font-bold text-gray-900">
+              <span className="text-base sm:text-lg font-bold text-gray-900 dark:text-white">
                 PoultryHub
               </span>
             </Link>
@@ -114,31 +115,31 @@ export default function PublicNavbar({ showAuth = true }: PublicNavbarProps) {
             <div className="hidden md:flex items-center space-x-4 lg:space-x-6">
               <Link 
                 href="/" 
-                className="text-gray-700 hover:text-emerald-600 transition-colors font-medium text-sm lg:text-base"
+                className="text-gray-700 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors font-medium text-sm lg:text-base"
               >
                 Home
               </Link>
               <Link 
                 href="/products" 
-                className="text-gray-700 hover:text-emerald-600 transition-colors font-medium text-sm lg:text-base"
+                className="text-gray-700 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors font-medium text-sm lg:text-base"
               >
                 Products
               </Link>
               <Link 
                 href="/blog" 
-                className="text-gray-700 hover:text-emerald-600 transition-colors font-medium text-sm lg:text-base"
+                className="text-gray-700 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors font-medium text-sm lg:text-base"
               >
                 Blog
               </Link>
               <Link 
                 href="/blog/submit" 
-                className="text-emerald-600 hover:text-emerald-700 transition-colors font-medium border border-emerald-600 px-2 lg:px-3 py-1 rounded-md hover:bg-emerald-50 text-sm lg:text-base"
+                className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors font-medium border border-emerald-600 dark:border-emerald-500 px-2 lg:px-3 py-1 rounded-md hover:bg-emerald-50 dark:hover:bg-emerald-900/30 text-sm lg:text-base"
               >
                 Write Blog
               </Link>
               <Link 
                 href="/announcements" 
-                className="text-gray-700 hover:text-emerald-600 transition-colors font-medium text-sm lg:text-base"
+                className="text-gray-700 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors font-medium text-sm lg:text-base"
               >
                 Announcements
               </Link>
@@ -146,6 +147,9 @@ export default function PublicNavbar({ showAuth = true }: PublicNavbarProps) {
 
             {/* Right Side - Mobile Optimized */}
             <div className="flex items-center space-x-2">
+              {/* Theme Toggle */}
+              <ThemeToggle />
+              
               {/* Desktop Auth */}
               {!isLoading && showAuth && (
                 <div className="hidden md:flex items-center space-x-2 lg:space-x-3">
@@ -155,20 +159,20 @@ export default function PublicNavbar({ showAuth = true }: PublicNavbarProps) {
                       <Button variant="ghost" className="h-8 w-8 rounded-full p-0">
                         <Avatar className="h-8 w-8">
                           <AvatarImage src={user.avatar || undefined} alt={user.name} />
-                          <AvatarFallback className="bg-emerald-600 text-white text-xs">
+                          <AvatarFallback className="bg-emerald-600 dark:bg-emerald-500 text-white text-xs">
                             {user.name?.split(' ').map(n => n[0]).join('').toUpperCase()}
                           </AvatarFallback>
                         </Avatar>
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent className="w-48" align="end">
-                      <DropdownMenuItem asChild>
+                    <DropdownMenuContent className="w-48 dark:bg-slate-800 dark:border-slate-700" align="end">
+                      <DropdownMenuItem asChild className="dark:text-slate-200 dark:hover:bg-slate-700">
                         <Link href={getDashboardLink()}>Dashboard</Link>
                       </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
+                      <DropdownMenuItem asChild className="dark:text-slate-200 dark:hover:bg-slate-700">
                         <Link href="/my-blogs">My Blogs</Link>
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={handleLogout} className="text-red-600">
+                      <DropdownMenuItem onClick={handleLogout} className="text-red-600 dark:text-red-400 dark:hover:bg-slate-700">
                         Sign out
                       </DropdownMenuItem>
                     </DropdownMenuContent>
@@ -176,10 +180,10 @@ export default function PublicNavbar({ showAuth = true }: PublicNavbarProps) {
                 ) : (
                   <>
                     <Link href="/auth/login">
-                      <Button variant="ghost" size="sm">Sign In</Button>
+                      <Button variant="ghost" size="sm" className="dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-800">Sign In</Button>
                     </Link>
                     <Link href="/auth/register">
-                      <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700">
+                      <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-600">
                         Sign Up
                       </Button>
                     </Link>
@@ -192,7 +196,7 @@ export default function PublicNavbar({ showAuth = true }: PublicNavbarProps) {
             <Button
               variant="ghost"
               size="sm"
-              className="lg:hidden p-2"
+              className="lg:hidden p-2 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-800"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             >
               {isMobileMenuOpen ? (
@@ -212,41 +216,41 @@ export default function PublicNavbar({ showAuth = true }: PublicNavbarProps) {
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
               transition={{ duration: 0.2 }}
-              className="lg:hidden border-t border-gray-200 bg-white"
+              className="lg:hidden border-t border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900"
             >
               <div className="px-3 py-4 space-y-2">
                 {/* Mobile Navigation Links */}
                 <Link 
                   href="/" 
-                  className="block px-3 py-3 text-gray-700 hover:text-emerald-600 hover:bg-emerald-50 rounded-md transition-colors font-medium"
+                  className="block px-3 py-3 text-gray-700 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-slate-800 rounded-md transition-colors font-medium"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   Home
                 </Link>
                 <Link 
                   href="/products" 
-                  className="block px-3 py-3 text-gray-700 hover:text-emerald-600 hover:bg-emerald-50 rounded-md transition-colors font-medium"
+                  className="block px-3 py-3 text-gray-700 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-slate-800 rounded-md transition-colors font-medium"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   Products
                 </Link>
                 <Link 
                   href="/blog" 
-                  className="block px-3 py-3 text-gray-700 hover:text-emerald-600 hover:bg-emerald-50 rounded-md transition-colors font-medium"
+                  className="block px-3 py-3 text-gray-700 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-slate-800 rounded-md transition-colors font-medium"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   Blog
                 </Link>
                 <Link 
                   href="/blog/submit" 
-                  className="block px-3 py-3 text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-md transition-colors font-medium border border-emerald-200"
+                  className="block px-3 py-3 text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/30 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 rounded-md transition-colors font-medium border border-emerald-200 dark:border-emerald-700"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   Write Blog
                 </Link>
                 <Link 
                   href="/announcements" 
-                  className="block px-3 py-3 text-gray-700 hover:text-emerald-600 hover:bg-emerald-50 rounded-md transition-colors font-medium"
+                  className="block px-3 py-3 text-gray-700 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-slate-800 rounded-md transition-colors font-medium"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   Announcements
@@ -254,22 +258,22 @@ export default function PublicNavbar({ showAuth = true }: PublicNavbarProps) {
 
                 {/* Mobile Auth */}
                 {!isLoading && showAuth && (
-                  <div className="pt-4 border-t border-gray-200 space-y-2">
+                  <div className="pt-4 border-t border-gray-200 dark:border-slate-700 space-y-2">
                     {user ? (
                       <>
-                        <div className="px-3 py-2 text-sm text-gray-500">
+                        <div className="px-3 py-2 text-sm text-gray-500 dark:text-slate-400">
                           Signed in as {user.name}
                         </div>
                         <Link 
                           href={getDashboardLink()}
-                          className="block px-3 py-3 text-gray-700 hover:text-emerald-600 hover:bg-emerald-50 rounded-md transition-colors font-medium"
+                          className="block px-3 py-3 text-gray-700 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-slate-800 rounded-md transition-colors font-medium"
                           onClick={() => setIsMobileMenuOpen(false)}
                         >
                           Dashboard
                         </Link>
                         <Link 
                           href="/my-blogs"
-                          className="block px-3 py-3 text-gray-700 hover:text-emerald-600 hover:bg-emerald-50 rounded-md transition-colors font-medium"
+                          className="block px-3 py-3 text-gray-700 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-slate-800 rounded-md transition-colors font-medium"
                           onClick={() => setIsMobileMenuOpen(false)}
                         >
                           My Blogs
@@ -279,7 +283,7 @@ export default function PublicNavbar({ showAuth = true }: PublicNavbarProps) {
                             handleLogout();
                             setIsMobileMenuOpen(false);
                           }}
-                          className="block w-full text-left px-3 py-3 text-red-600 hover:bg-red-50 rounded-md transition-colors font-medium"
+                          className="block w-full text-left px-3 py-3 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors font-medium"
                         >
                           Sign Out
                         </button>
@@ -288,14 +292,14 @@ export default function PublicNavbar({ showAuth = true }: PublicNavbarProps) {
                       <>
                         <Link 
                           href="/auth/login"
-                          className="block px-3 py-3 text-gray-700 hover:text-emerald-600 hover:bg-emerald-50 rounded-md transition-colors font-medium"
+                          className="block px-3 py-3 text-gray-700 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-slate-800 rounded-md transition-colors font-medium"
                           onClick={() => setIsMobileMenuOpen(false)}
                         >
                           Sign In
                         </Link>
                         <Link 
                           href="/auth/register"
-                          className="block px-3 py-3 text-white bg-emerald-600 hover:bg-emerald-700 rounded-md transition-colors font-medium text-center"
+                          className="block px-3 py-3 text-white bg-emerald-600 dark:bg-emerald-500 hover:bg-emerald-700 dark:hover:bg-emerald-600 rounded-md transition-colors font-medium text-center"
                           onClick={() => setIsMobileMenuOpen(false)}
                         >
                           Get Started

@@ -7,7 +7,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  // url      = env("DATABASE_URL")
 }
 
 enum UserRole {
@@ -267,6 +267,10 @@ model User {
   // Social interactions
   blogPostLikes         BlogPostLike[]    @relation("BlogPostLikes")
   blogCommentLikes      BlogCommentLike[] @relation("BlogCommentLikes")
+
+  // Author Profile (separate blog identity)
+  authorProfile         AuthorProfile?
+  blogPostViews         BlogPostView[]    @relation("UserBlogViews")
 
   @@map("users")
 }
@@ -1066,6 +1070,62 @@ enum BlogPostCategory {
   ADVANCED_TECHNIQUES
 }
 
+// Author Profile Model - Separate blog identity from main user
+model AuthorProfile {
+  id              String    @id @default(cuid())
+  userId          String    @unique
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Public Identity
+  displayName     String
+  username        String    @unique  // URL-safe, unique identifier (3-30 chars, lowercase, alphanumeric, underscores)
+  bio             String?   @db.Text
+  avatarUrl       String?
+  coverImageUrl   String?
+  
+  // Professional Info
+  tagline         String?            // Short professional tagline
+  website         String?
+  location        String?
+  occupation      String?
+  company         String?
+  expertise       String[]           // Areas of expertise
+  
+  // Social Links (individual fields for type safety)
+  twitterHandle   String?
+  linkedinUrl     String?
+  githubUsername  String?
+  facebookUrl     String?
+  instagramHandle String?
+  youtubeChannel  String?
+  
+  // Settings
+  isPublic        Boolean   @default(true)
+  isVerified      Boolean   @default(false)
+  showEmail       Boolean   @default(false)
+  allowComments   Boolean   @default(true)
+  emailOnComment  Boolean   @default(true)
+  emailOnFollow   Boolean   @default(true)
+  emailOnLike     Boolean   @default(false)
+  
+  // Stats (denormalized for performance)
+  totalViews      Int       @default(0)
+  totalLikes      Int       @default(0)
+  totalPosts      Int       @default(0)
+  totalComments   Int       @default(0)
+  
+  // Timestamps
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  // Relations
+  blogPosts       BlogPost[] @relation("AuthorProfilePosts")
+  
+  @@map("author_profiles")
+  @@index([username])
+  @@index([isPublic, isVerified])
+}
+
 // Blog Models
 model BlogPost {
   id              String            @id @default(cuid())
@@ -1086,6 +1146,7 @@ model BlogPost {
   twitterTitle    String?
   twitterDescription String?
   twitterImage    String?
+  canonicalUrl    String?           // Custom canonical URL
   
   // Content organization
   category        BlogPostCategory
@@ -1093,6 +1154,11 @@ model BlogPost {
   featured        Boolean           @default(false)
   publishedAt     DateTime?
   scheduledAt     DateTime?
+  
+  // Enhanced content
+  tableOfContents Json?             // Auto-generated TOC structure
+  estimatedReadTime Int?            // Calculated reading time in minutes
+  wordCount       Int?              // Total word count
   
   // Approval workflow
   submittedAt     DateTime?         // When submitted for approval
@@ -1103,21 +1169,33 @@ model BlogPost {
   rejectionReason String?           // Reason for rejection
   submissionNotes String?           // Notes from submitter
   
+  // Resubmission workflow
+  resubmittedAt   DateTime?         // When rejected post was resubmitted
+  resubmitCount   Int               @default(0) // Number of times resubmitted
+  adminNotes      String?           // Internal admin notes (not visible to author)
+  
   // Engagement metrics
   viewCount       Int               @default(0)
+  uniqueViewCount Int               @default(0) // Unique visitors
   shareCount      Int               @default(0)
   likes           Int               @default(0)
   views           Int               @default(0)
-  readingTime     Int?              // in minutes
+  readingTime     Int?              // in minutes (legacy field)
+  avgReadDuration Float?            // Average time spent reading (seconds)
   
-  // Author information
+  // Author information (existing - links to User)
   authorId        String
   author          User              @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  
+  // Author Profile link (new - optional for backward compat)
+  authorProfileId String?
+  authorProfile   AuthorProfile?    @relation("AuthorProfilePosts", fields: [authorProfileId], references: [id], onDelete: SetNull)
   
   // Relationships
   tags            BlogPostTag[]
   comments        BlogComment[]
   likedBy         BlogPostLike[]    @relation("BlogPostLikes")
+  postViews       BlogPostView[]    @relation("PostViews")
   
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
@@ -1126,6 +1204,7 @@ model BlogPost {
   @@index([status, publishedAt])
   @@index([category])
   @@index([slug])
+  @@index([authorProfileId])
 }
 
 model BlogTag {
@@ -1256,4 +1335,42 @@ model ApiKey {
 
   @@index([userId])
   @@map("api_keys")
+}
+
+// Blog Post View Tracking
+model BlogPostView {
+  id            String    @id @default(cuid())
+  postId        String
+  post          BlogPost  @relation("PostViews", fields: [postId], references: [id], onDelete: Cascade)
+  
+  // Viewer Info
+  userId        String?   // Null for anonymous views
+  user          User?     @relation("UserBlogViews", fields: [userId], references: [id], onDelete: SetNull)
+  sessionId     String?   // For anonymous visitor tracking
+  ipHash        String?   // Hashed IP for uniqueness (privacy-safe)
+  
+  // View Analytics
+  readDuration  Int?      // Seconds spent on page
+  scrollDepth   Int?      // 0-100 percentage scrolled
+  referrer      String?   // Where they came from
+  utmSource     String?   // UTM tracking
+  utmMedium     String?
+  utmCampaign   String?
+  deviceType    String?   // mobile, tablet, desktop
+  browser       String?
+  country       String?
+  
+  // Engagement flags
+  completedRead Boolean   @default(false) // Read > 80% of article
+  likedAfter    Boolean   @default(false) // Liked after reading
+  commentedAfter Boolean  @default(false) // Commented after reading
+  sharedAfter   Boolean   @default(false) // Shared after reading
+  
+  createdAt     DateTime  @default(now())
+  
+  @@unique([postId, userId])
+  @@unique([postId, sessionId])
+  @@map("blog_post_views")
+  @@index([postId, createdAt])
+  @@index([userId])
 }

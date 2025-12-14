@@ -285,169 +285,247 @@ export default function MobileBlogContent() {
   const regularPosts = posts.slice(3);
 
   return (
-    <div className="min-h-screen bg-white">
-      {/* Mobile-First Hero Section */}
-      <section className="bg-gradient-to-br from-emerald-500 to-emerald-600 text-white">
-        <div className="px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-12">
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white dark:from-slate-950 dark:to-slate-900 transition-colors duration-300">
+      {/* Mobile-First Hero Section with Premium Gradient */}
+      <section className="hero-gradient relative overflow-hidden text-white">
+        {/* Animated Background Elements */}
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute -top-1/2 -left-1/4 w-96 h-96 bg-white/10 rounded-full blur-3xl float-animation" />
+          <div className="absolute -bottom-1/2 -right-1/4 w-96 h-96 bg-emerald-300/10 rounded-full blur-3xl float-animation" style={{ animationDelay: '3s' }} />
+        </div>
+        
+        <div className="relative px-4 py-8 sm:px-6 sm:py-12 lg:px-8 lg:py-16">
           <div className="max-w-4xl mx-auto text-center">
-            <h1 className="text-2xl font-bold mb-2 sm:text-3xl lg:text-4xl">
+            <motion.h1 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+              className="text-3xl font-bold mb-3 sm:text-4xl lg:text-5xl tracking-tight text-glow"
+            >
               PoultryHub Blog
-            </h1>
-            <p className="text-emerald-100 text-sm mb-4 sm:mb-6 sm:text-base lg:text-lg">
+            </motion.h1>
+            <motion.p 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.1 }}
+              className="text-emerald-100 text-sm mb-6 sm:mb-8 sm:text-base lg:text-lg"
+            >
               Expert insights for poultry professionals
-            </p>
+            </motion.p>
             
-            {/* Mobile Search */}
-            <div className="relative max-w-md mx-auto">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input
-                type="text"
-                placeholder="Search articles..."
-                value={searchInput}
-                onChange={(e) => handleSearchInput(e.target.value)}
-                className="pl-10 bg-white text-gray-900 border-0 h-10 text-sm"
-              />
-              {searchInput !== searchQuery && (
-                <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                  <Loader2 className="h-4 w-4 text-gray-400 animate-spin" />
+            {/* Premium Search Bar */}
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.2 }}
+              className="relative max-w-lg mx-auto"
+            >
+              <div className="relative group">
+                <div className="absolute -inset-1 bg-gradient-to-r from-emerald-300 via-white/50 to-emerald-300 rounded-2xl opacity-40 group-hover:opacity-60 blur transition-opacity duration-300" />
+                <div className="relative flex items-center">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  <Input
+                    type="text"
+                    placeholder="Search articles, topics, authors..."
+                    value={searchInput}
+                    onChange={(e) => handleSearchInput(e.target.value)}
+                    className="pl-12 pr-12 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 border-0 h-12 sm:h-14 text-sm sm:text-base rounded-xl shadow-2xl focus:ring-2 focus:ring-emerald-400/50"
+                  />
+                  {searchInput !== searchQuery && (
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                      <Loader2 className="h-5 w-5 text-emerald-500 animate-spin" />
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
+              </div>
+            </motion.div>
           </div>
+        </div>
+        
+        {/* Wave Divider */}
+        <div className="absolute bottom-0 left-0 right-0">
+          <svg viewBox="0 0 1440 60" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-auto">
+            <path d="M0 60L60 55C120 50 240 40 360 35C480 30 600 30 720 35C840 40 960 50 1080 52.5C1200 55 1320 50 1380 47.5L1440 45V60H1380C1320 60 1200 60 1080 60C960 60 840 60 720 60C600 60 480 60 360 60C240 60 120 60 60 60H0Z" className="fill-slate-50 dark:fill-slate-950" />
+          </svg>
         </div>
       </section>
 
       {/* Main Content Container */}
-      <div className="max-w-6xl mx-auto px-3 py-4 sm:px-4 sm:py-6 lg:px-8">
+      <div className="max-w-6xl mx-auto px-3 py-6 sm:px-4 sm:py-8 lg:px-8">
         {/* Mobile Filters */}
-        <div className="mb-4 lg:hidden">
-          <Button
-            variant="outline"
-            onClick={() => setShowFilters(!showFilters)}
-            className="w-full justify-between h-10"
-            size="sm"
+        <div className="mb-6 lg:hidden">
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.3 }}
           >
-            <span className="flex items-center gap-2 text-sm">
-              <Filter className="h-4 w-4" />
-              Filters & Sort
-            </span>
-            {showFilters ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
-          </Button>
+            <Button
+              variant="outline"
+              onClick={() => setShowFilters(!showFilters)}
+              className="w-full justify-between h-12 rounded-xl bg-white dark:bg-slate-900 border-gray-200 dark:border-slate-800 hover:border-emerald-400 dark:hover:border-emerald-500 transition-all duration-300 shadow-sm"
+              size="sm"
+            >
+              <span className="flex items-center gap-2 text-sm font-medium">
+                <Filter className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                Filters & Sort
+              </span>
+              <motion.div
+                animate={{ rotate: showFilters ? 180 : 0 }}
+                transition={{ duration: 0.2 }}
+              >
+                {showFilters ? <X className="h-4 w-4" /> : <ChevronsUpDown className="h-4 w-4" />}
+              </motion.div>
+            </Button>
+          </motion.div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 lg:gap-6">
-          {/* Sidebar - Mobile Collapsible */}
-          <div className={`lg:block ${showFilters ? 'block' : 'hidden'} space-y-3 lg:space-y-4`}>
-            {/* Sort */}
-            <Card className="p-3 lg:p-4">
-              <h3 className="font-semibold mb-2 lg:mb-3 text-sm">Sort By</h3>
-              <div className="space-y-1">
-                {[
-                  { value: 'latest', label: 'Latest' },
-                  { value: 'popular', label: 'Popular' },
-                  { value: 'trending', label: 'Trending' }
-                ].map((option) => (
-                  <button
-                    key={option.value}
-                    onClick={() => {
-                      setSortBy(option.value);
-                      updateURL('sort', option.value);
-                      if (isMobile) setShowFilters(false);
-                    }}
-                    className={`w-full text-left px-2 lg:px-3 py-1.5 lg:py-2 rounded text-xs transition-colors ${
-                      sortBy === option.value
-                        ? 'bg-emerald-100 text-emerald-700'
-                        : 'hover:bg-gray-100'
-                    }`}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-            </Card>
-
-            {/* Categories */}
-            {categories.length > 0 && (
-              <Card className="p-4">
-                <h3 className="font-semibold mb-3 text-sm">Categories</h3>
-                <div className="space-y-1">
-                  <button
-                    onClick={() => {
-                      setSelectedCategory('');
-                      updateURL('category', '');
-                    }}
-                    className={`w-full text-left px-3 py-2 rounded text-xs transition-colors ${
-                      !selectedCategory
-                        ? 'bg-emerald-100 text-emerald-700'
-                        : 'hover:bg-gray-100'
-                    }`}
-                  >
-                    All
-                  </button>
-                  {categories.slice(0, 8).map((category) => (
-                    <button
-                      key={category.key || category.slug || category.id}
-                      onClick={() => {
-                        setSelectedCategory(category.slug);
-                        updateURL('category', category.slug);
-                      }}
-                      className={`w-full text-left px-3 py-2 rounded text-xs transition-colors flex justify-between ${
-                        selectedCategory === category.slug
-                          ? 'bg-emerald-100 text-emerald-700'
-                          : 'hover:bg-gray-100'
-                      }`}
-                    >
-                      <span className="truncate">{category.name}</span>
-                      <span className="text-gray-400 ml-2">({category.postCount || 0})</span>
-                    </button>
-                  ))}
-                </div>
-              </Card>
-            )}
-
-            {/* Clear Filters */}
-            {(searchQuery || selectedCategory || selectedTag || sortBy !== 'latest') && (
-              <Button
-                variant="outline"
-                onClick={clearFilters}
-                className="w-full h-8 text-xs"
-                size="sm"
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 lg:gap-8">
+          {/* Sidebar - Mobile Collapsible with Animation */}
+          <AnimatePresence>
+            {(showFilters || !isMobile) && (
+              <motion.div 
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.3 }}
+                className="lg:block space-y-4"
               >
-                Clear Filters
-              </Button>
+                {/* Sort Card */}
+                <Card className="overflow-hidden border-0 shadow-lg shadow-gray-200/50 dark:shadow-black/20 bg-white dark:bg-slate-900/80 backdrop-blur-sm rounded-xl">
+                  <div className="p-4 lg:p-5">
+                    <h3 className="font-semibold mb-3 text-sm flex items-center gap-2 text-gray-900 dark:text-slate-100">
+                      <TrendingUp className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                      Sort By
+                    </h3>
+                    <div className="space-y-1">
+                      {[
+                        { value: 'latest', label: 'Latest', icon: Clock },
+                        { value: 'popular', label: 'Popular', icon: Heart },
+                        { value: 'trending', label: 'Trending', icon: TrendingUp }
+                      ].map((option) => (
+                        <button
+                          key={option.value}
+                          onClick={() => {
+                            setSortBy(option.value);
+                            updateURL('sort', option.value);
+                            if (isMobile) setShowFilters(false);
+                          }}
+                          className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-all duration-200 flex items-center gap-2 ${
+                            sortBy === option.value
+                              ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-md shadow-emerald-500/30'
+                              : 'hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-700 dark:text-slate-300'
+                          }`}
+                        >
+                          <option.icon className="h-4 w-4" />
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </Card>
+
+                {/* Categories Card */}
+                {categories.length > 0 && (
+                  <Card className="overflow-hidden border-0 shadow-lg shadow-gray-200/50 dark:shadow-black/20 bg-white dark:bg-slate-900/80 backdrop-blur-sm rounded-xl">
+                    <div className="p-4 lg:p-5">
+                      <h3 className="font-semibold mb-3 text-sm flex items-center gap-2 text-gray-900 dark:text-slate-100">
+                        <BookOpen className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                        Categories
+                      </h3>
+                      <div className="space-y-1">
+                        <button
+                          onClick={() => {
+                            setSelectedCategory('');
+                            updateURL('category', '');
+                          }}
+                          className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-all duration-200 ${
+                            !selectedCategory
+                              ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-md shadow-emerald-500/30'
+                              : 'hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-700 dark:text-slate-300'
+                          }`}
+                        >
+                          All Categories
+                        </button>
+                        {categories.slice(0, 8).map((category) => (
+                          <button
+                            key={category.key || category.slug || category.id}
+                            onClick={() => {
+                              setSelectedCategory(category.slug);
+                              updateURL('category', category.slug);
+                            }}
+                            className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-all duration-200 flex justify-between items-center ${
+                              selectedCategory === category.slug
+                                ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-md shadow-emerald-500/30'
+                                : 'hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-700 dark:text-slate-300'
+                            }`}
+                          >
+                            <span className="truncate">{category.name}</span>
+                            <span className={`text-xs px-2 py-0.5 rounded-full ${
+                              selectedCategory === category.slug
+                                ? 'bg-white/20'
+                                : 'bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400'
+                            }`}>
+                              {category.postCount || 0}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </Card>
+                )}
+
+                {/* Clear Filters */}
+                {(searchQuery || selectedCategory || selectedTag || sortBy !== 'latest') && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <Button
+                      variant="outline"
+                      onClick={clearFilters}
+                      className="w-full h-10 text-sm rounded-xl border-red-200 dark:border-red-500/30 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all duration-200"
+                      size="sm"
+                    >
+                      <X className="h-4 w-4 mr-2" />
+                      Clear All Filters
+                    </Button>
+                  </motion.div>
+                )}
+              </motion.div>
             )}
-          </div>
+          </AnimatePresence>
 
           {/* Posts Grid */}
           <div className="lg:col-span-3">
             {loading ? (
               <div className="space-y-6">
                 {[...Array(6)].map((_, i) => (
-                  <Card key={i} className="overflow-hidden animate-pulse bg-white border-0 shadow-sm rounded-lg">
+                  <Card key={i} className="overflow-hidden border-0 shadow-lg bg-white dark:bg-slate-900 rounded-2xl">
                     <div className="flex flex-col sm:flex-row">
-                      <div className="w-full sm:w-64 h-40 sm:h-48 bg-gradient-to-br from-gray-200 to-gray-300 flex-shrink-0" />
-                      <div className="p-5 flex-1 space-y-4">
+                      <div className="w-full sm:w-64 h-48 sm:h-56 skeleton-shine flex-shrink-0 rounded-t-2xl sm:rounded-l-2xl sm:rounded-tr-none" />
+                      <div className="p-6 flex-1 space-y-4">
                         <div className="space-y-3">
-                          <div className="h-6 bg-gray-200 rounded-md w-4/5" />
-                          <div className="h-4 bg-gray-200 rounded w-full" />
-                          <div className="h-4 bg-gray-200 rounded w-3/4" />
+                          <div className="h-6 skeleton-shine rounded-lg w-4/5" />
+                          <div className="h-4 skeleton-shine rounded-lg w-full" />
+                          <div className="h-4 skeleton-shine rounded-lg w-3/4" />
                         </div>
                         <div className="flex space-x-2">
-                          <div className="h-6 bg-gray-200 rounded-full w-16" />
-                          <div className="h-6 bg-gray-200 rounded-full w-20" />
+                          <div className="h-7 skeleton-shine rounded-full w-20" />
+                          <div className="h-7 skeleton-shine rounded-full w-24" />
                         </div>
-                        <div className="pt-3 border-t border-gray-200">
+                        <div className="pt-4 border-t border-gray-100 dark:border-slate-800">
                           <div className="flex justify-between items-center">
                             <div className="flex items-center space-x-3">
-                              <div className="w-8 h-8 bg-gray-200 rounded-full" />
-                              <div className="space-y-1">
-                                <div className="h-4 bg-gray-200 rounded w-24" />
-                                <div className="h-3 bg-gray-200 rounded w-16" />
+                              <div className="w-10 h-10 skeleton-shine rounded-full" />
+                              <div className="space-y-2">
+                                <div className="h-4 skeleton-shine rounded w-28" />
+                                <div className="h-3 skeleton-shine rounded w-20" />
                               </div>
                             </div>
-                            <div className="flex space-x-3">
-                              <div className="h-4 bg-gray-200 rounded w-8" />
-                              <div className="h-4 bg-gray-200 rounded w-8" />
+                            <div className="flex space-x-4">
+                              <div className="h-4 skeleton-shine rounded w-10" />
+                              <div className="h-4 skeleton-shine rounded w-10" />
                             </div>
                           </div>
                         </div>
@@ -457,74 +535,107 @@ export default function MobileBlogContent() {
                 ))}
               </div>
             ) : posts.length === 0 ? (
-              <Card className="p-8 text-center">
-                <h3 className="font-semibold mb-2">No articles found</h3>
-                <p className="text-gray-600 text-sm mb-4">Try different filters or check back later</p>
-                <Button onClick={clearFilters} size="sm">
-                  Clear Filters
-                </Button>
-              </Card>
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.4 }}
+              >
+                <Card className="p-12 text-center border-0 shadow-xl bg-white dark:bg-slate-900 rounded-2xl">
+                  <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-emerald-100 to-emerald-200 dark:from-emerald-500/20 dark:to-emerald-600/20 rounded-full flex items-center justify-center">
+                    <BookOpen className="h-10 w-10 text-emerald-600 dark:text-emerald-400" />
+                  </div>
+                  <h3 className="font-bold text-xl mb-2 text-gray-900 dark:text-slate-100">No articles found</h3>
+                  <p className="text-gray-600 dark:text-slate-400 text-sm mb-6">Try adjusting your filters or check back later for new content</p>
+                  <Button onClick={clearFilters} className="btn-premium rounded-full px-8">
+                    Clear Filters
+                  </Button>
+                </Card>
+              </motion.div>
             ) : navigating ? (
-              <div className="flex flex-col items-center justify-center py-20 space-y-4">
-                <Loader2 className="h-10 w-10 text-emerald-600 animate-spin" />
-                <p className="text-gray-600 font-medium">Loading article...</p>
-              </div>
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="flex flex-col items-center justify-center py-24 space-y-4"
+              >
+                <div className="relative">
+                  <div className="w-16 h-16 rounded-full border-4 border-emerald-200 dark:border-emerald-900" />
+                  <div className="absolute inset-0 w-16 h-16 rounded-full border-4 border-transparent border-t-emerald-500 animate-spin" />
+                </div>
+                <p className="text-gray-600 dark:text-slate-400 font-medium">Loading article...</p>
+              </motion.div>
             ) : (
-              <div className="space-y-6">
+              <div className="space-y-8">
                 {/* Featured Posts */}
                 {featuredPosts.length > 0 && (
                   <div>
-                    <div className="flex items-center gap-2 mb-4">
-                      <TrendingUp className="h-4 w-4 text-emerald-600" />
-                      <h2 className="text-lg font-bold">Featured</h2>
-                    </div>
+                    <motion.div 
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.4 }}
+                      className="flex items-center gap-3 mb-6"
+                    >
+                      <div className="p-2 bg-gradient-to-br from-amber-400 to-orange-500 rounded-xl shadow-lg shadow-amber-500/30">
+                        <TrendingUp className="h-5 w-5 text-white" />
+                      </div>
+                      <h2 className="text-xl font-bold text-gray-900 dark:text-slate-100">Featured Articles</h2>
+                    </motion.div>
                     <div className="space-y-6">
                       {featuredPosts.map((post, index) => (
                         <motion.div
                           key={post.id}
-                          initial={{ opacity: 0, y: 30, scale: 0.95 }}
-                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          initial={{ opacity: 0, y: 40 }}
+                          animate={{ opacity: 1, y: 0 }}
                           transition={{ 
-                            delay: index * 0.1,
+                            delay: index * 0.15,
                             duration: 0.5,
-                            ease: "easeOut"
+                            ease: [0.4, 0, 0.2, 1]
                           }}
-                          whileHover={{ 
-                            y: -8,
-                            transition: { duration: 0.2 }
-                          }}
+                          whileHover={{ y: -8 }}
+                          className="group"
                         >
-                          <Card className="group overflow-hidden bg-white border-0 shadow-md hover:shadow-2xl transition-all duration-300 rounded-xl backdrop-blur-sm will-change-transform gpu-acceleration">
+                          <Card className="blog-card-featured overflow-hidden border-0 bg-white dark:bg-slate-900/90 backdrop-blur-sm">
                             <div className="flex flex-col sm:flex-row relative">
-                              <div className="absolute inset-0 bg-gradient-to-r from-emerald-50/50 via-transparent to-blue-50/30 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
-                              <div className="relative w-full sm:w-72 lg:w-80 h-48 sm:h-52 lg:h-56 flex-shrink-0 overflow-hidden">
+                              {/* Gradient Overlay */}
+                              <div className="absolute inset-0 bg-gradient-to-r from-emerald-50/50 via-transparent to-blue-50/30 dark:from-emerald-500/5 dark:via-transparent dark:to-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none rounded-2xl" />
+                              
+                              {/* Image Container */}
+                              <div className="relative w-full sm:w-80 lg:w-96 h-56 sm:h-64 lg:h-72 flex-shrink-0 overflow-hidden image-hover-zoom">
                                 {post.featuredImage ? (
                                   <Image
                                     src={post.featuredImage}
                                     alt={post.title}
                                     fill
-                                    className="object-cover group-hover:scale-110 transition-transform duration-500 ease-out will-change-transform"
+                                    className="object-cover transition-transform duration-700 ease-out"
                                     sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                                   />
                                 ) : (
-                                  <div className="w-full h-full bg-gradient-to-br from-emerald-100 via-emerald-50 to-emerald-200 flex items-center justify-center relative">
-                                    <div className="absolute inset-0 bg-gradient-to-br from-emerald-400/20 to-emerald-600/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                                    <Tag className="h-6 w-6 sm:h-8 sm:w-8 text-emerald-600 group-hover:scale-110 transition-transform duration-300 relative z-10" />
+                                  <div className="w-full h-full bg-gradient-to-br from-emerald-100 via-emerald-50 to-teal-100 dark:from-emerald-900/50 dark:via-emerald-800/30 dark:to-teal-900/50 flex items-center justify-center relative">
+                                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(16,185,129,0.1),transparent_70%)]" />
+                                    <Tag className="h-12 w-12 text-emerald-600/50 dark:text-emerald-400/50" />
                                   </div>
                                 )}
-                                <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                                
+                                {/* Overlay Gradient */}
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                                
+                                {/* Category Badge */}
                                 {post.category && (
-                                  <Badge className="absolute top-2 left-2 sm:top-3 sm:left-3 bg-emerald-600/90 backdrop-blur-sm text-white text-xs font-medium px-2 py-1 rounded-md shadow-lg hover:bg-emerald-700 transition-colors">
+                                  <Badge className="absolute top-4 left-4 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-lg shadow-emerald-500/40 border-0 transition-all duration-300">
                                     {post.category.name}
                                   </Badge>
                                 )}
+                                
+                                {/* Date Badge */}
                                 {post.publishedAt && (
-                                  <div className="absolute bottom-3 right-3 bg-black/50 backdrop-blur-sm text-white text-xs px-2 py-1 rounded-md font-medium">
-                                    {format(new Date(post.publishedAt), 'MMM d')}
+                                  <div className="absolute bottom-4 right-4 bg-black/60 backdrop-blur-md text-white text-xs px-3 py-1.5 rounded-full font-medium flex items-center gap-1.5 shadow-lg">
+                                    <Calendar className="h-3 w-3" />
+                                    {format(new Date(post.publishedAt), 'MMM d, yyyy')}
                                   </div>
                                 )}
                               </div>
-                              <CardContent className="p-6 flex-1 flex flex-col justify-between">
+                              
+                              {/* Content */}
+                              <CardContent className="p-6 lg:p-8 flex-1 flex flex-col justify-between relative z-10">
                                 <div className="space-y-4">
                                   <Link 
                                     href={`/blog/${post.author.name.replace(/\s+/g, '-').toLowerCase()}/${post.slug}`} 
@@ -532,23 +643,39 @@ export default function MobileBlogContent() {
                                     prefetch={false}
                                     onClick={(e) => handlePostClick(e, `/blog/${post.author.name.replace(/\s+/g, '-').toLowerCase()}/${post.slug}`)}
                                   >
-                                    <h3 className="font-bold mb-3 line-clamp-2 text-xl leading-tight hover:text-emerald-600 transition-colors duration-200 group-hover/link:text-emerald-700">
+                                    <h3 className="font-bold mb-3 line-clamp-2 text-xl lg:text-2xl leading-tight text-gray-900 dark:text-slate-100 group-hover/link:text-emerald-600 dark:group-hover/link:text-emerald-400 transition-colors duration-300">
                                       {post.title}
                                     </h3>
                                     <MarkdownExcerpt
                                       content={post.excerpt}
                                       clampLines={3}
-                                      className="text-gray-600 text-sm"
+                                      className="text-gray-600 dark:text-slate-400 text-sm leading-relaxed"
                                     />
                                   </Link>
+                                  
+                                  {/* Reading Time & Views */}
+                                  <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-slate-500">
+                                    {post.readingTime && (
+                                      <div className="flex items-center gap-1.5 bg-gray-100 dark:bg-slate-800 px-2.5 py-1 rounded-full">
+                                        <Clock className="h-3.5 w-3.5" />
+                                        <span>{post.readingTime} min read</span>
+                                      </div>
+                                    )}
+                                    {post.views && (
+                                      <div className="flex items-center gap-1.5 bg-gray-100 dark:bg-slate-800 px-2.5 py-1 rounded-full">
+                                        <Eye className="h-3.5 w-3.5" />
+                                        <span>{post.views.toLocaleString()} views</span>
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
                                 
-                                {/* Author Section - Well Styled */}
-                                <div className="mt-6 pt-4 border-t border-gray-100">
+                                {/* Author Section */}
+                                <div className="mt-6 pt-5 border-t border-gray-100 dark:border-slate-800">
                                   <div className="flex items-center justify-between">
                                     <div className="flex items-center space-x-3">
-                                      <div className="relative">
-                                        <div className="w-10 h-10 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-full flex items-center justify-center text-white font-semibold text-sm shadow-md">
+                                      <div className="relative avatar-ring">
+                                        <div className="w-12 h-12 bg-gradient-to-br from-emerald-400 via-emerald-500 to-teal-600 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-lg shadow-emerald-500/30 ring-2 ring-white dark:ring-slate-900">
                                           {post.author.avatar ? (
                                             <Image
                                               src={post.author.avatar}
@@ -560,14 +687,14 @@ export default function MobileBlogContent() {
                                             post.author.name.charAt(0).toUpperCase()
                                           )}
                                         </div>
-                                        <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-400 rounded-full border-2 border-white"></div>
+                                        <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-green-400 rounded-full border-2 border-white dark:border-slate-900 pulse-glow" />
                                       </div>
                                       <div className="flex-1 min-w-0">
                                         <Link href={`/blog/author/${post.author.id}`} className="group/author">
-                                          <p className="font-semibold text-gray-900 text-sm group-hover/author:text-emerald-600 transition-colors truncate">
+                                          <p className="font-semibold text-gray-900 dark:text-slate-100 text-sm group-hover/author:text-emerald-600 dark:group-hover/author:text-emerald-400 transition-colors truncate">
                                             {post.author.name}
                                           </p>
-                                          <p className="text-xs text-gray-500 flex items-center gap-1">
+                                          <p className="text-xs text-gray-500 dark:text-slate-500 flex items-center gap-1">
                                             <Users className="h-3 w-3" />
                                             {post.author._count?.followers || 0} followers
                                           </p>
@@ -575,15 +702,15 @@ export default function MobileBlogContent() {
                                       </div>
                                     </div>
                                     
-                                    <div className="flex items-center space-x-4 text-xs text-gray-500">
-                                      <div className="flex items-center gap-1 hover:text-emerald-600 transition-colors">
-                                        <Heart className="h-4 w-4" />
-                                        <span className="font-medium">{post._count.likes}</span>
-                                      </div>
-                                      <div className="flex items-center gap-1 hover:text-emerald-600 transition-colors">
-                                        <MessageCircle className="h-4 w-4" />
-                                        <span className="font-medium">{post._count.comments}</span>
-                                      </div>
+                                    <div className="flex items-center space-x-4">
+                                      <button className="flex items-center gap-1.5 text-gray-500 dark:text-slate-500 hover:text-rose-500 dark:hover:text-rose-400 transition-colors group/like">
+                                        <Heart className="h-5 w-5 group-hover/like:scale-110 transition-transform" />
+                                        <span className="font-medium text-sm stat-counter">{post._count.likes}</span>
+                                      </button>
+                                      <button className="flex items-center gap-1.5 text-gray-500 dark:text-slate-500 hover:text-blue-500 dark:hover:text-blue-400 transition-colors group/comment">
+                                        <MessageCircle className="h-5 w-5 group-hover/comment:scale-110 transition-transform" />
+                                        <span className="font-medium text-sm stat-counter">{post._count.comments}</span>
+                                      </button>
                                     </div>
                                   </div>
                                 </div>
@@ -599,52 +726,63 @@ export default function MobileBlogContent() {
                 {/* Regular Posts */}
                 {regularPosts.length > 0 && (
                   <div>
-                    <h2 className="text-lg font-bold mb-4">Latest Articles</h2>
-                    <div className="space-y-4 lg:space-y-5">
+                    <motion.div 
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.4, delay: 0.2 }}
+                      className="flex items-center gap-3 mb-6"
+                    >
+                      <div className="p-2 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-xl shadow-lg shadow-blue-500/30">
+                        <BookOpen className="h-5 w-5 text-white" />
+                      </div>
+                      <h2 className="text-xl font-bold text-gray-900 dark:text-slate-100">Latest Articles</h2>
+                    </motion.div>
+                    <div className="space-y-5">
                       {regularPosts.map((post, index) => (
                         <motion.div
                           key={post.id}
-                          initial={{ opacity: 0, x: -20, scale: 0.98 }}
-                          animate={{ opacity: 1, x: 0, scale: 1 }}
+                          initial={{ opacity: 0, x: -30 }}
+                          animate={{ opacity: 1, x: 0 }}
                           transition={{ 
-                            delay: index * 0.05,
+                            delay: 0.3 + index * 0.08,
                             duration: 0.4,
-                            ease: "easeOut"
+                            ease: [0.4, 0, 0.2, 1]
                           }}
-                          whileHover={{ 
-                            y: -4,
-                            transition: { duration: 0.2 }
-                          }}
+                          whileHover={{ x: 4, y: -4 }}
+                          className="group"
                         >
-                          <Card className="group overflow-hidden bg-white border-0 shadow-sm hover:shadow-xl transition-all duration-300 rounded-lg">
+                          <Card className="blog-card overflow-hidden">
                             <div className="flex flex-col sm:flex-row">
-                              <div className="relative w-full sm:w-48 lg:w-64 h-40 sm:h-44 lg:h-48 flex-shrink-0 overflow-hidden">
+                              {/* Image */}
+                              <div className="relative w-full sm:w-56 lg:w-72 h-44 sm:h-52 flex-shrink-0 overflow-hidden image-hover-zoom">
                                 {post.featuredImage ? (
                                   <Image
                                     src={post.featuredImage}
                                     alt={post.title}
                                     fill
-                                    className="object-cover group-hover:scale-105 transition-transform duration-300"
+                                    className="object-cover transition-transform duration-500"
                                     sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                                   />
                                 ) : (
-                                  <div className="w-full h-full bg-gradient-to-br from-gray-100 via-gray-50 to-gray-200 flex items-center justify-center">
-                                    <Tag className="h-6 w-6 text-gray-600 group-hover:scale-105 transition-transform duration-300" />
+                                  <div className="w-full h-full bg-gradient-to-br from-gray-100 via-slate-100 to-gray-200 dark:from-slate-800 dark:via-slate-700 dark:to-slate-800 flex items-center justify-center">
+                                    <Tag className="h-8 w-8 text-gray-400 dark:text-slate-600" />
                                   </div>
                                 )}
-                                <div className="absolute inset-0 bg-gradient-to-t from-black/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                                 {post.category && (
-                                  <Badge className="absolute top-2 left-2 bg-emerald-600/90 backdrop-blur-sm text-white text-xs font-medium px-2 py-1 rounded-md">
+                                  <Badge className="absolute top-3 left-3 bg-emerald-600/90 hover:bg-emerald-700 backdrop-blur-sm text-white text-xs font-medium px-2.5 py-1 rounded-full shadow-md border-0">
                                     {post.category.name}
                                   </Badge>
                                 )}
                                 {post.publishedAt && (
-                                  <div className="absolute bottom-2 right-2 bg-black/40 backdrop-blur-sm text-white text-xs px-2 py-1 rounded-md">
+                                  <div className="absolute bottom-3 right-3 bg-black/50 backdrop-blur-md text-white text-xs px-2.5 py-1 rounded-full font-medium">
                                     {format(new Date(post.publishedAt), 'MMM d')}
                                   </div>
                                 )}
                               </div>
-                              <CardContent className="p-5 flex-1 flex flex-col justify-between">
+                              
+                              {/* Content */}
+                              <CardContent className="p-5 lg:p-6 flex-1 flex flex-col justify-between card-content-hover">
                                 <div className="space-y-3">
                                   <Link 
                                     href={`/blog/${post.author.name.replace(/\s+/g, '-').toLowerCase()}/${post.slug}`} 
@@ -652,38 +790,37 @@ export default function MobileBlogContent() {
                                     prefetch={false}
                                     onClick={(e) => handlePostClick(e, `/blog/${post.author.name.replace(/\s+/g, '-').toLowerCase()}/${post.slug}`)}
                                   >
-                                    <h3 className="font-bold mb-2 line-clamp-2 text-lg leading-tight hover:text-emerald-600 transition-colors duration-200 group-hover/link:text-emerald-700">
+                                    <h3 className="font-bold mb-2 line-clamp-2 text-lg leading-tight text-gray-900 dark:text-slate-100 group-hover/link:text-emerald-600 dark:group-hover/link:text-emerald-400 transition-colors duration-200">
                                       {post.title}
                                     </h3>
                                     <MarkdownExcerpt
                                       content={post.excerpt}
                                       clampLines={2}
-                                      className="text-gray-600 text-sm mb-3"
+                                      className="text-gray-600 dark:text-slate-400 text-sm leading-relaxed"
                                     />
                                   </Link>
                                   
                                   {/* Tags */}
                                   {post.tags.length > 0 && (
-                                    <div className="flex flex-wrap gap-1.5">
-                                      {post.tags.slice(0, 2).map((tag) => (
-                                        <Badge
+                                    <div className="flex flex-wrap gap-2">
+                                      {post.tags.slice(0, 3).map((tag) => (
+                                        <span
                                           key={tag.id}
-                                          variant="secondary"
-                                          className="text-xs px-2 py-1 bg-gray-100 hover:bg-emerald-100 hover:text-emerald-700 transition-colors cursor-pointer"
+                                          className="tag-chip cursor-pointer"
                                         >
-                                          {tag.name}
-                                        </Badge>
+                                          #{tag.name}
+                                        </span>
                                       ))}
                                     </div>
                                   )}
                                 </div>
                                 
-                                {/* Author Section - Compact but well styled */}
-                                <div className="mt-4 pt-3 border-t border-gray-100">
+                                {/* Author & Stats */}
+                                <div className="mt-4 pt-4 border-t border-gray-100 dark:border-slate-800">
                                   <div className="flex items-center justify-between">
                                     <div className="flex items-center space-x-2.5">
                                       <div className="relative">
-                                        <div className="w-8 h-8 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-full flex items-center justify-center text-white font-medium text-xs shadow-sm">
+                                        <div className="w-9 h-9 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-full flex items-center justify-center text-white font-medium text-xs shadow-md ring-2 ring-white dark:ring-slate-900">
                                           {post.author.avatar ? (
                                             <Image
                                               src={post.author.avatar}
@@ -698,32 +835,22 @@ export default function MobileBlogContent() {
                                       </div>
                                       <div className="flex-1 min-w-0">
                                         <Link href={`/blog/author/${post.author.id}`} className="group/author">
-                                          <p className="font-medium text-gray-900 text-sm group-hover/author:text-emerald-600 transition-colors truncate">
+                                          <p className="font-medium text-gray-900 dark:text-slate-200 text-sm group-hover/author:text-emerald-600 dark:group-hover/author:text-emerald-400 transition-colors truncate">
                                             {post.author.name}
-                                          </p>
-                                          <p className="text-xs text-gray-500 flex items-center gap-1">
-                                            <Users className="h-3 w-3" />
-                                            {post.author._count?.followers || 0} followers
                                           </p>
                                         </Link>
                                       </div>
                                     </div>
                                     
-                                    <div className="flex items-center space-x-3 text-xs text-gray-500">
-                                      <div className="flex items-center gap-1 hover:text-emerald-600 transition-colors">
-                                        <Heart className="h-3.5 w-3.5" />
+                                    <div className="flex items-center space-x-3 text-sm">
+                                      <button className="flex items-center gap-1 text-gray-400 dark:text-slate-500 hover:text-rose-500 dark:hover:text-rose-400 transition-colors">
+                                        <Heart className="h-4 w-4" />
                                         <span className="font-medium">{post._count.likes}</span>
-                                      </div>
-                                      <div className="flex items-center gap-1 hover:text-emerald-600 transition-colors">
-                                        <MessageCircle className="h-3.5 w-3.5" />
+                                      </button>
+                                      <button className="flex items-center gap-1 text-gray-400 dark:text-slate-500 hover:text-blue-500 dark:hover:text-blue-400 transition-colors">
+                                        <MessageCircle className="h-4 w-4" />
                                         <span className="font-medium">{post._count.comments}</span>
-                                      </div>
-                                      {post.readingTime && (
-                                        <div className="flex items-center gap-1 text-gray-400">
-                                          <Clock className="h-3.5 w-3.5" />
-                                          <span>{post.readingTime}min</span>
-                                        </div>
-                                      )}
+                                      </button>
                                     </div>
                                   </div>
                                 </div>
@@ -741,84 +868,95 @@ export default function MobileBlogContent() {
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.3 }}
-                    className="mt-8"
+                    transition={{ delay: 0.4 }}
+                    className="mt-10"
                   >
-                    <Card className="overflow-hidden border-0 shadow-lg bg-gradient-to-br from-emerald-50 via-white to-emerald-50">
-                      <CardContent className="p-6 sm:p-8">
-                        <div className="text-center space-y-4">
+                    <Card className="overflow-hidden border-0 shadow-2xl bg-gradient-to-br from-emerald-50 via-white to-teal-50 dark:from-slate-900 dark:via-slate-900 dark:to-emerald-950/30 rounded-2xl">
+                      {/* Decorative Elements */}
+                      <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-br from-emerald-400/20 to-transparent rounded-full blur-3xl" />
+                      <div className="absolute bottom-0 left-0 w-40 h-40 bg-gradient-to-tr from-teal-400/20 to-transparent rounded-full blur-3xl" />
+                      
+                      <CardContent className="relative p-8 sm:p-10">
+                        <div className="text-center space-y-5">
                           {/* Stats */}
-                          <div className="flex items-center justify-center gap-2 text-emerald-600">
-                            <BookOpen className="h-5 w-5" />
-                            <span className="text-sm font-medium">
-                              Showing {posts.length} of {pagination.totalPosts} articles
+                          <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-100 dark:bg-emerald-500/20 rounded-full">
+                            <BookOpen className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                            <span className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">
+                              {posts.length} of {pagination.totalPosts} articles
                             </span>
                           </div>
 
                           {/* Progress bar */}
-                          <div className="max-w-xs mx-auto">
-                            <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                          <div className="max-w-sm mx-auto">
+                            <div className="h-2.5 bg-gray-200 dark:bg-slate-800 rounded-full overflow-hidden shadow-inner">
                               <motion.div
-                                className="h-full bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-full"
+                                className="h-full bg-gradient-to-r from-emerald-500 via-emerald-400 to-teal-500 rounded-full shadow-lg shadow-emerald-500/50"
                                 initial={{ width: 0 }}
                                 animate={{ width: `${Math.min((posts.length / pagination.totalPosts) * 100, 100)}%` }}
-                                transition={{ duration: 0.5, ease: "easeOut" }}
+                                transition={{ duration: 0.8, ease: "easeOut" }}
                               />
                             </div>
                           </div>
 
                           {pagination.hasNextPage ? (
                             <>
-                              <div className="space-y-2">
-                                <h3 className="text-lg font-bold text-gray-900">
+                              <div className="space-y-3">
+                                <h3 className="text-2xl font-bold text-gray-900 dark:text-slate-100">
                                   Discover More Articles
                                 </h3>
-                                <p className="text-gray-600 text-sm max-w-md mx-auto">
-                                  {pagination.totalPosts - posts.length} more articles waiting for you. 
+                                <p className="text-gray-600 dark:text-slate-400 text-sm max-w-md mx-auto leading-relaxed">
+                                  <span className="font-semibold text-emerald-600 dark:text-emerald-400">{pagination.totalPosts - posts.length}</span> more articles waiting for you. 
                                   Keep exploring expert insights and tips!
                                 </p>
                               </div>
 
-                              <Button
-                                onClick={loadMorePosts}
-                                disabled={loadingMore}
-                                size="lg"
-                                className="bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white px-8 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 group"
-                              >
-                                {loadingMore ? (
-                                  <>
-                                    <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                                    Loading...
-                                  </>
-                                ) : (
-                                  <>
-                                    <span>Find More Blogs</span>
-                                    <ArrowRight className="h-5 w-5 ml-2 group-hover:translate-x-1 transition-transform" />
-                                  </>
-                                )}
-                              </Button>
+                              <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                                <Button
+                                  onClick={loadMorePosts}
+                                  disabled={loadingMore}
+                                  size="lg"
+                                  className="btn-premium px-10 py-4 rounded-full text-base font-semibold group"
+                                >
+                                  {loadingMore ? (
+                                    <>
+                                      <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                                      Loading...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <span>Explore More</span>
+                                      <ArrowRight className="h-5 w-5 ml-2 group-hover:translate-x-1 transition-transform" />
+                                    </>
+                                  )}
+                                </Button>
+                              </motion.div>
 
                               {/* Page indicator */}
-                              <p className="text-xs text-gray-500">
+                              <p className="text-xs text-gray-500 dark:text-slate-500">
                                 Page {pagination.currentPage} of {pagination.totalPages}
                               </p>
                             </>
                           ) : (
-                            <div className="space-y-3 py-4">
-                              <div className="flex items-center justify-center gap-2 text-emerald-600">
-                                <span className="text-2xl">🎉</span>
-                              </div>
-                              <h3 className="text-lg font-bold text-gray-900">
+                            <div className="space-y-4 py-4">
+                              <motion.div 
+                                initial={{ scale: 0 }}
+                                animate={{ scale: 1 }}
+                                transition={{ type: "spring", stiffness: 260, damping: 20 }}
+                                className="w-16 h-16 mx-auto bg-gradient-to-br from-emerald-400 to-teal-500 rounded-full flex items-center justify-center shadow-lg shadow-emerald-500/30"
+                              >
+                                <span className="text-3xl">🎉</span>
+                              </motion.div>
+                              <h3 className="text-xl font-bold text-gray-900 dark:text-slate-100">
                                 You&apos;ve explored all articles!
                               </h3>
-                              <p className="text-gray-600 text-sm max-w-md mx-auto">
+                              <p className="text-gray-600 dark:text-slate-400 text-sm max-w-md mx-auto">
                                 You&apos;ve reached the end. Check back soon for new content or browse by category.
                               </p>
                               {(selectedCategory || selectedTag || searchQuery) && (
                                 <Button
                                   onClick={clearFilters}
                                   variant="outline"
-                                  className="mt-2"
+                                  className="mt-3 rounded-full border-emerald-200 dark:border-emerald-500/30 hover:bg-emerald-50 dark:hover:bg-emerald-500/10"
                                 >
                                   Browse All Articles
                                 </Button>
@@ -843,18 +981,18 @@ export default function MobileBlogContent() {
             initial={{ opacity: 0, scale: 0.8, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.8, y: 20 }}
-            transition={{ duration: 0.2 }}
-            className="fixed bottom-6 right-6 z-50 flex flex-col gap-2"
+            transition={{ duration: 0.3, ease: "easeOut" }}
+            className="fixed bottom-6 right-6 z-50 flex flex-col gap-3"
           >
             {/* Scroll to Top */}
             <motion.button
               onClick={scrollToTop}
-              whileHover={{ scale: 1.1 }}
+              whileHover={{ scale: 1.1, y: -2 }}
               whileTap={{ scale: 0.95 }}
-              className={`p-3 rounded-full shadow-lg transition-all duration-300 ${
+              className={`p-3.5 rounded-full shadow-xl backdrop-blur-sm transition-all duration-300 ${
                 !isNearBottom 
-                  ? 'bg-emerald-600 text-white hover:bg-emerald-700' 
-                  : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
+                  ? 'bg-gradient-to-br from-emerald-500 to-emerald-600 text-white shadow-emerald-500/40 hover:shadow-emerald-500/60 ring-2 ring-white/20' 
+                  : 'bg-white/90 dark:bg-slate-800/90 text-gray-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 border border-gray-200 dark:border-slate-700'
               }`}
               aria-label="Scroll to top"
             >
@@ -864,12 +1002,12 @@ export default function MobileBlogContent() {
             {/* Scroll to Bottom */}
             <motion.button
               onClick={scrollToBottom}
-              whileHover={{ scale: 1.1 }}
+              whileHover={{ scale: 1.1, y: 2 }}
               whileTap={{ scale: 0.95 }}
-              className={`p-3 rounded-full shadow-lg transition-all duration-300 ${
+              className={`p-3.5 rounded-full shadow-xl backdrop-blur-sm transition-all duration-300 ${
                 isNearBottom 
-                  ? 'bg-emerald-600 text-white hover:bg-emerald-700' 
-                  : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
+                  ? 'bg-gradient-to-br from-emerald-500 to-emerald-600 text-white shadow-emerald-500/40 hover:shadow-emerald-500/60 ring-2 ring-white/20' 
+                  : 'bg-white/90 dark:bg-slate-800/90 text-gray-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 border border-gray-200 dark:border-slate-700'
               }`}
               aria-label="Scroll to bottom"
             >

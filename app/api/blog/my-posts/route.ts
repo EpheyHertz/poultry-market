@@ -51,9 +51,19 @@ export async function GET(request: NextRequest) {
           status: true,
           submittedAt: true,
           publishedAt: true,
+          createdAt: true,
+          updatedAt: true,
           readingTime: true,
           rejectionReason: true,
+          resubmitCount: true,
           views: true,
+          viewCount: true,
+          _count: {
+            select: {
+              likedBy: true,
+              comments: true,
+            },
+          },
           author: {
             select: {
               id: true,
@@ -63,7 +73,7 @@ export async function GET(request: NextRequest) {
           },
         },
         orderBy: {
-          submittedAt: 'desc',
+          updatedAt: 'desc',
         },
         skip: (page - 1) * limit,
         take: limit,

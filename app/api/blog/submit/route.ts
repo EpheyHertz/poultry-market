@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth';
+import { getOrCreateAuthorProfile } from '@/lib/author';
 import { sendBlogSubmissionAcknowledgmentToAuthor, sendBlogSubmissionToAdmin } from '@/lib/email';
 import { z } from 'zod';
 
@@ -88,14 +89,14 @@ export async function POST(request: NextRequest) {
     // Calculate reading time
     const readingTime = calculateReadingTime(validatedData.content);
 
-    // Check if user already exists or create a new one
+    // Check if user exists
     const author = await prisma.user.findUnique({
       where: { id: user.id },
       select: {
         id: true,
         name: true,
         email: true,
-        phone: true,
+        phone: true
       }
     });
 
@@ -131,6 +132,9 @@ export async function POST(request: NextRequest) {
       })
     );
 
+    // Get or create author profile (auto-creates if user doesn't have one)
+    const { id: authorProfileId } = await getOrCreateAuthorProfile(author.id);
+
     // Create the blog post with PENDING_APPROVAL status
     const blogPost = await prisma.blogPost.create({
       data: {
@@ -147,6 +151,7 @@ export async function POST(request: NextRequest) {
         submissionNotes: validatedData.submissionNotes,
         submittedAt: new Date(),
         authorId: author.id,
+        authorProfileId,
         tags: {
           create: tagConnections
         }

@@ -41,7 +41,10 @@ import {
   BarChart3,
   ShieldCheck,
   Zap,
-  Sparkles
+  Sparkles,
+  Settings,
+  LayoutDashboard,
+  FileText
 } from 'lucide-react';
 import { toast } from 'sonner';
 import MarkdownExcerpt from '@/components/blog/markdown-excerpt';
@@ -128,6 +131,8 @@ export default function AuthorProfilePage({ params }: Props) {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [sortBy, setSortBy] = useState('latest');
   const [filterCategory, setFilterCategory] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const postsPerPage = 6;
 
   useEffect(() => {
     const fetchAuthor = async () => {
@@ -216,6 +221,17 @@ export default function AuthorProfilePage({ params }: Props) {
 
   const filteredPosts = getFilteredPosts();
   const categories = Array.from(new Set(author?.blogPosts?.map(post => post.category) || [])) as string[];
+  
+  // Pagination logic
+  const totalPages = Math.ceil(filteredPosts.length / postsPerPage);
+  const startIndex = (currentPage - 1) * postsPerPage;
+  const paginatedPosts = filteredPosts.slice(startIndex, startIndex + postsPerPage);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterCategory, sortBy]);
+
   const analytics = useMemo(() => {
     if (!author?.blogPosts || author.blogPosts.length === 0) {
       return null;
@@ -369,12 +385,12 @@ export default function AuthorProfilePage({ params }: Props) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         <PublicNavbar />
         <div className="flex items-center justify-center py-20">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading author profile...</p>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 dark:border-emerald-400 mx-auto mb-4"></div>
+            <p className="text-gray-600 dark:text-gray-400">Loading author profile...</p>
           </div>
         </div>
       </div>
@@ -383,14 +399,14 @@ export default function AuthorProfilePage({ params }: Props) {
 
   if (!author) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         <PublicNavbar />
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
           <div className="text-center">
-            <User className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-            <h1 className="text-2xl font-bold text-gray-900 mb-4">Author not found</h1>
-            <p className="text-gray-600 mb-8">The author profile you&apos;re looking for doesn&apos;t exist.</p>
-            <Button onClick={() => router.push('/blog')} variant="outline">
+            <User className="h-16 w-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Author not found</h1>
+            <p className="text-gray-600 dark:text-gray-400 mb-8">The author profile you&apos;re looking for doesn&apos;t exist.</p>
+            <Button onClick={() => router.push('/blog')} variant="outline" className="dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800">
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back to Blog
             </Button>
@@ -405,23 +421,23 @@ export default function AuthorProfilePage({ params }: Props) {
       <PublicNavbar />
 
       {/* Breadcrumb */}
-      <div className="bg-white border-b border-gray-200">
+      <div className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
-          <div className="flex items-center space-x-2 text-sm text-gray-600">
-            <Link href="/" className="hover:text-emerald-600 transition-colors">Home</Link>
+          <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
+            <Link href="/" className="hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors">Home</Link>
             <ChevronRight className="h-4 w-4" />
-            <Link href="/blog" className="hover:text-emerald-600 transition-colors">Blog</Link>
+            <Link href="/blog" className="hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors">Blog</Link>
             <ChevronRight className="h-4 w-4" />
-            <span className="text-gray-900 font-medium">Authors</span>
+            <span className="text-gray-900 dark:text-white font-medium">Authors</span>
             <ChevronRight className="h-4 w-4" />
-            <span className="text-gray-900 font-medium truncate">{author.name}</span>
+            <span className="text-gray-900 dark:text-white font-medium truncate">{author.name}</span>
           </div>
         </div>
       </div>
 
       {/* Hero Section */}
-      <div className="bg-gradient-to-br from-emerald-50 via-blue-50 to-indigo-50 relative overflow-hidden">
-        <div className="absolute inset-0 opacity-40">
+      <div className="bg-gradient-to-br from-emerald-50 via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-emerald-950/30 dark:to-blue-950/30 relative overflow-hidden">
+        <div className="absolute inset-0 opacity-40 dark:opacity-20">
           <div className="absolute inset-0" style={{
             backgroundImage: `radial-gradient(circle at 20px 20px, #34d399 1px, transparent 1px)`,
             backgroundSize: '40px 40px'
@@ -443,37 +459,47 @@ export default function AuthorProfilePage({ params }: Props) {
                   alt={author.name}
                   width={120}
                   height={120}
-                  className="rounded-full mx-auto ring-4 ring-white shadow-2xl"
+                  className="rounded-full mx-auto ring-4 ring-white dark:ring-gray-800 shadow-2xl"
                 />
               ) : (
-                <div className="w-24 h-24 sm:w-32 sm:h-32 bg-gradient-to-br from-emerald-400 to-blue-500 rounded-full flex items-center justify-center mx-auto ring-4 ring-white shadow-2xl">
+                <div className="w-24 h-24 sm:w-32 sm:h-32 bg-gradient-to-br from-emerald-400 to-blue-500 rounded-full flex items-center justify-center mx-auto ring-4 ring-white dark:ring-gray-800 shadow-2xl">
                   <User className="h-12 w-12 sm:h-16 sm:w-16 text-white" />
                 </div>
               )}
               
               {/* Online indicator */}
-              <div className="absolute bottom-2 right-2 w-6 h-6 bg-green-500 rounded-full border-4 border-white"></div>
+              <div className="absolute bottom-2 right-2 w-6 h-6 bg-green-500 rounded-full border-4 border-white dark:border-gray-800"></div>
             </div>
 
             {/* Author Info */}
             <div className="space-y-4 mb-8">
               <div>
-                <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-12">
-                  {author.name}
-                </h1>
+                <div className="flex items-center justify-center gap-3 flex-wrap mb-4">
+                  <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 dark:text-white mb-6">
+                    {author.name}
+                  </h1>
+                  {currentUser && currentUser.id === author.id && (
+                    <Badge className="gap-1 bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300 border-0 text-sm px-3 py-1">
+                      <User className="h-3.5 w-3.5" />
+                      Your Profile
+                    </Badge>
+                  )}
+                </div>
 
               {/* Creator Services Hub */}
               <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 -mt-10 relative z-10">
-                <div className="bg-white/90 backdrop-blur-xl border border-white/60 rounded-3xl shadow-2xl p-6 sm:p-8">
+                <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl border border-white/60 dark:border-gray-700/60 rounded-3xl shadow-2xl p-6 sm:p-8">
                   <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
                     <div>
-                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-600">Creator services</p>
-                      <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mt-2">Your personal control center</h2>
-                      <p className="text-gray-600 mt-2 max-w-2xl">
-                        Launch new stories, monitor performance, and request support without leaving this page.
+                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-600 dark:text-emerald-400">Creator services</p>
+                      <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mt-2">{currentUser && currentUser.id === author.id ? 'Your personal control center' : `${author.name}'s content hub`}</h2>
+                      <p className="text-gray-600 dark:text-gray-400 mt-2 max-w-2xl">
+                        {currentUser && currentUser.id === author.id 
+                          ? 'Launch new stories, monitor performance, and request support without leaving this page.'
+                          : 'Explore their published content, engagement metrics, and connect with this author.'}
                       </p>
                     </div>
-                    <Badge variant="outline" className="self-start lg:self-auto text-emerald-700 border-emerald-200 bg-emerald-50">Always-on helpdesk</Badge>
+                    <Badge variant="outline" className="self-start lg:self-auto text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-900/30">Always-on helpdesk</Badge>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
                     {authorServices.map((service) => (
@@ -507,12 +533,12 @@ export default function AuthorProfilePage({ params }: Props) {
                 <section id="author-analytics" className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-10">
                   <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
                     <div>
-                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500">Performance overview</p>
-                      <h2 className="text-2xl font-bold text-gray-900 mt-2">Analytics built for storytellers</h2>
-                      <p className="text-gray-600 mt-2">Understand what readers love and spot the next big opportunity.</p>
+                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400">Performance overview</p>
+                      <h2 className="text-2xl font-bold text-gray-900 dark:text-white mt-2">Analytics built for storytellers</h2>
+                      <p className="text-gray-600 dark:text-gray-400 mt-2">Understand what readers love and spot the next big opportunity.</p>
                     </div>
                     {latestTrendPoint && (
-                      <div className="bg-gray-900 text-white rounded-2xl px-5 py-4 shadow-lg w-full md:w-auto">
+                      <div className="bg-gray-900 dark:bg-gray-800 text-white rounded-2xl px-5 py-4 shadow-lg w-full md:w-auto border dark:border-gray-700">
                         <p className="text-xs uppercase tracking-[0.2em] text-gray-400">Latest spike</p>
                         <div className="flex items-center gap-3 mt-1">
                           <Zap className="h-5 w-5 text-amber-300" />
@@ -526,13 +552,13 @@ export default function AuthorProfilePage({ params }: Props) {
                   </div>
 
                   <div className="grid gap-6 lg:grid-cols-3">
-                    <Card className="lg:col-span-2 border-gray-100 shadow-lg">
+                    <Card className="lg:col-span-2 border-gray-100 dark:border-gray-700 dark:bg-gray-800 shadow-lg">
                       <CardHeader>
-                        <CardTitle className="flex items-center justify-between">
+                        <CardTitle className="flex items-center justify-between dark:text-white">
                           <span>Engagement trend</span>
-                          <span className="text-sm font-normal text-gray-500">Last {analytics.trend.length || 0} articles</span>
+                          <span className="text-sm font-normal text-gray-500 dark:text-gray-400">Last {analytics.trend.length || 0} articles</span>
                         </CardTitle>
-                        <CardDescription>Views per publication</CardDescription>
+                        <CardDescription className="dark:text-gray-400">Views per publication</CardDescription>
                       </CardHeader>
                       <CardContent>
                         {sparklinePoints ? (
@@ -554,9 +580,9 @@ export default function AuthorProfilePage({ params }: Props) {
                                 />
                               </svg>
                             </div>
-                            <div className="flex flex-wrap gap-3 text-xs sm:text-sm text-gray-500">
-                              {analytics.trend.map(point => (
-                                <div key={point.label} className="flex items-center gap-1">
+                            <div className="flex flex-wrap gap-3 text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                              {analytics.trend.map((point, index) => (
+                                <div key={`${point.label}-${index}`} className="flex items-center gap-1">
                                   <span className="h-2 w-2 rounded-full bg-emerald-500" />
                                   {point.label}: {point.views.toLocaleString()} views
                                 </div>
@@ -564,27 +590,27 @@ export default function AuthorProfilePage({ params }: Props) {
                             </div>
                           </div>
                         ) : (
-                          <p className="text-gray-500 text-sm">Publish a few more posts to unlock trend insights.</p>
+                          <p className="text-gray-500 dark:text-gray-400 text-sm">Publish a few more posts to unlock trend insights.</p>
                         )}
                       </CardContent>
                     </Card>
 
-                    <Card className="border-gray-100 shadow-lg">
+                    <Card className="border-gray-100 dark:border-gray-700 dark:bg-gray-800 shadow-lg">
                       <CardHeader>
-                        <CardTitle>Snapshot</CardTitle>
-                        <CardDescription>Key metrics at a glance</CardDescription>
+                        <CardTitle className="dark:text-white">Snapshot</CardTitle>
+                        <CardDescription className="dark:text-gray-400">Key metrics at a glance</CardDescription>
                       </CardHeader>
                       <CardContent>
                         <div className="grid grid-cols-1 gap-4">
                           {overviewMetrics.map(metric => (
-                            <div key={metric.label} className="flex items-start gap-3 rounded-2xl border border-gray-100 p-3">
-                              <div className={`rounded-xl bg-gray-50 p-2 ${metric.accent}`}>
+                            <div key={metric.label} className="flex items-start gap-3 rounded-2xl border border-gray-100 dark:border-gray-700 dark:bg-gray-700/50 p-3">
+                              <div className={`rounded-xl bg-gray-50 dark:bg-gray-600 p-2 ${metric.accent}`}>
                                 <metric.icon className="h-4 w-4" />
                               </div>
                               <div>
-                                <p className="text-xs uppercase tracking-wide text-gray-500">{metric.label}</p>
-                                <p className="text-xl font-semibold text-gray-900">{metric.value}</p>
-                                <p className="text-xs text-gray-500">{metric.helper}</p>
+                                <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">{metric.label}</p>
+                                <p className="text-xl font-semibold text-gray-900 dark:text-white">{metric.value}</p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400">{metric.helper}</p>
                               </div>
                             </div>
                           ))}
@@ -594,28 +620,28 @@ export default function AuthorProfilePage({ params }: Props) {
                   </div>
 
                   <div className="grid gap-6 lg:grid-cols-3 mt-6">
-                    <Card className="border-gray-100 shadow-lg">
+                    <Card className="border-gray-100 dark:border-gray-700 dark:bg-gray-800 shadow-lg">
                       <CardHeader>
-                        <CardTitle>Top performing posts</CardTitle>
-                        <CardDescription>Based on views, likes, and comments</CardDescription>
+                        <CardTitle className="dark:text-white">Top performing posts</CardTitle>
+                        <CardDescription className="dark:text-gray-400">Based on views, likes, and comments</CardDescription>
                       </CardHeader>
                       <CardContent className="space-y-4">
                         {analytics.topPosts.length ? (
                           analytics.topPosts.map((post, index) => (
-                            <div key={post.id} className="flex items-center justify-between gap-3 p-3 rounded-2xl bg-gray-50">
+                            <div key={post.id} className="flex items-center justify-between gap-3 p-3 rounded-2xl bg-gray-50 dark:bg-gray-700/50">
                               <div className="flex-1 min-w-0">
-                                <p className="text-xs text-gray-500">#{index + 1}</p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400">#{index + 1}</p>
                                 <Link
                                   href={`/blog/${author.name.replace(/\s+/g, '-').toLowerCase()}/${post.slug}`}
-                                  className="font-semibold text-sm text-gray-900 line-clamp-2 hover:text-emerald-600"
+                                  className="font-semibold text-sm text-gray-900 dark:text-white line-clamp-2 hover:text-emerald-600 dark:hover:text-emerald-400"
                                 >
                                   {post.title}
                                 </Link>
-                                <p className="text-xs text-gray-500 mt-1">
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                                   {new Date(post.publishedAt || Date.now()).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                                 </p>
                               </div>
-                              <div className="text-right text-xs text-gray-500 space-y-1">
+                              <div className="text-right text-xs text-gray-500 dark:text-gray-400 space-y-1">
                                 <p>{(post.viewCount || 0).toLocaleString()} views</p>
                                 <p>{post._count?.likedBy || 0} likes</p>
                                 <p>{post._count?.comments || 0} comments</p>
@@ -623,26 +649,26 @@ export default function AuthorProfilePage({ params }: Props) {
                             </div>
                           ))
                         ) : (
-                          <p className="text-sm text-gray-500">No data yet. Publish a story to populate this section.</p>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">No data yet. Publish a story to populate this section.</p>
                         )}
                       </CardContent>
                     </Card>
 
-                    <Card className="border-gray-100 shadow-lg lg:col-span-2">
+                    <Card className="border-gray-100 dark:border-gray-700 dark:bg-gray-800 shadow-lg lg:col-span-2">
                       <CardHeader>
-                        <CardTitle>Audience favourites</CardTitle>
-                        <CardDescription>Top categories attracting readers</CardDescription>
+                        <CardTitle className="dark:text-white">Audience favourites</CardTitle>
+                        <CardDescription className="dark:text-gray-400">Top categories attracting readers</CardDescription>
                       </CardHeader>
                       <CardContent>
                         {analytics.categoryBreakdown.length ? (
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {analytics.categoryBreakdown.map(category => (
-                              <div key={category.category} className="border border-gray-100 rounded-2xl p-4">
-                                <p className="text-sm font-semibold text-gray-900">{BLOG_CATEGORIES[category.category as keyof typeof BLOG_CATEGORIES]?.name || category.category}</p>
-                                <p className="text-xs text-gray-500">
+                              <div key={category.category} className="border border-gray-100 dark:border-gray-700 dark:bg-gray-700/30 rounded-2xl p-4">
+                                <p className="text-sm font-semibold text-gray-900 dark:text-white">{BLOG_CATEGORIES[category.category as keyof typeof BLOG_CATEGORIES]?.name || category.category}</p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400">
                                   {category.count} {category.count === 1 ? 'post' : 'posts'} · {category.views.toLocaleString()} views
                                 </p>
-                                <div className="mt-3 h-2 rounded-full bg-gray-100 overflow-hidden">
+                                <div className="mt-3 h-2 rounded-full bg-gray-100 dark:bg-gray-600 overflow-hidden">
                                   <div
                                     className="h-full bg-gradient-to-r from-emerald-500 to-emerald-300"
                                     style={{ width: `${Math.min(100, (category.views / (analytics.totals.views || 1)) * 100)}%` }}
@@ -652,20 +678,20 @@ export default function AuthorProfilePage({ params }: Props) {
                             ))}
                           </div>
                         ) : (
-                          <p className="text-sm text-gray-500">Start publishing to learn which topics resonate most.</p>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">Start publishing to learn which topics resonate most.</p>
                         )}
                       </CardContent>
                     </Card>
                   </div>
                 </section>
               )}
-                <p className="text-lg sm:text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed">
+                <p className="text-lg sm:text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto leading-relaxed">
                   {author.bio || 'Passionate poultry farmer and industry expert sharing knowledge and experiences.'}
                 </p>
               </div>
 
               {/* Contact Info */}
-              <div className="flex flex-wrap items-center justify-center gap-4 text-sm text-gray-600">
+              <div className="flex flex-wrap items-center justify-center gap-4 text-sm text-gray-600 dark:text-gray-400">
                 {author.location && (
                   <div className="flex items-center gap-1">
                     <MapPin className="h-4 w-4" />
@@ -679,7 +705,7 @@ export default function AuthorProfilePage({ params }: Props) {
                 {author.email && (
                   <div className="flex items-center gap-1">
                     <Mail className="h-4 w-4" />
-                    <a href={`mailto:${author.email}`} className="hover:text-emerald-600 transition-colors">
+                    <a href={`mailto:${author.email}`} className="hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors">
                       Contact
                     </a>
                   </div>
@@ -687,7 +713,7 @@ export default function AuthorProfilePage({ params }: Props) {
                 {author.website && (
                   <div className="flex items-center gap-1">
                     <Globe className="h-4 w-4" />
-                    <a href={author.website} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 transition-colors">
+                    <a href={author.website} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors">
                       Website
                     </a>
                   </div>
@@ -702,13 +728,13 @@ export default function AuthorProfilePage({ params }: Props) {
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.5, delay: 0.2 }}
               >
-                <Card className="bg-white/70 backdrop-blur-sm border-white/50 shadow-lg hover:shadow-xl transition-all duration-300">
+                <Card className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm border-white/50 dark:border-gray-700/50 shadow-lg hover:shadow-xl transition-all duration-300">
                   <CardContent className="p-4 text-center">
-                    <BookOpen className="h-8 w-8 text-emerald-600 mx-auto mb-2" />
-                    <div className="text-2xl font-bold text-gray-900">
+                    <BookOpen className="h-8 w-8 text-emerald-600 dark:text-emerald-400 mx-auto mb-2" />
+                    <div className="text-2xl font-bold text-gray-900 dark:text-white">
                       {author._count.blogPosts || 0}
                     </div>
-                    <div className="text-sm text-gray-600">
+                    <div className="text-sm text-gray-600 dark:text-gray-400">
                       {author._count.blogPosts === 1 ? 'Article' : 'Articles'}
                     </div>
                   </CardContent>
@@ -720,13 +746,13 @@ export default function AuthorProfilePage({ params }: Props) {
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.5, delay: 0.3 }}
               >
-                <Card className="bg-white/70 backdrop-blur-sm border-white/50 shadow-lg hover:shadow-xl transition-all duration-300">
+                <Card className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm border-white/50 dark:border-gray-700/50 shadow-lg hover:shadow-xl transition-all duration-300">
                   <CardContent className="p-4 text-center">
-                    <Users className="h-8 w-8 text-blue-600 mx-auto mb-2" />
-                    <div className="text-2xl font-bold text-gray-900">
+                    <Users className="h-8 w-8 text-blue-600 dark:text-blue-400 mx-auto mb-2" />
+                    <div className="text-2xl font-bold text-gray-900 dark:text-white">
                       {author._count.followers || 0}
                     </div>
-                    <div className="text-sm text-gray-600">
+                    <div className="text-sm text-gray-600 dark:text-gray-400">
                       {author._count.followers === 1 ? 'Follower' : 'Followers'}
                     </div>
                   </CardContent>
@@ -738,13 +764,13 @@ export default function AuthorProfilePage({ params }: Props) {
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.5, delay: 0.4 }}
               >
-                <Card className="bg-white/70 backdrop-blur-sm border-white/50 shadow-lg hover:shadow-xl transition-all duration-300">
+                <Card className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm border-white/50 dark:border-gray-700/50 shadow-lg hover:shadow-xl transition-all duration-300">
                   <CardContent className="p-4 text-center">
-                    <Eye className="h-8 w-8 text-purple-600 mx-auto mb-2" />
-                    <div className="text-2xl font-bold text-gray-900">
+                    <Eye className="h-8 w-8 text-purple-600 dark:text-purple-400 mx-auto mb-2" />
+                    <div className="text-2xl font-bold text-gray-900 dark:text-white">
                       {author.blogPosts?.reduce((total, post) => total + (post.viewCount || 0), 0) || 0}
                     </div>
-                    <div className="text-sm text-gray-600">Total Views</div>
+                    <div className="text-sm text-gray-600 dark:text-gray-400">Total Views</div>
                   </CardContent>
                 </Card>
               </motion.div>
@@ -754,33 +780,77 @@ export default function AuthorProfilePage({ params }: Props) {
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.5, delay: 0.5 }}
               >
-                <Card className="bg-white/70 backdrop-blur-sm border-white/50 shadow-lg hover:shadow-xl transition-all duration-300">
+                <Card className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm border-white/50 dark:border-gray-700/50 shadow-lg hover:shadow-xl transition-all duration-300">
                   <CardContent className="p-4 text-center">
-                    <Heart className="h-8 w-8 text-red-600 mx-auto mb-2" />
-                    <div className="text-2xl font-bold text-gray-900">
+                    <Heart className="h-8 w-8 text-red-600 dark:text-red-400 mx-auto mb-2" />
+                    <div className="text-2xl font-bold text-gray-900 dark:text-white">
                       {author.blogPosts?.reduce((total, post) => total + (post._count?.likedBy || 0), 0) || 0}
                     </div>
-                    <div className="text-sm text-gray-600">Total Likes</div>
+                    <div className="text-sm text-gray-600 dark:text-gray-400">Total Likes</div>
                   </CardContent>
                 </Card>
               </motion.div>
             </div>
 
             {/* Action Buttons */}
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              {currentUser && currentUser.id !== author.id && (
-                <FollowButton
-                  userId={author.id}
-                  initialFollowing={isFollowing}
-                  onFollowChange={setIsFollowing}
-                  className="px-8 py-3 text-lg font-medium bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
-                />
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 flex-wrap">
+              {/* Owner-specific controls */}
+              {currentUser && currentUser.id === author.id ? (
+                <>
+                  <Button
+                    asChild
+                    className="px-6 py-3 text-base font-medium bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
+                  >
+                    <Link href="/author/dashboard">
+                      <LayoutDashboard className="h-5 w-5 mr-2" />
+                      Dashboard
+                    </Link>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    asChild
+                    className="px-6 py-3 text-base font-medium bg-white/80 dark:bg-gray-800/80 hover:bg-white dark:hover:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
+                  >
+                    <Link href="/author/profile/edit">
+                      <Settings className="h-5 w-5 mr-2" />
+                      Edit Profile
+                    </Link>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    asChild
+                    className="px-6 py-3 text-base font-medium bg-white/80 dark:bg-gray-800/80 hover:bg-white dark:hover:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
+                  >
+                    <Link href="/my-blogs">
+                      <FileText className="h-5 w-5 mr-2" />
+                      Manage Posts
+                    </Link>
+                  </Button>
+                  <Button
+                    asChild
+                    className="px-6 py-3 text-base font-medium bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
+                  >
+                    <Link href="/author/posts/new">
+                      <PenTool className="h-5 w-5 mr-2" />
+                      New Post
+                    </Link>
+                  </Button>
+                </>
+              ) : (
+                currentUser && (
+                  <FollowButton
+                    userId={author.id}
+                    initialFollowing={isFollowing}
+                    onFollowChange={setIsFollowing}
+                    className="px-8 py-3 text-lg font-medium bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
+                  />
+                )
               )}
               
               <Button
                 variant="outline"
                 onClick={() => router.push('/blog')}
-                className="px-8 py-3 text-lg font-medium bg-white/80 hover:bg-white border-gray-300 text-gray-700 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
+                className="px-8 py-3 text-lg font-medium bg-white/80 dark:bg-gray-800/80 hover:bg-white dark:hover:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
               >
                 <ArrowLeft className="h-5 w-5 mr-2" />
                 Back to Blog
@@ -790,21 +860,21 @@ export default function AuthorProfilePage({ params }: Props) {
               <div className="flex items-center space-x-2">
                 {author.website && (
                   <Button variant="ghost" size="sm" asChild>
-                    <a href={author.website} target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-emerald-600 transition-colors">
+                    <a href={author.website} target="_blank" rel="noopener noreferrer" className="text-gray-600 dark:text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors">
                       <Globe className="h-4 w-4" />
                     </a>
                   </Button>
                 )}
                 {author.twitter && (
                   <Button variant="ghost" size="sm" asChild>
-                    <a href={`https://twitter.com/${author.twitter}`} target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-blue-500 transition-colors">
+                    <a href={`https://twitter.com/${author.twitter}`} target="_blank" rel="noopener noreferrer" className="text-gray-600 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 transition-colors">
                       <Twitter className="h-4 w-4" />
                     </a>
                   </Button>
                 )}
                 {author.linkedin && (
                   <Button variant="ghost" size="sm" asChild>
-                    <a href={author.linkedin} target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-blue-700 transition-colors">
+                    <a href={author.linkedin} target="_blank" rel="noopener noreferrer" className="text-gray-600 dark:text-gray-400 hover:text-blue-700 dark:hover:text-blue-400 transition-colors">
                       <Linkedin className="h-4 w-4" />
                     </a>
                   </Button>
@@ -824,42 +894,42 @@ export default function AuthorProfilePage({ params }: Props) {
             transition={{ duration: 0.5 }}
             className="flex justify-center mb-8"
           >
-            <TabsList className="grid w-full max-w-md grid-cols-3 bg-white/80 backdrop-blur-sm shadow-lg border border-gray-200 rounded-2xl p-1">
+            <TabsList className="grid w-full max-w-md grid-cols-3 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm shadow-lg border border-gray-200 dark:border-gray-700 rounded-2xl p-1">
               <TabsTrigger 
                 value="posts" 
-                className="flex items-center gap-2 rounded-xl transition-all duration-300 data-[state=active]:bg-emerald-500 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-emerald-50"
+                className="flex items-center gap-2 rounded-xl transition-all duration-300 data-[state=active]:bg-emerald-500 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-emerald-50 dark:hover:bg-emerald-900/30 dark:text-gray-300"
               >
                 <BookOpen className="h-4 w-4" />
                 <span className="hidden sm:inline font-medium">Posts</span>
                 <Badge 
                   variant={activeTab === 'posts' ? 'outline' : 'secondary'} 
-                  className={`ml-1 ${activeTab === 'posts' ? 'bg-white/20 text-white border-white/30' : 'bg-emerald-100 text-emerald-800'}`}
+                  className={`ml-1 ${activeTab === 'posts' ? 'bg-white/20 text-white border-white/30' : 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-300'}`}
                 >
                   {author._count.blogPosts}
                 </Badge>
               </TabsTrigger>
               <TabsTrigger 
                 value="followers" 
-                className="flex items-center gap-2 rounded-xl transition-all duration-300 data-[state=active]:bg-blue-500 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-blue-50"
+                className="flex items-center gap-2 rounded-xl transition-all duration-300 data-[state=active]:bg-blue-500 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-blue-50 dark:hover:bg-blue-900/30 dark:text-gray-300"
               >
                 <Users className="h-4 w-4" />
                 <span className="hidden sm:inline font-medium">Followers</span>
                 <Badge 
                   variant={activeTab === 'followers' ? 'outline' : 'secondary'} 
-                  className={`ml-1 ${activeTab === 'followers' ? 'bg-white/20 text-white border-white/30' : 'bg-blue-100 text-blue-800'}`}
+                  className={`ml-1 ${activeTab === 'followers' ? 'bg-white/20 text-white border-white/30' : 'bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300'}`}
                 >
                   {author._count.followers}
                 </Badge>
               </TabsTrigger>
               <TabsTrigger 
                 value="following" 
-                className="flex items-center gap-2 rounded-xl transition-all duration-300 data-[state=active]:bg-purple-500 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-purple-50"
+                className="flex items-center gap-2 rounded-xl transition-all duration-300 data-[state=active]:bg-purple-500 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-purple-50 dark:hover:bg-purple-900/30 dark:text-gray-300"
               >
                 <UserPlus className="h-4 w-4" />
                 <span className="hidden sm:inline font-medium">Following</span>
                 <Badge 
                   variant={activeTab === 'following' ? 'outline' : 'secondary'} 
-                  className={`ml-1 ${activeTab === 'following' ? 'bg-white/20 text-white border-white/30' : 'bg-purple-100 text-purple-800'}`}
+                  className={`ml-1 ${activeTab === 'following' ? 'bg-white/20 text-white border-white/30' : 'bg-purple-100 dark:bg-purple-900/50 text-purple-800 dark:text-purple-300'}`}
                 >
                   {author._count.following}
                 </Badge>
@@ -871,14 +941,14 @@ export default function AuthorProfilePage({ params }: Props) {
           <TabsContent value="posts" className="mt-8">
             {/* Controls */}
             {author.blogPosts && author.blogPosts.length > 0 && (
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8 p-4 bg-white rounded-xl shadow-sm border border-gray-100">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8 p-4 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
                 <div className="flex flex-wrap items-center gap-3">
                   <div className="flex items-center space-x-2">
-                    <Filter className="h-4 w-4 text-gray-500" />
+                    <Filter className="h-4 w-4 text-gray-500 dark:text-gray-400" />
                     <select
                       value={filterCategory}
                       onChange={(e) => setFilterCategory(e.target.value)}
-                      className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                      className="text-sm border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                     >
                       <option value="all">All Categories</option>
                       {categories.map(category => (
@@ -890,11 +960,11 @@ export default function AuthorProfilePage({ params }: Props) {
                   </div>
                   
                   <div className="flex items-center space-x-2">
-                    <span className="text-sm text-gray-500">Sort:</span>
+                    <span className="text-sm text-gray-500 dark:text-gray-400">Sort:</span>
                     <select
                       value={sortBy}
                       onChange={(e) => setSortBy(e.target.value)}
-                      className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                      className="text-sm border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                     >
                       <option value="latest">Latest</option>
                       <option value="popular">Most Popular</option>
@@ -908,6 +978,7 @@ export default function AuthorProfilePage({ params }: Props) {
                     variant={viewMode === 'grid' ? 'default' : 'ghost'}
                     size="sm"
                     onClick={() => setViewMode('grid')}
+                    className="dark:text-gray-300"
                   >
                     <Grid3X3 className="h-4 w-4" />
                   </Button>
@@ -915,6 +986,7 @@ export default function AuthorProfilePage({ params }: Props) {
                     variant={viewMode === 'list' ? 'default' : 'ghost'}
                     size="sm"
                     onClick={() => setViewMode('list')}
+                    className="dark:text-gray-300"
                   >
                     <List className="h-4 w-4" />
                   </Button>
@@ -924,15 +996,16 @@ export default function AuthorProfilePage({ params }: Props) {
 
             {/* Posts Grid/List */}
             {filteredPosts.length > 0 ? (
-              <div className={`grid gap-6 ${viewMode === 'grid' ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1'}`}>
-                {filteredPosts.map((post, index) => (
+              <>
+                <div className={`grid gap-6 ${viewMode === 'grid' ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1'}`}>
+                  {paginatedPosts.map((post, index) => (
                   <motion.div
                     key={post.id}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5, delay: index * 0.1 }}
                   >
-                    <Card className="group hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 border-0 shadow-lg overflow-hidden bg-white">
+                    <Card className="group hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 border-0 shadow-lg overflow-hidden bg-white dark:bg-gray-800">
                       {post.featuredImage && (
                         <div className="relative h-48 overflow-hidden">
                           <Image
@@ -964,7 +1037,7 @@ export default function AuthorProfilePage({ params }: Props) {
                       <CardContent className="p-6 space-y-4">
                         {!post.featuredImage && (
                           <div className="flex items-center justify-between">
-                            <Badge className={`${BLOG_CATEGORIES[post.category as keyof typeof BLOG_CATEGORIES]?.color || 'bg-gray-100 text-gray-800'} font-medium`}>
+                            <Badge className={`${BLOG_CATEGORIES[post.category as keyof typeof BLOG_CATEGORIES]?.color || 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'} font-medium`}>
                               {BLOG_CATEGORIES[post.category as keyof typeof BLOG_CATEGORIES]?.icon} {BLOG_CATEGORIES[post.category as keyof typeof BLOG_CATEGORIES]?.name}
                             </Badge>
                             {post.featured && (
@@ -977,7 +1050,7 @@ export default function AuthorProfilePage({ params }: Props) {
                         )}
 
                         <Link href={`/blog/${author.name.replace(/\s+/g, '-').toLowerCase()}/${post.slug}`}>
-                          <h3 className="font-bold text-xl text-gray-900 group-hover:text-emerald-600 transition-colors line-clamp-2 cursor-pointer">
+                          <h3 className="font-bold text-xl text-gray-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors line-clamp-2 cursor-pointer">
                             {post.title}
                           </h3>
                         </Link>
@@ -986,7 +1059,7 @@ export default function AuthorProfilePage({ params }: Props) {
                           <MarkdownExcerpt
                             content={post.excerpt}
                             clampLines={3}
-                            className="text-gray-600"
+                            className="text-gray-600 dark:text-gray-400"
                           />
                         )}
 
@@ -997,13 +1070,13 @@ export default function AuthorProfilePage({ params }: Props) {
                               <Badge
                                 key={tag.id}
                                 variant="outline"
-                                className="text-xs hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 transition-colors cursor-pointer"
+                                className="text-xs hover:bg-emerald-50 dark:hover:bg-emerald-900/30 hover:text-emerald-700 dark:hover:text-emerald-400 hover:border-emerald-200 dark:hover:border-emerald-700 dark:text-gray-400 dark:border-gray-600 transition-colors cursor-pointer"
                               >
                                 {tag.name}
                               </Badge>
                             ))}
                             {post.tags.length > 3 && (
-                              <Badge variant="outline" className="text-xs">
+                              <Badge variant="outline" className="text-xs dark:text-gray-400 dark:border-gray-600">
                                 +{post.tags.length - 3}
                               </Badge>
                             )}
@@ -1011,8 +1084,8 @@ export default function AuthorProfilePage({ params }: Props) {
                         )}
 
                         {/* Post Meta */}
-                        <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                          <div className="flex items-center space-x-4 text-sm text-gray-500">
+                        <div className="flex items-center justify-between pt-4 border-t border-gray-100 dark:border-gray-700">
+                          <div className="flex items-center space-x-4 text-sm text-gray-500 dark:text-gray-400">
                             <div className="flex items-center space-x-1">
                               <Calendar className="h-3 w-3" />
                               <span>{formatDate(post.publishedAt)}</span>
@@ -1023,7 +1096,7 @@ export default function AuthorProfilePage({ params }: Props) {
                             </div>
                           </div>
 
-                          <div className="flex items-center space-x-3 text-sm text-gray-500">
+                          <div className="flex items-center space-x-3 text-sm text-gray-500 dark:text-gray-400">
                             <div className="flex items-center space-x-1">
                               <Eye className="h-3 w-3" />
                               <span>{post.viewCount}</span>
@@ -1042,12 +1115,76 @@ export default function AuthorProfilePage({ params }: Props) {
                     </Card>
                   </motion.div>
                 ))}
-              </div>
+                </div>
+
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-center gap-2 mt-8">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                      disabled={currentPage === 1}
+                      className="dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+                    >
+                      <ChevronRight className="h-4 w-4 rotate-180" />
+                      Previous
+                    </Button>
+                    
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => {
+                        // Show first page, last page, current page, and pages around current
+                        const showPage = page === 1 || 
+                                        page === totalPages || 
+                                        (page >= currentPage - 1 && page <= currentPage + 1);
+                        const showEllipsis = (page === 2 && currentPage > 3) || 
+                                            (page === totalPages - 1 && currentPage < totalPages - 2);
+                        
+                        if (showEllipsis && !showPage) {
+                          return <span key={page} className="px-2 text-gray-400 dark:text-gray-500">...</span>;
+                        }
+                        
+                        if (!showPage) return null;
+                        
+                        return (
+                          <Button
+                            key={page}
+                            variant={currentPage === page ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setCurrentPage(page)}
+                            className={currentPage === page 
+                              ? "bg-emerald-600 hover:bg-emerald-700 text-white" 
+                              : "dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"}
+                          >
+                            {page}
+                          </Button>
+                        );
+                      })}
+                    </div>
+                    
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                      disabled={currentPage === totalPages}
+                      className="dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+                    >
+                      Next
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
+
+                {/* Results info */}
+                <p className="text-center text-sm text-gray-500 dark:text-gray-400 mt-4">
+                  Showing {startIndex + 1}-{Math.min(startIndex + postsPerPage, filteredPosts.length)} of {filteredPosts.length} posts
+                </p>
+              </>
             ) : (
               <div className="text-center py-12">
-                <BookOpen className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">No posts found</h3>
-                <p className="text-gray-600">
+                <BookOpen className="h-16 w-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">No posts found</h3>
+                <p className="text-gray-600 dark:text-gray-400">
                   {filterCategory !== 'all' || sortBy !== 'latest' 
                     ? "Try adjusting your filters or search criteria."
                     : "This author hasn't published any posts yet."
@@ -1075,10 +1212,10 @@ export default function AuthorProfilePage({ params }: Props) {
                 >
                   <Users className="h-10 w-10 text-white" />
                 </motion.div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
                   {author._count.followers} {author._count.followers === 1 ? 'Follower' : 'Followers'}
                 </h3>
-                <p className="text-gray-600 max-w-md mx-auto">
+                <p className="text-gray-600 dark:text-gray-400 max-w-md mx-auto">
                   People who follow {author.name} to stay updated with their latest articles and insights
                 </p>
               </div>
@@ -1090,15 +1227,15 @@ export default function AuthorProfilePage({ params }: Props) {
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ duration: 0.5, delay: 0.2 }}
                 >
-                  <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200 hover:shadow-lg transition-all duration-300">
+                  <Card className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-800/30 border-blue-200 dark:border-blue-800 hover:shadow-lg transition-all duration-300">
                     <CardContent className="p-6 text-center">
                       <div className="inline-flex items-center justify-center w-12 h-12 bg-blue-500 rounded-full mb-3">
                         <Users className="h-6 w-6 text-white" />
                       </div>
-                      <div className="text-2xl font-bold text-blue-900 mb-1">
+                      <div className="text-2xl font-bold text-blue-900 dark:text-blue-100 mb-1">
                         {author._count.followers}
                       </div>
-                      <div className="text-sm text-blue-700">Total Followers</div>
+                      <div className="text-sm text-blue-700 dark:text-blue-300">Total Followers</div>
                     </CardContent>
                   </Card>
                 </motion.div>
@@ -1108,15 +1245,15 @@ export default function AuthorProfilePage({ params }: Props) {
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ duration: 0.5, delay: 0.3 }}
                 >
-                  <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200 hover:shadow-lg transition-all duration-300">
+                  <Card className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/30 dark:to-green-800/30 border-green-200 dark:border-green-800 hover:shadow-lg transition-all duration-300">
                     <CardContent className="p-6 text-center">
                       <div className="inline-flex items-center justify-center w-12 h-12 bg-green-500 rounded-full mb-3">
                         <TrendingUp className="h-6 w-6 text-white" />
                       </div>
-                      <div className="text-2xl font-bold text-green-900 mb-1">
+                      <div className="text-2xl font-bold text-green-900 dark:text-green-100 mb-1">
                         {Math.round((author._count.followers / Math.max(author._count.blogPosts, 1)) * 10) / 10}
                       </div>
-                      <div className="text-sm text-green-700">Avg per Post</div>
+                      <div className="text-sm text-green-700 dark:text-green-300">Avg per Post</div>
                     </CardContent>
                   </Card>
                 </motion.div>
@@ -1126,15 +1263,15 @@ export default function AuthorProfilePage({ params }: Props) {
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ duration: 0.5, delay: 0.4 }}
                 >
-                  <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200 hover:shadow-lg transition-all duration-300">
+                  <Card className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/30 dark:to-purple-800/30 border-purple-200 dark:border-purple-800 hover:shadow-lg transition-all duration-300">
                     <CardContent className="p-6 text-center">
                       <div className="inline-flex items-center justify-center w-12 h-12 bg-purple-500 rounded-full mb-3">
                         <Heart className="h-6 w-6 text-white" />
                       </div>
-                      <div className="text-2xl font-bold text-purple-900 mb-1">
+                      <div className="text-2xl font-bold text-purple-900 dark:text-purple-100 mb-1">
                         {author._count.followers > 0 ? 'High' : 'Growing'}
                       </div>
-                      <div className="text-sm text-purple-700">Engagement</div>
+                      <div className="text-sm text-purple-700 dark:text-purple-300">Engagement</div>
                     </CardContent>
                   </Card>
                 </motion.div>
@@ -1145,17 +1282,17 @@ export default function AuthorProfilePage({ params }: Props) {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.5 }}
-                className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl p-8 max-w-2xl mx-auto text-center border border-gray-200"
+                className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700 rounded-2xl p-8 max-w-2xl mx-auto text-center border border-gray-200 dark:border-gray-600"
               >
-                <div className="inline-flex items-center justify-center w-16 h-16 bg-gray-300 rounded-full mb-4">
-                  <Users className="h-8 w-8 text-gray-600" />
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-gray-300 dark:bg-gray-600 rounded-full mb-4">
+                  <Users className="h-8 w-8 text-gray-600 dark:text-gray-300" />
                 </div>
-                <h4 className="text-xl font-semibold text-gray-900 mb-2">Follower Directory</h4>
-                <p className="text-gray-600 mb-4">
+                <h4 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Follower Directory</h4>
+                <p className="text-gray-600 dark:text-gray-400 mb-4">
                   We&apos;re working on a feature to showcase {author.name}&apos;s community of followers. 
                   This will include detailed follower profiles and engagement metrics.
                 </p>
-                <Badge className="bg-blue-100 text-blue-800 px-4 py-2">Coming Soon</Badge>
+                <Badge className="bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300 px-4 py-2">Coming Soon</Badge>
               </motion.div>
             </motion.div>
           </TabsContent>
@@ -1178,10 +1315,10 @@ export default function AuthorProfilePage({ params }: Props) {
                 >
                   <UserPlus className="h-10 w-10 text-white" />
                 </motion.div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
                   Following {author._count.following} {author._count.following === 1 ? 'Person' : 'People'}
                 </h3>
-                <p className="text-gray-600 max-w-md mx-auto">
+                <p className="text-gray-600 dark:text-gray-400 max-w-md mx-auto">
                   Authors and experts that {author.name} follows for inspiration and industry insights
                 </p>
               </div>
@@ -1193,15 +1330,15 @@ export default function AuthorProfilePage({ params }: Props) {
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ duration: 0.5, delay: 0.2 }}
                 >
-                  <Card className="bg-gradient-to-br from-emerald-50 to-emerald-100 border-emerald-200 hover:shadow-lg transition-all duration-300">
+                  <Card className="bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-900/30 dark:to-emerald-800/30 border-emerald-200 dark:border-emerald-800 hover:shadow-lg transition-all duration-300">
                     <CardContent className="p-6 text-center">
                       <div className="inline-flex items-center justify-center w-12 h-12 bg-emerald-500 rounded-full mb-3">
                         <UserPlus className="h-6 w-6 text-white" />
                       </div>
-                      <div className="text-2xl font-bold text-emerald-900 mb-1">
+                      <div className="text-2xl font-bold text-emerald-900 dark:text-emerald-100 mb-1">
                         {author._count.following}
                       </div>
-                      <div className="text-sm text-emerald-700">Following</div>
+                      <div className="text-sm text-emerald-700 dark:text-emerald-300">Following</div>
                     </CardContent>
                   </Card>
                 </motion.div>
@@ -1211,15 +1348,15 @@ export default function AuthorProfilePage({ params }: Props) {
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ duration: 0.5, delay: 0.3 }}
                 >
-                  <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200 hover:shadow-lg transition-all duration-300">
+                  <Card className="bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-900/30 dark:to-orange-800/30 border-orange-200 dark:border-orange-800 hover:shadow-lg transition-all duration-300">
                     <CardContent className="p-6 text-center">
                       <div className="inline-flex items-center justify-center w-12 h-12 bg-orange-500 rounded-full mb-3">
                         <BookOpen className="h-6 w-6 text-white" />
                       </div>
-                      <div className="text-2xl font-bold text-orange-900 mb-1">
+                      <div className="text-2xl font-bold text-orange-900 dark:text-orange-100 mb-1">
                         {author._count.following > 0 ? Math.round(author._count.following / Math.max(author._count.blogPosts, 1) * 100) / 100 : 0}
                       </div>
-                      <div className="text-sm text-orange-700">Follow Ratio</div>
+                      <div className="text-sm text-orange-700 dark:text-orange-300">Follow Ratio</div>
                     </CardContent>
                   </Card>
                 </motion.div>
@@ -1229,15 +1366,15 @@ export default function AuthorProfilePage({ params }: Props) {
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ duration: 0.5, delay: 0.4 }}
                 >
-                  <Card className="bg-gradient-to-br from-indigo-50 to-indigo-100 border-indigo-200 hover:shadow-lg transition-all duration-300">
+                  <Card className="bg-gradient-to-br from-indigo-50 to-indigo-100 dark:from-indigo-900/30 dark:to-indigo-800/30 border-indigo-200 dark:border-indigo-800 hover:shadow-lg transition-all duration-300">
                     <CardContent className="p-6 text-center">
                       <div className="inline-flex items-center justify-center w-12 h-12 bg-indigo-500 rounded-full mb-3">
                         <TrendingUp className="h-6 w-6 text-white" />
                       </div>
-                      <div className="text-2xl font-bold text-indigo-900 mb-1">
+                      <div className="text-2xl font-bold text-indigo-900 dark:text-indigo-100 mb-1">
                         {author._count.following > 0 ? 'Active' : 'Selective'}
                       </div>
-                      <div className="text-sm text-indigo-700">Network Style</div>
+                      <div className="text-sm text-indigo-700 dark:text-indigo-300">Network Style</div>
                     </CardContent>
                   </Card>
                 </motion.div>
@@ -1248,17 +1385,17 @@ export default function AuthorProfilePage({ params }: Props) {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.5 }}
-                className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl p-8 max-w-2xl mx-auto text-center border border-gray-200"
+                className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700 rounded-2xl p-8 max-w-2xl mx-auto text-center border border-gray-200 dark:border-gray-600"
               >
-                <div className="inline-flex items-center justify-center w-16 h-16 bg-gray-300 rounded-full mb-4">
-                  <UserPlus className="h-8 w-8 text-gray-600" />
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-gray-300 dark:bg-gray-600 rounded-full mb-4">
+                  <UserPlus className="h-8 w-8 text-gray-600 dark:text-gray-300" />
                 </div>
-                <h4 className="text-xl font-semibold text-gray-900 mb-2">Following Network</h4>
-                <p className="text-gray-600 mb-4">
+                <h4 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Following Network</h4>
+                <p className="text-gray-600 dark:text-gray-400 mb-4">
                   Soon you&apos;ll be able to explore who {author.name} follows, discover new authors, 
                   and build your own network within the poultry farming community.
                 </p>
-                <Badge className="bg-emerald-100 text-emerald-800 px-4 py-2">Coming Soon</Badge>
+                <Badge className="bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-300 px-4 py-2">Coming Soon</Badge>
               </motion.div>
             </motion.div>
           </TabsContent>

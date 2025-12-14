@@ -544,8 +544,8 @@ export default function BlogSubmissionForm({
       {/* Contributor profile */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <User className="h-5 w-5 text-blue-600" />
+          <CardTitle className="flex items-center gap-2 dark:text-white">
+            <User className="h-5 w-5 text-blue-600 dark:text-blue-400" />
             Contributor Profile
           </CardTitle>
         </CardHeader>
@@ -572,11 +572,11 @@ export default function BlogSubmissionForm({
             <div className="space-y-2">
               <Label>Status</Label>
               {profileIncomplete ? (
-                <div className="p-3 rounded-md border border-yellow-200 bg-yellow-50 text-sm text-yellow-800">
+                <div className="p-3 rounded-md border border-yellow-200 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-900/30 text-sm text-yellow-800 dark:text-yellow-300">
                   Complete your profile with your name and a verified email so we can credit your submission properly.
                 </div>
               ) : (
-                <div className="p-3 rounded-md border border-emerald-200 bg-emerald-50 text-sm text-emerald-700 flex items-center gap-2">
+                <div className="p-3 rounded-md border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/30 text-sm text-emerald-700 dark:text-emerald-300 flex items-center gap-2">
                   <CheckCircle className="h-4 w-4" />
                   Profile ready for submission
                 </div>
@@ -618,7 +618,7 @@ export default function BlogSubmissionForm({
                       <span>{category.icon}</span>
                       <div>
                         <div className="font-medium">{category.name}</div>
-                        <div className="text-xs text-gray-500">{category.description}</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">{category.description}</div>
                       </div>
                     </div>
                   </SelectItem>
@@ -662,7 +662,7 @@ export default function BlogSubmissionForm({
 
             {/* Formatting Toolbar */}
             {!contentPreview && (
-              <div className="rounded-t-md border border-gray-200 bg-gray-50">
+              <div className="rounded-t-md border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800/50">
                 <div className="flex flex-wrap gap-1 px-2 py-2">
                   <Button
                     type="button"

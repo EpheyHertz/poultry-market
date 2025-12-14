@@ -248,14 +248,16 @@ export default async function BlogPostPage({ params }: { params: Promise<Params>
     author: {
       '@type': 'Person',
       name: post.author.name,
-      url: `https://poultrymarketke.vercel.app/blog/${resolvedParams.authorName}`,
+      url: `https://poultrymarketke.vercel.app/blog/author/${post.author.id}`,
+      image: post.author.avatar || undefined,
+      description: post.author.bio || undefined,
     },
     publisher: {
       '@type': 'Organization',
       name: 'PoultryMarket Kenya',
       logo: {
         '@type': 'ImageObject',
-        url: 'https://poultrymarketke.vercel.app/images/logo.png',
+        url: 'https://res.cloudinary.com/dgvslio7u/image/upload/v1734690503/poultry-marketplace/logo_hd2q5e.png',
       },
     },
     datePublished: post.publishedAt ? new Date(post.publishedAt).toISOString() : new Date(post.createdAt).toISOString(),
@@ -267,6 +269,35 @@ export default async function BlogPostPage({ params }: { params: Promise<Params>
     keywords: post.tags.map(t => t.tag.name).join(', '),
     articleSection: post.category,
     wordCount: post.content.split(/\s+/).length,
+    timeRequired: post.readingTime ? `PT${post.readingTime}M` : undefined,
+    interactionStatistic: [
+      {
+        '@type': 'InteractionCounter',
+        interactionType: 'https://schema.org/ReadAction',
+        userInteractionCount: post.viewCount,
+      },
+      {
+        '@type': 'InteractionCounter',
+        interactionType: 'https://schema.org/LikeAction',
+        userInteractionCount: post._count?.likedBy || 0,
+      },
+      {
+        '@type': 'InteractionCounter',
+        interactionType: 'https://schema.org/CommentAction',
+        userInteractionCount: post._count?.comments || 0,
+      },
+    ],
+  };
+
+  // Person schema for author
+  const personSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'Person',
+    name: post.author.name,
+    url: `https://poultrymarketke.vercel.app/blog/author/${post.author.id}`,
+    image: post.author.avatar || undefined,
+    description: post.author.bio || undefined,
+    sameAs: [], // Could be populated with social links if available
   };
 
   const breadcrumbSchema = {
@@ -305,6 +336,10 @@ export default async function BlogPostPage({ params }: { params: Promise<Params>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(blogPostingSchema) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(personSchema) }}
       />
       <script
         type="application/ld+json"
