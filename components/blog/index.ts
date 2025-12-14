@@ -4,7 +4,7 @@ export { default } from './blog-submission-form';
 export { default as BlogEditor } from './blog-editor';
 export { default as BlogComments } from './blog-comments';
 export { default as BlogImageUpload } from './blog-image-upload';
-export { default as BlogSEO } from './blog-seo';
+export { generateBlogMetadata, generateArticleStructuredData, generateBlogBreadcrumbData, generateBlogWebsiteData } from './blog-seo';
 export { default as LikeButton } from './like-button';
 export { default as FollowButton } from './follow-button';
 export { default as SocialShare } from './social-share';
