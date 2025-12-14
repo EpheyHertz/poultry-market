@@ -16,6 +16,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 import { 
   Mail, 
@@ -39,6 +40,12 @@ import {
   FileText,
   Zap,
   Globe,
+  Link,
+  Plus,
+  Trash2,
+  BadgeCheck,
+  Code,
+  Type,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -59,6 +66,16 @@ interface User {
 
 interface RoleCounts {
   [key: string]: number;
+}
+
+interface VerifiedCounts {
+  verified: number;
+  unverified: number;
+}
+
+interface EmailLink {
+  text: string;
+  url: string;
 }
 
 // Role configurations
@@ -123,7 +140,7 @@ const roleConfig = {
 const emailTemplates = [
   {
     id: 'welcome',
-    name: 'Welcome Message',
+    name: 'Welcome',
     icon: Sparkles,
     subject: 'Welcome to PoultryMarket! 🐔',
     content: `We're thrilled to have you join Kenya's premier poultry marketplace!
@@ -136,12 +153,10 @@ Here's what you can do:
 • Enjoy secure transactions and reliable delivery
 
 If you have any questions, our support team is always here to help.`,
-    ctaText: 'Explore Products',
-    ctaUrl: '/products',
   },
   {
     id: 'promotion',
-    name: 'Promotional',
+    name: 'Promo',
     icon: Zap,
     subject: 'Special Offer Just for You! 🎉',
     content: `Great news! We have an exclusive offer waiting for you.
@@ -149,12 +164,10 @@ If you have any questions, our support team is always here to help.`,
 Don't miss out on amazing deals from top sellers on PoultryMarket. Whether you're looking for fresh eggs, quality chicken meat, or reliable chicks, we've got you covered.
 
 This offer is available for a limited time only. Visit our marketplace today and discover incredible savings!`,
-    ctaText: 'Shop Now',
-    ctaUrl: '/products',
   },
   {
     id: 'update',
-    name: 'Platform Update',
+    name: 'Update',
     icon: Globe,
     subject: 'Important Update from PoultryMarket',
     content: `We wanted to keep you informed about some exciting updates to PoultryMarket.
@@ -167,17 +180,13 @@ We've been working hard to improve your experience on our platform. Here's what'
 • Faster checkout process
 
 Thank you for being part of our community. Your feedback helps us grow better every day.`,
-    ctaText: 'See What\'s New',
-    ctaUrl: '/',
   },
   {
     id: 'custom',
-    name: 'Custom Message',
+    name: 'Custom',
     icon: FileText,
     subject: '',
     content: '',
-    ctaText: '',
-    ctaUrl: '',
   },
 ];
 
@@ -187,9 +196,11 @@ export default function AdminEmailsPage() {
   const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState<User[]>([]);
   const [roleCounts, setRoleCounts] = useState<RoleCounts>({});
+  const [verifiedCounts, setVerifiedCounts] = useState<VerifiedCounts>({ verified: 0, unverified: 0 });
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
+  const [verifiedFilter, setVerifiedFilter] = useState<string>('all');
   const [sendMode, setSendMode] = useState<'individual' | 'bulk' | 'role'>('individual');
   const [targetRole, setTargetRole] = useState<string>('');
   
@@ -197,16 +208,16 @@ export default function AdminEmailsPage() {
   const [selectedTemplate, setSelectedTemplate] = useState('custom');
   const [subject, setSubject] = useState('');
   const [content, setContent] = useState('');
-  const [ctaText, setCtaText] = useState('');
-  const [ctaUrl, setCtaUrl] = useState('');
+  const [links, setLinks] = useState<EmailLink[]>([]);
   const [senderName, setSenderName] = useState('');
+  const [emailFormat, setEmailFormat] = useState<'html' | 'text'>('html');
+  const [verifiedOnly, setVerifiedOnly] = useState(false);
   
   // UI state
   const [sending, setSending] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [sendResult, setSendResult] = useState<any>(null);
-  const [expandedStats, setExpandedStats] = useState(true);
 
   // Check auth
   useEffect(() => {
@@ -238,6 +249,7 @@ export default function AdminEmailsPage() {
     try {
       const params = new URLSearchParams();
       if (roleFilter !== 'all') params.append('role', roleFilter);
+      if (verifiedFilter !== 'all') params.append('verified', verifiedFilter);
       if (searchTerm) params.append('search', searchTerm);
       params.append('limit', '100');
 
@@ -246,12 +258,15 @@ export default function AdminEmailsPage() {
         const data = await response.json();
         setUsers(data.users);
         setRoleCounts(data.roleCounts);
+        if (data.verifiedCounts) {
+          setVerifiedCounts(data.verifiedCounts);
+        }
       }
     } catch (error) {
       console.error('Failed to fetch users:', error);
       toast.error('Failed to fetch users');
     }
-  }, [roleFilter, searchTerm]);
+  }, [roleFilter, verifiedFilter, searchTerm]);
 
   useEffect(() => {
     if (user) {
@@ -266,8 +281,6 @@ export default function AdminEmailsPage() {
     if (template) {
       setSubject(template.subject);
       setContent(template.content);
-      setCtaText(template.ctaText);
-      setCtaUrl(template.ctaUrl);
     }
   };
 
@@ -288,10 +301,30 @@ export default function AdminEmailsPage() {
     }
   };
 
+  // Link management
+  const addLink = () => {
+    setLinks([...links, { text: '', url: '' }]);
+  };
+
+  const updateLink = (index: number, field: 'text' | 'url', value: string) => {
+    const newLinks = [...links];
+    newLinks[index][field] = value;
+    setLinks(newLinks);
+  };
+
+  const removeLink = (index: number) => {
+    setLinks(links.filter((_, i) => i !== index));
+  };
+
   // Get recipient count based on send mode
   const getRecipientCount = () => {
     if (sendMode === 'role' && targetRole) {
-      return roleCounts[targetRole] || 0;
+      const count = roleCounts[targetRole] || 0;
+      if (verifiedOnly) {
+        // This is an estimate - actual count will be determined by API
+        return `~${count}`;
+      }
+      return count;
     }
     return selectedUsers.length;
   };
@@ -313,6 +346,9 @@ export default function AdminEmailsPage() {
       return;
     }
 
+    // Filter out empty links
+    const validLinks = links.filter(l => l.text.trim() && l.url.trim());
+
     setSending(true);
     try {
       const response = await fetch('/api/admin/emails', {
@@ -322,11 +358,12 @@ export default function AdminEmailsPage() {
           type: sendMode,
           recipients: sendMode !== 'role' ? selectedUsers : undefined,
           role: sendMode === 'role' ? targetRole : undefined,
+          verifiedOnly,
           subject,
           content,
-          ctaText: ctaText || undefined,
-          ctaUrl: ctaUrl || undefined,
+          links: validLinks.length > 0 ? validLinks : undefined,
           senderName,
+          format: emailFormat,
         }),
       });
 
@@ -342,6 +379,7 @@ export default function AdminEmailsPage() {
         if (selectedTemplate !== 'custom') {
           handleTemplateSelect('custom');
         }
+        setLinks([]);
       } else {
         toast.error(result.error || 'Failed to send emails');
       }
@@ -370,34 +408,35 @@ export default function AdminEmailsPage() {
 
   return (
     <DashboardLayout user={user}>
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 -m-6 p-6">
-        <div className="max-w-7xl mx-auto space-y-6">
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 -m-4 sm:-m-6 p-3 sm:p-6">
+        <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6">
           {/* Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-white flex items-center gap-3">
-                <div className="p-2 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl shadow-lg shadow-emerald-500/20">
-                  <Mail className="h-6 w-6 text-white" />
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white flex items-center gap-2 sm:gap-3">
+                <div className="p-1.5 sm:p-2 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-lg sm:rounded-xl shadow-lg shadow-emerald-500/20">
+                  <Mail className="h-4 w-4 sm:h-6 sm:w-6 text-white" />
                 </div>
                 Email Center
               </h1>
-              <p className="text-slate-400 mt-1">
-                Send personalized emails to users or broadcast to categories
+              <p className="text-slate-400 mt-1 text-sm sm:text-base">
+                Send personalized emails to users
               </p>
             </div>
             
             <Button
               onClick={() => fetchUsers()}
               variant="outline"
-              className="border-slate-700 bg-slate-800/50 text-slate-300 hover:bg-slate-700 hover:text-white"
+              size="sm"
+              className="border-slate-700 bg-slate-800/50 text-slate-300 hover:bg-slate-700 hover:text-white w-full sm:w-auto"
             >
               <RefreshCw className="h-4 w-4 mr-2" />
               Refresh
             </Button>
           </div>
 
-          {/* Stats Cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          {/* Stats Cards - Scrollable on mobile */}
+          <div className="flex gap-2 sm:gap-3 overflow-x-auto pb-2 sm:pb-0 sm:grid sm:grid-cols-3 lg:grid-cols-6 scrollbar-hide">
             {Object.entries(roleConfig).map(([role, config]) => {
               const Icon = config.icon;
               const count = roleCounts[role] || 0;
@@ -405,7 +444,7 @@ export default function AdminEmailsPage() {
                 <Card
                   key={role}
                   className={cn(
-                    'bg-slate-800/50 border-slate-700/50 hover:border-slate-600 transition-all cursor-pointer',
+                    'bg-slate-800/50 border-slate-700/50 hover:border-slate-600 transition-all cursor-pointer flex-shrink-0 w-[140px] sm:w-auto',
                     sendMode === 'role' && targetRole === role && 'ring-2 ring-emerald-500 border-emerald-500/50'
                   )}
                   onClick={() => {
@@ -413,14 +452,14 @@ export default function AdminEmailsPage() {
                     setTargetRole(role);
                   }}
                 >
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-3">
-                      <div className={cn('p-2 rounded-lg', config.bgColor)}>
-                        <Icon className={cn('h-4 w-4', config.textColor)} />
+                  <CardContent className="p-3 sm:p-4">
+                    <div className="flex items-center gap-2 sm:gap-3">
+                      <div className={cn('p-1.5 sm:p-2 rounded-lg', config.bgColor)}>
+                        <Icon className={cn('h-3 w-3 sm:h-4 sm:w-4', config.textColor)} />
                       </div>
                       <div>
-                        <p className="text-2xl font-bold text-white">{count}</p>
-                        <p className="text-xs text-slate-400">{config.label}</p>
+                        <p className="text-lg sm:text-2xl font-bold text-white">{count}</p>
+                        <p className="text-[10px] sm:text-xs text-slate-400">{config.label}</p>
                       </div>
                     </div>
                   </CardContent>
@@ -429,44 +468,82 @@ export default function AdminEmailsPage() {
             })}
           </div>
 
+          {/* Verified Stats */}
+          <div className="grid grid-cols-2 gap-2 sm:gap-3">
+            <Card 
+              className={cn(
+                'bg-slate-800/50 border-slate-700/50 cursor-pointer transition-all',
+                verifiedFilter === 'true' && 'ring-2 ring-emerald-500'
+              )}
+              onClick={() => setVerifiedFilter(verifiedFilter === 'true' ? 'all' : 'true')}
+            >
+              <CardContent className="p-3 sm:p-4 flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-emerald-500/10">
+                  <BadgeCheck className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-400" />
+                </div>
+                <div>
+                  <p className="text-lg sm:text-xl font-bold text-white">{verifiedCounts.verified}</p>
+                  <p className="text-xs text-slate-400">Verified Users</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card 
+              className={cn(
+                'bg-slate-800/50 border-slate-700/50 cursor-pointer transition-all',
+                verifiedFilter === 'false' && 'ring-2 ring-orange-500'
+              )}
+              onClick={() => setVerifiedFilter(verifiedFilter === 'false' ? 'all' : 'false')}
+            >
+              <CardContent className="p-3 sm:p-4 flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-orange-500/10">
+                  <XCircle className="h-4 w-4 sm:h-5 sm:w-5 text-orange-400" />
+                </div>
+                <div>
+                  <p className="text-lg sm:text-xl font-bold text-white">{verifiedCounts.unverified}</p>
+                  <p className="text-xs text-slate-400">Unverified Users</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
           {/* Main Content */}
-          <div className="grid lg:grid-cols-5 gap-6">
+          <div className="grid lg:grid-cols-5 gap-4 sm:gap-6">
             {/* Left Panel - User Selection */}
             <div className="lg:col-span-2 space-y-4">
               <Card className="bg-slate-800/50 border-slate-700/50">
-                <CardHeader className="pb-3">
+                <CardHeader className="pb-3 px-3 sm:px-6">
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-white flex items-center gap-2">
-                      <Users className="h-5 w-5 text-emerald-400" />
+                    <CardTitle className="text-white flex items-center gap-2 text-base sm:text-lg">
+                      <Users className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-400" />
                       Recipients
                     </CardTitle>
-                    <Badge variant="outline" className="border-emerald-500/50 text-emerald-400">
+                    <Badge variant="outline" className="border-emerald-500/50 text-emerald-400 text-xs">
                       {getRecipientCount()} selected
                     </Badge>
                   </div>
-                  <CardDescription className="text-slate-400">
+                  <CardDescription className="text-slate-400 text-xs sm:text-sm">
                     Select users individually or by category
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-4 px-3 sm:px-6">
                   {/* Send Mode Tabs */}
                   <Tabs value={sendMode} onValueChange={(v) => setSendMode(v as any)}>
-                    <TabsList className="grid grid-cols-3 bg-slate-900/50">
+                    <TabsList className="grid grid-cols-3 bg-slate-900/50 h-9 sm:h-10">
                       <TabsTrigger
                         value="individual"
-                        className="data-[state=active]:bg-emerald-500 data-[state=active]:text-white"
+                        className="text-xs sm:text-sm data-[state=active]:bg-emerald-500 data-[state=active]:text-white"
                       >
                         Individual
                       </TabsTrigger>
                       <TabsTrigger
                         value="bulk"
-                        className="data-[state=active]:bg-emerald-500 data-[state=active]:text-white"
+                        className="text-xs sm:text-sm data-[state=active]:bg-emerald-500 data-[state=active]:text-white"
                       >
                         Bulk
                       </TabsTrigger>
                       <TabsTrigger
                         value="role"
-                        className="data-[state=active]:bg-emerald-500 data-[state=active]:text-white"
+                        className="text-xs sm:text-sm data-[state=active]:bg-emerald-500 data-[state=active]:text-white"
                       >
                         By Role
                       </TabsTrigger>
@@ -474,7 +551,7 @@ export default function AdminEmailsPage() {
 
                     <TabsContent value="role" className="mt-4 space-y-3">
                       <Select value={targetRole} onValueChange={setTargetRole}>
-                        <SelectTrigger className="bg-slate-900/50 border-slate-700 text-white">
+                        <SelectTrigger className="bg-slate-900/50 border-slate-700 text-white text-sm">
                           <SelectValue placeholder="Select user role..." />
                         </SelectTrigger>
                         <SelectContent className="bg-slate-800 border-slate-700">
@@ -492,6 +569,20 @@ export default function AdminEmailsPage() {
                           })}
                         </SelectContent>
                       </Select>
+                      
+                      {/* Verified Only Toggle */}
+                      <div className="flex items-center justify-between p-3 bg-slate-900/30 rounded-lg">
+                        <div className="flex items-center gap-2">
+                          <BadgeCheck className="h-4 w-4 text-emerald-400" />
+                          <span className="text-sm text-slate-300">Verified only</span>
+                        </div>
+                        <Switch
+                          checked={verifiedOnly}
+                          onCheckedChange={setVerifiedOnly}
+                          className="data-[state=checked]:bg-emerald-500"
+                        />
+                      </div>
+                      
                       {targetRole && (
                         <div className={cn(
                           'p-3 rounded-lg border',
@@ -503,184 +594,118 @@ export default function AdminEmailsPage() {
                           </p>
                           <p className="text-xs text-slate-400 mt-1">
                             Will send to <strong className="text-white">{roleCounts[targetRole] || 0}</strong> users
+                            {verifiedOnly && <span className="text-emerald-400"> (verified only)</span>}
                           </p>
                         </div>
                       )}
                     </TabsContent>
 
-                    <TabsContent value="individual" className="mt-4">
-                      {/* Search and Filter */}
-                      <div className="space-y-3">
-                        <div className="relative">
-                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                          <Input
-                            placeholder="Search users..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="pl-10 bg-slate-900/50 border-slate-700 text-white placeholder:text-slate-500"
-                          />
-                        </div>
-                        
-                        <Select value={roleFilter} onValueChange={setRoleFilter}>
-                          <SelectTrigger className="bg-slate-900/50 border-slate-700 text-white">
-                            <Filter className="h-4 w-4 mr-2 text-slate-400" />
-                            <SelectValue placeholder="Filter by role" />
-                          </SelectTrigger>
-                          <SelectContent className="bg-slate-800 border-slate-700">
-                            <SelectItem value="all" className="text-white focus:bg-slate-700">All Roles</SelectItem>
-                            {Object.entries(roleConfig).map(([role, config]) => (
-                              <SelectItem key={role} value={role} className="text-white focus:bg-slate-700">
-                                {config.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      {/* User List */}
-                      <ScrollArea className="h-[300px] mt-4 pr-4">
-                        <div className="space-y-2">
-                          {users.map((u) => {
-                            const config = roleConfig[u.role as keyof typeof roleConfig];
-                            const Icon = config?.icon || Users;
-                            const isSelected = selectedUsers.includes(u.id);
+                    {/* Individual & Bulk tabs share similar UI */}
+                    {['individual', 'bulk'].map((tabValue) => (
+                      <TabsContent key={tabValue} value={tabValue} className="mt-4">
+                        {/* Search and Filter */}
+                        <div className="space-y-3">
+                          <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                            <Input
+                              placeholder="Search users..."
+                              value={searchTerm}
+                              onChange={(e) => setSearchTerm(e.target.value)}
+                              className="pl-10 bg-slate-900/50 border-slate-700 text-white placeholder:text-slate-500 text-sm h-9 sm:h-10"
+                            />
+                          </div>
+                          
+                          <div className="grid grid-cols-2 gap-2">
+                            <Select value={roleFilter} onValueChange={setRoleFilter}>
+                              <SelectTrigger className="bg-slate-900/50 border-slate-700 text-white text-xs sm:text-sm h-9 sm:h-10">
+                                <Filter className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2 text-slate-400" />
+                                <SelectValue placeholder="Role" />
+                              </SelectTrigger>
+                              <SelectContent className="bg-slate-800 border-slate-700">
+                                <SelectItem value="all" className="text-white focus:bg-slate-700">All Roles</SelectItem>
+                                {Object.entries(roleConfig).map(([role, config]) => (
+                                  <SelectItem key={role} value={role} className="text-white focus:bg-slate-700">
+                                    {config.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                             
-                            return (
-                              <div
-                                key={u.id}
-                                onClick={() => toggleUserSelection(u.id)}
-                                className={cn(
-                                  'flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all',
-                                  'border border-transparent',
-                                  isSelected
-                                    ? 'bg-emerald-500/10 border-emerald-500/50'
-                                    : 'bg-slate-900/30 hover:bg-slate-800/50'
-                                )}
-                              >
-                                <Checkbox
-                                  checked={isSelected}
-                                  className="border-slate-600 data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500"
-                                />
-                                <Avatar className="h-8 w-8">
-                                  <AvatarImage src={u.avatar || undefined} />
-                                  <AvatarFallback className="bg-slate-700 text-white text-xs">
-                                    {u.name?.charAt(0)?.toUpperCase() || '?'}
-                                  </AvatarFallback>
-                                </Avatar>
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-medium text-white truncate">{u.name}</p>
-                                  <p className="text-xs text-slate-400 truncate">{u.email}</p>
+                            <Select value={verifiedFilter} onValueChange={setVerifiedFilter}>
+                              <SelectTrigger className="bg-slate-900/50 border-slate-700 text-white text-xs sm:text-sm h-9 sm:h-10">
+                                <BadgeCheck className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2 text-slate-400" />
+                                <SelectValue placeholder="Status" />
+                              </SelectTrigger>
+                              <SelectContent className="bg-slate-800 border-slate-700">
+                                <SelectItem value="all" className="text-white focus:bg-slate-700">All Status</SelectItem>
+                                <SelectItem value="true" className="text-white focus:bg-slate-700">Verified</SelectItem>
+                                <SelectItem value="false" className="text-white focus:bg-slate-700">Unverified</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+
+                        {/* User List */}
+                        <ScrollArea className="h-[250px] sm:h-[300px] mt-4 pr-2 sm:pr-4">
+                          <div className="space-y-2">
+                            {users.map((u) => {
+                              const config = roleConfig[u.role as keyof typeof roleConfig];
+                              const isSelected = selectedUsers.includes(u.id);
+                              
+                              return (
+                                <div
+                                  key={u.id}
+                                  onClick={() => toggleUserSelection(u.id)}
+                                  className={cn(
+                                    'flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg cursor-pointer transition-all',
+                                    'border border-transparent',
+                                    isSelected
+                                      ? 'bg-emerald-500/10 border-emerald-500/50'
+                                      : 'bg-slate-900/30 hover:bg-slate-800/50'
+                                  )}
+                                >
+                                  <Checkbox
+                                    checked={isSelected}
+                                    className="border-slate-600 data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500 h-4 w-4"
+                                  />
+                                  <Avatar className="h-7 w-7 sm:h-8 sm:w-8">
+                                    <AvatarImage src={u.avatar || undefined} />
+                                    <AvatarFallback className="bg-slate-700 text-white text-xs">
+                                      {u.name?.charAt(0)?.toUpperCase() || '?'}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-1">
+                                      <p className="text-xs sm:text-sm font-medium text-white truncate">{u.name}</p>
+                                      {u.isVerified && <BadgeCheck className="h-3 w-3 text-emerald-400 flex-shrink-0" />}
+                                    </div>
+                                    <p className="text-[10px] sm:text-xs text-slate-400 truncate">{u.email}</p>
+                                  </div>
+                                  <Badge className={cn('text-[10px] sm:text-xs hidden sm:inline-flex', config?.bgColor, config?.textColor)}>
+                                    {u.role}
+                                  </Badge>
                                 </div>
-                                <Badge className={cn('text-xs', config?.bgColor, config?.textColor)}>
-                                  {u.role}
-                                </Badge>
-                              </div>
-                            );
-                          })}
+                              );
+                            })}
+                          </div>
+                        </ScrollArea>
+
+                        {/* Select All */}
+                        <div className="flex items-center justify-between pt-3 border-t border-slate-700">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={selectAllUsers}
+                            className="text-slate-400 hover:text-white text-xs sm:text-sm h-8"
+                          >
+                            {selectedUsers.length === users.length ? 'Deselect All' : 'Select All'}
+                          </Button>
+                          <span className="text-xs sm:text-sm text-slate-400">
+                            {selectedUsers.length}/{users.length}
+                          </span>
                         </div>
-                      </ScrollArea>
-
-                      {/* Select All */}
-                      <div className="flex items-center justify-between pt-3 border-t border-slate-700">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={selectAllUsers}
-                          className="text-slate-400 hover:text-white"
-                        >
-                          {selectedUsers.length === users.length ? 'Deselect All' : 'Select All'}
-                        </Button>
-                        <span className="text-sm text-slate-400">
-                          {selectedUsers.length} of {users.length} selected
-                        </span>
-                      </div>
-                    </TabsContent>
-
-                    <TabsContent value="bulk" className="mt-4">
-                      {/* Same as individual but with bulk messaging context */}
-                      <div className="space-y-3">
-                        <div className="relative">
-                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                          <Input
-                            placeholder="Search users..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="pl-10 bg-slate-900/50 border-slate-700 text-white placeholder:text-slate-500"
-                          />
-                        </div>
-                        
-                        <Select value={roleFilter} onValueChange={setRoleFilter}>
-                          <SelectTrigger className="bg-slate-900/50 border-slate-700 text-white">
-                            <Filter className="h-4 w-4 mr-2 text-slate-400" />
-                            <SelectValue placeholder="Filter by role" />
-                          </SelectTrigger>
-                          <SelectContent className="bg-slate-800 border-slate-700">
-                            <SelectItem value="all" className="text-white focus:bg-slate-700">All Roles</SelectItem>
-                            {Object.entries(roleConfig).map(([role, config]) => (
-                              <SelectItem key={role} value={role} className="text-white focus:bg-slate-700">
-                                {config.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <ScrollArea className="h-[300px] mt-4 pr-4">
-                        <div className="space-y-2">
-                          {users.map((u) => {
-                            const config = roleConfig[u.role as keyof typeof roleConfig];
-                            const Icon = config?.icon || Users;
-                            const isSelected = selectedUsers.includes(u.id);
-                            
-                            return (
-                              <div
-                                key={u.id}
-                                onClick={() => toggleUserSelection(u.id)}
-                                className={cn(
-                                  'flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all',
-                                  'border border-transparent',
-                                  isSelected
-                                    ? 'bg-emerald-500/10 border-emerald-500/50'
-                                    : 'bg-slate-900/30 hover:bg-slate-800/50'
-                                )}
-                              >
-                                <Checkbox
-                                  checked={isSelected}
-                                  className="border-slate-600 data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500"
-                                />
-                                <Avatar className="h-8 w-8">
-                                  <AvatarImage src={u.avatar || undefined} />
-                                  <AvatarFallback className="bg-slate-700 text-white text-xs">
-                                    {u.name?.charAt(0)?.toUpperCase() || '?'}
-                                  </AvatarFallback>
-                                </Avatar>
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-medium text-white truncate">{u.name}</p>
-                                  <p className="text-xs text-slate-400 truncate">{u.email}</p>
-                                </div>
-                                <Badge className={cn('text-xs', config?.bgColor, config?.textColor)}>
-                                  {u.role}
-                                </Badge>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </ScrollArea>
-
-                      <div className="flex items-center justify-between pt-3 border-t border-slate-700">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={selectAllUsers}
-                          className="text-slate-400 hover:text-white"
-                        >
-                          {selectedUsers.length === users.length ? 'Deselect All' : 'Select All'}
-                        </Button>
-                        <span className="text-sm text-slate-400">
-                          {selectedUsers.length} of {users.length} selected
-                        </span>
-                      </div>
-                    </TabsContent>
+                      </TabsContent>
+                    ))}
                   </Tabs>
                 </CardContent>
               </Card>
@@ -689,20 +714,57 @@ export default function AdminEmailsPage() {
             {/* Right Panel - Email Composer */}
             <div className="lg:col-span-3 space-y-4">
               <Card className="bg-slate-800/50 border-slate-700/50">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-white flex items-center gap-2">
-                    <FileText className="h-5 w-5 text-emerald-400" />
+                <CardHeader className="pb-3 px-3 sm:px-6">
+                  <CardTitle className="text-white flex items-center gap-2 text-base sm:text-lg">
+                    <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-400" />
                     Compose Email
                   </CardTitle>
-                  <CardDescription className="text-slate-400">
+                  <CardDescription className="text-slate-400 text-xs sm:text-sm">
                     Select a template or write a custom message
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-6">
+                <CardContent className="space-y-4 sm:space-y-6 px-3 sm:px-6">
+                  {/* Email Format Toggle */}
+                  <div className="flex items-center justify-between p-3 bg-slate-900/30 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm text-slate-300">Format:</span>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant={emailFormat === 'html' ? 'default' : 'ghost'}
+                          size="sm"
+                          onClick={() => setEmailFormat('html')}
+                          className={cn(
+                            'h-7 sm:h-8 text-xs',
+                            emailFormat === 'html' 
+                              ? 'bg-emerald-500 hover:bg-emerald-600 text-white' 
+                              : 'text-slate-400 hover:text-white'
+                          )}
+                        >
+                          <Code className="h-3 w-3 mr-1" />
+                          HTML
+                        </Button>
+                        <Button
+                          variant={emailFormat === 'text' ? 'default' : 'ghost'}
+                          size="sm"
+                          onClick={() => setEmailFormat('text')}
+                          className={cn(
+                            'h-7 sm:h-8 text-xs',
+                            emailFormat === 'text' 
+                              ? 'bg-emerald-500 hover:bg-emerald-600 text-white' 
+                              : 'text-slate-400 hover:text-white'
+                          )}
+                        >
+                          <Type className="h-3 w-3 mr-1" />
+                          Text
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+
                   {/* Templates */}
-                  <div className="space-y-3">
-                    <Label className="text-slate-300">Email Template</Label>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <div className="space-y-2 sm:space-y-3">
+                    <Label className="text-slate-300 text-xs sm:text-sm">Template</Label>
+                    <div className="grid grid-cols-4 gap-2">
                       {emailTemplates.map((template) => {
                         const Icon = template.icon;
                         const isSelected = selectedTemplate === template.id;
@@ -711,14 +773,14 @@ export default function AdminEmailsPage() {
                             key={template.id}
                             onClick={() => handleTemplateSelect(template.id)}
                             className={cn(
-                              'flex flex-col items-center gap-2 p-3 rounded-lg border transition-all',
+                              'flex flex-col items-center gap-1 sm:gap-2 p-2 sm:p-3 rounded-lg border transition-all',
                               isSelected
                                 ? 'bg-emerald-500/10 border-emerald-500/50 text-emerald-400'
                                 : 'bg-slate-900/30 border-slate-700 text-slate-400 hover:border-slate-600 hover:text-slate-300'
                             )}
                           >
-                            <Icon className="h-5 w-5" />
-                            <span className="text-xs font-medium">{template.name}</span>
+                            <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
+                            <span className="text-[10px] sm:text-xs font-medium">{template.name}</span>
                           </button>
                         );
                       })}
@@ -729,74 +791,106 @@ export default function AdminEmailsPage() {
 
                   {/* Subject */}
                   <div className="space-y-2">
-                    <Label htmlFor="subject" className="text-slate-300">Subject</Label>
+                    <Label htmlFor="subject" className="text-slate-300 text-xs sm:text-sm">Subject</Label>
                     <Input
                       id="subject"
                       placeholder="Enter email subject..."
                       value={subject}
                       onChange={(e) => setSubject(e.target.value)}
-                      className="bg-slate-900/50 border-slate-700 text-white placeholder:text-slate-500 focus:border-emerald-500"
+                      className="bg-slate-900/50 border-slate-700 text-white placeholder:text-slate-500 focus:border-emerald-500 text-sm h-9 sm:h-10"
                     />
                   </div>
 
                   {/* Content */}
                   <div className="space-y-2">
-                    <Label htmlFor="content" className="text-slate-300">Message</Label>
+                    <Label htmlFor="content" className="text-slate-300 text-xs sm:text-sm">Message</Label>
                     <Textarea
                       id="content"
                       placeholder="Write your email message..."
                       value={content}
                       onChange={(e) => setContent(e.target.value)}
-                      rows={8}
-                      className="bg-slate-900/50 border-slate-700 text-white placeholder:text-slate-500 focus:border-emerald-500 resize-none"
+                      rows={6}
+                      className="bg-slate-900/50 border-slate-700 text-white placeholder:text-slate-500 focus:border-emerald-500 resize-none text-sm"
                     />
-                    <p className="text-xs text-slate-500">
-                      Tip: Use line breaks to separate paragraphs. They will be converted to proper HTML formatting.
+                    <p className="text-[10px] sm:text-xs text-slate-500">
+                      Use line breaks to separate paragraphs
                     </p>
                   </div>
 
-                  {/* CTA */}
-                  <div className="grid sm:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="ctaText" className="text-slate-300">Button Text (Optional)</Label>
-                      <Input
-                        id="ctaText"
-                        placeholder="e.g., Shop Now"
-                        value={ctaText}
-                        onChange={(e) => setCtaText(e.target.value)}
-                        className="bg-slate-900/50 border-slate-700 text-white placeholder:text-slate-500 focus:border-emerald-500"
-                      />
+                  {/* Links Section */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-slate-300 text-xs sm:text-sm flex items-center gap-2">
+                        <Link className="h-4 w-4" />
+                        Links
+                      </Label>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={addLink}
+                        className="text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 h-7 sm:h-8 text-xs"
+                      >
+                        <Plus className="h-3 w-3 mr-1" />
+                        Add Link
+                      </Button>
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="ctaUrl" className="text-slate-300">Button URL (Optional)</Label>
-                      <Input
-                        id="ctaUrl"
-                        placeholder="e.g., /products"
-                        value={ctaUrl}
-                        onChange={(e) => setCtaUrl(e.target.value)}
-                        className="bg-slate-900/50 border-slate-700 text-white placeholder:text-slate-500 focus:border-emerald-500"
-                      />
-                    </div>
+                    
+                    {links.length > 0 && (
+                      <div className="space-y-2">
+                        {links.map((link, index) => (
+                          <div key={index} className="flex gap-2 items-start">
+                            <div className="flex-1 grid grid-cols-2 gap-2">
+                              <Input
+                                placeholder="Link text"
+                                value={link.text}
+                                onChange={(e) => updateLink(index, 'text', e.target.value)}
+                                className="bg-slate-900/50 border-slate-700 text-white placeholder:text-slate-500 text-xs h-8 sm:h-9"
+                              />
+                              <Input
+                                placeholder="URL (e.g., /products)"
+                                value={link.url}
+                                onChange={(e) => updateLink(index, 'url', e.target.value)}
+                                className="bg-slate-900/50 border-slate-700 text-white placeholder:text-slate-500 text-xs h-8 sm:h-9"
+                              />
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeLink(index)}
+                              className="text-red-400 hover:text-red-300 hover:bg-red-500/10 h-8 w-8 p-0"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    
+                    {links.length === 0 && (
+                      <p className="text-xs text-slate-500 text-center py-2">
+                        No links added. Click &quot;Add Link&quot; to include action buttons.
+                      </p>
+                    )}
                   </div>
 
                   {/* Sender Name */}
                   <div className="space-y-2">
-                    <Label htmlFor="senderName" className="text-slate-300">Sender Name</Label>
+                    <Label htmlFor="senderName" className="text-slate-300 text-xs sm:text-sm">Sender Name</Label>
                     <Input
                       id="senderName"
                       placeholder="The PoultryMarket Team"
                       value={senderName}
                       onChange={(e) => setSenderName(e.target.value)}
-                      className="bg-slate-900/50 border-slate-700 text-white placeholder:text-slate-500 focus:border-emerald-500"
+                      className="bg-slate-900/50 border-slate-700 text-white placeholder:text-slate-500 focus:border-emerald-500 text-sm h-9 sm:h-10"
                     />
                   </div>
 
                   {/* Actions */}
-                  <div className="flex flex-col sm:flex-row gap-3 pt-4">
+                  <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 pt-4">
                     <Button
                       variant="outline"
                       onClick={() => setShowPreview(true)}
-                      className="border-slate-700 bg-slate-900/50 text-slate-300 hover:bg-slate-700 hover:text-white"
+                      className="border-slate-700 bg-slate-900/50 text-slate-300 hover:bg-slate-700 hover:text-white h-9 sm:h-10 text-sm"
                       disabled={!subject || !content}
                     >
                       <Eye className="h-4 w-4 mr-2" />
@@ -804,11 +898,11 @@ export default function AdminEmailsPage() {
                     </Button>
                     <Button
                       onClick={() => setShowConfirmDialog(true)}
-                      disabled={!subject || !content || getRecipientCount() === 0}
-                      className="flex-1 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white shadow-lg shadow-emerald-500/20"
+                      disabled={!subject || !content || (typeof getRecipientCount() === 'number' ? getRecipientCount() === 0 : false)}
+                      className="flex-1 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white shadow-lg shadow-emerald-500/20 h-9 sm:h-10 text-sm"
                     >
                       <Send className="h-4 w-4 mr-2" />
-                      Send to {getRecipientCount()} {getRecipientCount() === 1 ? 'User' : 'Users'}
+                      Send to {getRecipientCount()} {typeof getRecipientCount() === 'number' && getRecipientCount() === 1 ? 'User' : 'Users'}
                     </Button>
                   </div>
                 </CardContent>
@@ -822,26 +916,26 @@ export default function AdminEmailsPage() {
                     ? 'bg-emerald-500/10 border-emerald-500/30'
                     : 'bg-amber-500/10 border-amber-500/30'
                 )}>
-                  <CardContent className="pt-6">
-                    <div className="flex items-start gap-4">
+                  <CardContent className="pt-4 sm:pt-6 px-3 sm:px-6">
+                    <div className="flex items-start gap-3 sm:gap-4">
                       {sendResult.failed === 0 ? (
-                        <CheckCircle2 className="h-8 w-8 text-emerald-400 flex-shrink-0" />
+                        <CheckCircle2 className="h-6 w-6 sm:h-8 sm:w-8 text-emerald-400 flex-shrink-0" />
                       ) : (
-                        <AlertCircle className="h-8 w-8 text-amber-400 flex-shrink-0" />
+                        <AlertCircle className="h-6 w-6 sm:h-8 sm:w-8 text-amber-400 flex-shrink-0" />
                       )}
                       <div className="flex-1">
-                        <h3 className="font-semibold text-white mb-1">
+                        <h3 className="font-semibold text-white mb-1 text-sm sm:text-base">
                           {sendResult.failed === 0 ? 'Emails Sent Successfully!' : 'Emails Sent with Issues'}
                         </h3>
-                        <p className="text-sm text-slate-300">
+                        <p className="text-xs sm:text-sm text-slate-300">
                           Sent: <strong className="text-emerald-400">{sendResult.success}</strong> | 
                           Failed: <strong className={sendResult.failed > 0 ? 'text-red-400' : 'text-slate-400'}>{sendResult.failed}</strong>
                         </p>
                         {sendResult.errors?.length > 0 && (
-                          <div className="mt-3 p-3 bg-slate-900/50 rounded-lg">
+                          <div className="mt-3 p-2 sm:p-3 bg-slate-900/50 rounded-lg">
                             <p className="text-xs text-slate-400 mb-2">Errors:</p>
                             {sendResult.errors.map((err: string, i: number) => (
-                              <p key={i} className="text-xs text-red-400">{err}</p>
+                              <p key={i} className="text-[10px] sm:text-xs text-red-400">{err}</p>
                             ))}
                           </div>
                         )}
@@ -850,7 +944,7 @@ export default function AdminEmailsPage() {
                         variant="ghost"
                         size="sm"
                         onClick={() => setSendResult(null)}
-                        className="text-slate-400 hover:text-white"
+                        className="text-slate-400 hover:text-white h-8 w-8 p-0"
                       >
                         <XCircle className="h-4 w-4" />
                       </Button>
@@ -864,61 +958,81 @@ export default function AdminEmailsPage() {
 
         {/* Preview Dialog */}
         <Dialog open={showPreview} onOpenChange={setShowPreview}>
-          <DialogContent className="max-w-2xl bg-slate-800 border-slate-700 text-white max-h-[90vh] overflow-hidden">
+          <DialogContent className="max-w-2xl bg-slate-800 border-slate-700 text-white max-h-[90vh] overflow-hidden mx-4 sm:mx-auto">
             <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <Eye className="h-5 w-5 text-emerald-400" />
-                Email Preview
+              <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
+                <Eye className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-400" />
+                Email Preview ({emailFormat.toUpperCase()})
               </DialogTitle>
-              <DialogDescription className="text-slate-400">
+              <DialogDescription className="text-slate-400 text-xs sm:text-sm">
                 This is how your email will appear to recipients
               </DialogDescription>
             </DialogHeader>
             <ScrollArea className="max-h-[60vh] pr-4">
-              <div className="bg-slate-100 rounded-lg p-4">
-                <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-                  {/* Preview Header */}
-                  <div className="bg-gradient-to-r from-emerald-500 to-emerald-600 p-6 text-white">
-                    <h2 className="text-xl font-bold">🐔 PoultryMarket</h2>
-                    <p className="text-sm opacity-90">Kenya&apos;s Premier Poultry Marketplace</p>
-                  </div>
-                  {/* Preview Body */}
-                  <div className="p-6">
-                    <h3 className="text-lg font-semibold text-gray-800 mb-4">
-                      Hello [Recipient Name] 👋
-                    </h3>
-                    <div className="text-gray-600 space-y-3">
-                      {content.split('\n').filter(Boolean).map((p, i) => (
-                        <p key={i}>{p}</p>
-                      ))}
+              {emailFormat === 'html' ? (
+                <div className="bg-slate-100 rounded-lg p-2 sm:p-4">
+                  <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+                    {/* Preview Header */}
+                    <div className="bg-gradient-to-r from-emerald-500 to-emerald-600 p-4 sm:p-6 text-white">
+                      <h2 className="text-lg sm:text-xl font-bold">🐔 PoultryMarket</h2>
+                      <p className="text-xs sm:text-sm opacity-90">Kenya&apos;s Premier Poultry Marketplace</p>
                     </div>
-                    {ctaText && ctaUrl && (
-                      <div className="mt-6">
-                        <span className="inline-block bg-emerald-500 text-white px-6 py-3 rounded-lg font-semibold">
-                          {ctaText} →
-                        </span>
+                    {/* Preview Body */}
+                    <div className="p-4 sm:p-6">
+                      <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-4">
+                        Hello [Recipient Name] 👋
+                      </h3>
+                      <div className="text-gray-600 space-y-3 text-sm">
+                        {content.split('\n').filter(Boolean).map((p, i) => (
+                          <p key={i}>{p}</p>
+                        ))}
                       </div>
-                    )}
-                    <div className="mt-6 pt-4 border-t border-gray-200">
-                      <p className="text-gray-500 text-sm">
-                        Best regards,<br />
-                        <strong className="text-gray-700">{senderName || 'The PoultryMarket Team'}</strong>
-                      </p>
+                      {links.filter(l => l.text && l.url).length > 0 && (
+                        <div className="mt-6 flex flex-wrap gap-2">
+                          {links.filter(l => l.text && l.url).map((link, i) => (
+                            <span key={i} className="inline-block bg-emerald-500 text-white px-4 py-2 rounded-lg font-semibold text-sm">
+                              {link.text} →
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      <div className="mt-6 pt-4 border-t border-gray-200">
+                        <p className="text-gray-500 text-xs sm:text-sm">
+                          Best regards,<br />
+                          <strong className="text-gray-700">{senderName || 'The PoultryMarket Team'}</strong>
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                  {/* Preview Footer */}
-                  <div className="bg-gray-50 p-4 text-center text-xs text-gray-500">
-                    <p>This email was sent from PoultryMarket Admin</p>
-                    <p>© {new Date().getFullYear()} PoultryMarket. All rights reserved.</p>
+                    {/* Preview Footer */}
+                    <div className="bg-gray-50 p-3 sm:p-4 text-center text-[10px] sm:text-xs text-gray-500">
+                      <p>This email was sent from PoultryMarket Admin</p>
+                      <p>© {new Date().getFullYear()} PoultryMarket. All rights reserved.</p>
+                    </div>
                   </div>
                 </div>
-              </div>
+              ) : (
+                <div className="bg-slate-900 rounded-lg p-4 font-mono text-xs sm:text-sm text-slate-300 whitespace-pre-wrap">
+                  {`Hello [Recipient Name],
+
+${content}${links.filter(l => l.text && l.url).length > 0 ? `
+
+---
+Links:
+${links.filter(l => l.text && l.url).map(l => `• ${l.text}: ${l.url}`).join('\n')}` : ''}
+
+---
+Best regards,
+${senderName || 'The PoultryMarket Team'}
+
+© ${new Date().getFullYear()} PoultryMarket. All rights reserved.`}
+                </div>
+              )}
             </ScrollArea>
             <DialogFooter>
               <Button
                 variant="outline"
                 onClick={() => setShowPreview(false)}
-                className="border-slate-700 text-slate-300 hover:bg-slate-700"
+                className="border-slate-700 text-slate-300 hover:bg-slate-700 text-sm h-9"
               >
                 Close
               </Button>
@@ -928,51 +1042,56 @@ export default function AdminEmailsPage() {
 
         {/* Confirm Send Dialog */}
         <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
-          <DialogContent className="bg-slate-800 border-slate-700 text-white">
+          <DialogContent className="bg-slate-800 border-slate-700 text-white mx-4 sm:mx-auto max-w-md">
             <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <Send className="h-5 w-5 text-emerald-400" />
+              <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
+                <Send className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-400" />
                 Confirm Send
               </DialogTitle>
-              <DialogDescription className="text-slate-400">
-                You are about to send an email to {getRecipientCount()} {getRecipientCount() === 1 ? 'user' : 'users'}
+              <DialogDescription className="text-slate-400 text-xs sm:text-sm">
+                You are about to send an email to {getRecipientCount()} {typeof getRecipientCount() === 'number' && getRecipientCount() === 1 ? 'user' : 'users'}
               </DialogDescription>
             </DialogHeader>
             
             <div className="space-y-4 py-4">
-              <div className="bg-slate-900/50 rounded-lg p-4 space-y-2">
+              <div className="bg-slate-900/50 rounded-lg p-3 sm:p-4 space-y-2 text-xs sm:text-sm">
                 <div className="flex justify-between">
                   <span className="text-slate-400">Recipients:</span>
                   <span className="text-white font-medium">
                     {sendMode === 'role' 
                       ? `All ${roleConfig[targetRole as keyof typeof roleConfig]?.label || targetRole}`
-                      : `${getRecipientCount()} selected users`
+                      : `${getRecipientCount()} selected`
                     }
+                    {verifiedOnly && sendMode === 'role' && <span className="text-emerald-400 text-xs"> (verified)</span>}
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-400">Subject:</span>
-                  <span className="text-white font-medium truncate max-w-[200px]">{subject}</span>
+                  <span className="text-white font-medium truncate max-w-[150px] sm:max-w-[200px]">{subject}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">From:</span>
-                  <span className="text-white font-medium">{senderName}</span>
+                  <span className="text-slate-400">Format:</span>
+                  <span className="text-white font-medium">{emailFormat.toUpperCase()}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Links:</span>
+                  <span className="text-white font-medium">{links.filter(l => l.text && l.url).length}</span>
                 </div>
               </div>
               
               <div className="flex items-start gap-2 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
-                <AlertCircle className="h-5 w-5 text-amber-400 flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-amber-200">
-                  This action cannot be undone. Make sure you have reviewed the email content and recipient list.
+                <AlertCircle className="h-4 w-4 sm:h-5 sm:w-5 text-amber-400 flex-shrink-0 mt-0.5" />
+                <p className="text-xs sm:text-sm text-amber-200">
+                  This action cannot be undone. Make sure you have reviewed the email content.
                 </p>
               </div>
             </div>
             
-            <DialogFooter className="gap-2">
+            <DialogFooter className="gap-2 flex-col sm:flex-row">
               <Button
                 variant="outline"
                 onClick={() => setShowConfirmDialog(false)}
-                className="border-slate-700 text-slate-300 hover:bg-slate-700"
+                className="border-slate-700 text-slate-300 hover:bg-slate-700 text-sm h-9 w-full sm:w-auto"
                 disabled={sending}
               >
                 Cancel
@@ -980,7 +1099,7 @@ export default function AdminEmailsPage() {
               <Button
                 onClick={handleSendEmails}
                 disabled={sending}
-                className="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white"
+                className="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white text-sm h-9 w-full sm:w-auto"
               >
                 {sending ? (
                   <>
