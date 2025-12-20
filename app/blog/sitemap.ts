@@ -5,7 +5,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = 'https://poultrymarketke.vercel.app';
 
   try {
-    // Get all published blog posts
+    // Get all published blog posts with AuthorProfile data
     const posts = await prisma.blogPost.findMany({
       where: {
         status: 'PUBLISHED',
@@ -16,6 +16,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         author: {
           select: {
             name: true,
+          },
+        },
+        authorProfile: {
+          select: {
+            username: true,
           },
         },
       },
@@ -52,15 +57,19 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       },
     ];
 
-    // Individual blog posts
+    // Individual blog posts - use AuthorProfile username if available
     const postRoutes: MetadataRoute.Sitemap = posts
-      .filter((post) => post.slug && post.author?.name)
-      .map((post) => ({
-        url: `${baseUrl}/blog/${post.author.name.replace(/\s+/g, '-').toLowerCase()}/${post.slug}`,
-        lastModified: post.updatedAt,
-        changeFrequency: 'weekly' as const,
-        priority: 0.7,
-      }));
+      .filter((post) => post.slug && (post.authorProfile?.username || post.author?.name))
+      .map((post) => {
+        // Prefer AuthorProfile username, fallback to author name
+        const authorPath = post.authorProfile?.username || post.author.name.replace(/\s+/g, '-').toLowerCase();
+        return {
+          url: `${baseUrl}/blog/${authorPath}/${post.slug}`,
+          lastModified: post.updatedAt,
+          changeFrequency: 'weekly' as const,
+          priority: 0.7,
+        };
+      });
 
     // Category pages
     const categoryRoutes: MetadataRoute.Sitemap = categories

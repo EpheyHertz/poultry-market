@@ -187,6 +187,7 @@ export default async function PublicAuthorPage({ params }: PageProps) {
       publishedAt: post.publishedAt?.toISOString() || new Date().toISOString(),
       authorId: post.author.id,
       authorName: post.author.name,
+      authorUsername: profile.username, // Use profile username for all posts
       tags: post.tags.map(t => ({
         tag: {
           id: t.tag.id,

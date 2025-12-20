@@ -113,6 +113,16 @@ export async function GET(request: NextRequest) {
             }
           }
         },
+        authorProfile: {
+          select: {
+            id: true,
+            displayName: true,
+            username: true,
+            avatarUrl: true,
+            bio: true,
+            isVerified: true
+          }
+        },
         tags: {
           include: {
             tag: true
@@ -143,6 +153,19 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       posts: posts.map(post => ({
         ...post,
+        // Use AuthorProfile data if available, fallback to User data
+        author: {
+          ...post.author,
+          name: post.authorProfile?.displayName || post.author.name,
+          displayName: post.authorProfile?.displayName || post.author.name,
+          username: post.authorProfile?.username || null,
+          avatar: post.authorProfile?.avatarUrl || post.author.avatar,
+          avatarUrl: post.authorProfile?.avatarUrl || post.author.avatar,
+          bio: post.authorProfile?.bio || null,
+          isVerified: post.authorProfile?.isVerified || false,
+        },
+        authorUsername: post.authorProfile?.username || null,
+        authorDisplayName: post.authorProfile?.displayName || post.author.name,
         tags: post.tags.map(t => t.tag),
         commentCount: post._count.comments,
         likeCount: post._count.likedBy, 

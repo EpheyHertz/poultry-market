@@ -164,6 +164,14 @@ export async function POST(request: NextRequest) {
             email: true
           }
         },
+        authorProfile: {
+          select: {
+            id: true,
+            displayName: true,
+            username: true,
+            avatarUrl: true
+          }
+        },
         tags: {
           include: {
             tag: true
@@ -190,7 +198,17 @@ export async function POST(request: NextRequest) {
         slug: blogPost.slug,
         status: blogPost.status,
         submittedAt: blogPost.submittedAt,
-        author: blogPost.author
+        author: {
+          ...blogPost.author,
+          displayName: blogPost.authorProfile?.displayName || blogPost.author.name,
+          username: blogPost.authorProfile?.username || null,
+          avatarUrl: blogPost.authorProfile?.avatarUrl || null
+        },
+        authorUsername: blogPost.authorProfile?.username || null,
+        // Generate URL using username if available
+        url: blogPost.authorProfile?.username 
+          ? `/blog/${blogPost.authorProfile.username}/${blogPost.slug}`
+          : `/blog/${blogPost.author.name.replace(/\s+/g, '-').toLowerCase()}/${blogPost.slug}`
       }
     });
 

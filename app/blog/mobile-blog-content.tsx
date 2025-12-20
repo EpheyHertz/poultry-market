@@ -26,7 +26,8 @@ import {
   BookOpen,
   ArrowUp,
   ArrowDown,
-  ChevronsUpDown
+  ChevronsUpDown,
+  BadgeCheck
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -43,10 +44,18 @@ interface BlogPost {
   content: string;
   featuredImage?: string;
   publishedAt: Date | null;
+  authorUsername?: string | null;
+  authorDisplayName?: string | null;
+  authorAvatarUrl?: string | null;
+  authorIsVerified?: boolean;
   author: {
     id: string;
     name: string;
+    displayName?: string | null;
+    username?: string | null;
     avatar?: string;
+    avatarUrl?: string | null;
+    isVerified?: boolean;
     _count?: { followers: number };
   };
   category?: {
@@ -637,21 +646,28 @@ export default function MobileBlogContent() {
                               {/* Content */}
                               <CardContent className="p-6 lg:p-8 flex-1 flex flex-col justify-between relative z-10">
                                 <div className="space-y-4">
-                                  <Link 
-                                    href={`/blog/${post.author.name.replace(/\s+/g, '-').toLowerCase()}/${post.slug}`} 
-                                    className="block group/link"
-                                    prefetch={false}
-                                    onClick={(e) => handlePostClick(e, `/blog/${post.author.name.replace(/\s+/g, '-').toLowerCase()}/${post.slug}`)}
-                                  >
-                                    <h3 className="font-bold mb-3 line-clamp-2 text-xl lg:text-2xl leading-tight text-gray-900 dark:text-slate-100 group-hover/link:text-emerald-600 dark:group-hover/link:text-emerald-400 transition-colors duration-300">
-                                      {post.title}
-                                    </h3>
-                                    <MarkdownExcerpt
-                                      content={post.excerpt}
-                                      clampLines={3}
-                                      className="text-gray-600 dark:text-slate-400 text-sm leading-relaxed"
-                                    />
-                                  </Link>
+                                  {(() => {
+                                    // Use AuthorProfile username if available, fallback to author name
+                                    const authorPath = post.authorUsername || post.author.username || post.author.name.replace(/\s+/g, '-').toLowerCase();
+                                    const postUrl = `/blog/${authorPath}/${post.slug}`;
+                                    return (
+                                      <Link 
+                                        href={postUrl} 
+                                        className="block group/link"
+                                        prefetch={false}
+                                        onClick={(e) => handlePostClick(e, postUrl)}
+                                      >
+                                        <h3 className="font-bold mb-3 line-clamp-2 text-xl lg:text-2xl leading-tight text-gray-900 dark:text-slate-100 group-hover/link:text-emerald-600 dark:group-hover/link:text-emerald-400 transition-colors duration-300">
+                                          {post.title}
+                                        </h3>
+                                        <MarkdownExcerpt
+                                          content={post.excerpt}
+                                          clampLines={3}
+                                          className="text-gray-600 dark:text-slate-400 text-sm leading-relaxed"
+                                        />
+                                      </Link>
+                                    );
+                                  })()}
                                   
                                   {/* Reading Time & Views */}
                                   <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-slate-500">
@@ -673,34 +689,55 @@ export default function MobileBlogContent() {
                                 {/* Author Section */}
                                 <div className="mt-6 pt-5 border-t border-gray-100 dark:border-slate-800">
                                   <div className="flex items-center justify-between">
-                                    <div className="flex items-center space-x-3">
-                                      <div className="relative avatar-ring">
-                                        <div className="w-12 h-12 bg-gradient-to-br from-emerald-400 via-emerald-500 to-teal-600 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-lg shadow-emerald-500/30 ring-2 ring-white dark:ring-slate-900">
-                                          {post.author.avatar ? (
-                                            <Image
-                                              src={post.author.avatar}
-                                              alt={post.author.name}
-                                              fill
-                                              className="rounded-full object-cover"
-                                            />
-                                          ) : (
-                                            post.author.name.charAt(0).toUpperCase()
-                                          )}
+                                    {(() => {
+                                      // Get AuthorProfile data
+                                      const authorDisplayName = post.authorDisplayName || post.author.displayName || post.author.name;
+                                      const authorUsername = post.authorUsername || post.author.username;
+                                      const authorAvatar = post.authorAvatarUrl || post.author.avatarUrl || post.author.avatar;
+                                      const authorIsVerified = post.authorIsVerified || post.author.isVerified;
+                                      const authorProfileUrl = authorUsername ? `/author/${authorUsername}` : `/blog/author/${post.author.id}`;
+                                      
+                                      return (
+                                        <div className="flex items-center space-x-3">
+                                          <div className="relative avatar-ring">
+                                            <div className="w-12 h-12 bg-gradient-to-br from-emerald-400 via-emerald-500 to-teal-600 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-lg shadow-emerald-500/30 ring-2 ring-white dark:ring-slate-900">
+                                              {authorAvatar ? (
+                                                <Image
+                                                  src={authorAvatar}
+                                                  alt={authorDisplayName}
+                                                  fill
+                                                  className="rounded-full object-cover"
+                                                />
+                                              ) : (
+                                                authorDisplayName.charAt(0).toUpperCase()
+                                              )}
+                                            </div>
+                                            {authorIsVerified ? (
+                                              <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-emerald-500 rounded-full border-2 border-white dark:border-slate-900 flex items-center justify-center">
+                                                <span className="text-white text-[8px]">✓</span>
+                                              </div>
+                                            ) : (
+                                              <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-green-400 rounded-full border-2 border-white dark:border-slate-900 pulse-glow" />
+                                            )}
+                                          </div>
+                                          <div className="flex-1 min-w-0">
+                                            <Link href={authorProfileUrl} className="group/author">
+                                              <p className="font-semibold text-gray-900 dark:text-slate-100 text-sm group-hover/author:text-emerald-600 dark:group-hover/author:text-emerald-400 transition-colors truncate flex items-center gap-1">
+                                                {authorDisplayName}
+                                                {authorIsVerified && <span className="text-emerald-500 text-xs">✓</span>}
+                                              </p>
+                                              {authorUsername && (
+                                                <p className="text-xs text-gray-500 dark:text-slate-500">@{authorUsername}</p>
+                                              )}
+                                              <p className="text-xs text-gray-500 dark:text-slate-500 flex items-center gap-1">
+                                                <Users className="h-3 w-3" />
+                                                {post.author._count?.followers || 0} followers
+                                              </p>
+                                            </Link>
+                                          </div>
                                         </div>
-                                        <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-green-400 rounded-full border-2 border-white dark:border-slate-900 pulse-glow" />
-                                      </div>
-                                      <div className="flex-1 min-w-0">
-                                        <Link href={`/blog/author/${post.author.id}`} className="group/author">
-                                          <p className="font-semibold text-gray-900 dark:text-slate-100 text-sm group-hover/author:text-emerald-600 dark:group-hover/author:text-emerald-400 transition-colors truncate">
-                                            {post.author.name}
-                                          </p>
-                                          <p className="text-xs text-gray-500 dark:text-slate-500 flex items-center gap-1">
-                                            <Users className="h-3 w-3" />
-                                            {post.author._count?.followers || 0} followers
-                                          </p>
-                                        </Link>
-                                      </div>
-                                    </div>
+                                      );
+                                    })()}
                                     
                                     <div className="flex items-center space-x-4">
                                       <button className="flex items-center gap-1.5 text-gray-500 dark:text-slate-500 hover:text-rose-500 dark:hover:text-rose-400 transition-colors group/like">
@@ -784,21 +821,28 @@ export default function MobileBlogContent() {
                               {/* Content */}
                               <CardContent className="p-5 lg:p-6 flex-1 flex flex-col justify-between card-content-hover">
                                 <div className="space-y-3">
-                                  <Link 
-                                    href={`/blog/${post.author.name.replace(/\s+/g, '-').toLowerCase()}/${post.slug}`} 
-                                    className="block group/link"
-                                    prefetch={false}
-                                    onClick={(e) => handlePostClick(e, `/blog/${post.author.name.replace(/\s+/g, '-').toLowerCase()}/${post.slug}`)}
-                                  >
-                                    <h3 className="font-bold mb-2 line-clamp-2 text-lg leading-tight text-gray-900 dark:text-slate-100 group-hover/link:text-emerald-600 dark:group-hover/link:text-emerald-400 transition-colors duration-200">
-                                      {post.title}
-                                    </h3>
-                                    <MarkdownExcerpt
-                                      content={post.excerpt}
-                                      clampLines={2}
-                                      className="text-gray-600 dark:text-slate-400 text-sm leading-relaxed"
-                                    />
-                                  </Link>
+                                  {(() => {
+                                    // Use AuthorProfile username if available
+                                    const authorPath = post.authorUsername || post.author.username || post.author.name.replace(/\s+/g, '-').toLowerCase();
+                                    const postUrl = `/blog/${authorPath}/${post.slug}`;
+                                    return (
+                                      <Link 
+                                        href={postUrl} 
+                                        className="block group/link"
+                                        prefetch={false}
+                                        onClick={(e) => handlePostClick(e, postUrl)}
+                                      >
+                                        <h3 className="font-bold mb-2 line-clamp-2 text-lg leading-tight text-gray-900 dark:text-slate-100 group-hover/link:text-emerald-600 dark:group-hover/link:text-emerald-400 transition-colors duration-200">
+                                          {post.title}
+                                        </h3>
+                                        <MarkdownExcerpt
+                                          content={post.excerpt}
+                                          clampLines={2}
+                                          className="text-gray-600 dark:text-slate-400 text-sm leading-relaxed"
+                                        />
+                                      </Link>
+                                    );
+                                  })()}
                                   
                                   {/* Tags */}
                                   {post.tags.length > 0 && (
@@ -818,29 +862,51 @@ export default function MobileBlogContent() {
                                 {/* Author & Stats */}
                                 <div className="mt-4 pt-4 border-t border-gray-100 dark:border-slate-800">
                                   <div className="flex items-center justify-between">
-                                    <div className="flex items-center space-x-2.5">
-                                      <div className="relative">
-                                        <div className="w-9 h-9 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-full flex items-center justify-center text-white font-medium text-xs shadow-md ring-2 ring-white dark:ring-slate-900">
-                                          {post.author.avatar ? (
-                                            <Image
-                                              src={post.author.avatar}
-                                              alt={post.author.name}
-                                              fill
-                                              className="rounded-full object-cover"
-                                            />
-                                          ) : (
-                                            post.author.name.charAt(0).toUpperCase()
-                                          )}
+                                    {(() => {
+                                      // Use AuthorProfile data with fallbacks
+                                      const authorDisplayName = post.authorDisplayName || post.author.displayName || post.author.name;
+                                      const authorUsername = post.authorUsername || post.author.username;
+                                      const authorAvatar = post.authorAvatarUrl || post.author.avatarUrl || post.author.avatar;
+                                      const authorIsVerified = post.authorIsVerified || post.author.isVerified;
+                                      const authorProfileUrl = authorUsername ? `/author/${authorUsername}` : `/blog/author/${post.author.id}`;
+                                      
+                                      return (
+                                        <div className="flex items-center space-x-2.5">
+                                          <div className="relative">
+                                            <div className="w-9 h-9 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-full flex items-center justify-center text-white font-medium text-xs shadow-md ring-2 ring-white dark:ring-slate-900">
+                                              {authorAvatar ? (
+                                                <Image
+                                                  src={authorAvatar}
+                                                  alt={authorDisplayName}
+                                                  fill
+                                                  className="rounded-full object-cover"
+                                                />
+                                              ) : (
+                                                authorDisplayName.charAt(0).toUpperCase()
+                                              )}
+                                            </div>
+                                            {/* Verification Badge */}
+                                            {authorIsVerified && (
+                                              <div className="absolute -bottom-0.5 -right-0.5 bg-blue-500 rounded-full p-0.5">
+                                                <BadgeCheck className="h-2.5 w-2.5 text-white" />
+                                              </div>
+                                            )}
+                                          </div>
+                                          <div className="flex-1 min-w-0">
+                                            <Link href={authorProfileUrl} className="group/author">
+                                              <p className="font-medium text-gray-900 dark:text-slate-200 text-sm group-hover/author:text-emerald-600 dark:group-hover/author:text-emerald-400 transition-colors truncate">
+                                                {authorDisplayName}
+                                              </p>
+                                              {authorUsername && (
+                                                <p className="text-xs text-gray-500 dark:text-slate-500 truncate">
+                                                  @{authorUsername}
+                                                </p>
+                                              )}
+                                            </Link>
+                                          </div>
                                         </div>
-                                      </div>
-                                      <div className="flex-1 min-w-0">
-                                        <Link href={`/blog/author/${post.author.id}`} className="group/author">
-                                          <p className="font-medium text-gray-900 dark:text-slate-200 text-sm group-hover/author:text-emerald-600 dark:group-hover/author:text-emerald-400 transition-colors truncate">
-                                            {post.author.name}
-                                          </p>
-                                        </Link>
-                                      </div>
-                                    </div>
+                                      );
+                                    })()}
                                     
                                     <div className="flex items-center space-x-3 text-sm">
                                       <button className="flex items-center gap-1 text-gray-400 dark:text-slate-500 hover:text-rose-500 dark:hover:text-rose-400 transition-colors">

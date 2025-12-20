@@ -24,7 +24,8 @@ import {
   BookOpen,
   TrendingUp,
   Star,
-  Heart
+  Heart,
+  BadgeCheck
 } from 'lucide-react';
 import { toast } from 'sonner';
 import MarkdownExcerpt from '@/components/blog/markdown-excerpt';
@@ -40,10 +41,18 @@ interface BlogPost {
   viewCount: number;
   readingTime?: number;
   publishedAt: string;
+  authorUsername?: string | null;
+  authorDisplayName?: string | null;
+  authorAvatarUrl?: string | null;
+  authorIsVerified?: boolean;
   author: {
     id: string;
     name: string;
+    displayName?: string;
+    username?: string | null;
     avatar?: string;
+    avatarUrl?: string;
+    isVerified?: boolean;
   };
   tags: Array<{
     id: string;
@@ -317,7 +326,7 @@ export default function BlogContent() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.6, delay: 0.1 * index }}
                 >
-                  <Link href={`/blog/${post.author.name.replace(/\s+/g, '-').toLowerCase()}/${post.slug}`}>
+                  <Link href={`/blog/${post.authorUsername || post.author.username || post.author.name.replace(/\s+/g, '-').toLowerCase()}/${post.slug}`}>
                     <Card className="h-full hover:shadow-2xl transition-all duration-300 group cursor-pointer border-0 bg-white dark:bg-slate-800/50 dark:border dark:border-slate-700/50 overflow-hidden">
                       <div className="relative h-48 sm:h-52 lg:h-48 xl:h-52 overflow-hidden">
                         {post.featuredImage ? (
@@ -361,22 +370,36 @@ export default function BlogContent() {
                           
                           {/* Author and Stats */}
                           <div className="flex items-center justify-between pt-2 sm:pt-3 border-t border-gray-100 dark:border-slate-700">
-                            <div className="flex items-center space-x-2">
-                              {post.author.avatar ? (
-                                <Image
-                                  src={post.author.avatar}
-                                  alt={post.author.name}
-                                  width={24}
-                                  height={24}
-                                  className="rounded-full"
-                                />
-                              ) : (
-                                <div className="w-6 h-6 bg-gradient-to-br from-emerald-400 to-blue-500 rounded-full flex items-center justify-center">
-                                  <User className="h-3 w-3 text-white" />
+                            {(() => {
+                              const authorDisplayName = post.authorDisplayName || post.author.displayName || post.author.name;
+                              const authorAvatar = post.authorAvatarUrl || post.author.avatarUrl || post.author.avatar;
+                              const authorIsVerified = post.authorIsVerified || post.author.isVerified;
+                              return (
+                                <div className="flex items-center space-x-2">
+                                  <div className="relative">
+                                    {authorAvatar ? (
+                                      <Image
+                                        src={authorAvatar}
+                                        alt={authorDisplayName}
+                                        width={24}
+                                        height={24}
+                                        className="rounded-full"
+                                      />
+                                    ) : (
+                                      <div className="w-6 h-6 bg-gradient-to-br from-emerald-400 to-blue-500 rounded-full flex items-center justify-center">
+                                        <User className="h-3 w-3 text-white" />
+                                      </div>
+                                    )}
+                                    {authorIsVerified && (
+                                      <div className="absolute -bottom-0.5 -right-0.5 bg-blue-500 rounded-full p-0.5">
+                                        <BadgeCheck className="h-2 w-2 text-white" />
+                                      </div>
+                                    )}
+                                  </div>
+                                  <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 font-medium">{authorDisplayName}</span>
                                 </div>
-                              )}
-                              <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 font-medium">{post.author.name}</span>
-                            </div>
+                              );
+                            })()}
                             
                             <div className="flex items-center space-x-3 text-xs text-gray-500 dark:text-gray-500">
                               <div className="flex items-center space-x-1">
@@ -521,7 +544,7 @@ export default function BlogContent() {
                         transition={{ duration: 0.6, delay: 0.05 * index }}
                         className="w-full"
                       >
-                        <Link href={`/blog/${post.author.name.replace(/\s+/g, '-').toLowerCase()}/${post.slug}`} className="block w-full">
+                        <Link href={`/blog/${post.authorUsername || post.author.username || post.author.name.replace(/\s+/g, '-').toLowerCase()}/${post.slug}`} className="block w-full">
                           <Card className="h-full hover:shadow-2xl transition-all duration-300 group cursor-pointer border-0 bg-white dark:bg-slate-800/50 dark:border dark:border-slate-700/50 overflow-hidden touch-manipulation">
                             <div className="flex flex-col sm:flex-row h-full">
                               {/* Image */}
@@ -574,22 +597,36 @@ export default function BlogContent() {
 
                                 {/* Footer */}
                                 <div className="flex items-center justify-between pt-4 mt-4 border-t border-gray-100 dark:border-slate-700">
-                                  <div className="flex items-center space-x-2">
-                                    {post.author.avatar ? (
-                                      <Image
-                                        src={post.author.avatar}
-                                        alt={post.author.name}
-                                        width={28}
-                                        height={28}
-                                        className="rounded-full"
-                                      />
-                                    ) : (
-                                      <div className="w-6 h-6 bg-gradient-to-br from-emerald-400 to-blue-500 rounded-full flex items-center justify-center">
-                                        <User className="h-3 w-3 text-white" />
+                                  {(() => {
+                                    const authorDisplayName = post.authorDisplayName || post.author.displayName || post.author.name;
+                                    const authorAvatar = post.authorAvatarUrl || post.author.avatarUrl || post.author.avatar;
+                                    const authorIsVerified = post.authorIsVerified || post.author.isVerified;
+                                    return (
+                                      <div className="flex items-center space-x-2">
+                                        <div className="relative">
+                                          {authorAvatar ? (
+                                            <Image
+                                              src={authorAvatar}
+                                              alt={authorDisplayName}
+                                              width={28}
+                                              height={28}
+                                              className="rounded-full"
+                                            />
+                                          ) : (
+                                            <div className="w-6 h-6 bg-gradient-to-br from-emerald-400 to-blue-500 rounded-full flex items-center justify-center">
+                                              <User className="h-3 w-3 text-white" />
+                                            </div>
+                                          )}
+                                          {authorIsVerified && (
+                                            <div className="absolute -bottom-0.5 -right-0.5 bg-blue-500 rounded-full p-0.5">
+                                              <BadgeCheck className="h-2 w-2 text-white" />
+                                            </div>
+                                          )}
+                                        </div>
+                                        <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 font-medium">{authorDisplayName}</span>
                                       </div>
-                                    )}
-                                    <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 font-medium">{post.author.name}</span>
-                                  </div>
+                                    );
+                                  })()}
                                   
                                   <div className="flex items-center space-x-3 text-xs text-gray-500 dark:text-gray-500">
                                     <div className="flex items-center space-x-1">

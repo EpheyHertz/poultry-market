@@ -42,7 +42,22 @@ export default function AuthorLayout({ children }: AuthorLayoutProps) {
   const router = useRouter();
   const pathname = usePathname();
 
+  // Check if this is a public author profile page (e.g., /author/johndoe)
+  // Public profile routes don't need authentication
+  const isPublicProfilePage = pathname && 
+    pathname.startsWith('/author/') && 
+    !pathname.startsWith('/author/dashboard') &&
+    !pathname.startsWith('/author/posts') &&
+    !pathname.startsWith('/author/analytics') &&
+    !pathname.startsWith('/author/profile');
+
   useEffect(() => {
+    // Skip auth check for public profile pages
+    if (isPublicProfilePage) {
+      setLoading(false);
+      return;
+    }
+
     const checkAuth = async () => {
       try {
         const response = await fetch('/api/auth/me');
@@ -67,7 +82,12 @@ export default function AuthorLayout({ children }: AuthorLayoutProps) {
     };
     
     checkAuth();
-  }, [router]);
+  }, [router, isPublicProfilePage]);
+
+  // For public profile pages, just render the children without the dashboard layout
+  if (isPublicProfilePage) {
+    return <>{children}</>;
+  }
 
   const handleLogout = async () => {
     try {

@@ -44,7 +44,9 @@ import {
   Sparkles,
   Settings,
   LayoutDashboard,
-  FileText
+  FileText,
+  BadgeCheck,
+  Github
 } from 'lucide-react';
 import { toast } from 'sonner';
 import MarkdownExcerpt from '@/components/blog/markdown-excerpt';
@@ -83,6 +85,25 @@ interface AuthorProfile {
   linkedin?: string;
   facebook?: string;
   createdAt: string;
+  // AuthorProfile fields
+  displayName?: string | null;
+  username?: string | null;
+  avatarUrl?: string | null;
+  coverImageUrl?: string | null;
+  tagline?: string | null;
+  twitterHandle?: string | null;
+  linkedinUrl?: string | null;
+  githubUsername?: string | null;
+  isVerified?: boolean;
+  // Social links object from API
+  socialLinks?: {
+    twitter?: string | null;
+    linkedin?: string | null;
+    github?: string | null;
+    facebook?: string | null;
+    instagram?: string | null;
+    youtube?: string | null;
+  } | null;
   _count: {
     blogPosts: number;
     followers: number;
@@ -430,7 +451,7 @@ export default function AuthorProfilePage({ params }: Props) {
             <ChevronRight className="h-4 w-4" />
             <span className="text-gray-900 dark:text-white font-medium">Authors</span>
             <ChevronRight className="h-4 w-4" />
-            <span className="text-gray-900 dark:text-white font-medium truncate">{author.name}</span>
+            <span className="text-gray-900 dark:text-white font-medium truncate">{author.displayName || author.name}</span>
           </div>
         </div>
       </div>
@@ -453,10 +474,10 @@ export default function AuthorProfilePage({ params }: Props) {
           >
             {/* Author Avatar */}
             <div className="relative inline-block mb-6">
-              {author.avatar ? (
+              {(author.avatarUrl || author.avatar) ? (
                 <Image
-                  src={author.avatar}
-                  alt={author.name}
+                  src={author.avatarUrl || author.avatar || ''}
+                  alt={author.displayName || author.name}
                   width={120}
                   height={120}
                   className="rounded-full mx-auto ring-4 ring-white dark:ring-gray-800 shadow-2xl"
@@ -467,24 +488,178 @@ export default function AuthorProfilePage({ params }: Props) {
                 </div>
               )}
               
+              {/* Verified Badge */}
+              {author.isVerified && (
+                <div className="absolute bottom-2 right-2 w-8 h-8 bg-blue-500 rounded-full border-4 border-white dark:border-gray-800 flex items-center justify-center">
+                  <BadgeCheck className="h-4 w-4 text-white" />
+                </div>
+              )}
+              
               {/* Online indicator */}
-              <div className="absolute bottom-2 right-2 w-6 h-6 bg-green-500 rounded-full border-4 border-white dark:border-gray-800"></div>
+              {!author.isVerified && (
+                <div className="absolute bottom-2 right-2 w-6 h-6 bg-green-500 rounded-full border-4 border-white dark:border-gray-800"></div>
+              )}
             </div>
 
             {/* Author Info */}
             <div className="space-y-4 mb-8">
               <div>
-                <div className="flex items-center justify-center gap-3 flex-wrap mb-4">
-                  <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 dark:text-white mb-6">
-                    {author.name}
+                {/* Name and Badges */}
+                <div className="flex items-center justify-center gap-2 sm:gap-3 flex-wrap mb-2">
+                  <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 dark:text-white">
+                    {author.displayName || author.name}
                   </h1>
+                  {author.isVerified && (
+                    <Badge className="gap-1 bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300 border-0 text-xs sm:text-sm px-2 sm:px-3 py-0.5 sm:py-1">
+                      <BadgeCheck className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                      <span className="hidden xs:inline">Verified</span> Author
+                    </Badge>
+                  )}
                   {currentUser && currentUser.id === author.id && (
-                    <Badge className="gap-1 bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300 border-0 text-sm px-3 py-1">
-                      <User className="h-3.5 w-3.5" />
+                    <Badge className="gap-1 bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300 border-0 text-xs sm:text-sm px-2 sm:px-3 py-0.5 sm:py-1">
+                      <User className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                       Your Profile
                     </Badge>
                   )}
                 </div>
+                
+                {/* Username - Always visible if available */}
+                {author.username ? (
+                  <Link 
+                    href={`/author/${author.username}`}
+                    className="inline-flex items-center gap-1 text-base sm:text-lg text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors font-medium mb-3"
+                    title={`View ${author.displayName || author.name}'s public profile`}
+                  >
+                    @{author.username}
+                  </Link>
+                ) : (
+                  <p className="text-base sm:text-lg text-gray-500 dark:text-gray-400 mb-3">
+                    Author ID: {author.id.slice(0, 8)}...
+                  </p>
+                )}
+                
+                {/* Tagline */}
+                {author.tagline && (
+                  <p className="text-gray-600 dark:text-gray-300 text-base sm:text-lg max-w-2xl mx-auto mb-4 italic">
+                    &ldquo;{author.tagline}&rdquo;
+                  </p>
+                )}
+                
+                {/* Bio */}
+                <p className="text-base sm:text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto leading-relaxed mb-6">
+                  {author.bio || 'Passionate poultry farmer and industry expert sharing knowledge and experiences.'}
+                </p>
+
+                {/* Professional Social Links - SEO Optimized */}
+                <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 mb-6">
+                  {author.website && (
+                    <a 
+                      href={author.website.startsWith('http') ? author.website : `https://${author.website}`}
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-full bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-all duration-200 text-sm font-medium shadow-sm hover:shadow-md"
+                      title={`Visit ${author.displayName || author.name}'s website`}
+                      aria-label={`Visit ${author.displayName || author.name}'s personal website`}
+                    >
+                      <Globe className="h-4 w-4" />
+                      <span className="hidden sm:inline">Website</span>
+                    </a>
+                  )}
+                  
+                  {(author.socialLinks?.twitter || author.twitter || author.twitterHandle) && (
+                    <a 
+                      href={`https://twitter.com/${(author.socialLinks?.twitter || author.twitter || author.twitterHandle || '').replace('@', '')}`}
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-full bg-sky-50 dark:bg-sky-900/30 text-sky-600 dark:text-sky-300 hover:bg-sky-100 dark:hover:bg-sky-900/50 transition-all duration-200 text-sm font-medium shadow-sm hover:shadow-md"
+                      title={`Follow ${author.displayName || author.name} on Twitter/X`}
+                      aria-label={`Follow ${author.displayName || author.name} on Twitter`}
+                    >
+                      <Twitter className="h-4 w-4" />
+                      <span className="hidden sm:inline">Twitter</span>
+                    </a>
+                  )}
+                  
+                  {(author.socialLinks?.linkedin || author.linkedin || author.linkedinUrl) && (
+                    <a 
+                      href={(() => {
+                        const linkedin = author.socialLinks?.linkedin || author.linkedin || author.linkedinUrl || '';
+                        return linkedin.startsWith('http') ? linkedin : `https://linkedin.com/in/${linkedin}`;
+                      })()}
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-all duration-200 text-sm font-medium shadow-sm hover:shadow-md"
+                      title={`Connect with ${author.displayName || author.name} on LinkedIn`}
+                      aria-label={`Connect with ${author.displayName || author.name} on LinkedIn`}
+                    >
+                      <Linkedin className="h-4 w-4" />
+                      <span className="hidden sm:inline">LinkedIn</span>
+                    </a>
+                  )}
+                  
+                  {(author.socialLinks?.github || author.githubUsername) && (
+                    <a 
+                      href={`https://github.com/${author.socialLinks?.github || author.githubUsername}`}
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200 text-sm font-medium shadow-sm hover:shadow-md"
+                      title={`View ${author.displayName || author.name}'s GitHub profile`}
+                      aria-label={`View ${author.displayName || author.name}'s GitHub repositories`}
+                    >
+                      <Github className="h-4 w-4" />
+                      <span className="hidden sm:inline">GitHub</span>
+                    </a>
+                  )}
+                  
+                  {(author.socialLinks?.facebook || author.facebook) && (
+                    <a 
+                      href={(() => {
+                        const fb = author.socialLinks?.facebook || author.facebook || '';
+                        return fb.startsWith('http') ? fb : `https://facebook.com/${fb}`;
+                      })()}
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-all duration-200 text-sm font-medium shadow-sm hover:shadow-md"
+                      title={`Follow ${author.displayName || author.name} on Facebook`}
+                      aria-label={`Follow ${author.displayName || author.name} on Facebook`}
+                    >
+                      <Facebook className="h-4 w-4" />
+                      <span className="hidden sm:inline">Facebook</span>
+                    </a>
+                  )}
+                  
+                  {author.email && (
+                    <a 
+                      href={`mailto:${author.email}`}
+                      className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-full bg-orange-50 dark:bg-orange-900/30 text-orange-600 dark:text-orange-300 hover:bg-orange-100 dark:hover:bg-orange-900/50 transition-all duration-200 text-sm font-medium shadow-sm hover:shadow-md"
+                      title={`Email ${author.displayName || author.name}`}
+                      aria-label={`Send email to ${author.displayName || author.name}`}
+                    >
+                      <Mail className="h-4 w-4" />
+                      <span className="hidden sm:inline">Contact</span>
+                    </a>
+                  )}
+                </div>
+
+                {/* Meta Info - Location & Join Date */}
+                <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                  {author.location && (
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-100 dark:bg-gray-800">
+                      <MapPin className="h-3.5 w-3.5 text-red-500" />
+                      <span>{author.location}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-100 dark:bg-gray-800">
+                    <Calendar className="h-3.5 w-3.5 text-purple-500" />
+                    <span>Joined {formatDate(author.createdAt)}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-100 dark:bg-gray-800">
+                    <BookOpen className="h-3.5 w-3.5 text-emerald-500" />
+                    <span>{author._count.blogPosts} {author._count.blogPosts === 1 ? 'article' : 'articles'}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
 
               {/* Creator Services Hub */}
               <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 -mt-10 relative z-10">
@@ -492,7 +667,7 @@ export default function AuthorProfilePage({ params }: Props) {
                   <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-600 dark:text-emerald-400">Creator services</p>
-                      <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mt-2">{currentUser && currentUser.id === author.id ? 'Your personal control center' : `${author.name}'s content hub`}</h2>
+                      <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mt-2">{currentUser && currentUser.id === author.id ? 'Your personal control center' : `${author.displayName || author.name}'s content hub`}</h2>
                       <p className="text-gray-600 dark:text-gray-400 mt-2 max-w-2xl">
                         {currentUser && currentUser.id === author.id 
                           ? 'Launch new stories, monitor performance, and request support without leaving this page.'
@@ -632,7 +807,7 @@ export default function AuthorProfilePage({ params }: Props) {
                               <div className="flex-1 min-w-0">
                                 <p className="text-xs text-gray-500 dark:text-gray-400">#{index + 1}</p>
                                 <Link
-                                  href={`/blog/${author.name.replace(/\s+/g, '-').toLowerCase()}/${post.slug}`}
+                                  href={`/blog/${author.username || author.name.replace(/\s+/g, '-').toLowerCase()}/${post.slug}`}
                                   className="font-semibold text-sm text-gray-900 dark:text-white line-clamp-2 hover:text-emerald-600 dark:hover:text-emerald-400"
                                 >
                                   {post.title}
@@ -685,41 +860,6 @@ export default function AuthorProfilePage({ params }: Props) {
                   </div>
                 </section>
               )}
-                <p className="text-lg sm:text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto leading-relaxed">
-                  {author.bio || 'Passionate poultry farmer and industry expert sharing knowledge and experiences.'}
-                </p>
-              </div>
-
-              {/* Contact Info */}
-              <div className="flex flex-wrap items-center justify-center gap-4 text-sm text-gray-600 dark:text-gray-400">
-                {author.location && (
-                  <div className="flex items-center gap-1">
-                    <MapPin className="h-4 w-4" />
-                    <span>{author.location}</span>
-                  </div>
-                )}
-                <div className="flex items-center gap-1">
-                  <Calendar className="h-4 w-4" />
-                  <span>Joined {formatDate(author.createdAt)}</span>
-                </div>
-                {author.email && (
-                  <div className="flex items-center gap-1">
-                    <Mail className="h-4 w-4" />
-                    <a href={`mailto:${author.email}`} className="hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors">
-                      Contact
-                    </a>
-                  </div>
-                )}
-                {author.website && (
-                  <div className="flex items-center gap-1">
-                    <Globe className="h-4 w-4" />
-                    <a href={author.website} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors">
-                      Website
-                    </a>
-                  </div>
-                )}
-              </div>
-            </div>
 
             {/* Stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto mb-8">
@@ -793,45 +933,35 @@ export default function AuthorProfilePage({ params }: Props) {
             </div>
 
             {/* Action Buttons */}
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 flex-wrap">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 flex-wrap">
               {/* Owner-specific controls */}
               {currentUser && currentUser.id === author.id ? (
                 <>
                   <Button
                     asChild
-                    className="px-6 py-3 text-base font-medium bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
+                    className="w-full sm:w-auto px-4 sm:px-6 py-2.5 sm:py-3 text-sm sm:text-base font-medium bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
                   >
                     <Link href="/author/dashboard">
-                      <LayoutDashboard className="h-5 w-5 mr-2" />
+                      <LayoutDashboard className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
                       Dashboard
                     </Link>
                   </Button>
                   <Button
                     variant="outline"
                     asChild
-                    className="px-6 py-3 text-base font-medium bg-white/80 dark:bg-gray-800/80 hover:bg-white dark:hover:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
+                    className="w-full sm:w-auto px-4 sm:px-6 py-2.5 sm:py-3 text-sm sm:text-base font-medium bg-white/80 dark:bg-gray-800/80 hover:bg-white dark:hover:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
                   >
                     <Link href="/author/profile/edit">
-                      <Settings className="h-5 w-5 mr-2" />
+                      <Settings className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
                       Edit Profile
                     </Link>
                   </Button>
                   <Button
-                    variant="outline"
                     asChild
-                    className="px-6 py-3 text-base font-medium bg-white/80 dark:bg-gray-800/80 hover:bg-white dark:hover:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
-                  >
-                    <Link href="/my-blogs">
-                      <FileText className="h-5 w-5 mr-2" />
-                      Manage Posts
-                    </Link>
-                  </Button>
-                  <Button
-                    asChild
-                    className="px-6 py-3 text-base font-medium bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
+                    className="w-full sm:w-auto px-4 sm:px-6 py-2.5 sm:py-3 text-sm sm:text-base font-medium bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
                   >
                     <Link href="/author/posts/new">
-                      <PenTool className="h-5 w-5 mr-2" />
+                      <PenTool className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
                       New Post
                     </Link>
                   </Button>
@@ -842,7 +972,7 @@ export default function AuthorProfilePage({ params }: Props) {
                     userId={author.id}
                     initialFollowing={isFollowing}
                     onFollowChange={setIsFollowing}
-                    className="px-8 py-3 text-lg font-medium bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
+                    className="w-full sm:w-auto px-6 sm:px-8 py-2.5 sm:py-3 text-base sm:text-lg font-medium bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
                   />
                 )
               )}
@@ -850,36 +980,11 @@ export default function AuthorProfilePage({ params }: Props) {
               <Button
                 variant="outline"
                 onClick={() => router.push('/blog')}
-                className="px-8 py-3 text-lg font-medium bg-white/80 dark:bg-gray-800/80 hover:bg-white dark:hover:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
+                className="w-full sm:w-auto px-6 sm:px-8 py-2.5 sm:py-3 text-base sm:text-lg font-medium bg-white/80 dark:bg-gray-800/80 hover:bg-white dark:hover:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
               >
-                <ArrowLeft className="h-5 w-5 mr-2" />
+                <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
                 Back to Blog
               </Button>
-              
-              {/* Social Links */}
-              <div className="flex items-center space-x-2">
-                {author.website && (
-                  <Button variant="ghost" size="sm" asChild>
-                    <a href={author.website} target="_blank" rel="noopener noreferrer" className="text-gray-600 dark:text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors">
-                      <Globe className="h-4 w-4" />
-                    </a>
-                  </Button>
-                )}
-                {author.twitter && (
-                  <Button variant="ghost" size="sm" asChild>
-                    <a href={`https://twitter.com/${author.twitter}`} target="_blank" rel="noopener noreferrer" className="text-gray-600 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 transition-colors">
-                      <Twitter className="h-4 w-4" />
-                    </a>
-                  </Button>
-                )}
-                {author.linkedin && (
-                  <Button variant="ghost" size="sm" asChild>
-                    <a href={author.linkedin} target="_blank" rel="noopener noreferrer" className="text-gray-600 dark:text-gray-400 hover:text-blue-700 dark:hover:text-blue-400 transition-colors">
-                      <Linkedin className="h-4 w-4" />
-                    </a>
-                  </Button>
-                )}
-              </div>
             </div>
           </motion.div>
         </div>
@@ -1049,7 +1154,7 @@ export default function AuthorProfilePage({ params }: Props) {
                           </div>
                         )}
 
-                        <Link href={`/blog/${author.name.replace(/\s+/g, '-').toLowerCase()}/${post.slug}`}>
+                        <Link href={`/blog/${author.username || author.name.replace(/\s+/g, '-').toLowerCase()}/${post.slug}`}>
                           <h3 className="font-bold text-xl text-gray-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors line-clamp-2 cursor-pointer">
                             {post.title}
                           </h3>
@@ -1216,7 +1321,7 @@ export default function AuthorProfilePage({ params }: Props) {
                   {author._count.followers} {author._count.followers === 1 ? 'Follower' : 'Followers'}
                 </h3>
                 <p className="text-gray-600 dark:text-gray-400 max-w-md mx-auto">
-                  People who follow {author.name} to stay updated with their latest articles and insights
+                  People who follow {author.displayName || author.name} to stay updated with their latest articles and insights
                 </p>
               </div>
 
@@ -1289,7 +1394,7 @@ export default function AuthorProfilePage({ params }: Props) {
                 </div>
                 <h4 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Follower Directory</h4>
                 <p className="text-gray-600 dark:text-gray-400 mb-4">
-                  We&apos;re working on a feature to showcase {author.name}&apos;s community of followers. 
+                  We&apos;re working on a feature to showcase {author.displayName || author.name}&apos;s community of followers. 
                   This will include detailed follower profiles and engagement metrics.
                 </p>
                 <Badge className="bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300 px-4 py-2">Coming Soon</Badge>
@@ -1319,7 +1424,7 @@ export default function AuthorProfilePage({ params }: Props) {
                   Following {author._count.following} {author._count.following === 1 ? 'Person' : 'People'}
                 </h3>
                 <p className="text-gray-600 dark:text-gray-400 max-w-md mx-auto">
-                  Authors and experts that {author.name} follows for inspiration and industry insights
+                  Authors and experts that {author.displayName || author.name} follows for inspiration and industry insights
                 </p>
               </div>
 
@@ -1392,7 +1497,7 @@ export default function AuthorProfilePage({ params }: Props) {
                 </div>
                 <h4 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Following Network</h4>
                 <p className="text-gray-600 dark:text-gray-400 mb-4">
-                  Soon you&apos;ll be able to explore who {author.name} follows, discover new authors, 
+                  Soon you&apos;ll be able to explore who {author.displayName || author.name} follows, discover new authors, 
                   and build your own network within the poultry farming community.
                 </p>
                 <Badge className="bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-300 px-4 py-2">Coming Soon</Badge>

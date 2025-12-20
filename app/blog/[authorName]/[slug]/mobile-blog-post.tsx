@@ -42,9 +42,41 @@ import TableOfContents from '@/components/blog/table-of-contents';
 import AuthorCard from '@/components/blog/author-card';
 import { ThemeToggle } from '@/components/theme';
 
+// Extended interfaces to support AuthorProfile data
+interface ExtendedAuthor {
+  id: string;
+  name: string;
+  displayName?: string | null;
+  username?: string | null;
+  email?: string;
+  avatar?: string | null;
+  avatarUrl?: string | null;
+  role?: string;
+  bio?: string | null;
+  tagline?: string | null;
+  website?: string | null;
+  location?: string | null;
+  socialLinks?: any;
+  isVerified?: boolean;
+  _count?: {
+    blogPosts?: number;
+    followers?: number;
+    following?: number;
+  };
+}
+
+interface ExtendedBlogPost extends Omit<BlogPost, 'author'> {
+  author: ExtendedAuthor;
+  authorUsername?: string | null;
+  authorDisplayName?: string | null;
+  authorAvatarUrl?: string | null;
+  authorBio?: string | null;
+  authorIsVerified?: boolean;
+}
+
 interface BlogPostPageProps {
-  post: BlogPost;
-  relatedPosts?: BlogPost[];
+  post: ExtendedBlogPost;
+  relatedPosts?: ExtendedBlogPost[];
 }
 
 function MobileBlogPost({ post, relatedPosts = [] }: BlogPostPageProps) {
@@ -58,6 +90,18 @@ function MobileBlogPost({ post, relatedPosts = [] }: BlogPostPageProps) {
   const [isContentExpanded, setIsContentExpanded] = useState(false);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [isNearBottom, setIsNearBottom] = useState(false);
+  
+  // Get author display info from AuthorProfile data
+  const authorDisplayName = post.authorDisplayName || post.author.displayName || post.author.name;
+  const authorUsername = post.authorUsername || post.author.username;
+  const authorAvatar = post.authorAvatarUrl || post.author.avatarUrl || post.author.avatar;
+  const authorBio = post.authorBio || post.author.bio;
+  const authorIsVerified = post.authorIsVerified || post.author.isVerified;
+  
+  // Build author profile URL - prefer username-based URL
+  const authorProfileUrl = authorUsername 
+    ? `/author/${authorUsername}` 
+    : `/blog/author/${post.author.id}`;
   
   // Check if content is long enough to need expand/collapse (more than ~800 chars)
   const isLongContent = (post.content || '').length > 800;
@@ -212,10 +256,13 @@ function MobileBlogPost({ post, relatedPosts = [] }: BlogPostPageProps) {
                 </Link>
                 <ChevronRight className="h-3 w-3 flex-shrink-0 text-gray-400 dark:text-slate-600" />
                 <Link 
-                  href={`/blog/author/${post.author.id}`}
-                  className="hover:text-emerald-600 transition-colors truncate dark:hover:text-emerald-400 font-medium"
+                  href={authorProfileUrl}
+                  className="hover:text-emerald-600 transition-colors truncate dark:hover:text-emerald-400 font-medium inline-flex items-center gap-1"
                 >
-                  {post.author.name}
+                  {authorDisplayName}
+                  {authorIsVerified && (
+                    <span className="h-3 w-3 text-emerald-500">✓</span>
+                  )}
                 </Link>
                 
                 {/* Desktop only - Full breadcrumb */}
@@ -331,10 +378,10 @@ function MobileBlogPost({ post, relatedPosts = [] }: BlogPostPageProps) {
             <div className="flex items-center gap-3 sm:gap-4">
               <div className="relative avatar-ring">
                 <div className="h-12 w-12 sm:h-14 sm:w-14 bg-gradient-to-br from-emerald-400 via-emerald-500 to-teal-600 rounded-full flex items-center justify-center flex-shrink-0 shadow-lg shadow-emerald-500/30 ring-2 ring-white dark:ring-slate-900">
-                  {post.author.avatar ? (
+                  {authorAvatar ? (
                     <Image
-                      src={post.author.avatar}
-                      alt={post.author.name}
+                      src={authorAvatar}
+                      alt={authorDisplayName}
                       width={56}
                       height={56}
                       className="rounded-full object-cover"
@@ -347,11 +394,17 @@ function MobileBlogPost({ post, relatedPosts = [] }: BlogPostPageProps) {
               </div>
               <div className="min-w-0 flex-1">
                 <Link 
-                  href={`/blog/author/${post.author.id}`} 
-                  className="font-semibold text-gray-900 hover:text-emerald-600 transition-colors block dark:text-slate-100 dark:hover:text-emerald-400 text-base"
+                  href={authorProfileUrl} 
+                  className="font-semibold text-gray-900 hover:text-emerald-600 transition-colors flex items-center gap-1.5 dark:text-slate-100 dark:hover:text-emerald-400 text-base"
                 >
-                  {post.author.name}
+                  {authorDisplayName}
+                  {authorIsVerified && (
+                    <span className="text-emerald-500 text-sm">✓</span>
+                  )}
                 </Link>
+                {authorUsername && (
+                  <p className="text-xs text-gray-500 dark:text-slate-500">@{authorUsername}</p>
+                )}
                 {post.author._count && (
                   <p className="text-xs text-gray-500 dark:text-slate-500 flex items-center gap-2">
                     <span className="flex items-center gap-1">
@@ -533,10 +586,10 @@ function MobileBlogPost({ post, relatedPosts = [] }: BlogPostPageProps) {
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5 sm:gap-8">
                 <div className="relative avatar-ring">
                   <div className="h-20 w-20 sm:h-24 sm:w-24 bg-gradient-to-br from-emerald-400 via-emerald-500 to-teal-600 rounded-full flex items-center justify-center flex-shrink-0 shadow-xl shadow-emerald-500/30 ring-4 ring-white dark:ring-slate-900">
-                    {post.author.avatar ? (
+                    {authorAvatar ? (
                       <Image
-                        src={post.author.avatar}
-                        alt={post.author.name}
+                        src={authorAvatar}
+                        alt={authorDisplayName}
                         width={96}
                         height={96}
                         className="rounded-full object-cover"
@@ -545,17 +598,27 @@ function MobileBlogPost({ post, relatedPosts = [] }: BlogPostPageProps) {
                       <User className="h-10 w-10 sm:h-12 sm:w-12 text-white" />
                     )}
                   </div>
-                  <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-green-400 rounded-full border-3 border-white dark:border-slate-900 pulse-glow" />
+                  {authorIsVerified && (
+                    <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-emerald-500 rounded-full border-3 border-white dark:border-slate-900 flex items-center justify-center">
+                      <span className="text-white text-xs">✓</span>
+                    </div>
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-slate-100 mb-2">
-                    <Link href={`/blog/author/${post.author.id}`} className="hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors">
-                      {post.author.name}
+                  <h3 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-slate-100 mb-1">
+                    <Link href={authorProfileUrl} className="hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors inline-flex items-center gap-2">
+                      {authorDisplayName}
+                      {authorIsVerified && (
+                        <span className="text-emerald-500 text-lg">✓</span>
+                      )}
                     </Link>
                   </h3>
-                  {post.author.bio && (
+                  {authorUsername && (
+                    <p className="text-sm text-gray-500 dark:text-slate-500 mb-2">@{authorUsername}</p>
+                  )}
+                  {authorBio && (
                     <p className="text-sm sm:text-base text-gray-600 dark:text-slate-400 mb-4 leading-relaxed line-clamp-2">
-                      {post.author.bio}
+                      {authorBio}
                     </p>
                   )}
                   <div className="flex flex-wrap items-center gap-4 sm:gap-6">
@@ -615,7 +678,13 @@ function MobileBlogPost({ post, relatedPosts = [] }: BlogPostPageProps) {
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
               {relatedPosts.slice(0, 3).map((relatedPost, index) => {
-                const authorName = relatedPost.author.name.replace(/\s+/g, '-').toLowerCase();
+                // Use username-based URL if available, otherwise fall back to authorName
+                const relatedAuthorUsername = relatedPost.authorUsername || relatedPost.author.username;
+                const relatedPostUrl = relatedAuthorUsername 
+                  ? `/blog/${relatedAuthorUsername}/${relatedPost.slug}`
+                  : `/blog/${relatedPost.author.name?.replace(/\s+/g, '-').toLowerCase()}/${relatedPost.slug}`;
+                const relatedAuthorDisplayName = relatedPost.authorDisplayName || relatedPost.author.displayName || relatedPost.author.name;
+                
                 return (
                   <motion.div
                     key={relatedPost.id}
@@ -626,7 +695,7 @@ function MobileBlogPost({ post, relatedPosts = [] }: BlogPostPageProps) {
                     className="group"
                   >
                     <Link
-                      href={`/blog/${authorName}/${relatedPost.slug}`}
+                      href={relatedPostUrl}
                       className="block rounded-2xl border border-gray-200/60 bg-white overflow-hidden transition-all duration-300 hover:shadow-xl hover:shadow-emerald-500/10 hover:border-emerald-200/60 dark:border-slate-800/60 dark:bg-slate-900/80 dark:hover:border-emerald-500/30 dark:hover:shadow-emerald-500/20"
                     >
                       {relatedPost.featuredImage && (

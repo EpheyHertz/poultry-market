@@ -13,25 +13,65 @@ interface Params {
 
 async function getBlogPost(authorName: string, slug: string) {
   try {
-    // First, find the author by name
-    const author = await prisma.user.findFirst({
+    // Try to find by AuthorProfile username first (preferred)
+    let authorProfile = await prisma.authorProfile.findUnique({
       where: {
-        name: {
-          equals: authorName.replace(/-/g, ' '),
-          mode: 'insensitive'
-        }
+        username: authorName.toLowerCase()
+      },
+      select: {
+        id: true,
+        userId: true,
+        displayName: true,
+        username: true,
+        avatarUrl: true,
+        bio: true,
+        tagline: true,
+        website: true,
+        location: true,
+        twitterHandle: true,
+        linkedinUrl: true,
+        isVerified: true,
+        totalPosts: true,
       }
     });
 
-    if (!author) {
-      return null;
+    let authorId: string | null = null;
+    let authorProfileId: string | null = null;
+
+    if (authorProfile) {
+      // Found by username
+      authorId = authorProfile.userId;
+      authorProfileId = authorProfile.id;
+    } else {
+      // Fallback: find by User name (legacy support)
+      const author = await prisma.user.findFirst({
+        where: {
+          name: {
+            equals: authorName.replace(/-/g, ' '),
+            mode: 'insensitive'
+          }
+        },
+        include: {
+          authorProfile: true
+        }
+      });
+
+      if (!author) {
+        return null;
+      }
+
+      authorId = author.id;
+      authorProfileId = author.authorProfile?.id || null;
     }
 
-    // Then find the blog post by slug and author
+    // Find the blog post by slug and author
     const post = await prisma.blogPost.findFirst({
       where: { 
         slug,
-        authorId: author.id
+        OR: [
+          { authorId: authorId },
+          ...(authorProfileId ? [{ authorProfileId: authorProfileId }] : [])
+        ]
       },
       include: {
         author: {
@@ -49,6 +89,24 @@ async function getBlogPost(authorName: string, slug: string) {
                 following: true
               }
             }
+          }
+        },
+        authorProfile: {
+          select: {
+            id: true,
+            displayName: true,
+            username: true,
+            avatarUrl: true,
+            bio: true,
+            tagline: true,
+            website: true,
+            location: true,
+            twitterHandle: true,
+            linkedinUrl: true,
+            isVerified: true,
+            totalPosts: true,
+            totalViews: true,
+            totalLikes: true
           }
         },
         tags: {
@@ -112,7 +170,33 @@ async function getBlogPost(authorName: string, slug: string) {
       data: { viewCount: { increment: 1 } }
     });
 
-    return post;
+    // Transform to use AuthorProfile data preferentially
+    const transformedPost = {
+      ...post,
+      // Add AuthorProfile fields for easy access
+      authorUsername: post.authorProfile?.username || null,
+      authorDisplayName: post.authorProfile?.displayName || post.author.name,
+      authorAvatarUrl: post.authorProfile?.avatarUrl || post.author.avatar,
+      authorBio: post.authorProfile?.bio || post.author.bio,
+      authorIsVerified: post.authorProfile?.isVerified || false,
+      // Override author object with combined data
+      author: {
+        ...post.author,
+        displayName: post.authorProfile?.displayName || post.author.name,
+        username: post.authorProfile?.username || null,
+        avatarUrl: post.authorProfile?.avatarUrl || post.author.avatar,
+        isVerified: post.authorProfile?.isVerified || false,
+        tagline: post.authorProfile?.tagline || null,
+        website: post.authorProfile?.website || null,
+        location: post.authorProfile?.location || null,
+        socialLinks: post.authorProfile ? {
+          twitter: post.authorProfile.twitterHandle,
+          linkedin: post.authorProfile.linkedinUrl,
+        } : null,
+      }
+    };
+
+    return transformedPost;
   } catch (error) {
     console.error('Error fetching blog post:', error);
     return null;
@@ -149,6 +233,14 @@ async function getRelatedPosts(postId: string, category: string, authorId: strin
             }
           }
         },
+        authorProfile: {
+          select: {
+            displayName: true,
+            username: true,
+            avatarUrl: true,
+            isVerified: true
+          }
+        },
         tags: {
           include: {
             tag: true
@@ -183,13 +275,16 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
     };
   }
 
-  const authorName = resolvedParams.authorName;
+  // Use AuthorProfile displayName/username if available
+  const authorDisplayName = post.authorDisplayName || post.author.name;
+  const authorUsername = post.authorUsername || resolvedParams.authorName;
+  const canonicalAuthorPath = post.authorUsername || resolvedParams.authorName;
   
   return {
-    title: `${post.title} | ${resolvedParams.authorName.replace(/-/g, ' ')} | Poultry Market Kenya Connect`,
-    description: post.metaDescription || post.excerpt || `Read ${post.title} by ${resolvedParams.authorName.replace(/-/g, ' ')} on Poultry Market Kenya Connect`,
+    title: `${post.title} | ${authorDisplayName} | Poultry Market Kenya Connect`,
+    description: post.metaDescription || post.excerpt || `Read ${post.title} by ${authorDisplayName} on Poultry Market Kenya Connect`,
     keywords: post.metaKeywords,
-    authors: [{ name: resolvedParams.authorName.replace(/-/g, ' ') }],
+    authors: [{ name: authorDisplayName }],
     openGraph: {
       title: post.ogTitle || post.title,
       description: post.ogDescription || post.metaDescription || post.excerpt || '',
@@ -203,8 +298,8 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
       ] : [],
       type: 'article',
       publishedTime: post.publishedAt ? new Date(post.publishedAt).toISOString() : new Date(post.createdAt).toISOString(),
-      authors: [resolvedParams.authorName.replace(/-/g, ' ')],
-      url: `https://poultrymarketke.vercel.app/blog/${authorName}/${post.slug}`,
+      authors: [authorDisplayName],
+      url: `https://poultrymarketke.vercel.app/blog/${canonicalAuthorPath}/${post.slug}`,
     },
     twitter: {
       card: 'summary_large_image',
@@ -217,7 +312,7 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
       follow: post.status === 'PUBLISHED',
     },
     alternates: {
-      canonical: `https://poultrymarketke.vercel.app/blog/${authorName}/${post.slug}`,
+      canonical: `https://poultrymarketke.vercel.app/blog/${canonicalAuthorPath}/${post.slug}`,
     },
   };
 }
@@ -238,6 +333,30 @@ export default async function BlogPostPage({ params }: { params: Promise<Params>
   // Fetch related posts
   const relatedPosts = await getRelatedPosts(post.id, post.category, post.authorId);
 
+  // Transform related posts to include AuthorProfile data
+  const transformedRelatedPosts = relatedPosts.map(rp => ({
+    ...rp,
+    authorUsername: rp.authorProfile?.username || null,
+    authorDisplayName: rp.authorProfile?.displayName || rp.author.name,
+    authorAvatarUrl: rp.authorProfile?.avatarUrl || rp.author.avatar,
+    author: {
+      ...rp.author,
+      displayName: rp.authorProfile?.displayName || rp.author.name,
+      username: rp.authorProfile?.username || null,
+      avatarUrl: rp.authorProfile?.avatarUrl || rp.author.avatar,
+      isVerified: rp.authorProfile?.isVerified || false,
+    }
+  }));
+
+  // Use AuthorProfile data for SEO
+  const authorDisplayName = post.authorDisplayName || post.author.name;
+  const authorUsername = post.authorUsername || resolvedParams.authorName;
+  const authorAvatarUrl = post.authorAvatarUrl || post.author.avatar;
+  const authorBio = post.authorBio || post.author.bio;
+  const authorProfileUrl = post.authorUsername 
+    ? `/author/${post.authorUsername}` 
+    : `/blog/author/${post.author.id}`;
+
   // Generate structured data for SEO
   const blogPostingSchema = {
     '@context': 'https://schema.org',
@@ -247,10 +366,10 @@ export default async function BlogPostPage({ params }: { params: Promise<Params>
     image: post.featuredImage || '',
     author: {
       '@type': 'Person',
-      name: post.author.name,
-      url: `https://poultrymarketke.vercel.app/blog/author/${post.author.id}`,
-      image: post.author.avatar || undefined,
-      description: post.author.bio || undefined,
+      name: authorDisplayName,
+      url: `https://poultrymarketke.vercel.app${authorProfileUrl}`,
+      image: authorAvatarUrl || undefined,
+      description: authorBio || undefined,
     },
     publisher: {
       '@type': 'Organization',
@@ -264,7 +383,7 @@ export default async function BlogPostPage({ params }: { params: Promise<Params>
     dateModified: new Date(post.updatedAt).toISOString(),
     mainEntityOfPage: {
       '@type': 'WebPage',
-      '@id': `https://poultrymarketke.vercel.app/blog/${resolvedParams.authorName}/${post.slug}`,
+      '@id': `https://poultrymarketke.vercel.app/blog/${authorUsername}/${post.slug}`,
     },
     keywords: post.tags.map(t => t.tag.name).join(', '),
     articleSection: post.category,
@@ -293,11 +412,14 @@ export default async function BlogPostPage({ params }: { params: Promise<Params>
   const personSchema = {
     '@context': 'https://schema.org',
     '@type': 'Person',
-    name: post.author.name,
-    url: `https://poultrymarketke.vercel.app/blog/author/${post.author.id}`,
-    image: post.author.avatar || undefined,
-    description: post.author.bio || undefined,
-    sameAs: [], // Could be populated with social links if available
+    name: authorDisplayName,
+    url: `https://poultrymarketke.vercel.app${authorProfileUrl}`,
+    image: authorAvatarUrl || undefined,
+    description: authorBio || undefined,
+    sameAs: post.author.socialLinks ? [
+      post.author.socialLinks.twitter ? `https://twitter.com/${post.author.socialLinks.twitter}` : null,
+      post.author.socialLinks.linkedin || null,
+    ].filter(Boolean) : [],
   };
 
   const breadcrumbSchema = {
@@ -319,14 +441,14 @@ export default async function BlogPostPage({ params }: { params: Promise<Params>
       {
         '@type': 'ListItem',
         position: 3,
-        name: post.author.name,
-        item: `https://poultrymarketke.vercel.app/blog/${resolvedParams.authorName}`,
+        name: authorDisplayName,
+        item: `https://poultrymarketke.vercel.app${authorProfileUrl}`,
       },
       {
         '@type': 'ListItem',
         position: 4,
         name: post.title,
-        item: `https://poultrymarketke.vercel.app/blog/${resolvedParams.authorName}/${post.slug}`,
+        item: `https://poultrymarketke.vercel.app/blog/${authorUsername}/${post.slug}`,
       },
     ],
   };
@@ -346,7 +468,7 @@ export default async function BlogPostPage({ params }: { params: Promise<Params>
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
       />
       <PublicNavbar />
-      <MobileBlogPost post={post} relatedPosts={relatedPosts} />
+      <MobileBlogPost post={post} relatedPosts={transformedRelatedPosts} />
     </>
   );
 }
