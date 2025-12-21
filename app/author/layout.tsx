@@ -19,7 +19,8 @@ import {
   PenTool,
   LogOut,
   Home,
-  ExternalLink
+  ExternalLink,
+  Wallet
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -31,6 +32,7 @@ const navigation = [
   { name: 'Dashboard', href: '/author/dashboard', icon: LayoutDashboard, color: '16, 185, 129' },
   { name: 'My Posts', href: '/author/posts', icon: FileText, color: '59, 130, 246' },
   { name: 'Analytics', href: '/author/analytics', icon: BarChart3, color: '249, 115, 22' },
+  { name: 'Support', href: '/author/support/dashboard', icon: Wallet, color: '236, 72, 153' },
   { name: 'Profile', href: '/author/profile', icon: User, color: '139, 92, 246' },
 ];
 
@@ -49,7 +51,8 @@ export default function AuthorLayout({ children }: AuthorLayoutProps) {
     !pathname.startsWith('/author/dashboard') &&
     !pathname.startsWith('/author/posts') &&
     !pathname.startsWith('/author/analytics') &&
-    !pathname.startsWith('/author/profile');
+    !pathname.startsWith('/author/profile') &&
+    !pathname.startsWith('/author/support');
 
   useEffect(() => {
     // Skip auth check for public profile pages
@@ -249,7 +252,10 @@ export default function AuthorLayout({ children }: AuthorLayoutProps) {
           {/* Navigation */}
           <nav className="flex-1 p-4 space-y-2">
             {navigation.map((item, index) => {
-              const isActive = pathname === item.href || pathname?.startsWith(item.href + '/');
+              // Special handling for support page to match both /author/support/dashboard and /author/support/setup
+              const isActive = pathname === item.href || 
+                pathname?.startsWith(item.href + '/') ||
+                (item.name === 'Support' && pathname?.startsWith('/author/support'));
               return (
                 <motion.div
                   key={item.name}
