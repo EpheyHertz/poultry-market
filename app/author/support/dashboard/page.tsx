@@ -73,6 +73,11 @@ interface WalletData {
   totalWithdrawn: number;
   mpesaNumber: string | null;
   status: string;
+  currency?: string;
+  dailyWithdrawLimit?: number;
+  dailyWithdrawnAmount?: number;
+  remainingDaily?: number;
+  minWithdrawal?: number;
 }
 
 interface Transaction {
@@ -158,7 +163,54 @@ export default function AuthorSupportDashboardPage() {
       }
 
       const walletData = await walletRes.json();
-      setData(walletData);
+      
+      // Check if wallet exists
+      if (!walletData.hasWallet || !walletData.wallet) {
+        router.push('/author/support/setup');
+        return;
+      }
+      
+      // Transform API response to match expected dashboard structure
+      const transformedData: DashboardData = {
+        authorProfileId: walletData.authorProfileId,
+        wallet: {
+          id: walletData.wallet.id,
+          intasendWalletId: walletData.wallet.intasendWalletId,
+          availableBalance: walletData.wallet.balance?.available || 0,
+          pendingBalance: (walletData.wallet.balance?.current || 0) - (walletData.wallet.balance?.available || 0),
+          totalReceived: walletData.wallet.stats?.totalReceived || 0,
+          totalWithdrawn: walletData.wallet.stats?.totalWithdrawn || 0,
+          mpesaNumber: walletData.wallet.mpesaNumber,
+          status: walletData.wallet.status,
+          currency: walletData.wallet.currency,
+          dailyWithdrawLimit: walletData.wallet.limits?.dailyWithdrawLimit,
+          dailyWithdrawnAmount: walletData.wallet.limits?.dailyWithdrawnAmount,
+          remainingDaily: walletData.wallet.limits?.remainingDaily,
+          minWithdrawal: walletData.wallet.limits?.minWithdrawal,
+        },
+        stats: {
+          totalSupporters: walletData.wallet.stats?.uniqueSupporters || 0,
+          thisMonthAmount: walletData.wallet.stats?.totalReceived || 0, // Could be refined with actual month filter
+          averageSupport: walletData.wallet.stats?.transactionsCount > 0 
+            ? (walletData.wallet.stats?.totalReceived || 0) / walletData.wallet.stats.transactionsCount 
+            : 0,
+          topSupportedPost: null,
+        },
+        recentTransactions: (walletData.wallet.recentTransactions || []).map((tx: any) => ({
+          id: tx.id,
+          amount: tx.amount,
+          netAmount: tx.netAmount,
+          platformFee: tx.amount - tx.netAmount,
+          supporterName: tx.supporterName,
+          supporterEmail: null,
+          message: tx.message,
+          status: tx.status,
+          createdAt: tx.createdAt,
+          blogPost: tx.blogPost,
+        })),
+      };
+      
+      setData(transformedData);
 
       if (withdrawalsRes.ok) {
         const withdrawalsData = await withdrawalsRes.json();
