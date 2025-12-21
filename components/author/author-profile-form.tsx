@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -29,7 +30,12 @@ import {
   Loader2,
   Upload,
   AlertCircle,
-  Save
+  Save,
+  Wallet,
+  Heart,
+  ArrowRight,
+  Settings,
+  Gift
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -599,11 +605,91 @@ export default function AuthorProfileForm({ existingProfile, onSuccess }: Author
         </Card>
       </motion.div>
 
+      {/* Support & Monetization - Only show when editing */}
+      {isEditing && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+        >
+          <Card className="border-0 shadow-xl overflow-hidden dark:bg-slate-900/80 bg-gradient-to-br from-white via-white to-slate-50 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800">
+            <div className="h-1.5 bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500" />
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Heart className="h-5 w-5 text-pink-500" />
+                <span className="bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent">
+                  Reader Support & Monetization
+                </span>
+              </CardTitle>
+              <CardDescription className="text-gray-500 dark:text-gray-400">
+                Set up your wallet to receive support from readers and manage withdrawals
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Support Setup Link */}
+              <Link href="/author/support/setup" className="block">
+                <div className="group flex items-center justify-between p-4 rounded-xl border border-transparent hover:border-pink-200 dark:hover:border-pink-800 transition-all duration-300 bg-gradient-to-r from-pink-50 to-rose-50 dark:from-pink-950/30 dark:to-rose-950/30 hover:shadow-md">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 rounded-xl bg-gradient-to-br from-pink-500 to-rose-500 shadow-lg shadow-pink-500/20">
+                      <Gift className="h-5 w-5 text-white" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-gray-900 dark:text-white group-hover:text-pink-600 dark:group-hover:text-pink-400 transition-colors">
+                        Support Setup
+                      </h4>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        Configure how readers can support your work
+                      </p>
+                    </div>
+                  </div>
+                  <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-pink-500 group-hover:translate-x-1 transition-all" />
+                </div>
+              </Link>
+
+              {/* Wallet Dashboard Link */}
+              <Link href="/author/support/dashboard" className="block">
+                <div className="group flex items-center justify-between p-4 rounded-xl border border-transparent hover:border-emerald-200 dark:hover:border-emerald-800 transition-all duration-300 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 hover:shadow-md">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 shadow-lg shadow-emerald-500/20">
+                      <Wallet className="h-5 w-5 text-white" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-gray-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                        Wallet & Withdrawals
+                      </h4>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        View balance, transactions, and withdraw earnings
+                      </p>
+                    </div>
+                  </div>
+                  <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-emerald-500 group-hover:translate-x-1 transition-all" />
+                </div>
+              </Link>
+
+              {/* Info Badge */}
+              <div className="flex items-start gap-3 p-4 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 border border-blue-100 dark:border-blue-900">
+                <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/50">
+                  <AlertCircle className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm text-blue-700 dark:text-blue-300 font-medium">
+                    Enable reader support to receive tips via M-Pesa or card payments
+                  </p>
+                  <p className="text-xs text-blue-600/70 dark:text-blue-400/70 mt-1">
+                    5% platform fee applies • Minimum withdrawal KES 200
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
+
       {/* Actions */}
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.4 }}
+        transition={{ delay: isEditing ? 0.5 : 0.4 }}
         className="flex justify-end gap-4 pt-4"
       >
         <Button 

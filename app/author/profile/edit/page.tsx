@@ -96,15 +96,14 @@ export default function EditProfilePage() {
       <motion.div 
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="mb-8 p-6 rounded-2xl shadow-xl dark:bg-slate-900/80"
-        style={{ background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(59, 130, 246, 0.08) 50%, rgba(255,255,255,0.98) 100%)' }}
+        className="mb-8 p-6 rounded-2xl shadow-xl bg-gradient-to-br from-emerald-50/50 via-blue-50/50 to-white dark:from-slate-800/80 dark:via-slate-900/80 dark:to-slate-900/80 border border-gray-100 dark:border-slate-700"
       >
         <div className="flex items-center gap-4">
-          <div className="p-3 rounded-xl shadow-md" style={{ background: profile ? 'rgba(59, 130, 246, 0.15)' : 'rgba(16, 185, 129, 0.15)' }}>
+          <div className={`p-3 rounded-xl shadow-md ${profile ? "bg-blue-100 dark:bg-blue-900/50" : "bg-emerald-100 dark:bg-emerald-900/50"}`}>
             {profile ? (
-              <User className="h-6 w-6" style={{ color: 'rgba(59, 130, 246, 0.9)' }} />
+              <User className="h-6 w-6 text-blue-600 dark:text-blue-400" />
             ) : (
-              <PenTool className="h-6 w-6" style={{ color: 'rgba(16, 185, 129, 0.9)' }} />
+              <PenTool className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
             )}
           </div>
           <div>
