@@ -64,6 +64,7 @@
     "fs": "^0.0.1-security",
     "hast-util-sanitize": "^5.0.2",
     "input-otp": "^1.2.4",
+    "intasend-node": "^1.1.2",
     "jose": "^5.2.0",
     "lucide-react": "^0.446.0",
     "next": "^15.3.4",

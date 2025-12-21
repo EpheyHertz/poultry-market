@@ -272,6 +272,9 @@ model User {
   authorProfile         AuthorProfile?
   blogPostViews         BlogPostView[]    @relation("UserBlogViews")
 
+  // Author Support (as supporter)
+  supportTransactions   SupportTransaction[] @relation("SupporterTransactions")
+
   @@map("users")
 }
 
@@ -1121,6 +1124,9 @@ model AuthorProfile {
   // Relations
   blogPosts       BlogPost[] @relation("AuthorProfilePosts")
   
+  // Author Support Wallet
+  wallet          AuthorWallet?
+  
   @@map("author_profiles")
   @@index([username])
   @@index([isPublic, isVerified])
@@ -1196,6 +1202,9 @@ model BlogPost {
   comments        BlogComment[]
   likedBy         BlogPostLike[]    @relation("BlogPostLikes")
   postViews       BlogPostView[]    @relation("PostViews")
+  
+  // Support transactions from this post
+  supportTransactions SupportTransaction[] @relation("BlogPostSupport")
   
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
@@ -1373,4 +1382,165 @@ model BlogPostView {
   @@map("blog_post_views")
   @@index([postId, createdAt])
   @@index([userId])
+}
+
+// ================================
+// Author Support System Models
+// ================================
+
+enum WalletStatus {
+  ACTIVE
+  SUSPENDED
+  PENDING
+}
+
+enum SupportPaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum WithdrawalStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  REJECTED
+}
+
+model AuthorWallet {
+  id                String       @id @default(cuid())
+  authorProfileId   String       @unique
+  authorProfile     AuthorProfile @relation(fields: [authorProfileId], references: [id], onDelete: Cascade)
+  
+  // IntaSend Wallet Info
+  intasendWalletId  String       @unique  // IntaSend wallet_id
+  currency          String       @default("KES")
+  label             String                // Wallet label
+  canDisburse       Boolean      @default(true)
+  
+  // Balance (cached, synced from IntaSend)
+  currentBalance    Float        @default(0)
+  availableBalance  Float        @default(0)
+  totalReceived     Float        @default(0)
+  totalWithdrawn    Float        @default(0)
+  platformFeeTotal  Float        @default(0)  // 5% platform fee collected
+  
+  // Withdrawal settings
+  mpesaNumber       String?               // Default M-Pesa withdrawal number
+  dailyWithdrawLimit Float       @default(50000)  // Daily limit in KES
+  lastWithdrawalDate DateTime?
+  dailyWithdrawnAmount Float     @default(0)
+  
+  // Status
+  status            WalletStatus @default(ACTIVE)
+  
+  // Stats
+  supportersCount   Int          @default(0)
+  transactionsCount Int          @default(0)
+  
+  // Timestamps
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  lastSyncedAt      DateTime?             // Last time balance was synced from IntaSend
+  
+  // Relations
+  transactions      SupportTransaction[]
+  withdrawals       WithdrawalRequest[]
+  
+  @@map("author_wallets")
+  @@index([intasendWalletId])
+  @@index([status])
+}
+
+model SupportTransaction {
+  id                String              @id @default(cuid())
+  walletId          String
+  wallet            AuthorWallet        @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  
+  // Supporter info
+  supporterId       String?             // User ID if logged in
+  supporter         User?               @relation("SupporterTransactions", fields: [supporterId], references: [id], onDelete: SetNull)
+  supporterName     String?             // Name (optional)
+  supporterEmail    String?             // Email for receipt
+  isAnonymous       Boolean             @default(false)
+  
+  // Payment details
+  amount            Float               // Gross amount in KES (min 10)
+  platformFee       Float               // 5% platform fee
+  netAmount         Float               // Amount after fee (goes to author)
+  currency          String              @default("KES")
+  
+  // IntaSend tracking
+  intasendInvoiceId String?             // IntaSend invoice ID
+  intasendCheckoutId String?            // IntaSend checkout ID (for card payments)
+  mpesaReference    String?             // M-Pesa confirmation code
+  paymentMethod     String?             // MPESA_STK, CARD_CHECKOUT
+  
+  // Message to author
+  message           String?             @db.Text
+  
+  // Status
+  status            SupportPaymentStatus @default(PENDING)
+  failedReason      String?
+  
+  // Blog post reference (if supporting from specific post)
+  blogPostId        String?
+  blogPost          BlogPost?           @relation("BlogPostSupport", fields: [blogPostId], references: [id], onDelete: SetNull)
+  
+  // Timestamps
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  completedAt       DateTime?
+  
+  @@map("support_transactions")
+  @@index([walletId, status])
+  @@index([supporterId])
+  @@index([intasendInvoiceId])
+  @@index([createdAt])
+}
+
+model WithdrawalRequest {
+  id                String           @id @default(cuid())
+  walletId          String
+  wallet            AuthorWallet     @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  
+  // Withdrawal method
+  method            String           @default("MPESA_B2C") // MPESA_B2C, MPESA_B2B_PAYBILL, MPESA_B2B_TILL, BANK
+  
+  // Withdrawal details
+  amount            Float            // Amount to withdraw
+  currency          String           @default("KES")
+  
+  // M-Pesa specific fields
+  mpesaNumber       String?          // Target M-Pesa number (B2C)
+  paybillNumber     String?          // PayBill number (B2B)
+  paybillAccount    String?          // PayBill account reference (B2B)
+  tillNumber        String?          // Till number (B2B)
+  
+  // Bank specific fields
+  bankName          String?          // Beneficiary bank name
+  bankCode          String?          // Bank code for PesaLink
+  bankAccount       String?          // Bank account number
+  accountName       String?          // Name on bank account
+  
+  // IntaSend tracking
+  intasendPayoutId  String?          // IntaSend payout ID
+  intasendBatchId   String?          // IntaSend batch ID
+  mpesaReference    String?          // M-Pesa/Bank confirmation reference
+  
+  // Status
+  status            WithdrawalStatus @default(PENDING)
+  statusCode        String?          // IntaSend status code (TS100, TF106, etc.)
+  failedReason      String?
+  processedAt       DateTime?
+  
+  // Timestamps
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  
+  @@map("withdrawal_requests")
+  @@index([walletId, status])
+  @@index([createdAt])
 }

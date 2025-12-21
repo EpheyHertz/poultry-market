@@ -34,6 +34,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import BlogComments from '@/components/blog/blog-comments';
 import LikeButton from '@/components/blog/like-button';
 import FollowButton from '@/components/blog/follow-button';
+import SupportButton from '@/components/blog/SupportButton';
 import { BlogPost, BLOG_CATEGORIES } from '@/types/blog';
 import MarkdownExcerpt from '@/components/blog/markdown-excerpt';
 import MarkdownContent from '@/components/blog/markdown-content';
@@ -483,9 +484,20 @@ function MobileBlogPost({ post, relatedPosts = [] }: BlogPostPageProps) {
           </div>
 
           {/* Follow Button */}
-          {!isOwnPost && (
-            <FollowButton userId={post.author.id} />
-          )}
+          <div className="flex items-center gap-3">
+            {!isOwnPost && (
+              <>
+                <FollowButton userId={post.author.id} />
+                <SupportButton 
+                  authorId={post.author.id}
+                  authorName={authorDisplayName}
+                  blogPostId={post.id}
+                  blogPostTitle={post.title}
+                  variant="default"
+                />
+              </>
+            )}
+          </div>
         </motion.div>
 
         {/* Article Content - Mobile Responsive with Premium Styling */}
@@ -643,8 +655,15 @@ function MobileBlogPost({ post, relatedPosts = [] }: BlogPostPageProps) {
                   </div>
                 </div>
                 {!isOwnPost && (
-                  <div className="flex-shrink-0 w-full sm:w-auto">
+                  <div className="flex-shrink-0 w-full sm:w-auto flex flex-col sm:flex-row gap-2">
                     <FollowButton userId={post.author.id} />
+                    <SupportButton 
+                      authorId={post.author.id}
+                      authorName={authorDisplayName}
+                      blogPostId={post.id}
+                      blogPostTitle={post.title}
+                      variant="compact"
+                    />
                   </div>
                 )}
               </div>
