@@ -82,6 +82,11 @@ export function SupportButton({
   const [paymentMethod, setPaymentMethod] = useState<'MPESA_STK' | 'CARD_CHECKOUT'>('MPESA_STK');
   const [paymentStatus, setPaymentStatus] = useState<'idle' | 'pending' | 'success' | 'failed'>('idle');
   const [transactionId, setTransactionId] = useState<string | null>(null);
+  
+  // Error state for better error display
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [errorAction, setErrorAction] = useState<string | null>(null);
+  const [canRetry, setCanRetry] = useState(true);
 
   // Check if author has wallet
   useEffect(() => {
@@ -110,14 +115,20 @@ export function SupportButton({
 
     const pollInterval = setInterval(async () => {
       try {
-        const response = await fetch(`/api/support/webhook?transactionId=${transactionId}`);
+        const response = await fetch(`/api/support/webhook?tx=${transactionId}`);
         const data = await response.json();
 
         if (data.status === 'COMPLETED') {
           setPaymentStatus('success');
+          setErrorMessage(null);
+          setErrorAction(null);
           clearInterval(pollInterval);
         } else if (data.status === 'FAILED' || data.status === 'CANCELLED') {
           setPaymentStatus('failed');
+          // Capture user-friendly error message from API
+          setErrorMessage(data.failedReason || 'Payment could not be completed.');
+          setErrorAction(data.actionRequired || 'Please try again.');
+          setCanRetry(data.canRetry !== false);
           clearInterval(pollInterval);
         }
       } catch (err) {
@@ -125,10 +136,14 @@ export function SupportButton({
       }
     }, 3000);
 
+    // Timeout after 2 minutes - likely user didn't complete payment
     const timeout = setTimeout(() => {
       clearInterval(pollInterval);
       if (paymentStatus === 'pending') {
         setPaymentStatus('failed');
+        setErrorMessage('Payment request timed out.');
+        setErrorAction('The payment was not completed in time. Please try again.');
+        setCanRetry(true);
       }
     }, 120000);
 
@@ -229,6 +244,9 @@ export function SupportButton({
   const handleReset = () => {
     setPaymentStatus('idle');
     setTransactionId(null);
+    setErrorMessage(null);
+    setErrorAction(null);
+    setCanRetry(true);
   };
 
   const handleClose = () => {
@@ -242,6 +260,9 @@ export function SupportButton({
       setSupporterEmail('');
       setSupporterPhone('');
       setMessage('');
+      setErrorMessage(null);
+      setErrorAction(null);
+      setCanRetry(true);
     }, 300);
   };
 
@@ -341,7 +362,7 @@ export function SupportButton({
             </motion.div>
           )}
 
-          {/* Failed State */}
+          {/* Failed State - With detailed error messages */}
           {paymentStatus === 'failed' && (
             <motion.div
               key="failed"
@@ -354,10 +375,20 @@ export function SupportButton({
                 <AlertCircle className="h-8 w-8 text-white" />
               </div>
               <h3 className="text-xl font-bold mb-2">Payment Failed</h3>
-              <p className="text-gray-600 dark:text-gray-400 mb-6">
-                The payment could not be completed.
+              <p className="text-gray-600 dark:text-gray-400 mb-2">
+                {errorMessage || 'The payment could not be completed.'}
               </p>
-              <Button onClick={handleReset}>Try Again</Button>
+              {errorAction && (
+                <p className="text-sm text-gray-500 dark:text-gray-500 mb-6">
+                  {errorAction}
+                </p>
+              )}
+              <div className="flex gap-2 justify-center">
+                {canRetry && (
+                  <Button onClick={handleReset}>Try Again</Button>
+                )}
+                <Button variant="outline" onClick={handleClose}>Close</Button>
+              </div>
             </motion.div>
           )}
 

@@ -72,6 +72,11 @@ export default function SupportAuthorPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [transactionId, setTransactionId] = useState<string | null>(null);
   const [paymentStatus, setPaymentStatus] = useState<'idle' | 'pending' | 'success' | 'failed'>('idle');
+  
+  // Error state for better error display
+  const [paymentError, setPaymentError] = useState<string | null>(null);
+  const [paymentErrorAction, setPaymentErrorAction] = useState<string | null>(null);
+  const [canRetry, setCanRetry] = useState(true);
 
   const fetchAuthorInfo = useCallback(async () => {
     try {
@@ -105,14 +110,20 @@ export default function SupportAuthorPage() {
 
     const pollInterval = setInterval(async () => {
       try {
-        const response = await fetch(`/api/support/webhook?transactionId=${transactionId}`);
+        const response = await fetch(`/api/support/webhook?tx=${transactionId}`);
         const data = await response.json();
 
         if (data.status === 'COMPLETED') {
           setPaymentStatus('success');
+          setPaymentError(null);
+          setPaymentErrorAction(null);
           clearInterval(pollInterval);
         } else if (data.status === 'FAILED' || data.status === 'CANCELLED') {
           setPaymentStatus('failed');
+          // Capture user-friendly error details from API
+          setPaymentError(data.failedReason || 'Payment could not be completed.');
+          setPaymentErrorAction(data.actionRequired || 'Please try again.');
+          setCanRetry(data.canRetry !== false);
           clearInterval(pollInterval);
         }
       } catch (err) {
@@ -120,11 +131,14 @@ export default function SupportAuthorPage() {
       }
     }, 3000);
 
-    // Stop polling after 2 minutes
+    // Stop polling after 2 minutes - likely user didn't complete
     const timeout = setTimeout(() => {
       clearInterval(pollInterval);
       if (paymentStatus === 'pending') {
         setPaymentStatus('failed');
+        setPaymentError('Payment request timed out.');
+        setPaymentErrorAction('The payment was not completed in time. Please try again.');
+        setCanRetry(true);
       }
     }, 120000);
 
@@ -220,6 +234,9 @@ export default function SupportAuthorPage() {
   const handleReset = () => {
     setPaymentStatus('idle');
     setTransactionId(null);
+    setPaymentError(null);
+    setPaymentErrorAction(null);
+    setCanRetry(true);
   };
 
   if (isLoading) {
@@ -315,7 +332,7 @@ export default function SupportAuthorPage() {
     );
   }
 
-  // Failed state
+  // Failed state with detailed error message
   if (paymentStatus === 'failed') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-4">
@@ -327,12 +344,24 @@ export default function SupportAuthorPage() {
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
               Payment Failed
             </h2>
-            <p className="text-gray-600 dark:text-gray-400 mb-6">
-              The payment could not be completed. Please try again.
+            <p className="text-gray-600 dark:text-gray-400 mb-2">
+              {paymentError || 'The payment could not be completed.'}
             </p>
-            <Button onClick={handleReset} className="bg-gradient-to-r from-pink-500 to-purple-500">
-              Try Again
-            </Button>
+            {paymentErrorAction && (
+              <p className="text-sm text-gray-500 dark:text-gray-500 mb-6">
+                {paymentErrorAction}
+              </p>
+            )}
+            <div className="flex gap-3 justify-center">
+              {canRetry && (
+                <Button onClick={handleReset} className="bg-gradient-to-r from-pink-500 to-purple-500">
+                  Try Again
+                </Button>
+              )}
+              <Button variant="outline" onClick={() => router.back()}>
+                Go Back
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>

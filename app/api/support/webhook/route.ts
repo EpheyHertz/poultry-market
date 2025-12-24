@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { checkPaymentStatus } from '@/lib/intasend-wallets';
+import { getIntaSendErrorMessage } from '@/lib/intasend';
 import { sendEmail } from '@/lib/email';
 import {
   generateSupporterThankYouEmail,
@@ -235,16 +236,21 @@ export async function POST(request: NextRequest) {
       console.log(`[Support Webhook] Transaction ${transactionId} COMPLETED successfully`);
 
     } else if (state === 'FAILED') {
-      // Payment failed
+      // Payment failed - get user-friendly error message
+      const errorInfo = getIntaSendErrorMessage(failed_code, failed_reason);
+      
       await prisma.supportTransaction.update({
         where: { id: transactionId },
         data: {
           status: 'FAILED',
-          failedReason: failed_reason || `Error code: ${failed_code}`,
+          failedReason: errorInfo.userMessage,
+          // Store technical details for debugging
+          failedCode: failed_code || undefined,
         },
       });
 
-      console.log(`[Support Webhook] Transaction ${transactionId} FAILED: ${failed_reason}`);
+      console.log(`[Support Webhook] Transaction ${transactionId} FAILED: ${failed_code} - ${failed_reason}`);
+      console.log(`[Support Webhook] User message: ${errorInfo.userMessage}`);
     }
 
     return NextResponse.json({ received: true, processed: true });
@@ -294,15 +300,31 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // If already completed or failed, return current status
-    if (transaction.status === 'COMPLETED' || transaction.status === 'FAILED') {
+    // If already completed or failed, return current status with user-friendly messages
+    if (transaction.status === 'COMPLETED') {
       return NextResponse.json({
-        status: transaction.status,
+        status: 'COMPLETED',
         amount: transaction.amount,
         authorName: transaction.wallet.authorProfile.displayName,
         mpesaReference: transaction.mpesaReference,
-        failedReason: transaction.failedReason,
         completedAt: transaction.completedAt,
+        message: 'Payment successful! Thank you for your support.',
+      });
+    }
+    
+    if (transaction.status === 'FAILED') {
+      // Return user-friendly error message
+      const failedCode = (transaction as any).failedCode;
+      const errorInfo = getIntaSendErrorMessage(failedCode, transaction.failedReason);
+      
+      return NextResponse.json({
+        status: 'FAILED',
+        amount: transaction.amount,
+        authorName: transaction.wallet.authorProfile.displayName,
+        failedReason: transaction.failedReason || errorInfo.userMessage,
+        failedCode: failedCode,
+        actionRequired: errorInfo.actionRequired,
+        canRetry: ['1032', '2006', '1037'].includes(failedCode || ''), // User-recoverable errors
       });
     }
 
@@ -341,24 +363,36 @@ export async function GET(request: NextRequest) {
             amount: transaction.amount,
             authorName: transaction.wallet.authorProfile.displayName,
             mpesaReference: statusResponse.invoice.mpesa_reference,
+            message: 'Payment successful! Thank you for your support.',
           });
         } else if (statusResponse.invoice.state === 'FAILED') {
+          // Get user-friendly error message
+          const errorInfo = getIntaSendErrorMessage(
+            statusResponse.invoice.failed_code, 
+            statusResponse.invoice.failed_reason
+          );
+          
           await prisma.supportTransaction.update({
             where: { id: transactionId },
             data: {
               status: 'FAILED',
-              failedReason: statusResponse.invoice.failed_reason,
+              failedReason: errorInfo.userMessage,
+              failedCode: statusResponse.invoice.failed_code,
             },
           });
 
           return NextResponse.json({
             status: 'FAILED',
-            failedReason: statusResponse.invoice.failed_reason,
+            amount: transaction.amount,
+            failedReason: errorInfo.userMessage,
+            failedCode: statusResponse.invoice.failed_code,
+            actionRequired: errorInfo.actionRequired,
+            canRetry: ['1032', '2006', '1037'].includes(statusResponse.invoice.failed_code || ''),
           });
         }
       } catch {
         // IntaSend status check failed, return current status
-        console.warn('Failed to check IntaSend status');
+        console.warn('[Support Webhook] Failed to check IntaSend status');
       }
     }
 
@@ -366,6 +400,7 @@ export async function GET(request: NextRequest) {
       status: 'PENDING',
       amount: transaction.amount,
       authorName: transaction.wallet.authorProfile.displayName,
+      message: 'Waiting for payment confirmation...',
     });
 
   } catch (error) {

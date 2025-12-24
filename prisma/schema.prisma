@@ -1483,7 +1483,8 @@ model SupportTransaction {
   
   // Status
   status            SupportPaymentStatus @default(PENDING)
-  failedReason      String?
+  failedReason      String?             // User-friendly error message
+  failedCode        String?             // IntaSend error code for debugging
   
   // Blog post reference (if supporting from specific post)
   blogPostId        String?
