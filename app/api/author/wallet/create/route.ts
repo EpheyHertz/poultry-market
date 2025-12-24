@@ -2,6 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { createWallet, SUPPORT_CONFIG } from '@/lib/intasend-wallets';
+import { sendEmail } from '@/lib/email';
+import {
+  generateWalletCreatedAuthorEmail,
+  generateWalletCreatedAdminEmail,
+  WalletCreationEmailData,
+} from '@/lib/email-templates';
+
+// Admin email for notifications
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@poultrymarket.co.ke';
 
 /**
  * POST /api/author/wallet/create
@@ -18,10 +27,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get author profile
+    // Get author profile with user details
     const authorProfile = await prisma.authorProfile.findUnique({
       where: { userId: user.id },
-      include: { wallet: true },
+      include: { 
+        wallet: true,
+        user: {
+          select: { email: true, name: true },
+        },
+      },
     });
 
     if (!authorProfile) {
@@ -31,12 +45,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if wallet already exists
+    // Check if wallet already exists - Professional response
     if (authorProfile.wallet) {
-      return NextResponse.json(
-        { error: 'You already have a support wallet set up.' },
-        { status: 400 }
-      );
+      return NextResponse.json({
+        success: false,
+        alreadyExists: true,
+        message: 'You already have a support wallet set up.',
+        existingWallet: {
+          id: authorProfile.wallet.id,
+          status: authorProfile.wallet.status,
+          createdAt: authorProfile.wallet.createdAt,
+          mpesaNumber: authorProfile.wallet.mpesaNumber,
+        },
+        hint: 'Visit your Support Dashboard to manage your existing wallet.',
+        dashboardUrl: '/author/support/dashboard',
+      }, { status: 409 }); // 409 Conflict
     }
 
     // Parse request body for optional M-Pesa number
@@ -62,6 +85,41 @@ export async function POST(request: NextRequest) {
         status: 'ACTIVE',
         lastSyncedAt: new Date(),
       },
+    });
+
+    // Prepare email data
+    const emailData: WalletCreationEmailData = {
+      authorName: authorProfile.displayName,
+      authorEmail: authorProfile.user.email || '',
+      authorUsername: authorProfile.username,
+      walletId: wallet.id,
+      mpesaNumber: mpesaNumber || undefined,
+      createdAt: new Date().toLocaleDateString('en-KE', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      }),
+    };
+
+    // Send emails asynchronously (don't block the response)
+    Promise.all([
+      // Email to author
+      emailData.authorEmail ? sendEmail({
+        to: emailData.authorEmail,
+        subject: '🎉 Your Support Wallet is Ready!',
+        html: generateWalletCreatedAuthorEmail(emailData),
+      }) : Promise.resolve(),
+      
+      // Email to admin
+      sendEmail({
+        to: ADMIN_EMAIL,
+        subject: `💼 New Author Wallet: ${emailData.authorName} (@${emailData.authorUsername})`,
+        html: generateWalletCreatedAdminEmail(emailData),
+      }),
+    ]).catch(err => {
+      console.error('Error sending wallet creation emails:', err);
     });
 
     return NextResponse.json({

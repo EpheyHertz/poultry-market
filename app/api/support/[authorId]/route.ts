@@ -61,6 +61,7 @@ interface RouteContext {
 /**
  * GET /api/support/[authorId]
  * Get author support info for the public support page
+ * Supports both authorProfile.id and authorProfile.username as the identifier
  */
 export async function GET(
   request: NextRequest,
@@ -69,8 +70,10 @@ export async function GET(
   try {
     const { authorId } = await context.params;
 
-    // Get author profile with wallet
-    const authorProfile = await prisma.authorProfile.findUnique({
+    console.log('[Support API] Looking up author:', authorId);
+
+    // Try to find author profile by ID first, then by username
+    let authorProfile = await prisma.authorProfile.findUnique({
       where: { id: authorId },
       include: {
         wallet: {
@@ -82,17 +85,41 @@ export async function GET(
           },
         },
         user: {
-          select: { name: true, avatar: true },
+          select: { name: true, avatar: true, email: true },
         },
       },
     });
 
+    // If not found by ID, try by username
     if (!authorProfile) {
+      console.log('[Support API] Not found by ID, trying username:', authorId);
+      authorProfile = await prisma.authorProfile.findUnique({
+        where: { username: authorId.toLowerCase() },
+        include: {
+          wallet: {
+            select: {
+              id: true,
+              status: true,
+              supportersCount: true,
+              transactionsCount: true,
+            },
+          },
+          user: {
+            select: { name: true, avatar: true, email: true },
+          },
+        },
+      });
+    }
+
+    if (!authorProfile) {
+      console.log('[Support API] Author not found:', authorId);
       return NextResponse.json(
         { error: 'Author not found' },
         { status: 404 }
       );
     }
+
+    console.log('[Support API] Found author:', authorProfile.displayName, 'Wallet:', authorProfile.wallet?.status);
 
     if (!authorProfile.wallet || authorProfile.wallet.status !== 'ACTIVE') {
       return NextResponse.json({

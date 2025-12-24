@@ -174,6 +174,7 @@ async function getBlogPost(authorName: string, slug: string) {
     const transformedPost = {
       ...post,
       // Add AuthorProfile fields for easy access
+      authorProfileId: post.authorProfile?.id || null,
       authorUsername: post.authorProfile?.username || null,
       authorDisplayName: post.authorProfile?.displayName || post.author.name,
       authorAvatarUrl: post.authorProfile?.avatarUrl || post.author.avatar,

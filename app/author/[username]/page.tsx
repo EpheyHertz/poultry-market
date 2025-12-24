@@ -69,6 +69,13 @@ export default async function PublicAuthorPage({ params }: PageProps) {
           }
         }
       },
+      // Include wallet to check if support is enabled
+      wallet: {
+        select: {
+          id: true,
+          status: true,
+        }
+      },
       blogPosts: {
         where: {
           status: 'PUBLISHED'
@@ -149,6 +156,9 @@ export default async function PublicAuthorPage({ params }: PageProps) {
   };
 
   // Transform profile to match component interface
+  // Check if support is enabled (wallet exists and is active)
+  const supportEnabled = profile.wallet?.status === 'ACTIVE';
+  
   const transformedProfile = {
     id: profile.id,
     displayName: profile.displayName,
@@ -168,6 +178,7 @@ export default async function PublicAuthorPage({ params }: PageProps) {
     totalViews: profile.totalViews,
     totalLikes: profile.totalLikes,
     createdAt: profile.createdAt.toISOString(),
+    supportEnabled, // Add support status
     user: {
       id: profile.user.id,
       name: profile.user.name,

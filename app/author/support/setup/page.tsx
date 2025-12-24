@@ -41,6 +41,20 @@ export default function AuthorSupportSetupPage() {
 
       const data = await response.json();
 
+      // Handle wallet already exists (409 Conflict)
+      if (response.status === 409 && data.alreadyExists) {
+        toast({
+          title: '💼 Wallet Already Exists',
+          description: 'You already have a support wallet set up. Redirecting to your dashboard...',
+        });
+        
+        // Redirect to dashboard after a short delay
+        setTimeout(() => {
+          router.push('/author/support/dashboard');
+        }, 1500);
+        return;
+      }
+
       if (!response.ok) {
         throw new Error(data.error || 'Failed to create wallet');
       }

@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
     }
     
     const body = await request.json();
-    const { displayName, username, bio, website, location, occupation, company, socialLinks } = body;
+    const { displayName, username, bio, avatarUrl, website, location, occupation, company, socialLinks } = body;
     
     // Validate display name
     if (!displayName || displayName.trim().length < 2) {
@@ -121,11 +121,15 @@ export async function POST(request: NextRequest) {
       finalUsername = await generateUniqueUsername(displayName);
     }
     
-    // Get user's avatar as default
-    const userData = await prisma.user.findUnique({
-      where: { id: user.id },
-      select: { avatar: true }
-    });
+    // Get user's avatar as default if no avatarUrl provided
+    let finalAvatarUrl = avatarUrl || null;
+    if (!finalAvatarUrl) {
+      const userData = await prisma.user.findUnique({
+        where: { id: user.id },
+        select: { avatar: true }
+      });
+      finalAvatarUrl = userData?.avatar || null;
+    }
     
     // Create profile
     const profile = await prisma.authorProfile.create({
@@ -134,7 +138,7 @@ export async function POST(request: NextRequest) {
         displayName: displayName.trim(),
         username: finalUsername,
         bio: bio?.trim() || null,
-        avatarUrl: userData?.avatar || null,
+        avatarUrl: finalAvatarUrl,
         website: website?.trim() || null,
         location: location?.trim() || null,
         occupation: occupation?.trim() || null,
@@ -261,7 +265,14 @@ export async function PATCH(request: NextRequest) {
     if (location !== undefined) updateData.location = location?.trim() || null;
     if (occupation !== undefined) updateData.occupation = occupation?.trim() || null;
     if (company !== undefined) updateData.company = company?.trim() || null;
-    if (socialLinks !== undefined) updateData.socialLinks = socialLinks;
+    if (socialLinks !== undefined) {
+      if (socialLinks.twitter !== undefined) updateData.twitterHandle = socialLinks.twitter || null;
+      if (socialLinks.linkedin !== undefined) updateData.linkedinUrl = socialLinks.linkedin || null;
+      if (socialLinks.github !== undefined) updateData.githubUsername = socialLinks.github || null;
+      if (socialLinks.facebook !== undefined) updateData.facebookUrl = socialLinks.facebook || null;
+      if (socialLinks.instagram !== undefined) updateData.instagramHandle = socialLinks.instagram || null;
+      if (socialLinks.youtube !== undefined) updateData.youtubeChannel = socialLinks.youtube || null;
+    }
     if (isPublic !== undefined) updateData.isPublic = isPublic;
     if (allowComments !== undefined) updateData.allowComments = allowComments;
     if (emailOnComment !== undefined) updateData.emailOnComment = emailOnComment;

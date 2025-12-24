@@ -43,7 +43,8 @@ import {
   LayoutDashboard,
   PenTool,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Gift
 } from 'lucide-react';
 import { format } from 'date-fns';
 import MarkdownExcerpt from '@/components/blog/markdown-excerpt';
@@ -103,6 +104,7 @@ interface AuthorProfile {
   totalViews: number;
   totalLikes: number;
   createdAt: string;
+  supportEnabled?: boolean;
   user: {
     id: string;
     name: string;
@@ -314,6 +316,19 @@ export default function PublicAuthorProfile({ profile }: PublicAuthorProfileProp
                   {currentUser && (
                     <FollowButton userId={profile.user.id} />
                   )}
+                  {/* Support Button - Only shows if author has wallet set up */}
+                  {profile.supportEnabled && (
+                    <Button 
+                      size="sm" 
+                      asChild 
+                      className="shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 bg-gradient-to-r from-pink-500 to-rose-500 dark:from-pink-600 dark:to-rose-600 text-white"
+                    >
+                      <Link href={`/support/${profile.id}`}>
+                        <Gift className="h-4 w-4 mr-2" />
+                        Support Author
+                      </Link>
+                    </Button>
+                  )}
                 </>
               )}
             </div>
@@ -510,6 +525,33 @@ export default function PublicAuthorProfile({ profile }: PublicAuthorProfileProp
                   <p className="text-xs text-gray-500 dark:text-slate-400">Total Likes</p>
                 </div>
               </div>
+              
+              {/* Support Card - Only shows for non-owners if author has wallet set up */}
+              {!isOwner && profile.supportEnabled && (
+                <div className="mt-6 pt-6 border-t border-pink-200/50 dark:border-pink-900/30">
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 rounded-xl bg-gradient-to-r from-pink-50 to-rose-50 dark:from-pink-900/20 dark:to-rose-900/20 border border-pink-200/50 dark:border-pink-800/30">
+                    <div className="flex items-center gap-3 text-center sm:text-left">
+                      <div className="p-2.5 rounded-full bg-gradient-to-br from-pink-500 to-rose-500 shadow-lg">
+                        <Gift className="h-5 w-5 text-white" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-gray-800 dark:text-gray-200">Support {profile.displayName}&apos;s Work</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Show appreciation for great content</p>
+                      </div>
+                    </div>
+                    <Button 
+                      size="sm" 
+                      asChild 
+                      className="shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white px-6"
+                    >
+                      <Link href={`/support/${profile.id}`}>
+                        <Heart className="h-4 w-4 mr-2" />
+                        Send Support
+                      </Link>
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>

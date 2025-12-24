@@ -68,6 +68,7 @@ interface ExtendedAuthor {
 
 interface ExtendedBlogPost extends Omit<BlogPost, 'author'> {
   author: ExtendedAuthor;
+  authorProfileId?: string | null;
   authorUsername?: string | null;
   authorDisplayName?: string | null;
   authorAvatarUrl?: string | null;
@@ -488,13 +489,16 @@ function MobileBlogPost({ post, relatedPosts = [] }: BlogPostPageProps) {
             {!isOwnPost && (
               <>
                 <FollowButton userId={post.author.id} />
-                <SupportButton 
-                  authorId={post.author.id}
-                  authorName={authorDisplayName}
-                  blogPostId={post.id}
-                  blogPostTitle={post.title}
-                  variant="default"
-                />
+                {/* Use authorProfileId for support API - fallback to authorUsername */}
+                {(post.authorProfileId || post.authorUsername) && (
+                  <SupportButton 
+                    authorId={post.authorProfileId || post.authorUsername || ''}
+                    authorName={authorDisplayName}
+                    blogPostId={post.id}
+                    blogPostTitle={post.title}
+                    variant="default"
+                  />
+                )}
               </>
             )}
           </div>
@@ -657,13 +661,16 @@ function MobileBlogPost({ post, relatedPosts = [] }: BlogPostPageProps) {
                 {!isOwnPost && (
                   <div className="flex-shrink-0 w-full sm:w-auto flex flex-col sm:flex-row gap-2">
                     <FollowButton userId={post.author.id} />
-                    <SupportButton 
-                      authorId={post.author.id}
-                      authorName={authorDisplayName}
-                      blogPostId={post.id}
-                      blogPostTitle={post.title}
-                      variant="compact"
-                    />
+                    {/* Use authorProfileId for support API - fallback to authorUsername */}
+                    {(post.authorProfileId || post.authorUsername) && (
+                      <SupportButton 
+                        authorId={post.authorProfileId || post.authorUsername || ''}
+                        authorName={authorDisplayName}
+                        blogPostId={post.id}
+                        blogPostTitle={post.title}
+                        variant="compact"
+                      />
+                    )}
                   </div>
                 )}
               </div>
