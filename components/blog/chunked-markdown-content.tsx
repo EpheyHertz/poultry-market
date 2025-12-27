@@ -154,6 +154,7 @@ function extractCallout(node: any): { type: CalloutType | null; cleaned: any } {
 /**
  * Split markdown content into chunks at natural break points
  * Preserves markdown structure by splitting at paragraph/heading boundaries
+ * IMPORTANT: Never splits in the middle of images, links, or code blocks
  */
 function splitContentIntoChunks(
   content: string, 
@@ -203,6 +204,45 @@ function splitContentIntoChunks(
     // Ensure we don't create empty chunks
     if (breakPoint <= 0) {
       breakPoint = currentChunkSize;
+    }
+
+    // CRITICAL: Ensure we don't break in the middle of markdown elements
+    // Check for unclosed image/link syntax around the break point
+    const candidateChunk = remaining.substring(0, breakPoint);
+    
+    // Check for unclosed image: ![...](...)
+    const lastImageStart = candidateChunk.lastIndexOf('![');
+    const lastImageEnd = candidateChunk.lastIndexOf(')');
+    if (lastImageStart > lastImageEnd || (lastImageStart !== -1 && lastImageEnd === -1)) {
+      // We're in the middle of an image - find where it ends
+      const imageEndMatch = remaining.substring(breakPoint).match(/^[^\)]*\)/);
+      if (imageEndMatch) {
+        breakPoint += imageEndMatch[0].length;
+      }
+    }
+    
+    // Check for unclosed link: [...](...) 
+    const lastLinkStart = candidateChunk.lastIndexOf('[');
+    const lastLinkBracket = candidateChunk.lastIndexOf('](');
+    if (lastLinkStart !== -1 && lastLinkBracket !== -1 && lastLinkStart < lastLinkBracket) {
+      // Might be in a link - check if it's closed
+      const afterLink = candidateChunk.substring(lastLinkBracket);
+      if (!afterLink.includes(')')) {
+        const linkEndMatch = remaining.substring(breakPoint).match(/^[^\)]*\)/);
+        if (linkEndMatch) {
+          breakPoint += linkEndMatch[0].length;
+        }
+      }
+    }
+    
+    // Check for unclosed code block (```)
+    const codeBlockMatches = candidateChunk.match(/```/g);
+    if (codeBlockMatches && codeBlockMatches.length % 2 !== 0) {
+      // Odd number of ```, we're inside a code block
+      const codeBlockEnd = remaining.substring(breakPoint).indexOf('```');
+      if (codeBlockEnd !== -1) {
+        breakPoint += codeBlockEnd + 3;
+      }
     }
 
     const chunk = remaining.substring(0, breakPoint).trim();
@@ -468,18 +508,30 @@ const MarkdownChunk = memo(function MarkdownChunk({
 
           return <span>{children}</span>;
         },
-        img: ({ src, alt }) => (
-          <span className="block my-8">
-            <Image
-              src={src || ''}
-              alt={alt || ''}
-              width={1280}
-              height={720}
-              className="h-auto w-full rounded-2xl border border-slate-200 object-cover shadow-md dark:border-slate-800"
-              loading="lazy"
-            />
-          </span>
-        ),
+        img: ({ src, alt }) => {
+          // Use a figure element for better semantics and layout stability
+          return (
+            <figure className="my-8 not-prose">
+              <div className="relative w-full overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 shadow-md">
+                <Image
+                  src={src || ''}
+                  alt={alt || ''}
+                  width={1280}
+                  height={720}
+                  className="h-auto w-full object-cover"
+                  loading="lazy"
+                  sizes="(max-width: 768px) 100vw, 800px"
+                  style={{ aspectRatio: '16/9' }}
+                />
+              </div>
+              {alt && (
+                <figcaption className="mt-2 text-center text-sm text-slate-500 dark:text-slate-400">
+                  {alt}
+                </figcaption>
+              )}
+            </figure>
+          );
+        },
       }}
     >
       {content}
@@ -502,6 +554,8 @@ export default function ChunkedMarkdownContent({
   const [loadedChunks, setLoadedChunks] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const loadMoreRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const lastChunkRef = useRef<HTMLDivElement>(null);
 
   // Memoize accent colors
   const resolvedAccent = accentColor || '#059669';
@@ -535,17 +589,35 @@ export default function ChunkedMarkdownContent({
     return Math.round(remainingContent.split(/\s+/).length);
   }, [chunks, loadedChunks, hasMoreContent]);
 
-  // Load more content handler
+  // Load more content handler with scroll position preservation
   const handleLoadMore = useCallback(() => {
     if (!hasMoreContent || isLoading) return;
     
     setIsLoading(true);
+    
+    // Store the position of the load more button before adding content
+    const buttonRect = loadMoreRef.current?.getBoundingClientRect();
+    const scrollY = window.scrollY;
     
     // Small delay for smooth animation
     requestAnimationFrame(() => {
       setTimeout(() => {
         setLoadedChunks(prev => Math.min(prev + 1, chunks.length));
         setIsLoading(false);
+        
+        // Maintain visual position - the user should see the newly loaded content
+        // without the page jumping unexpectedly
+        if (buttonRect && loadMoreRef.current) {
+          const newButtonRect = loadMoreRef.current.getBoundingClientRect();
+          const diff = newButtonRect.top - buttonRect.top;
+          if (Math.abs(diff) > 50) {
+            // Only adjust if there's significant movement
+            window.scrollTo({
+              top: scrollY + diff - 100, // Scroll up a bit to show new content
+              behavior: 'smooth'
+            });
+          }
+        }
       }, 100);
     });
   }, [hasMoreContent, isLoading, chunks.length]);
@@ -556,10 +628,15 @@ export default function ChunkedMarkdownContent({
     
     setIsLoading(true);
     
+    // Store scroll position
+    const scrollY = window.scrollY;
+    
     requestAnimationFrame(() => {
       setTimeout(() => {
         setLoadedChunks(chunks.length);
         setIsLoading(false);
+        
+        // Don't adjust scroll for load all - user wants to see everything
       }, 150);
     });
   }, [hasMoreContent, isLoading, chunks.length]);
@@ -575,6 +652,7 @@ export default function ChunkedMarkdownContent({
 
   return (
     <div
+      ref={contentRef}
       className={cn(
         'markdown-content prose prose-lg max-w-none prose-slate dark:prose-invert prose-headings:tracking-tight prose-headings:text-slate-900 dark:prose-headings:text-white prose-a:text-emerald-600 prose-a:no-underline hover:prose-a:underline dark:prose-a:text-emerald-300 prose-code:text-emerald-600 dark:prose-code:text-emerald-300 prose-strong:text-slate-900 dark:prose-strong:text-white',
         'prose-pre:bg-slate-900 prose-pre:text-slate-50 prose-pre:shadow-lg dark:prose-pre:bg-slate-950',
@@ -605,13 +683,17 @@ export default function ChunkedMarkdownContent({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="relative mt-8 pt-8"
+            className="relative mt-8 pt-8 z-10"
           >
-            {/* Gradient fade effect */}
-            <div className="pointer-events-none absolute -top-20 inset-x-0 h-24 bg-gradient-to-t from-white via-white/95 to-transparent dark:from-slate-900 dark:via-slate-900/95" />
+            {/* Gradient fade effect - non-interactive */}
+            <div 
+              className="absolute -top-20 inset-x-0 h-24 bg-gradient-to-t from-white via-white/95 to-transparent dark:from-slate-900 dark:via-slate-900/95" 
+              style={{ pointerEvents: 'none' }}
+              aria-hidden="true"
+            />
             
             {/* Load more content */}
-            <div className="relative flex flex-col items-center gap-4 text-center">
+            <div className="relative flex flex-col items-center gap-4 text-center z-20">
               <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-slate-400">
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gray-100 dark:bg-slate-800 text-xs font-medium">
                   <ChevronDown className="h-3.5 w-3.5" />
