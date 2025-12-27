@@ -37,7 +37,7 @@ import FollowButton from '@/components/blog/follow-button';
 import SupportButton from '@/components/blog/SupportButton';
 import { BlogPost, BLOG_CATEGORIES } from '@/types/blog';
 import MarkdownExcerpt from '@/components/blog/markdown-excerpt';
-import MarkdownContent from '@/components/blog/markdown-content';
+import ChunkedMarkdownContent from '@/components/blog/chunked-markdown-content';
 import ReadingProgress from '@/components/blog/reading-progress';
 import TableOfContents from '@/components/blog/table-of-contents';
 import AuthorCard from '@/components/blog/author-card';
@@ -89,7 +89,6 @@ function MobileBlogPost({ post, relatedPosts = [] }: BlogPostPageProps) {
   const [isSaved, setIsSaved] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
-  const [isContentExpanded, setIsContentExpanded] = useState(false);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [isNearBottom, setIsNearBottom] = useState(false);
   
@@ -104,9 +103,6 @@ function MobileBlogPost({ post, relatedPosts = [] }: BlogPostPageProps) {
   const authorProfileUrl = authorUsername 
     ? `/author/${authorUsername}` 
     : `/blog/author/${post.author.id}`;
-  
-  // Check if content is long enough to need expand/collapse (more than ~800 chars)
-  const isLongContent = (post.content || '').length > 800;
 
   // Track scroll position for back to top/bottom button
   useEffect(() => {
@@ -139,11 +135,6 @@ function MobileBlogPost({ post, relatedPosts = [] }: BlogPostPageProps) {
   const scrollToBottom = () => {
     window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' });
   };
-
-  // Reset expanded state when post changes
-  useEffect(() => {
-    setIsContentExpanded(false);
-  }, [post.id]);
 
   const isOwnPost = currentUser?.id === post.author.id;
 
@@ -212,10 +203,6 @@ function MobileBlogPost({ post, relatedPosts = [] }: BlogPostPageProps) {
         break;
     }
     setShowShareMenu(false);
-  };
-
-  const handleExpandContent = () => {
-    setIsContentExpanded(true);
   };
 
   return (
@@ -519,39 +506,15 @@ function MobileBlogPost({ post, relatedPosts = [] }: BlogPostPageProps) {
             <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-emerald-400/5 to-transparent rounded-full blur-3xl pointer-events-none" />
             <div className="absolute bottom-0 left-0 w-32 h-32 bg-gradient-to-tr from-blue-400/5 to-transparent rounded-full blur-3xl pointer-events-none" />
             
-            {/* Content with expand/collapse for long content on mobile */}
-            <div 
-              className={`relative prose prose-lg dark:prose-invert max-w-none prose-headings:font-bold prose-headings:tracking-tight prose-a:text-emerald-600 dark:prose-a:text-emerald-400 prose-a:no-underline hover:prose-a:underline prose-img:rounded-xl prose-pre:bg-slate-100 dark:prose-pre:bg-slate-800 prose-code:text-emerald-600 dark:prose-code:text-emerald-400 ${
-                isLongContent && !isContentExpanded 
-                  ? 'max-h-[600px] overflow-hidden' 
-                  : ''
-              }`}
-            >
-              <MarkdownContent content={post.content || ''} />
-              
-              {/* Gradient overlay when collapsed */}
-              {isLongContent && !isContentExpanded && (
-                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-white via-white/95 to-transparent dark:from-slate-900 dark:via-slate-900/95" />
-              )}
+            {/* Content with progressive chunked loading for mobile */}
+            <div className="relative prose prose-lg dark:prose-invert max-w-none prose-headings:font-bold prose-headings:tracking-tight prose-a:text-emerald-600 dark:prose-a:text-emerald-400 prose-a:no-underline hover:prose-a:underline prose-img:rounded-xl prose-pre:bg-slate-100 dark:prose-pre:bg-slate-800 prose-code:text-emerald-600 dark:prose-code:text-emerald-400">
+              <ChunkedMarkdownContent 
+                content={post.content || ''} 
+                enableChunking={true}
+                initialChunkSize={1500}
+                chunkSize={2000}
+              />
             </div>
-
-            {/* Read More button - only show for long content that isn't expanded */}
-            {isLongContent && !isContentExpanded && (
-              <div className="relative mt-6 flex flex-col items-center gap-3 text-center">
-                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                  <Button
-                    onClick={handleExpandContent}
-                    className="btn-premium rounded-full px-8 py-3 text-sm font-semibold"
-                  >
-                    Read Full Article
-                    <ArrowDown className="h-4 w-4 ml-2" />
-                  </Button>
-                </motion.div>
-                <p className="text-xs text-gray-500 dark:text-slate-500">
-                  Tap to continue reading
-                </p>
-              </div>
-            )}
           </div>
         </motion.div>
 
