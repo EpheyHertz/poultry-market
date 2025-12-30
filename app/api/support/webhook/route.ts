@@ -186,8 +186,20 @@ export async function POST(request: NextRequest) {
 
       // Send emails asynchronously (don't block the webhook response)
       const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://poultrymarket.co.ke';
+      
+      // Determine supporter display name:
+      // - If anonymous flag is set: "Anonymous"
+      // - If name provided: use the name
+      // - If no name but not anonymous: "Anonymous" (default for unnamed supporters)
+      let displaySupporterName = 'Anonymous';
+      if (!transaction.isAnonymous && transaction.supporterName) {
+        displaySupporterName = transaction.supporterName;
+      } else if (!transaction.isAnonymous && transaction.supporter?.name) {
+        displaySupporterName = transaction.supporter.name;
+      }
+      
       const emailData: SupportTransactionEmailData = {
-        supporterName: transaction.isAnonymous ? 'Anonymous Supporter' : (transaction.supporterName || 'Supporter'),
+        supporterName: displaySupporterName,
         supporterEmail: transaction.supporter?.email || transaction.supporterEmail || undefined,
         authorName: transaction.wallet.authorProfile.displayName,
         authorEmail: authorUser?.email || '',

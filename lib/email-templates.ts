@@ -255,14 +255,12 @@ export function generateAuthorSupportReceivedEmail(data: SupportTransactionEmail
           </table>
         </div>
         
-        ${data.message ? `
-        <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0; border-radius: 0 8px 8px 0;">
-          <p style="color: #92400e; margin: 0 0 5px 0; font-size: 12px; font-weight: 600;">MESSAGE FROM SUPPORTER:</p>
-          <p style="color: #92400e; margin: 0; font-size: 15px; font-style: italic;">
-            "${data.message}"
+        <div style="background-color: ${data.message ? '#fef3c7' : '#f3f4f6'}; border-left: 4px solid ${data.message ? '#f59e0b' : '#9ca3af'}; padding: 15px; margin: 20px 0; border-radius: 0 8px 8px 0;">
+          <p style="color: ${data.message ? '#92400e' : '#6b7280'}; margin: 0 0 5px 0; font-size: 12px; font-weight: 600;">MESSAGE FROM SUPPORTER:</p>
+          <p style="color: ${data.message ? '#92400e' : '#9ca3af'}; margin: 0; font-size: 15px; font-style: italic;">
+            ${data.message ? `"${data.message}"` : 'No message included'}
           </p>
         </div>
-        ` : ''}
         
         <div style="text-align: center; margin: 30px 0;">
           <a href="${baseUrl}/author/support/dashboard" 

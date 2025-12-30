@@ -10,7 +10,7 @@ import { defaultSchema } from 'hast-util-sanitize';
 import { AlertCircle, CheckCircle2, Info, Lightbulb, ShieldAlert, Sparkles, ChevronDown, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 
 // ================================
 // Types
@@ -675,25 +675,22 @@ export default function ChunkedMarkdownContent({
         </motion.div>
       ))}
 
-      {/* Load More Section */}
-      <AnimatePresence>
-        {hasMoreContent && (
-          <motion.div
-            ref={loadMoreRef}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="relative mt-8 pt-8 z-10"
-          >
-            {/* Gradient fade effect - non-interactive */}
-            <div 
-              className="absolute -top-20 inset-x-0 h-24 bg-gradient-to-t from-white via-white/95 to-transparent dark:from-slate-900 dark:via-slate-900/95" 
-              style={{ pointerEvents: 'none' }}
-              aria-hidden="true"
-            />
-            
-            {/* Load more content */}
-            <div className="relative flex flex-col items-center gap-4 text-center z-20">
+      {/* Load More Section - Fixed height container to prevent layout shift */}
+      {hasMoreContent && (
+        <div 
+          ref={loadMoreRef}
+          className="relative mt-8 pt-8 z-10"
+          style={{ minHeight: '180px' }} // Fixed height prevents dancing
+        >
+          {/* Gradient fade effect - non-interactive */}
+          <div 
+            className="absolute -top-20 inset-x-0 h-24 bg-gradient-to-t from-white via-white/95 to-transparent dark:from-slate-900 dark:via-slate-900/95" 
+            style={{ pointerEvents: 'none' }}
+            aria-hidden="true"
+          />
+          
+          {/* Load more content */}
+          <div className="relative flex flex-col items-center gap-4 text-center z-20">
               <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-slate-400">
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gray-100 dark:bg-slate-800 text-xs font-medium">
                   <ChevronDown className="h-3.5 w-3.5" />
@@ -739,9 +736,8 @@ export default function ChunkedMarkdownContent({
                 Tap to continue reading the full article
               </p>
             </div>
-          </motion.div>
+          </div>
         )}
-      </AnimatePresence>
     </div>
   );
 }
