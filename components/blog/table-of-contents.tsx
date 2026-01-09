@@ -75,10 +75,35 @@ export default function TableOfContents({ content, className }: TableOfContentsP
   const scrollToHeading = useCallback((id: string) => {
     const element = document.getElementById(id);
     if (element) {
+      // Element exists, scroll to it
       const yOffset = -100;
       const y = element.getBoundingClientRect().top + window.pageYOffset + yOffset;
       window.scrollTo({ top: y, behavior: 'smooth' });
       setActiveId(id);
+    } else {
+      // Element not loaded yet - dispatch event to load all content
+      // Then scroll to the heading after content is loaded
+      const loadAllEvent = new CustomEvent('loadAllBlogContent', { 
+        detail: { targetHeadingId: id } 
+      });
+      window.dispatchEvent(loadAllEvent);
+      
+      // Wait for content to load, then scroll
+      const checkAndScroll = () => {
+        const targetElement = document.getElementById(id);
+        if (targetElement) {
+          const yOffset = -100;
+          const y = targetElement.getBoundingClientRect().top + window.pageYOffset + yOffset;
+          window.scrollTo({ top: y, behavior: 'smooth' });
+          setActiveId(id);
+        } else {
+          // Content still loading, check again
+          setTimeout(checkAndScroll, 100);
+        }
+      };
+      
+      // Start checking after a short delay to allow content to load
+      setTimeout(checkAndScroll, 200);
     }
   }, []);
 

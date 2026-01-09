@@ -132,6 +132,19 @@ export default function MarkdownContent({ content, className, accentColor }: Mar
   const resolvedAccent = accentColor || '#059669';
   const resolvedAccentSoft = `${resolvedAccent}20`;
 
+  // Helper function to generate ID from heading text (matching TOC logic)
+  const generateHeadingId = (children: React.ReactNode): string => {
+    const text = typeof children === 'string' 
+      ? children 
+      : Array.isArray(children) 
+        ? children.map(child => typeof child === 'string' ? child : '').join('')
+        : '';
+    return text
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, '')
+      .replace(/\s+/g, '-');
+  };
+
   return (
     <div
       className={cn(
@@ -144,26 +157,50 @@ export default function MarkdownContent({ content, className, accentColor }: Mar
         remarkPlugins={[remarkGfm]}
   rehypePlugins={[rehypeRaw, [rehypeSanitize, SANITIZE_SCHEMA]]}
         components={{
-          h1: ({ children }) => (
-            <h1 className="text-3xl sm:text-4xl font-semibold text-slate-900 dark:text-white mt-10 mb-6">
-              {children}
-            </h1>
-          ),
-          h2: ({ children }) => (
-            <h2 className="text-2xl sm:text-3xl font-semibold text-slate-900 dark:text-white mt-10 mb-5">
-              {children}
-            </h2>
-          ),
-          h3: ({ children }) => (
-            <h3 className="text-xl sm:text-2xl font-semibold text-slate-900 dark:text-white mt-8 mb-4">
-              {children}
-            </h3>
-          ),
-          h4: ({ children }) => (
-            <h4 className="text-lg font-semibold text-slate-900 dark:text-white mt-6 mb-3">
-              {children}
-            </h4>
-          ),
+          h1: ({ children }) => {
+            const id = generateHeadingId(children);
+            return (
+              <h1 
+                id={id}
+                className="text-3xl sm:text-4xl font-semibold text-slate-900 dark:text-white mt-10 mb-6 scroll-mt-24"
+              >
+                {children}
+              </h1>
+            );
+          },
+          h2: ({ children }) => {
+            const id = generateHeadingId(children);
+            return (
+              <h2 
+                id={id}
+                className="text-2xl sm:text-3xl font-semibold text-slate-900 dark:text-white mt-10 mb-5 scroll-mt-24"
+              >
+                {children}
+              </h2>
+            );
+          },
+          h3: ({ children }) => {
+            const id = generateHeadingId(children);
+            return (
+              <h3 
+                id={id}
+                className="text-xl sm:text-2xl font-semibold text-slate-900 dark:text-white mt-8 mb-4 scroll-mt-24"
+              >
+                {children}
+              </h3>
+            );
+          },
+          h4: ({ children }) => {
+            const id = generateHeadingId(children);
+            return (
+              <h4 
+                id={id}
+                className="text-lg font-semibold text-slate-900 dark:text-white mt-6 mb-3 scroll-mt-24"
+              >
+                {children}
+              </h4>
+            );
+          },
           p: ({ children }) => (
             <p className="text-base leading-relaxed text-slate-700 dark:text-slate-200">
               {children}
