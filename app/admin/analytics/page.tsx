@@ -1,344 +1,352 @@
 
-import { redirect } from 'next/navigation'
-import { getCurrentUser } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
-import DashboardLayout from '@/components/layout/dashboard-layout'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import DashboardLayout from '@/components/layout/dashboard-layout';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  BarChart,
+  Bar,
+  LineChart,
+  Line,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
+} from 'recharts';
 import { 
   DollarSign, 
   Users, 
   TrendingUp, 
   Package, 
   ShoppingCart,
-  Star,
-  Calendar,
-  Award
-} from 'lucide-react'
+  Award,
+  Activity,
+  Percent,
+  Loader2,
+} from 'lucide-react';
 
-export default async function AdminAnalytics() {
-  const user = await getCurrentUser()
-  
-  if (!user || user.role !== 'ADMIN') {
-    redirect('/auth/login')
+function formatCurrency(amount: number): string {
+  return new Intl.NumberFormat('en-KE', {
+    style: 'currency',
+    currency: 'KES',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(amount);
+}
+
+const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82ca9d', '#ffc658'];
+
+export default function AdminAnalytics() {
+  const [user, setUser] = useState<any>(null);
+  const [analytics, setAnalytics] = useState<any>(null);
+  const [period, setPeriod] = useState('30');
+  const [isLoading, setIsLoading] = useState(true);
+  const router = useRouter();
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const response = await fetch('/api/auth/me');
+        if (response.ok) {
+          const userData = await response.json();
+          if (userData.role !== 'ADMIN') {
+            router.push('/auth/login');
+            return;
+          }
+          setUser(userData);
+        } else {
+          router.push('/auth/login');
+        }
+      } catch {
+        router.push('/auth/login');
+      }
+    };
+    fetchUser();
+  }, [router]);
+
+  useEffect(() => {
+    if (user) fetchAnalytics();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, period]);
+
+  const fetchAnalytics = async () => {
+    setIsLoading(true);
+    try {
+      const res = await fetch(`/api/analytics/enhanced?period=${period}`);
+      if (res.ok) setAnalytics(await res.json());
+    } catch (e) {
+      console.error('Failed to fetch analytics:', e);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (!user) return <div>Loading...</div>;
+
+  if (isLoading || !analytics) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
+            <p className="mt-4 text-muted-foreground">Loading analytics...</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
   }
 
-  // Fetch analytics data
-  const [
-    totalRevenue,
-    totalOrders,
-    totalUsers,
-    totalProducts,
-    recentOrders,
-    topSellers,
-    topProducts,
-    usersByRole,
-    monthlyRevenue
-  ] = await Promise.all([
-    // Total revenue from completed orders
-    prisma.order.aggregate({
-      where: { status: 'DELIVERED' },
-      _sum: { total: true }
-    }),
-    
-    // Total orders
-    prisma.order.count(),
-    
-    // Total users
-    prisma.user.count(),
-    
-    // Total products
-    prisma.product.count(),
-    
-    // Recent orders
-    prisma.order.findMany({
-      take: 5,
-      orderBy: { createdAt: 'desc' },
-      include: {
-        customer: {
-          select: { name: true, email: true }
-        },
-        items: {
-          include: {
-            product: {
-              select: { name: true, price: true }
-            }
-          }
-        }
-      }
-    }),
-    
-    // Top selling sellers
-    prisma.user.findMany({
-      where: { role: { in: ['SELLER', 'COMPANY'] } },
-      include: {
-        products: {
-          include: {
-            orderItems: {
-              include: {
-                order: true
-              }
-            }
-          }
-        },
-        tags: true
-      },
-      take: 5
-    }),
-    
-    // Top products by sales
-    prisma.product.findMany({
-      include: {
-        orderItems: {
-          include: {
-            order: true
-          }
-        },
-        seller: {
-          select: { name: true, role: true }
-        }
-      },
-      take: 5
-    }),
-    
-    // Users by role
-    prisma.user.groupBy({
-      by: ['role'],
-      _count: { role: true }
-    }),
-    
-    // Monthly revenue (last 6 months)
-    prisma.order.findMany({
-      where: {
-        status: 'DELIVERED',
-        createdAt: {
-          gte: new Date(new Date().setMonth(new Date().getMonth() - 6))
-        }
-      },
-      select: {
-        total: true,
-        createdAt: true
-      }
-    })
-  ])
+  const { summary, revenueChart, topSellers, topProducts, usersByRole } = analytics;
 
-  // Process top sellers data
-  const processedSellers = topSellers.map(seller => {
-    const totalSales = seller.products.reduce((sum, product) => 
-      sum + product.orderItems.reduce((itemSum, item) => 
-        itemSum + (item.order ? item.quantity * item.price : 0), 0), 0)
-    
-    const totalOrders = seller.products.reduce((sum, product) => 
-      sum + product.orderItems.filter(item => item.order).length, 0)
-    
-    return {
-      ...seller,
-      totalSales,
-      totalOrders
-    }
-  }).sort((a, b) => b.totalSales - a.totalSales)
-
-  // Process top products data
-  const processedProducts = topProducts.map(product => {
-    const totalSales = product.orderItems.reduce((sum, item) => 
-      sum + (item.order ? item.quantity * item.price : 0), 0)
-    
-    const totalQuantity = product.orderItems.reduce((sum, item) => 
-      sum + (item.order ? item.quantity : 0), 0)
-    
-    return {
-      ...product,
-      totalSales,
-      totalQuantity
-    }
-  }).sort((a, b) => b.totalSales - a.totalSales)
-
-  // Process monthly revenue
-  const monthlyData = monthlyRevenue.reduce((acc, order) => {
-    const month = new Date(order.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
-    acc[month] = (acc[month] || 0) + order.total
-    return acc
-  }, {} as Record<string, number>)
+  const stats = [
+    {
+      title: 'Total GMV',
+      value: formatCurrency(summary.totalGMV),
+      icon: DollarSign,
+      description: `From ${summary.totalOrders} orders`,
+      color: 'text-green-600',
+    },
+    {
+      title: 'Active Sellers',
+      value: summary.activeSellers,
+      icon: Users,
+      description: `of ${summary.totalSellers} total sellers`,
+      color: 'text-blue-600',
+    },
+    {
+      title: 'Daily Transactions',
+      value: summary.dailyTransactions,
+      icon: Activity,
+      description: 'Today',
+      color: 'text-purple-600',
+    },
+    {
+      title: 'Commission Earnings',
+      value: formatCurrency(summary.commissionEarnings),
+      icon: Percent,
+      description: `Avg rate ${summary.avgCommissionRate}%`,
+      color: 'text-orange-600',
+    },
+  ];
 
   return (
-    <DashboardLayout user={{ ...user, avatar: user.avatar ?? undefined }}>
-      <div className="space-y-8">
+    <DashboardLayout>
+      <div className="space-y-6">
         {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Analytics Dashboard</h1>
-          <p className="text-gray-600 mt-2">Comprehensive platform performance metrics</p>
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold">Platform Analytics</h1>
+            <p className="text-muted-foreground mt-1">Comprehensive performance metrics</p>
+          </div>
+          <Select value={period} onValueChange={setPeriod}>
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="Select period" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="7">Last 7 days</SelectItem>
+              <SelectItem value="30">Last 30 days</SelectItem>
+              <SelectItem value="90">Last 90 days</SelectItem>
+              <SelectItem value="365">Last year</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
-        {/* Key Metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-600">
-                ${(totalRevenue._sum.total || 0).toFixed(2)}
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {stats.map((stat) => (
+            <Card key={stat.title}>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
+                <stat.icon className={`h-4 w-4 ${stat.color}`} />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stat.value}</div>
+                <p className="text-xs text-muted-foreground">{stat.description}</p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {/* Revenue Chart */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Monthly Revenue (GMV)</CardTitle>
+            <CardDescription>Platform gross merchandise value over time</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {revenueChart.length === 0 ? (
+              <div className="flex items-center justify-center h-64 text-muted-foreground">
+                <p>No revenue data for this period</p>
               </div>
-              <p className="text-xs text-muted-foreground">
-                From {totalOrders} orders
-              </p>
-            </CardContent>
-          </Card>
+            ) : (
+              <ResponsiveContainer width="100%" height={350}>
+                <BarChart data={revenueChart}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis
+                    dataKey="date"
+                    tickFormatter={(val) => {
+                      const d = new Date(val);
+                      return d.toLocaleDateString('en-KE', { month: 'short', year: '2-digit' });
+                    }}
+                  />
+                  <YAxis tickFormatter={(val) => `${(val / 1000).toFixed(0)}K`} />
+                  <Tooltip
+                    formatter={(value: number) => [formatCurrency(value), 'Revenue']}
+                    labelFormatter={(label) =>
+                      new Date(label).toLocaleDateString('en-KE', { month: 'long', year: 'numeric' })
+                    }
+                  />
+                  <Bar dataKey="revenue" fill="#0088FE" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Users</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{totalUsers}</div>
-              <p className="text-xs text-muted-foreground">
-                Across all roles
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Products</CardTitle>
-              <Package className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{totalProducts}</div>
-              <p className="text-xs text-muted-foreground">
-                Active listings
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Orders</CardTitle>
-              <ShoppingCart className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{totalOrders}</div>
-              <p className="text-xs text-muted-foreground">
-                All time
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Charts and Tables */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Top Sellers */}
+        {/* Top Sellers + Top Products */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Award className="h-5 w-5" />
-                Top Performing Sellers
+                <Award className="h-5 w-5" /> Top Performing Sellers
               </CardTitle>
-              <CardDescription>
-                Sellers with highest revenue
-              </CardDescription>
+              <CardDescription>Sellers with highest revenue</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {processedSellers.map((seller, index) => (
-                  <div key={seller.id} className="flex items-center justify-between p-3 border rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <Badge variant="outline">#{index + 1}</Badge>
-                      <div>
-                        <p className="font-medium">{seller.name}</p>
-                        <p className="text-sm text-gray-600">{seller.role}</p>
+              {topSellers.length === 0 ? (
+                <p className="text-center py-8 text-muted-foreground">No seller data yet</p>
+              ) : (
+                <div className="space-y-3">
+                  {topSellers.map((seller: any, i: number) => (
+                    <div key={seller.id} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <Badge variant="outline">#{i + 1}</Badge>
+                        <div>
+                          <p className="font-medium text-sm">{seller.name}</p>
+                          <p className="text-xs text-muted-foreground">{seller.role}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-bold text-sm text-green-600">{formatCurrency(seller.revenue)}</p>
+                        <p className="text-xs text-muted-foreground">{seller.orderCount} orders</p>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className="font-bold text-green-600">${seller.totalSales.toFixed(2)}</p>
-                      <p className="text-sm text-gray-600">{seller.totalOrders} orders</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
 
-          {/* Top Products */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5" />
-                Top Products
+                <TrendingUp className="h-5 w-5" /> Top Products
               </CardTitle>
-              <CardDescription>
-                Products with highest sales
-              </CardDescription>
+              <CardDescription>Products with highest sales</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {processedProducts.map((product, index) => (
-                  <div key={product.id} className="flex items-center justify-between p-3 border rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <Badge variant="outline">#{index + 1}</Badge>
-                      <div>
-                        <p className="font-medium">{product.name}</p>
-                        <p className="text-sm text-gray-600">by {product.seller.name}</p>
+              {topProducts.length === 0 ? (
+                <p className="text-center py-8 text-muted-foreground">No product data yet</p>
+              ) : (
+                <div className="space-y-3">
+                  {topProducts.map((product: any, i: number) => (
+                    <div key={product.id} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <Badge variant="outline">#{i + 1}</Badge>
+                        <div>
+                          <p className="font-medium text-sm">{product.name}</p>
+                          <p className="text-xs text-muted-foreground">by {product.sellerName}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-bold text-sm text-green-600">{formatCurrency(product.revenue)}</p>
+                        <p className="text-xs text-muted-foreground">{product.quantitySold} sold</p>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className="font-bold text-green-600">${product.totalSales.toFixed(2)}</p>
-                      <p className="text-sm text-gray-600">{product.totalQuantity} sold</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
+        </div>
 
-          {/* Users by Role */}
+        {/* User Distribution + Recent Activity */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Card>
             <CardHeader>
               <CardTitle>User Distribution</CardTitle>
-              <CardDescription>
-                Users across different roles
-              </CardDescription>
+              <CardDescription>Users across different roles</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
-                {usersByRole.map((roleData) => (
-                  <div key={roleData.role} className="flex items-center justify-between">
-                    <Badge variant="outline">{roleData.role}</Badge>
-                    <span className="font-medium">{roleData._count.role}</span>
-                  </div>
-                ))}
-              </div>
+              {usersByRole.length === 0 ? (
+                <p className="text-center py-8 text-muted-foreground">No user data</p>
+              ) : (
+                <ResponsiveContainer width="100%" height={280}>
+                  <PieChart>
+                    <Pie
+                      data={usersByRole.map((r: any) => ({ name: r.role, value: r.count }))}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={50}
+                      outerRadius={80}
+                      paddingAngle={3}
+                      dataKey="value"
+                    >
+                      {usersByRole.map((_: any, i: number) => (
+                        <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              )}
             </CardContent>
           </Card>
 
-          {/* Recent Orders */}
           <Card>
             <CardHeader>
-              <CardTitle>Recent Orders</CardTitle>
-              <CardDescription>
-                Latest platform activity
-              </CardDescription>
+              <CardTitle>Platform Summary</CardTitle>
+              <CardDescription>Key platform indicators</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {recentOrders.map((order) => (
-                  <div key={order.id} className="flex items-center justify-between p-3 border rounded-lg">
-                    <div>
-                      <p className="font-medium">Order #{order.id.slice(-8)}</p>
-                      <p className="text-sm text-gray-600">{order.customer.name}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-bold">${order.total.toFixed(2)}</p>
-                      <Badge variant="outline">{order.status}</Badge>
-                    </div>
-                  </div>
-                ))}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="text-center p-4 border rounded-lg">
+                  <Package className="mx-auto h-6 w-6 text-blue-600 mb-2" />
+                  <div className="text-xl font-bold">{summary.totalProducts}</div>
+                  <div className="text-xs text-muted-foreground">Total Products</div>
+                </div>
+                <div className="text-center p-4 border rounded-lg">
+                  <Users className="mx-auto h-6 w-6 text-green-600 mb-2" />
+                  <div className="text-xl font-bold">{summary.totalUsers}</div>
+                  <div className="text-xs text-muted-foreground">Total Users</div>
+                </div>
+                <div className="text-center p-4 border rounded-lg">
+                  <ShoppingCart className="mx-auto h-6 w-6 text-purple-600 mb-2" />
+                  <div className="text-xl font-bold">{summary.totalOrders}</div>
+                  <div className="text-xs text-muted-foreground">Total Orders</div>
+                </div>
+                <div className="text-center p-4 border rounded-lg">
+                  <DollarSign className="mx-auto h-6 w-6 text-orange-600 mb-2" />
+                  <div className="text-xl font-bold">{formatCurrency(summary.avgOrderValue)}</div>
+                  <div className="text-xs text-muted-foreground">Avg Order Value</div>
+                </div>
               </div>
             </CardContent>
           </Card>
         </div>
       </div>
     </DashboardLayout>
-  )
+  );
 }

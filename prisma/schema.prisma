@@ -20,19 +20,19 @@ enum UserRole {
 }
 
 enum OrderStatus {
-  PENDING           // Order created, awaiting payment
-  PAYMENT_PENDING   // Payment initiated but not confirmed
-  PAID              // Payment confirmed, awaiting seller approval
-  APPROVED          // Seller approved, order in progress
-  PACKED            // Seller packed the order
+  PENDING // Order created, awaiting payment
+  PAYMENT_PENDING // Payment initiated but not confirmed
+  PAID // Payment confirmed, awaiting seller approval
+  APPROVED // Seller approved, order in progress
+  PACKED // Seller packed the order
   READY_FOR_DELIVERY // Ready to be picked up/dispatched
-  IN_TRANSIT        // Out for delivery
+  IN_TRANSIT // Out for delivery
   REACHED_COLLECTION_POINT // At collection point
-  READY_FOR_PICKUP  // Ready for customer pickup
-  DELIVERED         // Delivered to customer
-  COMPLETED         // Customer confirmed receipt
-  CANCELLED         // Order cancelled
-  REJECTED          // Seller rejected the order
+  READY_FOR_PICKUP // Ready for customer pickup
+  DELIVERED // Delivered to customer
+  COMPLETED // Customer confirmed receipt
+  CANCELLED // Order cancelled
+  REJECTED // Seller rejected the order
 }
 
 enum ProductType {
@@ -69,6 +69,30 @@ enum PaymentMethod {
   CASH_ON_DELIVERY
   GOOGLE_PAY
   BANK_TRANSFER
+  CARD
+}
+
+// POS System Enums
+enum SalePaymentMethod {
+  CASH
+  MPESA
+  CARD
+}
+
+enum SaleStatus {
+  COMPLETED
+  REFUNDED
+  VOIDED
+}
+
+enum InventoryAction {
+  SALE // Stock deducted from POS sale
+  ORDER // Stock deducted from online order
+  RESTOCK // Manual restock / purchase
+  ADJUSTMENT // Manual adjustment (correction)
+  RETURN // Customer return
+  DAMAGE // Damaged/expired stock write-off
+  TRANSFER // Transfer between locations
 }
 
 enum PaymentType {
@@ -77,23 +101,23 @@ enum PaymentType {
 }
 
 enum PaymentStatus {
-  UNPAID      // No payment initiated
-  PENDING     // Payment initiated, awaiting confirmation
-  SUBMITTED   // Manual payment submitted, awaiting admin verification
-  CONFIRMED   // Payment confirmed (by admin for manual, or auto for M-Pesa)
-  APPROVED    // Payment approved by admin
-  REJECTED    // Payment rejected by admin
-  REFUNDED    // Payment refunded
-  FAILED      // Payment failed
+  UNPAID // No payment initiated
+  PENDING // Payment initiated, awaiting confirmation
+  SUBMITTED // Manual payment submitted, awaiting admin verification
+  CONFIRMED // Payment confirmed (by admin for manual, or auto for M-Pesa)
+  APPROVED // Payment approved by admin
+  REJECTED // Payment rejected by admin
+  REFUNDED // Payment refunded
+  FAILED // Payment failed
 }
 
 enum PaymentInvoiceStatus {
-  CREATED     // Invoice created but payment not initiated
-  PENDING     // Payment initiated but not completed
-  COMPLETE    // Payment completed successfully
-  FAILED      // Payment failed
-  EXPIRED     // Invoice expired
-  USED        // Invoice used for order creation
+  CREATED // Invoice created but payment not initiated
+  PENDING // Payment initiated but not completed
+  COMPLETE // Payment completed successfully
+  FAILED // Payment failed
+  EXPIRED // Invoice expired
+  USED // Invoice used for order creation
 }
 
 enum SponsorshipStatus {
@@ -154,74 +178,74 @@ enum VoucherType {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  password  String?
-  googleId  String?  @unique
-  name      String
-  phone     String?
-  avatar    String?
-  role      UserRole @default(CUSTOMER)
-  isActive  Boolean  @default(true)
-  isVerified Boolean @default(false)
-  verificationToken String?
+  id                      String    @id @default(cuid())
+  email                   String    @unique
+  password                String?
+  googleId                String?   @unique
+  name                    String
+  phone                   String?
+  avatar                  String?
+  role                    UserRole  @default(CUSTOMER)
+  isActive                Boolean   @default(true)
+  isVerified              Boolean   @default(false)
+  verificationToken       String?
   verificationTokenExpiry DateTime?
-  resetToken String?
-  resetTokenExpiry DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  resetToken              String?
+  resetTokenExpiry        DateTime?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
 
   // Profile fields
-  bio         String?
-  location    String?
-  website     String?
+  bio      String?
+  location String?
+  website  String?
 
   // Custom domain/dashboard
-  customDomain     String?
-  dashboardSlug    String?
-  qrCode          String?
+  customDomain  String?
+  dashboardSlug String?
+  qrCode        String?
 
   // Delivery Agent specific fields
-  agentId         String?   @unique
-  vehicleType     String?
-  vehicleNumber   String?
-  licenseNumber   String?
-  coverageArea    String?
-  isApproved      Boolean   @default(false)
+  agentId       String? @unique
+  vehicleType   String?
+  vehicleNumber String?
+  licenseNumber String?
+  coverageArea  String?
+  isApproved    Boolean @default(false)
 
   // Seller/Company delivery settings
-  offersDelivery      Boolean   @default(false)
-  offersPayAfterDelivery Boolean @default(false)
-  offersFreeDelivery  Boolean   @default(false)
-  deliveryProvinces   String[]  @default([]) // Array of provinces they deliver to
-  deliveryCounties    String[]  @default([]) // Array of counties they deliver to
+  offersDelivery          Boolean  @default(false)
+  offersPayAfterDelivery  Boolean  @default(false)
+  offersFreeDelivery      Boolean  @default(false)
+  deliveryProvinces       String[] @default([]) // Array of provinces they deliver to
+  deliveryCounties        String[] @default([]) // Array of counties they deliver to
   minOrderForFreeDelivery Float? // Minimum order amount for free delivery
-  deliveryFeePerKm    Float?    @default(0) // Delivery fee per km if not free
+  deliveryFeePerKm        Float?   @default(0) // Delivery fee per km if not free
 
   // Customer relationships
-  orders          Order[]
-  sellerOrders    Order[] @relation("SellerOrders")
-  approvedOrders  Order[] @relation("OrderApprovals")
+  orders           Order[]
+  sellerOrders     Order[]           @relation("SellerOrders")
+  approvedOrders   Order[]           @relation("OrderApprovals")
   hatchingRequests HatchingRequest[]
-  applications    Application[]
-  reviews         Review[]
-  reviewLikes     ReviewLike[]
-  payments        Payment[]
+  applications     Application[]
+  reviews          Review[]
+  reviewLikes      ReviewLike[]
+  payments         Payment[]
 
   // Seller/Company relationships
-  products         Product[]
-  vouchers         Voucher[]
-  sponsorships     Sponsorship[] @relation("UserSponsorships")
-  receivedSponsorships Sponsorship[] @relation("SponsorshipReceiver")
-  companySponsorships   Sponsorship[] @relation("CompanySponsorships")
-  sellerSponsorships    Sponsorship[] @relation("SellerSponsorships")
+  products                Product[]
+  vouchers                Voucher[]
+  sponsorships            Sponsorship[]            @relation("UserSponsorships")
+  receivedSponsorships    Sponsorship[]            @relation("SponsorshipReceiver")
+  companySponsorships     Sponsorship[]            @relation("CompanySponsorships")
+  sellerSponsorships      Sponsorship[]            @relation("SellerSponsorships")
   sponsorshipApplications SponsorshipApplication[] @relation("SellerSponsorshipApplications")
-  tags             UserTag[]
-  analytics        Analytics[]
-  reviewReplies    ReviewReply[]
+  tags                    UserTag[]
+  analytics               Analytics[]
+  reviewReplies           ReviewReply[]
 
   // Delivery Agent relationships
-  deliveries       Delivery[]
+  deliveries Delivery[]
 
   // Payment approvals
   paymentApprovals PaymentApprovalLog[]
@@ -231,18 +255,18 @@ model User {
   receivedNotifications Notification[] @relation("NotificationReceiver")
 
   // Product interactions
-  productLikes          ProductLike[]
-  cartItems             CartItem[]
+  productLikes ProductLike[]
+  cartItems    CartItem[]
 
   // Chat relationships
-  sentMessages          ChatMessage[] @relation("SentMessages")
-  messageReactions      MessageReaction[] @relation("MessageReactions")
-  chatsAsParticipant1   Chat[] @relation("ChatParticipant1")
-  chatsAsParticipant2   Chat[] @relation("ChatParticipant2")
+  sentMessages        ChatMessage[]     @relation("SentMessages")
+  messageReactions    MessageReaction[] @relation("MessageReactions")
+  chatsAsParticipant1 Chat[]            @relation("ChatParticipant1")
+  chatsAsParticipant2 Chat[]            @relation("ChatParticipant2")
 
   // Follow relationships
-  followers             Follow[] @relation("Followers")
-  following             Follow[] @relation("Following")
+  followers Follow[] @relation("Followers")
+  following Follow[] @relation("Following")
 
   // Delivery photo uploads
   uploadedDeliveryPhotos DeliveryPhoto[]
@@ -253,27 +277,43 @@ model User {
   announcementReactions AnnouncementReaction[]
 
   // Checkout sessions
-  checkoutSessions      CheckoutSession[]
-  
+  checkoutSessions CheckoutSession[]
+
+  // POS System
+  sales            Sale[]
+  inventoryLogs    InventoryLog[]
+  sellerCommission SellerCommission?
+
+  // Wallet System
+  wallets             Wallet[]
+  walletTransactions  WalletTransaction[] @relation("WalletTransactions")
+
   // Blog relationships
-  blogPosts             BlogPost[]
-  blogComments          BlogComment[]
-  moderatedComments     BlogComment[] @relation("CommentModerator")
-  approvedBlogPosts     BlogPost[]    @relation("BlogPostApprovedBy")
+  blogPosts         BlogPost[]
+  blogComments      BlogComment[]
+  moderatedComments BlogComment[] @relation("CommentModerator")
+  approvedBlogPosts BlogPost[]    @relation("BlogPostApprovedBy")
 
   // API keys
-  apiKeys               ApiKey[]
-  
+  apiKeys ApiKey[]
+
   // Social interactions
-  blogPostLikes         BlogPostLike[]    @relation("BlogPostLikes")
-  blogCommentLikes      BlogCommentLike[] @relation("BlogCommentLikes")
+  blogPostLikes    BlogPostLike[]    @relation("BlogPostLikes")
+  blogCommentLikes BlogCommentLike[] @relation("BlogCommentLikes")
 
   // Author Profile (separate blog identity)
-  authorProfile         AuthorProfile?
-  blogPostViews         BlogPostView[]    @relation("UserBlogViews")
+  authorProfile AuthorProfile?
+  blogPostViews BlogPostView[] @relation("UserBlogViews")
 
   // Author Support (as supporter)
-  supportTransactions   SupportTransaction[] @relation("SupporterTransactions")
+  supportTransactions SupportTransaction[] @relation("SupporterTransactions")
+
+  // Store System
+  store              Store?       @relation("StoreOwner")
+  deliveryPartner    DeliveryPartner?
+  deliveryJobs       DeliveryJob[] @relation("DeliveryPartnerJobs")
+  deliveryProofs     DeliveryProof[] @relation("DeliveryProofSubmitter")
+  adminDeliveryApprovals DeliveryProof[] @relation("DeliveryProofApprover")
 
   @@map("users")
 }
@@ -293,36 +333,50 @@ model Product {
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
+  // Store multi-tenant isolation
+  storeId     String?
+  store       Store?      @relation(fields: [storeId], references: [id])
+
   // SEO and metadata
-  slug        String?     @unique
-  metaTitle   String?
+  slug            String? @unique
+  metaTitle       String?
   metaDescription String?
 
   // Discount fields
-  hasDiscount     Boolean   @default(false)
-  discountType    DiscountType?
-  discountAmount  Float?
+  hasDiscount       Boolean       @default(false)
+  discountType      DiscountType?
+  discountAmount    Float?
   discountStartDate DateTime?
   discountEndDate   DateTime?
 
-  orderItems OrderItem[]
-  reviews    Review[]
-  tags       ProductTag[]
-  likes      ProductLike[]
-  cartItems  CartItem[]
-  categories ProductCategory[]
-  collections ProductCollection[]
-  chats      Chat[]
-  announcements Announcement[]
+  orderItems       OrderItem[]
+  reviews          Review[]
+  tags             ProductTag[]
+  likes            ProductLike[]
+  cartItems        CartItem[]
+  categories       ProductCategory[]
+  collections      ProductCollection[]
+  chats            Chat[]
+  announcements    Announcement[]
   checkoutSessions CheckoutSession[]
 
+  // POS System
+  saleItems     SaleItem[]
+  inventoryLogs InventoryLog[]
+
+  // Extended product fields
+  sku               String?
+  unitType          String?  // bird, kg, crate, tray
+  vaccinationStatus String?
+
+  @@index([storeId])
   @@map("products")
 }
 
 model ProductTag {
-  id        String  @id @default(cuid())
+  id        String   @id @default(cuid())
   productId String
-  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
   tag       TagType
   addedAt   DateTime @default(now())
 
@@ -331,113 +385,125 @@ model ProductTag {
 }
 
 model Order {
-  id         String      @id @default(cuid())
-  customerId String
-  customer   User        @relation(fields: [customerId], references: [id])
-  status     OrderStatus @default(PENDING)
-  total      Float
-  subtotal   Float @default(0)
-  discountAmount Float   @default(0)
-  deliveryFee Float   @default(0)
-  voucherCode    String?
-  notes      String?
+  id              String      @id @default(cuid())
+  customerId      String
+  customer        User        @relation(fields: [customerId], references: [id])
+  status          OrderStatus @default(PENDING)
+  total           Float
+  subtotal        Float       @default(0)
+  discountAmount  Float       @default(0)
+  deliveryFee     Float       @default(0)
+  voucherCode     String?
+  notes           String?
   rejectionReason String?
 
   // Enhanced payment fields
-  paymentType    PaymentType   @default(BEFORE_DELIVERY)
-  paymentStatus  PaymentStatus @default(UNPAID)
-  paymentDetails String?
-  paymentPhone   String?
+  paymentType      PaymentType   @default(BEFORE_DELIVERY)
+  paymentStatus    PaymentStatus @default(UNPAID)
+  paymentDetails   String?
+  paymentPhone     String?
   paymentReference String?
-  paymentMethod  PaymentMethod @default(MPESA)
+  paymentMethod    PaymentMethod @default(MPESA)
 
   // Enhanced delivery fields
-  deliveryCounty    String?
-  deliveryProvince  String?
-  deliveryAddress   String?
+  deliveryCounty        String?
+  deliveryProvince      String?
+  deliveryAddress       String?
   sellerHandlesDelivery Boolean @default(false)
 
   // Seller approval tracking
-  sellerId          String?
-  seller            User?       @relation("SellerOrders", fields: [sellerId], references: [id])
-  approvedAt        DateTime?
-  approvedBy        String?
-  approver          User?       @relation("OrderApprovals", fields: [approvedBy], references: [id])
+  sellerId   String?
+  seller     User?     @relation("SellerOrders", fields: [sellerId], references: [id])
+  approvedAt DateTime?
+  approvedBy String?
+  approver   User?     @relation("OrderApprovals", fields: [approvedBy], references: [id])
 
   // Delivery proof and completion
-  deliveryProofImages String[]  @default([])
+  deliveryProofImages  String[]  @default([])
   deliveryProofMessage String?
-  completedAt       DateTime?
-  markedReceivedAt  DateTime?
-  
+  completedAt          DateTime?
+  markedReceivedAt     DateTime?
+
   // Review tracking
-  isReviewed        Boolean     @default(false)
-  reviewId          String?
+  isReviewed Boolean @default(false)
+  reviewId   String?
 
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
+  // Escrow & delivery proof
+  escrowStatus    EscrowStatus @default(NONE)
+  escrowAmount    Float?       // Amount held in escrow
+  escrowReleasedAt DateTime?
 
-  items      OrderItem[]
-  delivery   Delivery?
-  payment    Payment?
-  paymentInvoices PaymentInvoice[]
-  notifications Notification[]
+  // Store multi-tenant isolation
+  storeId String?
+  store   Store?  @relation(fields: [storeId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items            OrderItem[]
+  delivery         Delivery?
+  payment          Payment?
+  paymentInvoices  PaymentInvoice[]
+  notifications    Notification[]
   paymentApprovals PaymentApprovalLog[]
-  chats      Chat[]
-  invoice    Invoice?
-  timeline   OrderTimeline[]
+  chats            Chat[]
+  invoice          Invoice?
+  timeline         OrderTimeline[]
+  deliveryProof    DeliveryProof?
+  deliveryJobs     DeliveryJob[]
 
+  @@index([storeId])
   @@map("orders")
 }
 
 model OrderTimeline {
-  id          String   @id @default(cuid())
-  orderId     String
-  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  
-  // Activity tracking
-  action      String   // e.g., "Order Created", "Payment Confirmed", "Seller Approved", "Status Updated", "Completed"
-  description String?
-  oldStatus   String?  // Previous order status (if status change)
-  newStatus   String?  // New order status (if status change)
-  
-  // Actor tracking
-  actorId     String?
-  actorRole   String?  // ADMIN, SELLER, CUSTOMER, SYSTEM
-  actorName   String?  // Name of person/system that performed the action
-  
-  // Additional metadata
-  metadata    String?  // JSON string for additional data
-  
-  createdAt   DateTime @default(now())
+  id      String @id @default(cuid())
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
-  @@map("order_timeline")
+  // Activity tracking
+  action      String // e.g., "Order Created", "Payment Confirmed", "Seller Approved", "Status Updated", "Completed"
+  description String?
+  oldStatus   String? // Previous order status (if status change)
+  newStatus   String? // New order status (if status change)
+
+  // Actor tracking
+  actorId   String?
+  actorRole String? // ADMIN, SELLER, CUSTOMER, SYSTEM
+  actorName String? // Name of person/system that performed the action
+
+  // Additional metadata
+  metadata String? // JSON string for additional data
+
+  createdAt DateTime @default(now())
+
   @@index([orderId])
   @@index([createdAt])
+  @@map("order_timeline")
 }
 
 model OrderItem {
-  id        String  @id @default(cuid())
-  orderId   String
-  order     Order   @relation(fields: [orderId], references: [id])
-  productId String
-  product   Product @relation(fields: [productId], references: [id])
-  quantity  Int
-  price     Float
-  discountApplied Float @default(0)
+  id              String  @id @default(cuid())
+  orderId         String
+  order           Order   @relation(fields: [orderId], references: [id])
+  productId       String
+  product         Product @relation(fields: [productId], references: [id])
+  quantity        Int
+  price           Float
+  discountApplied Float   @default(0)
 
   @@map("order_items")
 }
 
 model Delivery {
-  id         String        @id @default(cuid())
-  orderId    String        @unique
-  order      Order         @relation(fields: [orderId], references: [id])
-  fee        Float         @default(0)
+  id         String         @id @default(cuid())
+  orderId    String         @unique
+  order      Order          @relation(fields: [orderId], references: [id])
+  fee        Float          @default(0)
   agentId    String?
-  agent      User?         @relation(fields: [agentId], references: [id])
+  agent      User?          @relation(fields: [agentId], references: [id])
   address    String
-  trackingId String        @unique
+  trackingId String         @unique
   status     DeliveryStatus @default(ASSIGNED)
 
   // Delivery details
@@ -445,20 +511,20 @@ model Delivery {
   actualDelivery    DateTime?
   pickupTime        DateTime?
   dispatchTime      DateTime?
-  
+
   // Enhanced delivery location and handling
-  county            String?
-  province          String?
+  county                String?
+  province              String?
   sellerHandlesDelivery Boolean @default(false)
-  deliveryNotes     String?
+  deliveryNotes         String?
 
   // Agent details
-  agentName         String?
-  agentPhone        String?
-  vehicleInfo       String?
+  agentName   String?
+  agentPhone  String?
+  vehicleInfo String?
 
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   deliveryPhotos DeliveryPhoto[]
 
@@ -466,16 +532,16 @@ model Delivery {
 }
 
 model DeliveryPhoto {
-  id          String   @id @default(cuid())
-  deliveryId  String
-  delivery    Delivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
-  uploadedBy  String
-  uploader    User     @relation(fields: [uploadedBy], references: [id])
-  photoUrl    String
+  id                 String            @id @default(cuid())
+  deliveryId         String
+  delivery           Delivery          @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  uploadedBy         String
+  uploader           User              @relation(fields: [uploadedBy], references: [id])
+  photoUrl           String
   cloudinaryPublicId String?
-  caption     String?
-  photoType   DeliveryPhotoType @default(DELIVERY_PROOF)
-  createdAt   DateTime @default(now())
+  caption            String?
+  photoType          DeliveryPhotoType @default(DELIVERY_PROOF)
+  createdAt          DateTime          @default(now())
 
   @@map("delivery_photos")
 }
@@ -488,22 +554,23 @@ enum DeliveryPhotoType {
 }
 
 model DeliveryVoucher {
-  id              String      @id @default(cuid())
-  code            String      @unique
-  name            String?
-  description     String?
-  discountType    VoucherType
-  discountValue   Float
-  minOrderAmount  Float       @default(0)
-  maxUses         Int         @default(1)
-  usedCount       Int         @default(0)
-  expiresAt       DateTime?
-  isActive        Boolean     @default(true)
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  id             String      @id @default(cuid())
+  code           String      @unique
+  name           String?
+  description    String?
+  discountType   VoucherType
+  discountValue  Float
+  minOrderAmount Float       @default(0)
+  maxUses        Int         @default(1)
+  usedCount      Int         @default(0)
+  expiresAt      DateTime?
+  isActive       Boolean     @default(true)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
 
   @@map("delivery_vouchers")
 }
+
 model DeliveryFee {
   id          String   @id @default(uuid())
   name        String
@@ -517,88 +584,88 @@ model DeliveryFee {
 }
 
 model Payment {
-  id                 String        @id @default(cuid())
-  orderId            String        @unique
-  order              Order         @relation(fields: [orderId], references: [id])
-  userId             String
-  user               User          @relation(fields: [userId], references: [id])
-  amount             Float
-  method             PaymentMethod
-  status             PaymentStatus @default(PENDING)
-  phoneNumber        String?
-  transactionCode    String?
-  mpesaMessage       String?
-  description        String?
-  referenceNumber    String?
-  externalReference  String?       // For tracking external payment systems
-  metadata           String?       // JSON string for additional data
-  stkPushData        String?       // JSON string for STK Push response data
-  callbackData       String?       // JSON string for payment callback data
-  callbackReceived   Boolean       @default(false)
-  failureReason      String?       // Reason for payment failure
-  createdAt          DateTime      @default(now())
-  updatedAt          DateTime      @updatedAt
+  id                String        @id @default(cuid())
+  orderId           String        @unique
+  order             Order         @relation(fields: [orderId], references: [id])
+  userId            String
+  user              User          @relation(fields: [userId], references: [id])
+  amount            Float
+  method            PaymentMethod
+  status            PaymentStatus @default(PENDING)
+  phoneNumber       String?
+  transactionCode   String?
+  mpesaMessage      String?
+  description       String?
+  referenceNumber   String?
+  externalReference String? // For tracking external payment systems
+  metadata          String? // JSON string for additional data
+  stkPushData       String? // JSON string for STK Push response data
+  callbackData      String? // JSON string for payment callback data
+  callbackReceived  Boolean       @default(false)
+  failureReason     String? // Reason for payment failure
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
 
   @@map("payments")
 }
 
 model PaymentApprovalLog {
-  id        String   @id @default(cuid())
-  orderId   String
-  order     Order    @relation(fields: [orderId], references: [id])
+  id         String   @id @default(cuid())
+  orderId    String
+  order      Order    @relation(fields: [orderId], references: [id])
   approverId String
-  approver  User     @relation(fields: [approverId], references: [id])
-  action    String
-  notes     String?
-  createdAt DateTime @default(now())
+  approver   User     @relation(fields: [approverId], references: [id])
+  action     String
+  notes      String?
+  createdAt  DateTime @default(now())
 
   @@map("payment_approval_logs")
 }
 
 model PaymentInvoice {
-  id               String   @id @default(cuid())
-  invoiceId        String   @unique                    // IntaSend invoice ID
-  orderId          String?                            // Optional - set when order is created
-  order            Order?   @relation(fields: [orderId], references: [id])
-  provider         String   @default("intasend")      // Payment provider (intasend, lipia, etc.)
-  status           PaymentInvoiceStatus @default(CREATED)
-  amount           Float                              // Original payment amount
-  expectedAmount   Float?                            // Expected amount with fees
-  phoneNumber      String?                           // Phone number used for payment
-  isUsed           Boolean  @default(false)          // Whether invoice has been used for an order
-  expiresAt        DateTime                          // When invoice expires
-  metadata         String?                           // JSON string for additional data
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id             String               @id @default(cuid())
+  invoiceId      String               @unique // IntaSend invoice ID
+  orderId        String? // Optional - set when order is created
+  order          Order?               @relation(fields: [orderId], references: [id])
+  provider       String               @default("intasend") // Payment provider (intasend, lipia, etc.)
+  status         PaymentInvoiceStatus @default(CREATED)
+  amount         Float // Original payment amount
+  expectedAmount Float? // Expected amount with fees
+  phoneNumber    String? // Phone number used for payment
+  isUsed         Boolean              @default(false) // Whether invoice has been used for an order
+  expiresAt      DateTime // When invoice expires
+  metadata       String? // JSON string for additional data
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
 
   @@map("payment_invoices")
 }
 
 model Voucher {
-  id              String      @id @default(cuid())
-  code            String      @unique
-  name            String?
-  description     String?
-  discountType    VoucherType
-  discountValue   Float
-  minOrderAmount  Float       @default(0)
+  id                String      @id @default(cuid())
+  code              String      @unique
+  name              String?
+  description       String?
+  discountType      VoucherType
+  discountValue     Float
+  minOrderAmount    Float       @default(0)
   maxDiscountAmount Float?
-  validFrom       DateTime
-  validUntil      DateTime
-  maxUses         Int         @default(1)
-  usedCount       Int         @default(0)
-  isActive        Boolean     @default(true)
+  validFrom         DateTime
+  validUntil        DateTime
+  maxUses           Int         @default(1)
+  usedCount         Int         @default(0)
+  isActive          Boolean     @default(true)
 
   // Creator info
-  createdById     String
-  createdBy       User        @relation(fields: [createdById], references: [id])
+  createdById String
+  createdBy   User   @relation(fields: [createdById], references: [id])
 
   // Usage restrictions
-  applicableRoles UserRole[]
+  applicableRoles        UserRole[]
   applicableProductTypes ProductType[]
 
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("vouchers")
 }
@@ -616,19 +683,19 @@ model Review {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  likes     ReviewLike[]
-  replies   ReviewReply[]
+  likes   ReviewLike[]
+  replies ReviewReply[]
 
   @@unique([productId, userId])
   @@map("reviews")
 }
 
 model ReviewLike {
-  id       String @id @default(cuid())
-  reviewId String
-  review   Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
-  userId   String
-  user     User   @relation(fields: [userId], references: [id])
+  id        String   @id @default(cuid())
+  reviewId  String
+  review    Review   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
   createdAt DateTime @default(now())
 
   @@unique([reviewId, userId])
@@ -636,12 +703,12 @@ model ReviewLike {
 }
 
 model ReviewReply {
-  id       String @id @default(cuid())
-  reviewId String
-  review   Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
-  userId   String
-  user     User   @relation(fields: [userId], references: [id])
-  comment  String
+  id        String   @id @default(cuid())
+  reviewId  String
+  review    Review   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  comment   String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -649,34 +716,34 @@ model ReviewReply {
 }
 
 model HatchingRequest {
-  id          String            @id @default(cuid())
-  customerId  String
-  customer    User              @relation(fields: [customerId], references: [id])
-  eggType     String
-  quantity    Int
-  purpose     String
-  status      ApplicationStatus @default(PENDING)
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
+  id         String            @id @default(cuid())
+  customerId String
+  customer   User              @relation(fields: [customerId], references: [id])
+  eggType    String
+  quantity   Int
+  purpose    String
+  status     ApplicationStatus @default(PENDING)
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
 
   @@map("hatching_requests")
 }
 
 model Application {
-  id          String            @id @default(cuid())
-  userId      String
-  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id            String            @id @default(cuid())
+  userId        String
+  user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   requestedRole UserRole
-  businessName String?
-  businessType String?
-  description String?
-  documents   String[]
-  status      ApplicationStatus @default(PENDING)
-  reviewedAt  DateTime?
-  reviewedBy  String?
-  reviewNotes String?
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
+  businessName  String?
+  businessType  String?
+  description   String?
+  documents     String[]
+  status        ApplicationStatus @default(PENDING)
+  reviewedAt    DateTime?
+  reviewedBy    String?
+  reviewNotes   String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
 
   @@map("applications")
 }
@@ -697,18 +764,18 @@ model Sponsorship {
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
 
-  company User @relation("CompanySponsorships", fields: [companyId], references: [id], onDelete: Cascade)
+  company User  @relation("CompanySponsorships", fields: [companyId], references: [id], onDelete: Cascade)
   seller  User? @relation("SellerSponsorships", fields: [sellerId], references: [id], onDelete: SetNull)
   user    User? @relation("UserSponsorships", fields: [userId], references: [id])
 
   applications SponsorshipApplication[]
+  User         User[]                   @relation("SponsorshipReceiver")
 
   @@map("sponsorships")
-  User User[] @relation("SponsorshipReceiver")
 }
 
 model SponsorshipApplication {
-  id              String                      @id @default(cuid())
+  id              String                       @id @default(cuid())
   sponsorshipId   String
   sellerId        String
   message         String?
@@ -716,8 +783,8 @@ model SponsorshipApplication {
   status          SponsorshipApplicationStatus @default(PENDING)
   rejectionReason String?
   reviewedAt      DateTime?
-  createdAt       DateTime                    @default(now())
-  updatedAt       DateTime                    @updatedAt
+  createdAt       DateTime                     @default(now())
+  updatedAt       DateTime                     @updatedAt
 
   sponsorship Sponsorship @relation(fields: [sponsorshipId], references: [id], onDelete: Cascade)
   seller      User        @relation("SellerSponsorshipApplications", fields: [sellerId], references: [id], onDelete: Cascade)
@@ -727,9 +794,9 @@ model SponsorshipApplication {
 }
 
 model UserTag {
-  id      String  @id @default(cuid())
+  id      String   @id @default(cuid())
   userId  String
-  user    User    @relation(fields: [userId], references: [id])
+  user    User     @relation(fields: [userId], references: [id])
   tag     TagType
   addedBy String?
   addedAt DateTime @default(now())
@@ -739,16 +806,16 @@ model UserTag {
 }
 
 model Analytics {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  date      DateTime @default(now())
+  id     String   @id @default(cuid())
+  userId String
+  user   User     @relation(fields: [userId], references: [id])
+  date   DateTime @default(now())
 
-  totalSales    Float    @default(0)
-  orderCount    Int      @default(0)
-  productViews  Int      @default(0)
-  fulfillmentRate Float  @default(0)
-  averageRating   Float  @default(0)
+  totalSales      Float @default(0)
+  orderCount      Int   @default(0)
+  productViews    Int   @default(0)
+  fulfillmentRate Float @default(0)
+  averageRating   Float @default(0)
 
   @@unique([userId, date])
   @@map("analytics")
@@ -799,19 +866,19 @@ model CartItem {
 }
 
 model Chat {
-  id             String   @id @default(cuid())
+  id             String    @id @default(cuid())
   participant1Id String
-  participant1   User     @relation("ChatParticipant1", fields: [participant1Id], references: [id], onDelete: Cascade)
+  participant1   User      @relation("ChatParticipant1", fields: [participant1Id], references: [id], onDelete: Cascade)
   participant2Id String
-  participant2   User     @relation("ChatParticipant2", fields: [participant2Id], references: [id], onDelete: Cascade)
+  participant2   User      @relation("ChatParticipant2", fields: [participant2Id], references: [id], onDelete: Cascade)
   productId      String?
-  product        Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  product        Product?  @relation(fields: [productId], references: [id], onDelete: SetNull)
   orderId        String?
-  order          Order?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  order          Order?    @relation(fields: [orderId], references: [id], onDelete: SetNull)
   lastMessage    String?
   lastMessageAt  DateTime?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   messages ChatMessage[]
 
@@ -821,28 +888,28 @@ model Chat {
 }
 
 model ChatMessage {
-  id            String   @id @default(cuid())
-  chatId        String
-  chat          Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
-  senderId      String
-  sender        User     @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
-  content       String
-  type          String   @default("text") // text, image, file
-  images        String[]
-  files         MessageFile[]
-  isRead        Boolean  @default(false)
-  isEdited      Boolean  @default(false)
-  isDeleted     Boolean  @default(false)
-  deletedAt     DateTime?
-  editedAt      DateTime?
-  replyToId     String?
-  replyTo       ChatMessage? @relation("MessageReplies", fields: [replyToId], references: [id], onDelete: SetNull)
-  replies       ChatMessage[] @relation("MessageReplies")
-  reactions     MessageReaction[]
-  readAt        DateTime?
-  deliveredAt   DateTime?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id          String            @id @default(cuid())
+  chatId      String
+  chat        Chat              @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  senderId    String
+  sender      User              @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  content     String
+  type        String            @default("text") // text, image, file
+  images      String[]
+  files       MessageFile[]
+  isRead      Boolean           @default(false)
+  isEdited    Boolean           @default(false)
+  isDeleted   Boolean           @default(false)
+  deletedAt   DateTime?
+  editedAt    DateTime?
+  replyToId   String?
+  replyTo     ChatMessage?      @relation("MessageReplies", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies     ChatMessage[]     @relation("MessageReplies")
+  reactions   MessageReaction[]
+  readAt      DateTime?
+  deliveredAt DateTime?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
 
   @@map("chat_messages")
 }
@@ -875,16 +942,16 @@ model MessageReaction {
 }
 
 model Category {
-  id          String    @id @default(cuid())
-  name        String    @unique
-  slug        String    @unique
+  id          String   @id @default(cuid())
+  name        String   @unique
+  slug        String   @unique
   description String?
   icon        String?
   image       String?
-  isActive    Boolean   @default(true)
-  sortOrder   Int       @default(0)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   products ProductCategory[]
 
@@ -903,16 +970,16 @@ model ProductCategory {
 }
 
 model Collection {
-  id          String    @id @default(cuid())
-  name        String    @unique
-  slug        String    @unique
+  id          String   @id @default(cuid())
+  name        String   @unique
+  slug        String   @unique
   description String?
   image       String?
-  isActive    Boolean   @default(true)
-  isFeatured  Boolean   @default(false)
-  sortOrder   Int       @default(0)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  isActive    Boolean  @default(true)
+  isFeatured  Boolean  @default(false)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   products ProductCollection[]
 
@@ -943,53 +1010,53 @@ model Follow {
 }
 
 model Invoice {
-  id              String   @id @default(cuid())
-  orderId         String   @unique
-  order           Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  invoiceNumber   String   @unique
-  fileName        String
-  filePath        String
+  id                 String   @id @default(cuid())
+  orderId            String   @unique
+  order              Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  invoiceNumber      String   @unique
+  fileName           String
+  filePath           String
   cloudinaryPublicId String?
-  generatedAt     DateTime @default(now())
+  generatedAt        DateTime @default(now())
 
   @@map("invoices")
 }
 
 model Announcement {
-  id              String            @id @default(cuid())
-  title           String
-  content         String
-  type            AnnouncementType
-  status          AnnouncementStatus @default(DRAFT)
-  authorId        String
-  author          User              @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  
+  id       String             @id @default(cuid())
+  title    String
+  content  String
+  type     AnnouncementType
+  status   AnnouncementStatus @default(DRAFT)
+  authorId String
+  author   User               @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
   // Optional associations
-  productId       String?
-  product         Product?          @relation(fields: [productId], references: [id], onDelete: Cascade)
-  
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id], onDelete: Cascade)
+
   // Audience targeting
-  targetRoles     String[]          // JSON array of roles to target
-  isGlobal        Boolean           @default(false) // Visible to all users
-  
+  targetRoles String[] // JSON array of roles to target
+  isGlobal    Boolean  @default(false) // Visible to all users
+
   // Scheduling
-  publishAt       DateTime?         // When to auto-publish
-  expiresAt       DateTime?         // When announcement expires
-  
+  publishAt DateTime? // When to auto-publish
+  expiresAt DateTime? // When announcement expires
+
   // Media
-  imageUrl        String?
-  attachmentUrl   String?
-  
+  imageUrl      String?
+  attachmentUrl String?
+
   // Stats
-  viewCount       Int               @default(0)
-  
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
-  publishedAt     DateTime?
+  viewCount Int @default(0)
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  publishedAt DateTime?
 
   // Relations
-  views           AnnouncementView[]
-  reactions       AnnouncementReaction[]
+  views     AnnouncementView[]
+  reactions AnnouncementReaction[]
 
   @@map("announcements")
 }
@@ -1012,7 +1079,7 @@ model AnnouncementReaction {
   announcement   Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
   userId         String
   user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  reaction       String       // 👍, 👎, ❤️, 😮, 😂, etc.
+  reaction       String // 👍, 👎, ❤️, 😮, 😂, etc.
   createdAt      DateTime     @default(now())
 
   @@unique([announcementId, userId])
@@ -1020,26 +1087,26 @@ model AnnouncementReaction {
 }
 
 model CheckoutSession {
-  id           String   @id @default(cuid())
-  userId       String
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  productId    String
-  product      Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  quantity     Int      @default(1)
-  totalAmount  Float
-  paymentType  PaymentType @default(BEFORE_DELIVERY)
-  
+  id          String      @id @default(cuid())
+  userId      String
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId   String
+  product     Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  quantity    Int         @default(1)
+  totalAmount Float
+  paymentType PaymentType @default(BEFORE_DELIVERY)
+
   // Delivery information
-  deliveryAddress String?
-  deliveryCounty  String?
+  deliveryAddress  String?
+  deliveryCounty   String?
   deliveryProvince String?
-  deliveryFee     Float @default(0)
-  
+  deliveryFee      Float   @default(0)
+
   // Session status
-  isCompleted  Boolean  @default(false)
-  expiresAt    DateTime
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  isCompleted Boolean  @default(false)
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@map("checkout_sessions")
 }
@@ -1075,25 +1142,25 @@ enum BlogPostCategory {
 
 // Author Profile Model - Separate blog identity from main user
 model AuthorProfile {
-  id              String    @id @default(cuid())
-  userId          String    @unique
-  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   // Public Identity
-  displayName     String
-  username        String    @unique  // URL-safe, unique identifier (3-30 chars, lowercase, alphanumeric, underscores)
-  bio             String?   @db.Text
-  avatarUrl       String?
-  coverImageUrl   String?
-  
+  displayName   String
+  username      String  @unique // URL-safe, unique identifier (3-30 chars, lowercase, alphanumeric, underscores)
+  bio           String? @db.Text
+  avatarUrl     String?
+  coverImageUrl String?
+
   // Professional Info
-  tagline         String?            // Short professional tagline
-  website         String?
-  location        String?
-  occupation      String?
-  company         String?
-  expertise       String[]           // Areas of expertise
-  
+  tagline    String? // Short professional tagline
+  website    String?
+  location   String?
+  occupation String?
+  company    String?
+  expertise  String[] // Areas of expertise
+
   // Social Links (individual fields for type safety)
   twitterHandle   String?
   linkedinUrl     String?
@@ -1101,205 +1168,205 @@ model AuthorProfile {
   facebookUrl     String?
   instagramHandle String?
   youtubeChannel  String?
-  
+
   // Settings
-  isPublic        Boolean   @default(true)
-  isVerified      Boolean   @default(false)
-  showEmail       Boolean   @default(false)
-  allowComments   Boolean   @default(true)
-  emailOnComment  Boolean   @default(true)
-  emailOnFollow   Boolean   @default(true)
-  emailOnLike     Boolean   @default(false)
-  
+  isPublic       Boolean @default(true)
+  isVerified     Boolean @default(false)
+  showEmail      Boolean @default(false)
+  allowComments  Boolean @default(true)
+  emailOnComment Boolean @default(true)
+  emailOnFollow  Boolean @default(true)
+  emailOnLike    Boolean @default(false)
+
   // Stats (denormalized for performance)
-  totalViews      Int       @default(0)
-  totalLikes      Int       @default(0)
-  totalPosts      Int       @default(0)
-  totalComments   Int       @default(0)
-  
+  totalViews    Int @default(0)
+  totalLikes    Int @default(0)
+  totalPosts    Int @default(0)
+  totalComments Int @default(0)
+
   // Timestamps
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   // Relations
-  blogPosts       BlogPost[] @relation("AuthorProfilePosts")
-  
+  blogPosts BlogPost[] @relation("AuthorProfilePosts")
+
   // Author Support Wallet
-  wallet          AuthorWallet?
-  
-  @@map("author_profiles")
+  wallet AuthorWallet?
+
   @@index([username])
   @@index([isPublic, isVerified])
+  @@map("author_profiles")
 }
 
 // Blog Models
 model BlogPost {
-  id              String            @id @default(cuid())
+  id              String   @id @default(cuid())
   title           String
-  slug            String            @unique
-  content         String            @db.Text
-  excerpt         String?           @db.Text
+  slug            String   @unique
+  content         String   @db.Text
+  excerpt         String?  @db.Text
   featuredImage   String?
   thumbnail       String?
-  images          String[]          // Array of up to 3 image URLs
+  images          String[] // Array of up to 3 image URLs
   metaDescription String?
   metaKeywords    String?
-  
+
   // SEO fields
-  ogTitle         String?
-  ogDescription   String?
-  ogImage         String?
-  twitterTitle    String?
+  ogTitle            String?
+  ogDescription      String?
+  ogImage            String?
+  twitterTitle       String?
   twitterDescription String?
-  twitterImage    String?
-  canonicalUrl    String?           // Custom canonical URL
-  
+  twitterImage       String?
+  canonicalUrl       String? // Custom canonical URL
+
   // Content organization
-  category        BlogPostCategory
-  status          BlogPostStatus    @default(DRAFT)
-  featured        Boolean           @default(false)
-  publishedAt     DateTime?
-  scheduledAt     DateTime?
-  
+  category    BlogPostCategory
+  status      BlogPostStatus   @default(DRAFT)
+  featured    Boolean          @default(false)
+  publishedAt DateTime?
+  scheduledAt DateTime?
+
   // Enhanced content
-  tableOfContents Json?             // Auto-generated TOC structure
-  estimatedReadTime Int?            // Calculated reading time in minutes
-  wordCount       Int?              // Total word count
-  
+  tableOfContents   Json? // Auto-generated TOC structure
+  estimatedReadTime Int? // Calculated reading time in minutes
+  wordCount         Int? // Total word count
+
   // Approval workflow
-  submittedAt     DateTime?         // When submitted for approval
-  approvedAt      DateTime?         // When approved by admin
-  rejectedAt      DateTime?         // When rejected by admin
-  approvedBy      String?           // Admin who approved/rejected
-  approvedByUser  User?             @relation("BlogPostApprovedBy", fields: [approvedBy], references: [id])
-  rejectionReason String?           // Reason for rejection
-  submissionNotes String?           // Notes from submitter
-  
+  submittedAt     DateTime? // When submitted for approval
+  approvedAt      DateTime? // When approved by admin
+  rejectedAt      DateTime? // When rejected by admin
+  approvedBy      String? // Admin who approved/rejected
+  approvedByUser  User?     @relation("BlogPostApprovedBy", fields: [approvedBy], references: [id])
+  rejectionReason String? // Reason for rejection
+  submissionNotes String? // Notes from submitter
+
   // Resubmission workflow
-  resubmittedAt   DateTime?         // When rejected post was resubmitted
-  resubmitCount   Int               @default(0) // Number of times resubmitted
-  adminNotes      String?           // Internal admin notes (not visible to author)
-  
+  resubmittedAt DateTime? // When rejected post was resubmitted
+  resubmitCount Int       @default(0) // Number of times resubmitted
+  adminNotes    String? // Internal admin notes (not visible to author)
+
   // Engagement metrics
-  viewCount       Int               @default(0)
-  uniqueViewCount Int               @default(0) // Unique visitors
-  shareCount      Int               @default(0)
-  likes           Int               @default(0)
-  views           Int               @default(0)
-  readingTime     Int?              // in minutes (legacy field)
-  avgReadDuration Float?            // Average time spent reading (seconds)
-  
+  viewCount       Int    @default(0)
+  uniqueViewCount Int    @default(0) // Unique visitors
+  shareCount      Int    @default(0)
+  likes           Int    @default(0)
+  views           Int    @default(0)
+  readingTime     Int? // in minutes (legacy field)
+  avgReadDuration Float? // Average time spent reading (seconds)
+
   // Author information (existing - links to User)
-  authorId        String
-  author          User              @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  
+  authorId String
+  author   User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
   // Author Profile link (new - optional for backward compat)
   authorProfileId String?
-  authorProfile   AuthorProfile?    @relation("AuthorProfilePosts", fields: [authorProfileId], references: [id], onDelete: SetNull)
-  
+  authorProfile   AuthorProfile? @relation("AuthorProfilePosts", fields: [authorProfileId], references: [id], onDelete: SetNull)
+
   // Relationships
-  tags            BlogPostTag[]
-  comments        BlogComment[]
-  likedBy         BlogPostLike[]    @relation("BlogPostLikes")
-  postViews       BlogPostView[]    @relation("PostViews")
-  
+  tags      BlogPostTag[]
+  comments  BlogComment[]
+  likedBy   BlogPostLike[] @relation("BlogPostLikes")
+  postViews BlogPostView[] @relation("PostViews")
+
   // Support transactions from this post
   supportTransactions SupportTransaction[] @relation("BlogPostSupport")
-  
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
-  
-  @@map("blog_posts")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([status, publishedAt])
   @@index([category])
   @@index([slug])
   @@index([authorProfileId])
+  @@map("blog_posts")
 }
 
 model BlogTag {
-  id          String        @id @default(cuid())
-  name        String        @unique
-  slug        String        @unique
+  id          String  @id @default(cuid())
+  name        String  @unique
+  slug        String  @unique
   description String?
-  color       String?       // Hex color for UI
-  
+  color       String? // Hex color for UI
+
   // Relationships
-  posts       BlogPostTag[]
-  
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  
+  posts BlogPostTag[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@map("blog_tags")
 }
 
 model BlogPostTag {
-  id        String   @id @default(cuid())
-  postId    String
-  tagId     String
-  
-  post      BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
-  tag       BlogTag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
-  
+  id     String @id @default(cuid())
+  postId String
+  tagId  String
+
+  post BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tag  BlogTag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
   @@unique([postId, tagId])
   @@map("blog_post_tags")
 }
 
 model BlogComment {
-  id        String   @id @default(cuid())
-  content   String   @db.Text
-  images    String[] // Array of image URLs for comments
-  isApproved Boolean @default(false)
-  isEdited  Boolean  @default(false)
-  editedAt  DateTime?
-  
+  id         String    @id @default(cuid())
+  content    String    @db.Text
+  images     String[] // Array of image URLs for comments
+  isApproved Boolean   @default(false)
+  isEdited   Boolean   @default(false)
+  editedAt   DateTime?
+
   // Moderation fields
-  moderatedAt     DateTime?
-  moderatedBy     String?
-  moderatedByUser User?    @relation("CommentModerator", fields: [moderatedBy], references: [id], onDelete: SetNull)
+  moderatedAt      DateTime?
+  moderatedBy      String?
+  moderatedByUser  User?     @relation("CommentModerator", fields: [moderatedBy], references: [id], onDelete: SetNull)
   moderationReason String?
-  
+
   // Author information
-  authorId  String?
-  author    User?    @relation(fields: [authorId], references: [id], onDelete: SetNull)
-  
+  authorId String?
+  author   User?   @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
   // Guest comment fields
   guestName  String?
   guestEmail String?
-  
+
   // Relationships
-  postId    String
-  post      BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
-  
+  postId String
+  post   BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
   // Reply system
-  parentId  String?
-  parent    BlogComment? @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
-  replies   BlogComment[] @relation("CommentReplies")
-  
+  parentId String?
+  parent   BlogComment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies  BlogComment[] @relation("CommentReplies")
+
   // Social interactions
-  likedBy   BlogCommentLike[]  @relation("BlogCommentLikes")
-  
+  likedBy BlogCommentLike[] @relation("BlogCommentLikes")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
-  @@map("blog_comments")
+
   @@index([postId])
   @@index([isApproved])
+  @@map("blog_comments")
 }
 
 model BlogSubscriber {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  isActive  Boolean  @default(true)
-  
+  id       String  @id @default(cuid())
+  email    String  @unique
+  name     String?
+  isActive Boolean @default(true)
+
   // Subscription preferences
   weeklyDigest    Boolean @default(true)
   newPostAlerts   Boolean @default(true)
   categoryUpdates String? // JSON array of subscribed categories
-  
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   @@map("blog_subscribers")
 }
 
@@ -1310,9 +1377,9 @@ model BlogPostLike {
   user   User     @relation("BlogPostLikes", fields: [userId], references: [id], onDelete: Cascade)
   postId String
   post   BlogPost @relation("BlogPostLikes", fields: [postId], references: [id], onDelete: Cascade)
-  
+
   createdAt DateTime @default(now())
-  
+
   @@unique([userId, postId])
   @@map("blog_post_likes")
 }
@@ -1323,24 +1390,25 @@ model BlogCommentLike {
   user      User        @relation("BlogCommentLikes", fields: [userId], references: [id], onDelete: Cascade)
   commentId String
   comment   BlogComment @relation("BlogCommentLikes", fields: [commentId], references: [id], onDelete: Cascade)
-  
+
   createdAt DateTime @default(now())
+
   @@unique([userId, commentId])
   @@map("blog_comment_likes")
 }
 
 model ApiKey {
-  id          String        @id @default(cuid())
-  userId      String
-  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name        String
-  hashedKey   String
-  lastFour    String        @db.VarChar(10)
-  status      ApiKeyStatus  @default(ACTIVE)
-  lastUsedAt  DateTime?
-  revokedAt   DateTime?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  id         String       @id @default(cuid())
+  userId     String
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String
+  hashedKey  String
+  lastFour   String       @db.VarChar(10)
+  status     ApiKeyStatus @default(ACTIVE)
+  lastUsedAt DateTime?
+  revokedAt  DateTime?
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
 
   @@index([userId])
   @@map("api_keys")
@@ -1348,40 +1416,40 @@ model ApiKey {
 
 // Blog Post View Tracking
 model BlogPostView {
-  id            String    @id @default(cuid())
-  postId        String
-  post          BlogPost  @relation("PostViews", fields: [postId], references: [id], onDelete: Cascade)
-  
+  id     String   @id @default(cuid())
+  postId String
+  post   BlogPost @relation("PostViews", fields: [postId], references: [id], onDelete: Cascade)
+
   // Viewer Info
-  userId        String?   // Null for anonymous views
-  user          User?     @relation("UserBlogViews", fields: [userId], references: [id], onDelete: SetNull)
-  sessionId     String?   // For anonymous visitor tracking
-  ipHash        String?   // Hashed IP for uniqueness (privacy-safe)
-  
+  userId    String? // Null for anonymous views
+  user      User?   @relation("UserBlogViews", fields: [userId], references: [id], onDelete: SetNull)
+  sessionId String? // For anonymous visitor tracking
+  ipHash    String? // Hashed IP for uniqueness (privacy-safe)
+
   // View Analytics
-  readDuration  Int?      // Seconds spent on page
-  scrollDepth   Int?      // 0-100 percentage scrolled
-  referrer      String?   // Where they came from
-  utmSource     String?   // UTM tracking
-  utmMedium     String?
-  utmCampaign   String?
-  deviceType    String?   // mobile, tablet, desktop
-  browser       String?
-  country       String?
-  
+  readDuration Int? // Seconds spent on page
+  scrollDepth  Int? // 0-100 percentage scrolled
+  referrer     String? // Where they came from
+  utmSource    String? // UTM tracking
+  utmMedium    String?
+  utmCampaign  String?
+  deviceType   String? // mobile, tablet, desktop
+  browser      String?
+  country      String?
+
   // Engagement flags
-  completedRead Boolean   @default(false) // Read > 80% of article
-  likedAfter    Boolean   @default(false) // Liked after reading
-  commentedAfter Boolean  @default(false) // Commented after reading
-  sharedAfter   Boolean   @default(false) // Shared after reading
-  
-  createdAt     DateTime  @default(now())
-  
+  completedRead  Boolean @default(false) // Read > 80% of article
+  likedAfter     Boolean @default(false) // Liked after reading
+  commentedAfter Boolean @default(false) // Commented after reading
+  sharedAfter    Boolean @default(false) // Shared after reading
+
+  createdAt DateTime @default(now())
+
   @@unique([postId, userId])
   @@unique([postId, sessionId])
-  @@map("blog_post_views")
   @@index([postId, createdAt])
   @@index([userId])
+  @@map("blog_post_views")
 }
 
 // ================================
@@ -1410,138 +1478,702 @@ enum WithdrawalStatus {
 }
 
 model AuthorWallet {
-  id                String       @id @default(cuid())
-  authorProfileId   String       @unique
-  authorProfile     AuthorProfile @relation(fields: [authorProfileId], references: [id], onDelete: Cascade)
-  
+  id              String        @id @default(cuid())
+  authorProfileId String        @unique
+  authorProfile   AuthorProfile @relation(fields: [authorProfileId], references: [id], onDelete: Cascade)
+
   // IntaSend Wallet Info
-  intasendWalletId  String       @unique  // IntaSend wallet_id
-  currency          String       @default("KES")
-  label             String                // Wallet label
-  canDisburse       Boolean      @default(true)
-  
+  intasendWalletId String  @unique // IntaSend wallet_id
+  currency         String  @default("KES")
+  label            String // Wallet label
+  canDisburse      Boolean @default(true)
+
   // Balance (cached, synced from IntaSend)
-  currentBalance    Float        @default(0)
-  availableBalance  Float        @default(0)
-  totalReceived     Float        @default(0)
-  totalWithdrawn    Float        @default(0)
-  platformFeeTotal  Float        @default(0)  // 5% platform fee collected
-  
+  currentBalance   Float @default(0)
+  availableBalance Float @default(0)
+  totalReceived    Float @default(0)
+  totalWithdrawn   Float @default(0)
+  platformFeeTotal Float @default(0) // 5% platform fee collected
+
   // Withdrawal settings
-  mpesaNumber       String?               // Default M-Pesa withdrawal number
-  dailyWithdrawLimit Float       @default(50000)  // Daily limit in KES
-  lastWithdrawalDate DateTime?
+  mpesaNumber          String? // Default M-Pesa withdrawal number
+  dailyWithdrawLimit   Float     @default(50000) // Daily limit in KES
+  lastWithdrawalDate   DateTime?
   dailyWithdrawnAmount Float     @default(0)
-  
+
   // Status
-  status            WalletStatus @default(ACTIVE)
-  
+  status WalletStatus @default(ACTIVE)
+
   // Stats
-  supportersCount   Int          @default(0)
-  transactionsCount Int          @default(0)
-  
+  supportersCount   Int @default(0)
+  transactionsCount Int @default(0)
+
   // Timestamps
-  createdAt         DateTime     @default(now())
-  updatedAt         DateTime     @updatedAt
-  lastSyncedAt      DateTime?             // Last time balance was synced from IntaSend
-  
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  lastSyncedAt DateTime? // Last time balance was synced from IntaSend
+
   // Relations
-  transactions      SupportTransaction[]
-  withdrawals       WithdrawalRequest[]
-  
-  @@map("author_wallets")
+  transactions SupportTransaction[]
+  withdrawals  WithdrawalRequest[]
+
   @@index([intasendWalletId])
   @@index([status])
+  @@map("author_wallets")
 }
 
 model SupportTransaction {
-  id                String              @id @default(cuid())
-  walletId          String
-  wallet            AuthorWallet        @relation(fields: [walletId], references: [id], onDelete: Cascade)
-  
+  id       String       @id @default(cuid())
+  walletId String
+  wallet   AuthorWallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
   // Supporter info
-  supporterId       String?             // User ID if logged in
-  supporter         User?               @relation("SupporterTransactions", fields: [supporterId], references: [id], onDelete: SetNull)
-  supporterName     String?             // Name (optional)
-  supporterEmail    String?             // Email for receipt
-  isAnonymous       Boolean             @default(false)
-  
+  supporterId    String? // User ID if logged in
+  supporter      User?   @relation("SupporterTransactions", fields: [supporterId], references: [id], onDelete: SetNull)
+  supporterName  String? // Name (optional)
+  supporterEmail String? // Email for receipt
+  isAnonymous    Boolean @default(false)
+
   // Payment details
-  amount            Float               // Gross amount in KES (min 10)
-  platformFee       Float               // 5% platform fee
-  netAmount         Float               // Amount after fee (goes to author)
-  currency          String              @default("KES")
-  
+  amount      Float // Gross amount in KES (min 10)
+  platformFee Float // 5% platform fee
+  netAmount   Float // Amount after fee (goes to author)
+  currency    String @default("KES")
+
   // IntaSend tracking
-  intasendInvoiceId String?             // IntaSend invoice ID
-  intasendCheckoutId String?            // IntaSend checkout ID (for card payments)
-  mpesaReference    String?             // M-Pesa confirmation code
-  paymentMethod     String?             // MPESA_STK, CARD_CHECKOUT
-  
+  intasendInvoiceId  String? // IntaSend invoice ID
+  intasendCheckoutId String? // IntaSend checkout ID (for card payments)
+  mpesaReference     String? // M-Pesa confirmation code
+  paymentMethod      String? // MPESA_STK, CARD_CHECKOUT
+
   // Message to author
-  message           String?             @db.Text
-  
+  message String? @db.Text
+
   // Status
-  status            SupportPaymentStatus @default(PENDING)
-  failedReason      String?             // User-friendly error message
-  failedCode        String?             // IntaSend error code for debugging
-  
+  status       SupportPaymentStatus @default(PENDING)
+  failedReason String? // User-friendly error message
+  failedCode   String? // IntaSend error code for debugging
+
   // Blog post reference (if supporting from specific post)
-  blogPostId        String?
-  blogPost          BlogPost?           @relation("BlogPostSupport", fields: [blogPostId], references: [id], onDelete: SetNull)
-  
+  blogPostId String?
+  blogPost   BlogPost? @relation("BlogPostSupport", fields: [blogPostId], references: [id], onDelete: SetNull)
+
   // Timestamps
-  createdAt         DateTime            @default(now())
-  updatedAt         DateTime            @updatedAt
-  completedAt       DateTime?
-  
-  @@map("support_transactions")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  completedAt DateTime?
+
   @@index([walletId, status])
   @@index([supporterId])
   @@index([intasendInvoiceId])
   @@index([createdAt])
+  @@map("support_transactions")
 }
 
 model WithdrawalRequest {
-  id                String           @id @default(cuid())
-  walletId          String
-  wallet            AuthorWallet     @relation(fields: [walletId], references: [id], onDelete: Cascade)
-  
+  id       String       @id @default(cuid())
+  walletId String
+  wallet   AuthorWallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
   // Withdrawal method
-  method            String           @default("MPESA_B2C") // MPESA_B2C, MPESA_B2B_PAYBILL, MPESA_B2B_TILL, BANK
-  
+  method String @default("MPESA_B2C") // MPESA_B2C, MPESA_B2B_PAYBILL, MPESA_B2B_TILL, BANK
+
   // Withdrawal details
-  amount            Float            // Amount to withdraw
-  currency          String           @default("KES")
-  
+  amount   Float // Amount to withdraw
+  currency String @default("KES")
+
   // M-Pesa specific fields
-  mpesaNumber       String?          // Target M-Pesa number (B2C)
-  paybillNumber     String?          // PayBill number (B2B)
-  paybillAccount    String?          // PayBill account reference (B2B)
-  tillNumber        String?          // Till number (B2B)
-  
+  mpesaNumber    String? // Target M-Pesa number (B2C)
+  paybillNumber  String? // PayBill number (B2B)
+  paybillAccount String? // PayBill account reference (B2B)
+  tillNumber     String? // Till number (B2B)
+
   // Bank specific fields
-  bankName          String?          // Beneficiary bank name
-  bankCode          String?          // Bank code for PesaLink
-  bankAccount       String?          // Bank account number
-  accountName       String?          // Name on bank account
-  
+  bankName    String? // Beneficiary bank name
+  bankCode    String? // Bank code for PesaLink
+  bankAccount String? // Bank account number
+  accountName String? // Name on bank account
+
   // IntaSend tracking
-  intasendPayoutId  String?          // IntaSend payout ID
-  intasendBatchId   String?          // IntaSend batch ID
-  mpesaReference    String?          // M-Pesa/Bank confirmation reference
-  
+  intasendPayoutId String? // IntaSend payout ID
+  intasendBatchId  String? // IntaSend batch ID
+  mpesaReference   String? // M-Pesa/Bank confirmation reference
+
   // Status
-  status            WithdrawalStatus @default(PENDING)
-  statusCode        String?          // IntaSend status code (TS100, TF106, etc.)
-  failedReason      String?
-  processedAt       DateTime?
-  
+  status       WithdrawalStatus @default(PENDING)
+  statusCode   String? // IntaSend status code (TS100, TF106, etc.)
+  failedReason String?
+  processedAt  DateTime?
+
   // Timestamps
-  createdAt         DateTime         @default(now())
-  updatedAt         DateTime         @updatedAt
-  
-  @@map("withdrawal_requests")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([walletId, status])
   @@index([createdAt])
+  @@map("withdrawal_requests")
+}
+
+// ================================
+// POS System Models
+// ================================
+
+model Sale {
+  id            String @id @default(cuid())
+  receiptNumber String @unique // Auto-generated receipt (e.g., POS-20260301-0001)
+  sellerId      String
+  seller        User   @relation(fields: [sellerId], references: [id])
+
+  // Sale totals
+  subtotal       Float
+  discountAmount Float @default(0)
+  taxAmount      Float @default(0)
+  total          Float
+
+  // Payment
+  paymentMethod SalePaymentMethod
+  status        SaleStatus        @default(COMPLETED)
+
+  // M-Pesa / IntaSend fields
+  mpesaReference    String? // M-Pesa transaction code
+  intasendInvoiceId String? // IntaSend invoice ID
+  cardReference     String? // Card payment reference
+
+  // Walk-in customer info (optional)
+  customerName  String?
+  customerPhone String?
+
+  // Metadata
+  notes    String?
+  currency String  @default("KES")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items SaleItem[]
+
+  @@index([sellerId, createdAt])
+  @@index([receiptNumber])
+  @@index([status])
+  @@map("sales")
+}
+
+model SaleItem {
+  id          String  @id @default(cuid())
+  saleId      String
+  sale        Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  productId   String
+  product     Product @relation(fields: [productId], references: [id])
+  productName String // Snapshot of product name at time of sale
+  quantity    Int
+  unitPrice   Float // Price per unit at time of sale
+  discount    Float   @default(0)
+  total       Float // (unitPrice * quantity) - discount
+
+  @@index([saleId])
+  @@index([productId])
+  @@map("sale_items")
+}
+
+model InventoryLog {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  userId    String // Who performed the action
+  user      User    @relation(fields: [userId], references: [id])
+
+  action        InventoryAction
+  quantity      Int // Positive for additions, negative for deductions
+  previousStock Int // Stock before this action
+  newStock      Int // Stock after this action
+
+  // Reference to source
+  saleId  String? // If from POS sale
+  orderId String? // If from online order
+
+  reason String? // Additional notes/reason
+
+  createdAt DateTime @default(now())
+
+  @@index([productId, createdAt])
+  @@index([userId])
+  @@index([action])
+  @@map("inventory_logs")
+}
+
+// ================================
+// Commission System
+// ================================
+
+model SellerCommission {
+  id       String @id @default(cuid())
+  sellerId String @unique
+  seller   User   @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+
+  rate     Float   @default(5.0) // Commission percentage (e.g., 5.0 = 5%)
+  isActive Boolean @default(true)
+
+  // Accumulated totals (updated on each sale/order)
+  totalCommission Float @default(0) // Total commission earned by platform
+  totalSales      Float @default(0) // Total sales volume
+
+  // Admin who set the rate
+  setBy String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([sellerId])
+  @@map("seller_commissions")
+}
+
+// ================================
+// Wallet System (IntaSend Integration)
+// ================================
+
+enum WalletType {
+  SETTLEMENT // Main platform wallet
+  WORKING    // Sub-account wallet (per seller/user)
+}
+
+enum WalletTransactionType {
+  DEPOSIT          // M-Pesa STK Push or Card funded
+  WITHDRAWAL_MPESA // Withdrawal to M-Pesa B2C
+  WITHDRAWAL_B2B   // Withdrawal to PayBill/Till
+  WITHDRAWAL_BANK  // Withdrawal via PesaLink
+  INTERNAL_IN      // Intra-wallet transfer received
+  INTERNAL_OUT     // Intra-wallet transfer sent
+  COMMISSION       // Platform commission deducted
+  REFUND           // Refund credited
+  SALE_CREDIT      // POS / order sale credited
+}
+
+enum WalletTransactionStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+model Wallet {
+  id            String     @id @default(cuid())
+  userId        String
+  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  intasendId    String     @unique // IntaSend wallet_id (e.g. "AWR19L")
+  walletType    WalletType @default(WORKING)
+  currency      String     @default("KES")
+  label         String // Human-readable label
+  canDisburse   Boolean    @default(true)
+
+  // Cached balances (synced from IntaSend)
+  currentBalance   Float @default(0)
+  availableBalance Float @default(0)
+
+  isActive  Boolean  @default(true)
+  isPrimary Boolean  @default(false) // Primary wallet for the user
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  transactions WalletTransaction[]
+
+  @@index([userId])
+  @@index([intasendId])
+  @@map("wallets")
+}
+
+model WalletTransaction {
+  id       String @id @default(cuid())
+  walletId String
+  wallet   Wallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User   @relation("WalletTransactions", fields: [userId], references: [id])
+
+  type   WalletTransactionType
+  status WalletTransactionStatus @default(PENDING)
+
+  amount          Float // Gross amount
+  fee             Float    @default(0) // Platform or IntaSend fee
+  netAmount       Float // Net amount after fees
+  runningBalance  Float?   @default(0) // Balance after this transaction
+  currency        String   @default("KES")
+
+  // Payment references
+  invoiceId          String? // IntaSend invoice_id
+  mpesaReference     String? // M-Pesa confirmation code
+  trackingId         String? // IntaSend payout tracking_id  
+  externalReference  String? // Our internal reference
+  narrative          String? // Description / memo
+
+  // Linked entities
+  orderId String? // Linked order (if sale credit)
+  saleId  String? // Linked POS sale
+
+  // For internal transfers
+  counterpartyWalletId String? // The other wallet in a transfer
+
+  // Error info
+  failedReason String?
+  failedCode   String?
+
+  metadata  String? // JSON blob for extra data
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([walletId, createdAt])
+  @@index([userId])
+  @@index([type])
+  @@index([status])
+  @@index([invoiceId])
+  @@map("wallet_transactions")
+}
+
+// ================================
+// Multi-Tenant Store System
+// ================================
+
+enum StoreType {
+  SELLER
+  COMPANY
+}
+
+enum StoreStatus {
+  ACTIVE
+  SUSPENDED
+  PENDING_APPROVAL
+}
+
+enum EscrowStatus {
+  NONE                          // No escrow — legacy or cash orders
+  HELD                          // Funds held in escrow
+  AWAITING_DELIVERY_CONFIRMATION // Waiting for customer to confirm delivery
+  DELIVERY_PROOF_SUBMITTED      // Customer uploaded delivery proof
+  RELEASED                      // Admin approved, funds released to seller
+  REFUNDED                      // Dispute resolved, refunded to buyer
+}
+
+enum VerificationLevel {
+  NONE
+  IDENTITY_VERIFIED   // Level 1
+  FARM_VERIFIED       // Level 2
+  CERTIFIED_SUPPLIER  // Level 3
+}
+
+enum VerificationRequestStatus {
+  PENDING
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+}
+
+enum WithdrawMethodType {
+  MPESA
+  MPESA_TILL
+  BANK_TRANSFER
+  PAYPAL
+}
+
+enum StoreWithdrawalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  COMPLETED
+}
+
+enum DeliveryJobStatus {
+  PENDING
+  ACCEPTED
+  PICKED_UP
+  IN_TRANSIT
+  DELIVERED
+  FAILED
+  CANCELLED
+}
+
+model Store {
+  id          String  @id @default(cuid())
+  ownerId     String  @unique
+  owner       User    @relation("StoreOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  storeName        String
+  storeSlug        String     @unique
+  storeDescription String?
+  logo             String?
+  bannerImage      String?
+  location         String?
+  contactPhone     String?
+  socialLinks      String?    // JSON: { facebook, twitter, instagram, youtube }
+  themeColor       String?    @default("#16a34a")
+  storeType        StoreType  @default(SELLER)
+  status           StoreStatus @default(ACTIVE)
+
+  // Verification
+  verificationLevel VerificationLevel @default(NONE)
+
+  // Stats (cached)
+  totalProducts   Int   @default(0)
+  totalOrders     Int   @default(0)
+  totalRevenue    Float @default(0)
+  averageRating   Float @default(0)
+  totalReviews    Int   @default(0)
+  totalFollowers  Int   @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  products      Product[]
+  orders        Order[]
+  storeWallet   StoreWallet?
+  withdrawals   StoreWithdrawal[]
+  verifications StoreVerification[]
+  deliveryJobs  DeliveryJob[]
+  sales         StoreSale[]
+
+  @@index([storeSlug])
+  @@index([storeType])
+  @@index([status])
+  @@map("stores")
+}
+
+// ================================
+// Store Wallet (Escrow-backed)
+// ================================
+
+model StoreWallet {
+  id      String @id @default(cuid())
+  storeId String @unique
+  store   Store  @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  availableBalance Float @default(0) // Ready to withdraw
+  pendingBalance   Float @default(0) // Released from escrow, pending clearance
+  escrowBalance    Float @default(0) // Held in escrow
+  totalEarned      Float @default(0) // Lifetime earnings
+  totalWithdrawn   Float @default(0) // Lifetime withdrawals
+  currency         String @default("KES")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  transactions StoreWalletTransaction[]
+
+  @@map("store_wallets")
+}
+
+model StoreWalletTransaction {
+  id       String      @id @default(cuid())
+  walletId String
+  wallet   StoreWallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  type      String   // ESCROW_HOLD, ESCROW_RELEASE, WITHDRAWAL, COMMISSION, SALE_CREDIT, REFUND
+  status    String   @default("COMPLETED") // PENDING, COMPLETED, FAILED
+  amount    Float
+  fee       Float    @default(0)
+  netAmount Float
+  narrative String?
+  orderId   String?  // Linked order
+  saleId    String?  // Linked POS sale
+
+  createdAt DateTime @default(now())
+
+  @@index([walletId, createdAt])
+  @@map("store_wallet_transactions")
+}
+
+// ================================
+// Store Withdrawals
+// ================================
+
+model StoreWithdrawal {
+  id      String @id @default(cuid())
+  storeId String
+  store   Store  @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  amount         Float
+  method         WithdrawMethodType
+  currency       String @default("KES")
+
+  // Account details
+  accountName    String?
+  mpesaNumber    String?
+  mpesaTillNumber String?
+  bankName       String?
+  bankAccount    String?
+  bankCode       String?
+  paypalEmail    String?
+
+  status         StoreWithdrawalStatus @default(PENDING)
+  processedAt    DateTime?
+  processedBy    String?   // Admin who approved/rejected
+  rejectionReason String?
+  transactionRef String?   // IntaSend payout tracking
+
+  requestedAt DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([storeId, status])
+  @@map("store_withdrawals")
+}
+
+// ================================
+// Delivery Proof
+// ================================
+
+model DeliveryProof {
+  id      String @id @default(cuid())
+  orderId String @unique
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  // Customer submission
+  submittedBy     String
+  submitter       User     @relation("DeliveryProofSubmitter", fields: [submittedBy], references: [id])
+  proofImages     String[] @default([])
+  deliveryNote    String?
+  submittedAt     DateTime @default(now())
+
+  // Admin verification
+  isApproved      Boolean  @default(false)
+  approvedBy      String?
+  approver        User?    @relation("DeliveryProofApprover", fields: [approvedBy], references: [id])
+  approvedAt      DateTime?
+  rejectionReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([orderId])
+  @@map("delivery_proofs")
+}
+
+// ================================
+// Store Verification
+// ================================
+
+model StoreVerification {
+  id      String @id @default(cuid())
+  storeId String
+  store   Store  @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  requestedLevel VerificationLevel
+  status         VerificationRequestStatus @default(PENDING)
+
+  // Documents
+  identityDocuments String[]  @default([])
+  farmPhotos        String[]  @default([])
+  businessDocuments String[]  @default([])
+  additionalNotes   String?
+
+  // Review
+  reviewedBy      String?
+  reviewedAt      DateTime?
+  rejectionReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([storeId, status])
+  @@map("store_verifications")
+}
+
+// ================================
+// Delivery Partner System
+// ================================
+
+model DeliveryPartner {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name             String
+  phone            String
+  vehicleType      String?
+  vehiclePlate     String?
+  location         String?
+  coverageAreas    String[] @default([])
+  isVerified       Boolean  @default(false)
+  isAvailable      Boolean  @default(true)
+  rating           Float    @default(0)
+  completedJobs    Int      @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  jobs DeliveryJob[]
+
+  @@index([location])
+  @@index([isAvailable])
+  @@map("delivery_partners")
+}
+
+model DeliveryJob {
+  id        String @id @default(cuid())
+  storeId   String
+  store     Store  @relation(fields: [storeId], references: [id])
+  orderId   String
+  order     Order  @relation(fields: [orderId], references: [id])
+  partnerId String?
+  partner   User?   @relation("DeliveryPartnerJobs", fields: [partnerId], references: [id])
+  deliveryPartnerId String?
+  deliveryPartner   DeliveryPartner? @relation(fields: [deliveryPartnerId], references: [id])
+
+  status       DeliveryJobStatus @default(PENDING)
+  pickupAddress  String?
+  deliveryAddress String?
+  notes        String?
+  fee          Float    @default(0)
+  distance     Float?   // km
+
+  pickedUpAt   DateTime?
+  deliveredAt  DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([storeId])
+  @@index([deliveryPartnerId, status])
+  @@map("delivery_jobs")
+}
+
+// ================================
+// Market Price Index
+// ================================
+
+model MarketPrice {
+  id       String @id @default(cuid())
+  category String // e.g. "Broilers", "Eggs (Tray)", "Day Old Chicks"
+  region   String // e.g. "Nairobi", "Kiambu", "Nakuru"
+
+  averagePrice Float
+  minPrice     Float?
+  maxPrice     Float?
+  unit         String   @default("per unit") // per kg, per tray, per bird, etc.
+  source       String   @default("PLATFORM") // PLATFORM (auto-calculated) or MANUAL
+
+  recordedAt DateTime @default(now())
+  updatedBy  String?  // Admin who manually set the price
+
+  @@index([category, region])
+  @@index([recordedAt])
+  @@map("market_prices")
+}
+
+// ================================
+// POS Sales linked to Store
+// ================================
+
+model StoreSale {
+  id      String @id @default(cuid())
+  storeId String
+  store   Store  @relation(fields: [storeId], references: [id])
+  saleId  String // Reference to the Sale model's ID
+
+  amount  Float
+  method  String // CASH, MPESA, CARD
+
+  createdAt DateTime @default(now())
+
+  @@index([storeId, createdAt])
+  @@map("store_sales")
 }
