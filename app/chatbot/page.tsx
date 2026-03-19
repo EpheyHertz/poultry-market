@@ -5,6 +5,7 @@ import { useMemo, useRef, useState, useEffect, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
 import { ArrowRight, Loader2, Search, Bot, ChevronDown, ChevronRight, Database, Globe, Mail, MessageSquare, User, RotateCcw, AlertCircle, Copy, Send, Plus, X, Download, Eye } from "lucide-react";
 
+
 type EventMsg = {
   type: "status" | "tool_start" | "tool_result" | "final" | "error" | "info" | "image_uploaded" | "image_error" | "vision_analysis" | "validation_error" | "image_linked" | "completion" | "skeleton";
   message?: string;
@@ -170,6 +171,7 @@ export default function ChatPage() {
   const currentToolsRef = useRef<ToolExecution[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const removedImageIdsRef = useRef<Set<string>>(new Set());
+  
 
   useEffect(() => {
     // Add global CSS for hiding scrollbars and enhanced tool display
@@ -428,13 +430,13 @@ export default function ChatPage() {
 
       if (response.ok) {
         const data = await response.json();
-        console.log('📋 Conversation History Response:', data);
+        // console.log('📋 Conversation History Response:', data);
         
         // Support both backend response formats:
         // 1) { status: "success", data: {...} }
         // 2) { success: true, conversation: {...} }
         const conversationData = data?.data || data?.conversation || null;
-        console.log('📋 Parsed Conversation Data:', conversationData);
+        // console.log('📋 Parsed Conversation Data:', conversationData);
         
         // Check if we have the messages array (new backend structure)
         if (conversationData && conversationData.messages && Array.isArray(conversationData.messages)) {
@@ -451,19 +453,19 @@ export default function ChatPage() {
               if (previousMsg && previousMsg.role === "user" && previousMsg.search_links && Array.isArray(previousMsg.search_links)) {
                 // Add the search links from the previous user message to this assistant message
                 searchLinksToProcess = [...searchLinksToProcess, ...previousMsg.search_links];
-                console.log(`🔄 Moving search links from user message ${previousMsg.id} to assistant message ${msg.id}`);
+                // console.log(`🔄 Moving search links from user message ${previousMsg.id} to assistant message ${msg.id}`);
               }
             }
             
             if (searchLinksToProcess && Array.isArray(searchLinksToProcess) && searchLinksToProcess.length > 0) {
-              console.log(`🔍 Processing search links for message ${msg.id} (${msg.role}):`, searchLinksToProcess);
+              // console.log(`🔍 Processing search links for message ${msg.id} (${msg.role}):`, searchLinksToProcess);
               searchLinksToProcess.forEach((searchLink: any) => {
                 // Support both web_search and rag_search
                 const toolName = searchLink.search_type === "web_search" ? "web_search" : 
                                 searchLink.search_type === "rag_search" ? "rag_search" : "document_search";
                 // Use results_data field from backend, fallback to results for compatibility
                 const searchResults = searchLink.results_data || searchLink.results;
-                console.log(`🔍 Adding tool: ${toolName} with ${searchResults?.length || 0} results`);
+                // console.log(`🔍 Adding tool: ${toolName} with ${searchResults?.length || 0} results`);
                 tools.push({
                   name: toolName,
                   args: { query: searchLink.query },
@@ -509,25 +511,25 @@ export default function ChatPage() {
             let cleanContent = cleanImageUrlsFromContent(msg.content || "");
             
             // Debug: Log image data for this message
-            if (msg.images && msg.images.length > 0) {
-              console.log(`📸 Message ${msg.id} has ${msg.images.length} images:`, msg.images);
-            }
+            // if (msg.images && msg.images.length > 0) {
+            //   console.log(`📸 Message ${msg.id} has ${msg.images.length} images:`, msg.images);
+            // }
             
             const processedImages = msg.images?.map((img: any) => {
               // Handle both URL string and image object formats
               if (typeof img === 'string') {
-                console.log('📸 Processing string image:', img);
+                // console.log('📸 Processing string image:', img);
                 return img; // Already a URL
               } else if (img && img.url) {
-                console.log('📸 Processing image object:', img);
+                // console.log('📸 Processing image object:', img);
                 return img.url; // Image object with URL property
               } else {
-                console.log('📸 Invalid image data:', img);
+                // console.log('📸 Invalid image data:', img);
                 return null; // Invalid image data
               }
             }).filter(Boolean) || []; // Remove null values
             
-            console.log(`📸 Final processed images for message ${msg.id}:`, processedImages);
+            // console.log(`📸 Final processed images for message ${msg.id}:`, processedImages);
             
             return {
               id: msg.id || `history-${index}-${Date.now()}`,
@@ -540,24 +542,24 @@ export default function ChatPage() {
             };
           });
           
-          console.log('📋 Converted History Messages:', historyMessages);
+          // console.log('📋 Converted History Messages:', historyMessages);
           setMessages(historyMessages);
           
           // Log additional conversation metadata
           if (conversationData.summary) {
-            console.log('📋 Conversation Summary:', conversationData.summary);
+            // console.log('📋 Conversation Summary:', conversationData.summary);
           }
           if (conversationData.topics) {
-            console.log('📋 Recent Topics:', conversationData.topics);
+            // console.log('📋 Recent Topics:', conversationData.topics);
           }
           if (conversationData.search_history) {
-            console.log('📋 Search History:', conversationData.search_history);
+            // console.log('📋 Search History:', conversationData.search_history);
           }
           if (conversationData.thread_context) {
-            console.log('📋 Thread Context:', conversationData.thread_context);
+            // console.log('📋 Thread Context:', conversationData.thread_context);
           }
         } else {
-          console.warn('📋 No messages found in conversation history');
+          // console.warn('📋 No messages found in conversation history');
           setMessages([]);
         }
       } else {
@@ -931,7 +933,7 @@ export default function ChatPage() {
       };
 
       ws.onclose = (event) => {
-        console.log('🔌 WebSocket Closed:', { code: event.code, reason: event.reason });
+        // console.log('🔌 WebSocket Closed:', { code: event.code, reason: event.reason });
         clearTimeout(responseTimeout);
         
         if (!hasReceivedResponse && event.code !== 1000) {
@@ -979,11 +981,11 @@ export default function ChatPage() {
   };
 
   const retryMessage = useCallback(async (originalMessage: string, originalImages?: string[]) => {
-    console.log('🔄 retryMessage called with:', {
-      message: originalMessage,
-      originalImages: originalImages,
-      imageCount: originalImages?.length || 0
-    });
+    // console.log('🔄 retryMessage called with:', {
+    //   message: originalMessage,
+    //   originalImages: originalImages,
+    //   imageCount: originalImages?.length || 0
+    // });
     
     // Find if this is a retry of an existing message
     const existingMessageIndex = messages.findIndex(m => 
@@ -1010,7 +1012,7 @@ export default function ChatPage() {
           : msg
       ));
       
-      console.log(`🔄 Retrying message (attempt ${retryCount}) - Original ID: ${originalMessageId}`);
+      // console.log(`🔄 Retrying message (attempt ${retryCount}) - Original ID: ${originalMessageId}`);
     }
     
     // Set the message text first
@@ -1060,7 +1062,7 @@ export default function ChatPage() {
         };
       }));
       setSelectedImages(retryImages);
-      console.log(`🖼️ Restored ${retryImages.length} images for retry`);
+      // console.log(`🖼️ Restored ${retryImages.length} images for retry`);
     } else {
       setSelectedImages([]);
     }
