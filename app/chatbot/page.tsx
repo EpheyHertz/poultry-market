@@ -6,7 +6,7 @@ import ReactMarkdown from "react-markdown";
 import { ArrowRight, Loader2, Search, Bot, ChevronDown, ChevronRight, Database, Globe, Mail, MessageSquare, User, RotateCcw, AlertCircle, Copy, Send, Plus, X, Download, Eye } from "lucide-react";
 
 type EventMsg = {
-  type: "status" | "tool_start" | "tool_result" | "final" | "error" | "info" | "image_uploaded" | "image_error" | "vision_analysis";
+  type: "status" | "tool_start" | "tool_result" | "final" | "error" | "info" | "image_uploaded" | "image_error" | "vision_analysis" | "validation_error" | "image_linked" | "completion" | "skeleton";
   message?: string;
   name?: string;
   args?: any;
@@ -21,6 +21,35 @@ type EventMsg = {
   vision_analysis?: boolean;
   uploaded_images?: string[];
   images_processed?: number;
+  code?: string;
+  upload_endpoint?: string;
+};
+
+type UploadReadyResponse = {
+  success: boolean;
+  ready_for_analysis: boolean;
+  upload_batch_id: string;
+  uploaded_images?: Array<{
+    filename?: string;
+    url?: string;
+    public_id?: string;
+    bytes?: number;
+    width?: number;
+    height?: number;
+  }>;
+  failed_images?: Array<{
+    filename?: string;
+    error?: string;
+  }>;
+  upload_info?: any;
+  frontend_event?: string;
+  next_step?: any;
+};
+
+type UploadReadyResult = {
+  urls: string[];
+  uploadedCount: number;
+  failedCount: number;
 };
 
 type ChatMessage = {
@@ -123,6 +152,10 @@ interface SelectedImage {
   preview: string;
   id: string;
   isRetry?: boolean; // Flag to indicate this is a retry image
+  uploadStatus?: "pending" | "uploading" | "uploaded" | "failed";
+  uploadedUrl?: string;
+  uploadError?: string;
+  uploadAttempts?: number;
 }
 
 export default function ChatPage() {
@@ -130,11 +163,13 @@ export default function ChatPage() {
   const [threadId, setThreadId] = useState<string | undefined>();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isThinking, setIsThinking] = useState(false);
+  const [isUploadingImages, setIsUploadingImages] = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [selectedImages, setSelectedImages] = useState<SelectedImage[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
   const currentToolsRef = useRef<ToolExecution[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const removedImageIdsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     // Add global CSS for hiding scrollbars and enhanced tool display
@@ -173,7 +208,11 @@ export default function ChatPage() {
     // Cleanup image previews on unmount
     return () => {
       document.head.removeChild(style);
-      selectedImages.forEach(img => URL.revokeObjectURL(img.preview));
+      selectedImages.forEach(img => {
+        if (img.preview.startsWith("blob:")) {
+          URL.revokeObjectURL(img.preview);
+        }
+      });
     };
   }, [selectedImages]);
 
@@ -205,22 +244,6 @@ export default function ChatPage() {
   }, []);
 
   // Image handling functions
-  const fileToImageObject = (file: File): Promise<{data: string, filename: string, mime_type: string}> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const result = reader.result as string;
-        const base64 = result.split(',')[1];
-        resolve({
-          data: base64,
-          filename: file.name,
-          mime_type: file.type
-        });
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-  };
 
   const fileToDataURL = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -231,25 +254,117 @@ export default function ChatPage() {
     });
   };
 
+  const isRemoteUrl = (value: string): boolean => /^https?:\/\//i.test(value);
+  const isDataImageUrl = (value: string): boolean => /^data:image\//i.test(value);
+
+  const dataUrlToFile = async (dataUrl: string, filenameBase: string): Promise<File> => {
+    const response = await fetch(dataUrl);
+    const blob = await response.blob();
+    const extension = (blob.type.split("/")[1] || "jpg").replace("jpeg", "jpg");
+    return new File([blob], `${filenameBase}.${extension}`, { type: blob.type || "image/jpeg" });
+  };
+
+  const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  const updateSelectedImage = (id: string, patch: Partial<SelectedImage>) => {
+    setSelectedImages((prev) => prev.map((img) => (img.id === id ? { ...img, ...patch } : img)));
+  };
+
+  const uploadSingleImage = async (file: File): Promise<string> => {
+    const formData = new FormData();
+    formData.append("files", file, file.name);
+    formData.append("folder", "poultry_websocket");
+
+    const response = await fetch("/api/proxy?path=/upload/images/ready", {
+      method: "POST",
+      body: formData,
+    });
+
+    const data: UploadReadyResponse = await response.json();
+    if (!response.ok) {
+      const detail = (data as any)?.detail || (data as any)?.error || "Upload request failed";
+      throw new Error(String(detail));
+    }
+
+    const url = data.uploaded_images?.[0]?.url;
+    if (!data.ready_for_analysis || !url) {
+      const failed = (data.failed_images || [])
+        .map((f) => `${f.filename || "file"}: ${f.error || "failed"}`)
+        .join("; ");
+      throw new Error(failed || "Image is not ready for analysis");
+    }
+
+    return url;
+  };
+
+  const uploadImageWithRetry = async (imageId: string, file: File, maxRetries = 3) => {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      if (removedImageIdsRef.current.has(imageId)) {
+        return;
+      }
+
+      try {
+        updateSelectedImage(imageId, {
+          uploadStatus: "uploading",
+          uploadAttempts: attempt,
+          uploadError: undefined,
+        });
+
+        const uploadedUrl = await uploadSingleImage(file);
+        if (removedImageIdsRef.current.has(imageId)) {
+          return;
+        }
+
+        updateSelectedImage(imageId, {
+          uploadStatus: "uploaded",
+          uploadedUrl,
+          uploadError: undefined,
+        });
+        return;
+      } catch (error: any) {
+        if (attempt >= maxRetries) {
+          updateSelectedImage(imageId, {
+            uploadStatus: "failed",
+            uploadError: error?.message || "Upload failed",
+            uploadAttempts: attempt,
+          });
+          return;
+        }
+
+        const backoffMs = Math.min(400 * (2 ** (attempt - 1)), 2000);
+        await delay(backoffMs);
+      }
+    }
+  };
+
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
     const imageFiles = files.filter((file: File) => file.type.startsWith('image/'));
-    
-    // Process each image file
+
     Promise.all(
       imageFiles.map(async (file: File) => {
         const dataURL = await fileToDataURL(file);
+        const id = crypto.randomUUID();
         return {
           file,
-          preview: dataURL, // Use data URL instead of blob URL
-          id: crypto.randomUUID()
+          preview: dataURL,
+          id,
+          uploadStatus: "pending" as const,
+          uploadAttempts: 0,
         };
       })
-    ).then((newImages: SelectedImage[]) => {
-      setSelectedImages(prev => [...prev, ...newImages]);
-    }).catch((error) => {
-      console.error("Error processing images:", error);
-    });
+    )
+      .then((newImages: SelectedImage[]) => {
+        setSelectedImages((prev) => [...prev, ...newImages]);
+        newImages.forEach((img) => {
+          if (img.file) {
+            void uploadImageWithRetry(img.id, img.file, 3);
+          }
+        });
+      })
+      .catch((error) => {
+        console.error("Error processing images:", error);
+      });
     
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
@@ -281,15 +396,30 @@ export default function ChatPage() {
   };
 
   const removeImage = (id: string) => {
+    removedImageIdsRef.current.add(id);
     setSelectedImages(prev => prev.filter(i => i.id !== id));
   };
+
+  const retryImageUpload = (id: string) => {
+    const target = selectedImages.find((img) => img.id === id);
+    if (!target?.file) {
+      return;
+    }
+    removedImageIdsRef.current.delete(id);
+    void uploadImageWithRetry(id, target.file, 3);
+  };
+
+  useEffect(() => {
+    const hasUploading = selectedImages.some((img) => img.uploadStatus === "uploading" || img.uploadStatus === "pending");
+    setIsUploadingImages(hasUploading);
+  }, [selectedImages]);
 
   const loadConversationHistory = async (thread_id: string) => {
     if (!thread_id) return;
     
     setIsLoadingHistory(true);
     try {
-      const response = await fetch(`/api/proxy?path=/conversation/${encodeURIComponent(thread_id)}`, {
+      const response = await fetch(`/api/proxy?path=/conversation/${encodeURIComponent(thread_id)}/history`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -300,8 +430,10 @@ export default function ChatPage() {
         const data = await response.json();
         console.log('📋 Conversation History Response:', data);
         
-        // Updated to handle the new backend response structure
-        const conversationData = data.data;
+        // Support both backend response formats:
+        // 1) { status: "success", data: {...} }
+        // 2) { success: true, conversation: {...} }
+        const conversationData = data?.data || data?.conversation || null;
         console.log('📋 Parsed Conversation Data:', conversationData);
         
         // Check if we have the messages array (new backend structure)
@@ -450,44 +582,58 @@ export default function ChatPage() {
     }
     
     const textToSend = typeof rawText === 'string' ? rawText : String(rawText);
-    if ((!textToSend && selectedImages.length === 0) || isThinking) return;
     
     // console.log('📤 Sending message:', textToSend);
     // console.log('📤 Current thread ID:', threadId);
     // console.log('📤 Selected images:', selectedImages.length);
     
-    // Process images for upload
-    let images: {data: string, filename: string, mime_type: string}[] = [];
+    // Snapshot selected images for this send operation.
+    const selectedImagesSnapshot = [...selectedImages];
+    const hasSelectedImages = selectedImagesSnapshot.length > 0;
+
+    if ((!textToSend && !hasSelectedImages) || isThinking || isUploadingImages) {
+      return;
+    }
+
+    const displayText = textToSend;
+
+    if (selectedImagesSnapshot.length > 10) {
+      alert("Maximum 10 images are allowed per request.");
+      return;
+    }
+
+    const selectedImagePreviews = selectedImagesSnapshot.map((img) => img.uploadedUrl || img.preview);
+
+    const notReadyImages = selectedImagesSnapshot.filter((img) => img.uploadStatus === "uploading" || img.uploadStatus === "pending");
+    if (notReadyImages.length > 0) {
+      return;
+    }
+
+    const failedImages = selectedImagesSnapshot.filter((img) => img.uploadStatus === "failed");
+    if (failedImages.length > 0) {
+      alert("Some images failed to upload. Retry or remove failed images before sending.");
+      return;
+    }
+
     let retryImageUrls: string[] = [];
-    
-    if (selectedImages.length > 0) {
-      try {
-        // Separate retry images from new images
-        const newImages = selectedImages.filter(img => !img.isRetry && img.file);
-        const retryImages = selectedImages.filter(img => img.isRetry);
-        
-        // Process new images for upload
-        if (newImages.length > 0) {
-          images = await Promise.all(
-            newImages.map(img => fileToImageObject(img.file!))
-          );
-        }
-        
-        // Collect retry image URLs
-        retryImageUrls = retryImages.map(img => img.preview);
-        
-      } catch (error) {
-        console.error("Error converting images:", error);
-        return;
-      }
+    let uploadedImageUrls: string[] = [];
+
+    if (selectedImagesSnapshot.length > 0) {
+      retryImageUrls = selectedImagesSnapshot
+        .filter((img) => img.isRetry && isRemoteUrl(img.preview))
+        .map((img) => img.preview);
+
+      uploadedImageUrls = selectedImagesSnapshot
+        .filter((img) => Boolean(img.uploadedUrl))
+        .map((img) => img.uploadedUrl as string);
     }
     
     const userMsg: ChatMessage = {
       id: Date.now().toString(),
       type: "user",
-      content: textToSend,
+      content: displayText,
       timestamp: new Date(),
-      images: selectedImages.map(img => img.preview), // Use preview URLs for display
+      images: selectedImagePreviews,
       retryCount: retryContext?.retryCount || 0,
       originalMessageId: retryContext?.originalMessageId || undefined,
     };
@@ -516,6 +662,16 @@ export default function ChatPage() {
       isStreaming: true,
       timestamp: new Date(),
     }]);
+
+    // Keep user message images synced with backend-ready URLs for reliable retries.
+    const allImageUrlsForAnalysis = Array.from(new Set([...uploadedImageUrls, ...retryImageUrls]));
+    if (allImageUrlsForAnalysis.length > 0) {
+      setMessages(prev => prev.map(msg =>
+        msg.id === userMsg.id
+          ? { ...msg, images: allImageUrlsForAnalysis }
+          : msg
+      ));
+    }
 
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       // console.log('🔌 Closing existing WebSocket connection');
@@ -546,7 +702,7 @@ export default function ChatPage() {
       const responseTimeout = setTimeout(() => {
         if (!hasReceivedResponse) {
           ws.close();
-          handleConnectionError(assistantId, textToSend, selectedImages.map(img => img.preview));
+          handleConnectionError(assistantId, textToSend, selectedImagePreviews);
         }
       }, 30000);
 
@@ -555,19 +711,15 @@ export default function ChatPage() {
           message: typeof textToSend === 'string' ? textToSend : String(textToSend), 
           thread_id: typeof threadId === 'string' ? threadId : undefined
         };
+
+        const allImageUrls = Array.from(new Set([...uploadedImageUrls, ...retryImageUrls]));
         
-        // Include new images for upload if any
-        if (images.length > 0) {
-          payload.images = images;
-        }
-        
-        // Include retry image URLs if any
-        if (retryImageUrls.length > 0) {
-          payload.existing_image_urls = retryImageUrls;
+        if (allImageUrls.length > 0) {
+          payload.existing_image_urls = allImageUrls;
           console.log('🔄 Retry payload with existing images:', {
             message: payload.message,
-            existing_image_urls: retryImageUrls,
-            total_retry_images: retryImageUrls.length
+            existing_image_urls: allImageUrls,
+            total_retry_images: allImageUrls.length
           });
         }
         
@@ -610,6 +762,20 @@ export default function ChatPage() {
                     content: cleanedMessage, 
                     isStreaming: true,
                     // Update timestamp to show activity
+                    timestamp: new Date()
+                  }
+                : msg
+            ));
+          }
+
+          if (data.type === "skeleton" && data.message) {
+            const cleanedSkeleton = cleanImageUrlsFromContent(data.message || "");
+            setMessages(prev => prev.map(msg =>
+              msg.id === assistantId
+                ? {
+                    ...msg,
+                    content: cleanedSkeleton,
+                    isStreaming: true,
                     timestamp: new Date()
                   }
                 : msg
@@ -674,6 +840,19 @@ export default function ChatPage() {
             ));
           }
 
+          if (data.type === "image_linked") {
+            setMessages(prev => prev.map(msg =>
+              msg.id === assistantId
+                ? {
+                    ...msg,
+                    content: `${msg.content}\n\n🔗 Image ready: ${data.filename || `image ${typeof data.index === "number" ? data.index + 1 : ""}`}`.trim(),
+                    isStreaming: true,
+                    timestamp: new Date()
+                  }
+                : msg
+            ));
+          }
+
           if (data.type === "vision_analysis") {
             // console.log('👁️ Vision analysis received:', data);
             setMessages(prev => prev.map(msg => 
@@ -689,12 +868,40 @@ export default function ChatPage() {
 
           if (data.type === "error") {
             // console.error('❌ WebSocket Error Message:', data);
-            handleConnectionError(assistantId, textToSend, selectedImages.map(img => img.preview));
+            handleConnectionError(assistantId, textToSend, selectedImagePreviews);
+          }
+
+          if (data.type === "validation_error") {
+            const validationMessage = data.message || "Request validation failed.";
+            setIsThinking(false);
+            setMessages(prev => prev.map(msg =>
+              msg.id === assistantId
+                ? {
+                    ...msg,
+                    type: "error" as const,
+                    content: validationMessage,
+                    isStreaming: false,
+                    canRetry: true,
+                    originalUserMessage: textToSend,
+                    images: selectedImagePreviews,
+                    timestamp: new Date()
+                  }
+                : msg
+            ));
+          }
+
+          if (data.type === "completion") {
+            setIsThinking(false);
+            setMessages(prev => prev.map(msg =>
+              msg.id === assistantId && msg.isStreaming
+                ? { ...msg, isStreaming: false, timestamp: new Date() }
+                : msg
+            ));
           }
         } catch (err) {
           // console.error("WebSocket message parsing error:", err);
           // console.error("Raw message that failed to parse:", ev.data);
-          handleConnectionError(assistantId, textToSend, selectedImages.map(img => img.preview));
+          handleConnectionError(assistantId, textToSend, selectedImagePreviews);
         }
       };
 
@@ -704,7 +911,7 @@ export default function ChatPage() {
         
         if (!hasReceivedResponse && event.code !== 1000) {
           // console.log('❌ WebSocket closed unexpectedly, handling as error');
-          handleConnectionError(assistantId, textToSend, selectedImages.map(img => img.preview));
+          handleConnectionError(assistantId, textToSend, selectedImagePreviews);
         } else {
           // console.log('✅ WebSocket closed normally');
           setIsThinking(false);
@@ -719,10 +926,10 @@ export default function ChatPage() {
       ws.onerror = (error) => {
         // console.error('❌ WebSocket Error:', error);
         clearTimeout(responseTimeout);
-        handleConnectionError(assistantId, textToSend, selectedImages.map(img => img.preview));
+        handleConnectionError(assistantId, textToSend, selectedImagePreviews);
       };
     } catch (error) {
-      handleConnectionError(assistantId, textToSend, selectedImages.map(img => img.preview));
+      handleConnectionError(assistantId, textToSend, selectedImagePreviews);
     }
   };
 
@@ -746,7 +953,7 @@ export default function ChatPage() {
     }));
   };
 
-  const retryMessage = useCallback((originalMessage: string, originalImages?: string[]) => {
+  const retryMessage = useCallback(async (originalMessage: string, originalImages?: string[]) => {
     console.log('🔄 retryMessage called with:', {
       message: originalMessage,
       originalImages: originalImages,
@@ -786,12 +993,46 @@ export default function ChatPage() {
     
     // If we have original images, we need to populate selectedImages with them
     if (originalImages && originalImages.length > 0) {
-      // Convert image URLs back to SelectedImage objects for retry
-      const retryImages: SelectedImage[] = originalImages.map((url, index) => ({
-        id: `retry-${Date.now()}-${index}`,
-        file: null, // We don't have the original file, but we have the URL
-        preview: url,
-        isRetry: true // Flag to indicate this is a retry image
+      // Convert image refs into a backend-compatible retry payload:
+      // - HTTP(S) URLs are reused as existing_image_urls
+      // - data:image URLs are converted back to File so they can be re-uploaded first
+      const retryImages: SelectedImage[] = await Promise.all(originalImages.map(async (url, index) => {
+        const id = `retry-${Date.now()}-${index}`;
+
+        if (isRemoteUrl(url)) {
+          return {
+            id,
+            file: null,
+            preview: url,
+            isRetry: true
+          };
+        }
+
+        if (isDataImageUrl(url)) {
+          try {
+            const file = await dataUrlToFile(url, `retry_image_${index + 1}`);
+            return {
+              id,
+              file,
+              preview: url,
+              isRetry: false
+            };
+          } catch {
+            return {
+              id,
+              file: null,
+              preview: url,
+              isRetry: true
+            };
+          }
+        }
+
+        return {
+          id,
+          file: null,
+          preview: url,
+          isRetry: true
+        };
       }));
       setSelectedImages(retryImages);
       console.log(`🖼️ Restored ${retryImages.length} images for retry`);
@@ -889,9 +1130,11 @@ export default function ChatPage() {
                   onSend={sendMessage} 
                   disabled={isThinking}
                   isThinking={isThinking}
+                  isUploadingImages={isUploadingImages}
                   selectedImages={selectedImages}
                   onImageSelect={handleFileSelect}
                   onImageRemove={removeImage}
+                  onRetryImageUpload={retryImageUpload}
                   fileInputRef={fileInputRef}
                 />
               </div>
@@ -1254,14 +1497,14 @@ function MessageBubble({ message, onToggleTool, onRetry, onCopy }: {
           )}
 
           {/* Retry button for error messages */}
-          {isError && message.canRetry && message.originalUserMessage && (
+          {isError && message.canRetry && message.originalUserMessage !== undefined && (
             <div className="mt-4 pt-4 border-t border-white/10">
               <button
                 onClick={() => {
                   // Use the images stored in the error message, or fall back to finding the original
                   const imagesToRetry = message.images || [];
                   console.log(`🔄 Retrying error message with ${imagesToRetry.length} images`);
-                  onRetry(message.originalUserMessage!, imagesToRetry);
+                  onRetry(message.originalUserMessage || "", imagesToRetry);
                 }}
                 className="inline-flex items-center gap-2 px-3 py-2 bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 rounded-lg text-sm text-red-200 hover:text-red-100 transition-all backdrop-blur-sm"
               >
@@ -1974,9 +2217,11 @@ function ChatInput({
   onSend, 
   disabled, 
   isThinking,
+  isUploadingImages,
   selectedImages,
   onImageSelect,
   onImageRemove,
+  onRetryImageUpload,
   fileInputRef
 }: { 
   value: string; 
@@ -1984,9 +2229,11 @@ function ChatInput({
   onSend: () => void; 
   disabled: boolean;
   isThinking: boolean;
+  isUploadingImages: boolean;
   selectedImages: SelectedImage[];
   onImageSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onImageRemove: (id: string) => void;
+  onRetryImageUpload: (id: string) => void;
   fileInputRef: React.RefObject<HTMLInputElement>;
 }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -2001,7 +2248,8 @@ function ChatInput({
   }, [value]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey && !disabled) {
+    const canSend = !disabled && !isUploadingImages && (value.trim().length > 0 || selectedImages.length > 0);
+    if (e.key === 'Enter' && !e.shiftKey && canSend) {
       e.preventDefault();
       onSend();
     }
@@ -2019,6 +2267,30 @@ function ChatInput({
                 alt="Selected"
                 className="w-16 h-16 object-cover rounded-xl border border-white/20 bg-white/5"
               />
+              {img.uploadStatus === "uploading" && (
+                <div className="absolute inset-0 rounded-xl bg-black/55 flex flex-col items-center justify-center text-[10px] text-white">
+                  <Loader2 className="w-3 h-3 animate-spin mb-1" />
+                  <span>Uploading</span>
+                  <span>Try {img.uploadAttempts || 1}/3</span>
+                </div>
+              )}
+              {img.uploadStatus === "failed" && (
+                <div className="absolute inset-0 rounded-xl bg-red-900/65 flex flex-col items-center justify-center text-[10px] text-red-100 px-1 text-center">
+                  <span>Upload failed</span>
+                  <button
+                    onClick={() => onRetryImageUpload(img.id)}
+                    className="mt-1 px-1.5 py-0.5 rounded bg-red-500/50 hover:bg-red-500/70 text-[10px]"
+                    type="button"
+                  >
+                    Retry
+                  </button>
+                </div>
+              )}
+              {img.uploadStatus === "uploaded" && (
+                <div className="absolute bottom-0 left-0 right-0 rounded-b-xl bg-emerald-700/75 text-[10px] text-emerald-100 text-center py-0.5">
+                  Uploaded
+                </div>
+              )}
               <button
                 onClick={() => onImageRemove(img.id)}
                 className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center hover:bg-red-600 transition-colors opacity-0 group-hover:opacity-100"
@@ -2038,7 +2310,7 @@ function ChatInput({
         <textarea
           ref={textareaRef}
           className="flex-1 resize-none border-0 bg-transparent px-4 py-3 text-white placeholder:text-white/40 focus:ring-0 focus:outline-none text-sm leading-relaxed"
-          placeholder={isThinking ? "AI is responding..." : "Message Poultry Market AI..."}
+          placeholder={isUploadingImages ? "Uploading images to Cloudinary..." : isThinking ? "AI is responding..." : "Message Poultry Market AI..."}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={handleKeyDown}
@@ -2050,7 +2322,7 @@ function ChatInput({
         {/* Image upload button */}
         <button
           onClick={() => fileInputRef.current?.click()}
-          disabled={disabled}
+          disabled={disabled || isUploadingImages}
           className="flex-shrink-0 p-2.5 m-1.5 bg-white/10 backdrop-blur-sm text-white/70 rounded-xl hover:bg-white/20 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200"
           title="Add images"
           type="button"
@@ -2070,11 +2342,11 @@ function ChatInput({
         
         <button
           onClick={onSend}
-          disabled={disabled || (!value.trim() && selectedImages.length === 0)}
+          disabled={disabled || isUploadingImages || (!value.trim() && selectedImages.length === 0)}
           className="flex-shrink-0 p-2.5 m-1.5 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl hover:from-blue-600 hover:to-purple-600 disabled:from-white/10 disabled:to-white/10 disabled:text-white/30 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl"
           title="Send message"
         >
-          {disabled ? (
+          {(disabled || isUploadingImages) ? (
             <Loader2 className="w-4 h-4 animate-spin" />
           ) : (
             <ArrowRight className="w-4 h-4" />

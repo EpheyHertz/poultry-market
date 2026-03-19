@@ -11,7 +11,7 @@ function buildWsUrl(req: NextRequest) {
   const backendOverride = url.searchParams.get("backend") || "";
 
   const env = getEnv();
-  const envBase = env.NEXT_PUBLIC_BACKEND_BASE_URL || env.BACKEND_BASE_URL || "";
+  const envBase = env.NEXT_PUBLIC_BACKEND_BASE_URL || env.BACKEND_BASE_URL || env.FASTAPI_BASE_URL || "";
   // Only read server-side secrets here, do NOT use NEXT_PUBLIC_* for keys
   const apiKey = env.ADMIN_API_KEY || env.X_API_KEY || "";
 

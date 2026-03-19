@@ -7,7 +7,7 @@ import { getOrCreateAuthorProfile } from '@/lib/author';
 import { BlogPostCategory, BlogPostStatus } from '@prisma/client';
 
 const submissionRateLimit = new Map<string, { count: number; resetTime: number }>();
-const SUBMISSION_RATE_LIMIT_MAX = 5;
+const SUBMISSION_RATE_LIMIT_MAX = 9;
 const SUBMISSION_RATE_LIMIT_WINDOW = 15 * 60 * 1000;
 
 function checkRateLimit(key: string) {

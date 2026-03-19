@@ -1,135 +1,161 @@
 import { NextRequest } from "next/server";
 
-const FASTAPI_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_BASE_URL || "http://localhost:8000";
-const ADMIN_API_KEY = process.env.ADMIN_API_KEY;
+const FASTAPI_BASE_URL =
+  process.env.FASTAPI_BASE_URL || process.env.BACKEND_BASE_URL || "http://localhost:8000";
+const ADMIN_API_KEY = process.env.ADMIN_API_KEY || process.env.X_API_KEY;
 
-// Helper function to get headers for FastAPI requests
 function getHeaders() {
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-  };
-  
+  const headers: Record<string, string> = {};
+
   if (ADMIN_API_KEY) {
     headers["X-API-Key"] = ADMIN_API_KEY;
   }
-  
+
   return headers;
 }
 
-// GET endpoint for fetching data from FastAPI
+async function parseUpstreamResponse(response: Response) {
+  const raw = await response.text();
+  try {
+    return {
+      parsed: JSON.parse(raw),
+      raw,
+      isJson: true,
+    };
+  } catch {
+    return {
+      parsed: null,
+      raw,
+      isJson: false,
+    };
+  }
+}
+
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const path = searchParams.get('path');
-    
+    const path = searchParams.get("path");
+
     if (!path) {
-      return new Response(
-        JSON.stringify({ error: "Missing 'path' parameter" }), 
-        { 
-          status: 400,
-          headers: { "content-type": "application/json" }
-        }
-      );
+      return new Response(JSON.stringify({ error: "Missing 'path' parameter" }), {
+        status: 400,
+        headers: { "content-type": "application/json" },
+      });
     }
 
-    // Clean up the path to ensure it starts with /
-    const cleanPath = path.startsWith('/') ? path : `/${path}`;
+    const cleanPath = path.startsWith("/") ? path : `/${path}`;
     const fastApiUrl = `${FASTAPI_BASE_URL}${cleanPath}`;
-    
-    console.log(`Proxying GET request to: ${fastApiUrl}`);
 
     const response = await fetch(fastApiUrl, {
-      method: 'GET',
-      headers: getHeaders(),
+      method: "GET",
+      headers: {
+        ...getHeaders(),
+        "Content-Type": "application/json",
+      },
     });
 
-    const data = await response.json();
+    const { parsed, raw, isJson } = await parseUpstreamResponse(response);
 
-    return new Response(JSON.stringify(data), {
+    const payload = isJson
+      ? parsed
+      : {
+          status: response.status,
+          detail: raw || "Empty upstream response",
+        };
+
+    return new Response(JSON.stringify(payload), {
       status: response.status,
-      headers: { 
+      headers: {
         "content-type": "application/json",
-        // Add CORS headers if needed
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
         "Access-Control-Allow-Headers": "Content-Type, Authorization, X-API-Key",
       },
     });
-
   } catch (error) {
-    console.error('Proxy GET error:', error);
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         error: "Failed to fetch from FastAPI backend",
-        details: error instanceof Error ? error.message : String(error)
-      }), 
+        details: error instanceof Error ? error.message : String(error),
+      }),
       {
         status: 500,
-        headers: { "content-type": "application/json" }
+        headers: { "content-type": "application/json" },
       }
     );
   }
 }
 
-// POST endpoint for sending data to FastAPI
 export async function POST(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const path = searchParams.get('path');
-    
+    const path = searchParams.get("path");
+
     if (!path) {
-      return new Response(
-        JSON.stringify({ error: "Missing 'path' parameter" }), 
-        { 
-          status: 400,
-          headers: { "content-type": "application/json" }
-        }
-      );
+      return new Response(JSON.stringify({ error: "Missing 'path' parameter" }), {
+        status: 400,
+        headers: { "content-type": "application/json" },
+      });
     }
 
-    const body = await req.text();
-    
-    // Clean up the path to ensure it starts with /
-    const cleanPath = path.startsWith('/') ? path : `/${path}`;
+    const incomingContentType = req.headers.get("content-type") || "application/json";
+    const cleanPath = path.startsWith("/") ? path : `/${path}`;
     const fastApiUrl = `${FASTAPI_BASE_URL}${cleanPath}`;
-    
-    console.log(`Proxying POST request to: ${fastApiUrl}`);
 
-    const response = await fetch(fastApiUrl, {
-      method: 'POST',
-      headers: getHeaders(),
-      body: body,
-    });
+    let response: Response;
 
-    const data = await response.json();
+    if (incomingContentType.includes("multipart/form-data")) {
+      const formData = await req.formData();
+      response = await fetch(fastApiUrl, {
+        method: "POST",
+        headers: getHeaders(),
+        body: formData,
+      });
+    } else {
+      const body = await req.text();
+      response = await fetch(fastApiUrl, {
+        method: "POST",
+        headers: {
+          ...getHeaders(),
+          "Content-Type": "application/json",
+        },
+        body,
+      });
+    }
 
-    return new Response(JSON.stringify(data), {
+    const { parsed, raw, isJson } = await parseUpstreamResponse(response);
+
+    const payload = isJson
+      ? parsed
+      : {
+          status: response.status,
+          detail: raw || "Empty upstream response",
+        };
+
+    return new Response(JSON.stringify(payload), {
       status: response.status,
-      headers: { 
+      headers: {
         "content-type": "application/json",
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
         "Access-Control-Allow-Headers": "Content-Type, Authorization, X-API-Key",
       },
     });
-
   } catch (error) {
-    console.error('Proxy POST error:', error);
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         error: "Failed to post to FastAPI backend",
-        details: error instanceof Error ? error.message : String(error)
-      }), 
+        details: error instanceof Error ? error.message : String(error),
+      }),
       {
         status: 500,
-        headers: { "content-type": "application/json" }
+        headers: { "content-type": "application/json" },
       }
     );
   }
 }
 
-// OPTIONS endpoint for CORS preflight requests
-export async function OPTIONS(req: NextRequest) {
+export async function OPTIONS() {
   return new Response(null, {
     status: 200,
     headers: {
