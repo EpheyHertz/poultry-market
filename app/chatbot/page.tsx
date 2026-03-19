@@ -479,6 +479,31 @@ export default function ChatPage() {
                 });
               });
             }
+
+            // Also include explicitly persisted tool executions from message metadata.
+            const metadataToolExecutions = msg?.metadata?.tool_executions;
+            if (Array.isArray(metadataToolExecutions) && metadataToolExecutions.length > 0) {
+              metadataToolExecutions.forEach((toolExec: any) => {
+                if (!toolExec || !toolExec.name) {
+                  return;
+                }
+
+                const alreadyExists = tools.some((t) =>
+                  t.name === toolExec.name &&
+                  JSON.stringify(t.args || {}) === JSON.stringify(toolExec.args || {})
+                );
+
+                if (!alreadyExists) {
+                  tools.push({
+                    name: String(toolExec.name),
+                    args: toolExec.args || {},
+                    result: toolExec.result,
+                    isRunning: false,
+                    expanded: false,
+                  });
+                }
+              });
+            }
             
             // Clean image URLs from content since they should be displayed as images, not text
             let cleanContent = cleanImageUrlsFromContent(msg.content || "");
