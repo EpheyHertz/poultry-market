@@ -1,4 +1,6 @@
-'use client'
+'use client';
+
+import { useNavigation } from '@/contexts/navigation-context';
 
 import { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
@@ -53,10 +55,9 @@ import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import AdminSupportChat from './admin-support-chat';
 import ChatNotifications from './chat-notifications';
+import { ThemeToggleSimple } from '@/components/theme/theme-toggle';
 import { useResponsive } from '@/hooks/use-responsive';
-
-// Import responsive utilities
-import '../../styles/dashboard-responsive.css';
+import { FarmNavigationBar } from '@/components/farm/farm-navigation-bar';
 
 interface User {
   id: string;
@@ -75,11 +76,11 @@ export default function DashboardLayout({ children, user: propUser }: DashboardL
   const [user, setUser] = useState<User | null>(propUser || null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(!propUser);
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   const router = useRouter();
   const pathname = usePathname();
   const { isMobile, isTablet, isDesktop } = useResponsive();
+  const { isSidebarCollapsed, setIsSidebarCollapsed } = useNavigation();
 
   // Auto-collapse sidebar on smaller screens
   useEffect(() => {
@@ -88,7 +89,7 @@ export default function DashboardLayout({ children, user: propUser }: DashboardL
     } else if (isDesktop) {
       setIsSidebarCollapsed(false);
     }
-  }, [isMobile, isTablet, isDesktop]);
+  }, [isMobile, isTablet, isDesktop, setIsSidebarCollapsed]);
 
   // Fetch user if not provided
   useEffect(() => {
@@ -135,6 +136,7 @@ export default function DashboardLayout({ children, user: propUser }: DashboardL
       case 'ADMIN':
         return [
           ...baseItems,
+          { name: 'Farm Management', href: '/farm', icon: MapPin },
           { name: 'Users', href: '/admin/users', icon: Users },
           { name: 'Products', href: '/admin/products', icon: Package },
           { name: 'Orders', href: '/admin/orders', icon: ShoppingCart },
@@ -163,6 +165,7 @@ export default function DashboardLayout({ children, user: propUser }: DashboardL
       case 'SELLER':
         return [
           ...baseItems,
+          { name: 'Farm Management', href: '/farm', icon: MapPin },
           { name: 'My Store', href: '/seller/store', icon: Store },
           { name: 'Store Products', href: '/seller/store/products', icon: Package },
           { name: 'Store Wallet', href: '/seller/store/wallet', icon: Wallet },
@@ -188,6 +191,7 @@ export default function DashboardLayout({ children, user: propUser }: DashboardL
       case 'COMPANY':
         return [
           ...baseItems,
+          { name: 'Farm Management', href: '/farm', icon: MapPin },
           { name: 'My Store', href: '/seller/store', icon: Store },
           { name: 'Store Wallet', href: '/seller/store/wallet', icon: Wallet },
           { name: 'Verification', href: '/seller/store/verification', icon: ShieldCheck },
@@ -260,7 +264,7 @@ export default function DashboardLayout({ children, user: propUser }: DashboardL
 
   const NavigationContent = ({ isMobile = false }: { isMobile?: boolean }) => (
     <motion.div 
-      className="flex flex-col h-full bg-gradient-to-br from-white via-gray-50 to-white"
+      className="flex flex-col h-full bg-gradient-to-br from-background via-card to-background"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.3 }}
@@ -302,7 +306,7 @@ export default function DashboardLayout({ children, user: propUser }: DashboardL
       </div>
 
       {/* Navigation Items */}
-      <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+      <nav className="flex-1 p-4 space-y-2 overflow-y-auto bg-card/50">
         {navigationItems.map((item, index) => {
           const isActive = pathname === item.href;
           return (
@@ -317,7 +321,7 @@ export default function DashboardLayout({ children, user: propUser }: DashboardL
                 className={`group relative flex items-center space-x-3 px-3 py-3 rounded-xl transition-all duration-300 ${
                   isActive
                     ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/30'
-                    : 'text-gray-600 hover:bg-gradient-to-r hover:from-emerald-50 hover:to-teal-50 hover:text-emerald-700 hover:shadow-md'
+                    : 'text-muted-foreground hover:bg-gradient-to-r hover:from-emerald-50/50 hover:to-teal-50/50 dark:hover:from-emerald-950/50 dark:hover:to-teal-950/50 hover:text-emerald-700 hover:shadow-md'
                 } ${isSidebarCollapsed && !isMobile ? 'justify-center px-2' : ''}`}
                 onClick={() => isMobile && setIsMobileMenuOpen(false)}
               >
@@ -366,10 +370,10 @@ export default function DashboardLayout({ children, user: propUser }: DashboardL
       </nav>
 
       {/* User Info Section */}
-      <div className={`p-4 border-t border-gray-100 bg-gradient-to-r from-gray-50 to-white ${
+      <div className={`p-4 border-t border-border bg-gradient-to-r from-card to-background ${
         isSidebarCollapsed && !isMobile ? 'px-2' : ''
       }`}>
-        <div className={`flex items-center space-x-3 p-3 rounded-xl bg-white shadow-sm border border-gray-100 ${
+        <div className={`flex items-center space-x-3 p-3 rounded-xl bg-card shadow-sm border border-border ${
           isSidebarCollapsed && !isMobile ? 'justify-center' : ''
         }`}>
           <Avatar className="h-8 w-8 ring-2 ring-emerald-200">
@@ -386,8 +390,8 @@ export default function DashboardLayout({ children, user: propUser }: DashboardL
                 exit={{ opacity: 0, width: 0 }}
                 className="flex-1 min-w-0"
               >
-                <p className="text-sm font-semibold text-gray-900 truncate">{user?.name}</p>
-                <p className="text-xs text-gray-500 truncate capitalize">{user?.role?.toLowerCase()}</p>
+                <p className="text-sm font-semibold text-foreground truncate">{user?.name}</p>
+                <p className="text-xs text-muted-foreground truncate capitalize">{user?.role?.toLowerCase()}</p>
               </motion.div>
             )}
           </AnimatePresence>
@@ -398,7 +402,7 @@ export default function DashboardLayout({ children, user: propUser }: DashboardL
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50">
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-background via-card to-background">
         <motion.div
           animate={{ rotate: 360 }}
           transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
@@ -413,26 +417,23 @@ export default function DashboardLayout({ children, user: propUser }: DashboardL
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-background via-card to-background overflow-hidden">
       {/* Desktop Sidebar */}
       <div className={`hidden lg:fixed lg:inset-y-0 lg:flex lg:flex-col z-30 transition-all duration-300 ${
         isSidebarCollapsed ? 'lg:w-16' : 'lg:w-64'
       }`}>
-        <div className="flex flex-col flex-grow bg-white/80 backdrop-blur-xl border-r border-gray-200/50 shadow-2xl shadow-emerald-500/10 overflow-hidden relative">
+        <div className="flex flex-col flex-grow bg-card/80 backdrop-blur-xl border-r border-border shadow-2xl shadow-emerald-500/10 overflow-hidden relative">
           <NavigationContent />
           
           {/* Collapse Toggle Button */}
           <motion.button
             onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-            className="absolute -right-3 top-1/2 transform -translate-y-1/2 bg-white border border-gray-200 rounded-full p-1.5 shadow-lg hover:shadow-xl transition-all duration-300 hover:bg-emerald-50 hover:border-emerald-200 z-40"
+            className="absolute -right-3 top-1/2 transform -translate-y-1/2 bg-card border border-border rounded-full p-1.5 shadow-lg hover:shadow-xl transition-all duration-300 hover:bg-accent hover:border-accent z-40"
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
           >
-            <motion.div
-              animate={{ rotate: isSidebarCollapsed ? 180 : 0 }}
-              transition={{ duration: 0.3 }}
-            >
-              <ChevronLeft className="h-4 w-4 text-gray-600" />
+            <motion.div whileTap={{ scale: 0.95 }} className="text-muted-foreground hover:text-foreground transition-colors">
+              <ChevronLeft className="h-4 w-4" />
             </motion.div>
           </motion.button>
         </div>
@@ -442,7 +443,7 @@ export default function DashboardLayout({ children, user: propUser }: DashboardL
       <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
         <SheetContent 
           side="left" 
-          className="p-0 w-72 sm:w-80 bg-white/95 backdrop-blur-xl border-r border-gray-200/50 overflow-hidden"
+          className="p-0 w-72 sm:w-80 bg-card/95 backdrop-blur-xl border-r border-border overflow-hidden"
         >
           <NavigationContent isMobile={true} />
         </SheetContent>
@@ -457,7 +458,7 @@ export default function DashboardLayout({ children, user: propUser }: DashboardL
         <motion.header 
           initial={{ y: -20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          className="flex-shrink-0 bg-white/80 backdrop-blur-xl border-b border-gray-200/50 px-4 sm:px-6 lg:px-8 xl:px-12 py-3 sm:py-4 shadow-sm sticky top-0 z-20"
+          className="flex-shrink-0 bg-card/80 backdrop-blur-xl border-b border-border px-4 sm:px-6 lg:px-8 xl:px-12 py-3 sm:py-4 shadow-sm sticky top-0 z-20"
         >
           <div className="flex items-center justify-between min-h-[2.5rem] sm:min-h-[3rem]">
             <div className="flex items-center space-x-4">
@@ -475,7 +476,7 @@ export default function DashboardLayout({ children, user: propUser }: DashboardL
                   </SheetTrigger>
                   <SheetContent 
                     side="left" 
-                    className="p-0 w-80 bg-white/95 backdrop-blur-xl border-r border-gray-200/50"
+                    className="p-0 w-80 bg-card/95 backdrop-blur-xl border-r border-border"
                   >
                     <NavigationContent isMobile={true} />
                   </SheetContent>
@@ -486,7 +487,7 @@ export default function DashboardLayout({ children, user: propUser }: DashboardL
               <motion.h1 
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
-                className="text-lg sm:text-xl lg:text-2xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent capitalize"
+                className="text-lg sm:text-xl lg:text-2xl font-bold text-foreground capitalize"
               >
                 <span className="hidden sm:inline">{user.role.toLowerCase()} Dashboard</span>
                 <span className="sm:hidden">Dashboard</span>
@@ -497,6 +498,10 @@ export default function DashboardLayout({ children, user: propUser }: DashboardL
             <div className="flex items-center space-x-1 sm:space-x-2 lg:space-x-4">
               <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="hidden sm:block">
                 <ChatNotifications />
+              </motion.div>
+              
+              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                <ThemeToggleSimple />
               </motion.div>
               
               <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
@@ -528,7 +533,7 @@ export default function DashboardLayout({ children, user: propUser }: DashboardL
                     </Button>
                   </motion.div>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-64 bg-white/95 backdrop-blur-xl border border-gray-200/50 shadow-xl" align="end" forceMount>
+                <DropdownMenuContent className="w-64 bg-card/95 backdrop-blur-xl border border-border shadow-xl" align="end" forceMount>
                   <motion.div 
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -576,6 +581,8 @@ export default function DashboardLayout({ children, user: propUser }: DashboardL
           transition={{ delay: 0.1 }}
           className="flex-1 overflow-hidden"
         >
+          {pathname?.startsWith('/farm') && <FarmNavigationBar />}
+
           {/* Responsive Container */}
           <div className="h-full overflow-auto">
             <div className="min-h-full">

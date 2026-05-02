@@ -17,7 +17,10 @@ import {
   Clock,
   CheckCircle,
   XCircle,
-  AlertTriangle
+  AlertTriangle,
+  MapPin,
+  ArrowDownToLine,
+  BarChart3,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -239,6 +242,12 @@ export default async function AdminDashboard() {
                   Analytics
                 </Button>
               </Link>
+              <Link href="/farm">
+                <Button className="w-full" variant="outline">
+                  <MapPin className="mr-2 h-4 w-4" />
+                  Farm Management
+                </Button>
+              </Link>
             </DashboardGrid>
           </CardContent>
         </DashboardCard>
@@ -345,6 +354,67 @@ export default async function AdminDashboard() {
                 </div>
               </div>
             )}
+          </CardContent>
+        </DashboardCard>
+
+        {/* Farm Management Section */}
+        <DashboardCard>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <MapPin className="h-5 w-5 text-emerald-600" />
+              Farm Management
+            </CardTitle>
+            <CardDescription>Monitor and manage farm operations</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <DashboardGrid cols={{ sm: 2, md: 4 }} gap="md" className="mb-6">
+              <div className="p-3 sm:p-4 border rounded-lg bg-card">
+                <div className="text-2xl sm:text-3xl font-bold text-emerald-600">0</div>
+                <div className="text-xs sm:text-sm text-muted-foreground">Total Farms</div>
+              </div>
+              <div className="p-3 sm:p-4 border rounded-lg bg-card">
+                <div className="text-2xl sm:text-3xl font-bold text-teal-600">0</div>
+                <div className="text-xs sm:text-sm text-muted-foreground">Active Flocks</div>
+              </div>
+              <div className="p-3 sm:p-4 border rounded-lg bg-card">
+                <div className="text-2xl sm:text-3xl font-bold text-blue-600">0</div>
+                <div className="text-xs sm:text-sm text-muted-foreground">Feed Records</div>
+              </div>
+              <div className="p-3 sm:p-4 border rounded-lg bg-card">
+                <div className="text-2xl sm:text-3xl font-bold text-amber-600">0</div>
+                <div className="text-xs sm:text-sm text-muted-foreground">Vaccinations</div>
+              </div>
+            </DashboardGrid>
+
+            <div className="space-y-3">
+              <h4 className="text-sm font-semibold text-foreground mb-3">Farm Operations</h4>
+              <DashboardGrid cols={{ sm: 1, md: 2, lg: 4 }} gap="md">
+                <Link href="/farm">
+                  <Button className="w-full" variant="outline">
+                    <MapPin className="mr-2 h-4 w-4" />
+                    View Dashboard
+                  </Button>
+                </Link>
+                <Link href="/farm/records">
+                  <Button className="w-full" variant="outline">
+                    <FileText className="mr-2 h-4 w-4" />
+                    Manage Records
+                  </Button>
+                </Link>
+                <Link href="/farm/import">
+                  <Button className="w-full" variant="outline">
+                    <ArrowDownToLine className="mr-2 h-4 w-4" />
+                    Import Data
+                  </Button>
+                </Link>
+                <Link href="/farm/performance">
+                  <Button className="w-full" variant="outline">
+                    <BarChart3 className="mr-2 h-4 w-4" />
+                    Performance
+                  </Button>
+                </Link>
+              </DashboardGrid>
+            </div>
           </CardContent>
         </DashboardCard>
 

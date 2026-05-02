@@ -6,7 +6,7 @@ import ApiKeyManager from '@/components/api-keys/api-key-manager';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Package, ShoppingCart, DollarSign, TrendingUp, Plus, Eye } from 'lucide-react';
+import { Package, ShoppingCart, DollarSign, TrendingUp, Plus, Eye, MapPin } from 'lucide-react';
 import Link from 'next/link';
 
 export default async function SellerDashboard() {
@@ -197,6 +197,12 @@ export default async function SellerDashboard() {
                 <Button className="w-full" variant="outline">
                   <TrendingUp className="mr-2 h-4 w-4" />
                   Sponsorships
+                </Button>
+              </Link>
+              <Link href="/farm">
+                <Button className="w-full" variant="outline">
+                  <MapPin className="mr-2 h-4 w-4" />
+                  Farm Management
                 </Button>
               </Link>
             </div>

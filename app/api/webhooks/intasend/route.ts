@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getIntaSendErrorMessage } from '@/lib/intasend';
+import { handleSubscriptionPaymentWebhook } from '@/modules/subscriptions/webhook';
 
 // IntaSend webhook challenge for secure verification
 const INTASEND_WEBHOOK_CHALLENGE = process.env.INTASEND_WEBHOOK_CHALLENGE || '';
@@ -109,7 +110,9 @@ export async function POST(request: NextRequest) {
     const { invoice_id, state, api_ref, mpesa_reference, failed_reason, failed_code } = body;
 
     // 3. Route based on api_ref prefix
-    if (api_ref.startsWith('pos-')) {
+    if (api_ref.startsWith('subscription-')) {
+      await handleSubscriptionPaymentWebhook(body);
+    } else if (api_ref.startsWith('pos-')) {
       await handlePOSPayment(body);
     } else if (api_ref.startsWith('order-')) {
       await handleOrderPayment(body);

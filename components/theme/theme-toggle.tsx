@@ -112,21 +112,22 @@ export function ThemeToggleLarge() {
   ];
 
   return (
-    <div className="flex items-center gap-2 p-1 rounded-lg bg-muted">
+    <div className="grid grid-cols-1 gap-2 rounded-2xl bg-muted/80 p-2 sm:grid-cols-3">
       {themes.map(({ value, label, icon: Icon }) => (
         <Button
           key={value}
           variant={theme === value ? 'secondary' : 'ghost'}
-          size="sm"
-          className={`flex items-center gap-2 ${
-            theme === value 
-              ? 'bg-background shadow-sm' 
-              : 'hover:bg-background/50'
+          size="lg"
+          className={`w-full justify-start gap-3 rounded-xl border px-4 py-6 text-left transition-all sm:justify-center sm:px-3 sm:py-5 ${
+            theme === value
+              ? 'border-border bg-background shadow-sm'
+              : 'border-transparent hover:border-border hover:bg-background/70'
           }`}
           onClick={() => setTheme(value)}
+          aria-pressed={theme === value}
         >
-          <Icon className="h-4 w-4" />
-          <span className="hidden sm:inline">{label}</span>
+          <Icon className="h-4 w-4 shrink-0" />
+          <span className="text-sm font-semibold">{label}</span>
         </Button>
       ))}
     </div>

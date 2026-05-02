@@ -44,6 +44,20 @@ enum ProductType {
   CUSTOM
 }
 
+enum ReminderType {
+  EMAIL
+  IN_APP
+  SMS
+}
+
+enum Frequency {
+  ONCE
+  DAILY
+  WEEKLY
+  MONTHLY
+  CUSTOM
+}
+
 enum ApplicationStatus {
   PENDING
   APPROVED
@@ -177,6 +191,36 @@ enum VoucherType {
   FREE_SHIPPING
 }
 
+enum SubscriptionPlan {
+  FREE
+  BASIC
+  PRO
+  ENTERPRISE
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  INACTIVE
+  EXPIRED
+}
+
+enum FlockStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+enum VaccinationStatus {
+  SCHEDULED
+  COMPLETED
+  MISSED
+}
+
+enum FarmImportStatus {
+  PREVIEW
+  CONFIRMED
+  FAILED
+}
+
 model User {
   id                      String    @id @default(cuid())
   email                   String    @unique
@@ -285,8 +329,8 @@ model User {
   sellerCommission SellerCommission?
 
   // Wallet System
-  wallets             Wallet[]
-  walletTransactions  WalletTransaction[] @relation("WalletTransactions")
+  wallets            Wallet[]
+  walletTransactions WalletTransaction[] @relation("WalletTransactions")
 
   // Blog relationships
   blogPosts         BlogPost[]
@@ -309,11 +353,25 @@ model User {
   supportTransactions SupportTransaction[] @relation("SupporterTransactions")
 
   // Store System
-  store              Store?       @relation("StoreOwner")
-  deliveryPartner    DeliveryPartner?
-  deliveryJobs       DeliveryJob[] @relation("DeliveryPartnerJobs")
-  deliveryProofs     DeliveryProof[] @relation("DeliveryProofSubmitter")
-  adminDeliveryApprovals DeliveryProof[] @relation("DeliveryProofApprover")
+  store                  Store?           @relation("StoreOwner")
+  deliveryPartner        DeliveryPartner?
+  deliveryJobs           DeliveryJob[]    @relation("DeliveryPartnerJobs")
+  deliveryProofs         DeliveryProof[]  @relation("DeliveryProofSubmitter")
+  adminDeliveryApprovals DeliveryProof[]  @relation("DeliveryProofApprover")
+
+  // Farm Management
+  eggRecords          EggRecord[]
+  flocks              Flock[]
+  feedRecords         FeedRecord[]
+  mortalityRecords    MortalityRecord[]
+  vaccinations        Vaccination[]
+  attachments         Attachment[]
+  subscription        Subscription?
+  farmEmailPreference FarmEmailPreference?
+  farmImportJobs      FarmImportJob[]
+
+  // Reminders
+  reminders           Reminder[]
 
   @@map("users")
 }
@@ -334,8 +392,8 @@ model Product {
   updatedAt   DateTime    @updatedAt
 
   // Store multi-tenant isolation
-  storeId     String?
-  store       Store?      @relation(fields: [storeId], references: [id])
+  storeId String?
+  store   Store?  @relation(fields: [storeId], references: [id])
 
   // SEO and metadata
   slug            String? @unique
@@ -366,7 +424,7 @@ model Product {
 
   // Extended product fields
   sku               String?
-  unitType          String?  // bird, kg, crate, tray
+  unitType          String? // bird, kg, crate, tray
   vaccinationStatus String?
 
   @@index([storeId])
@@ -429,8 +487,8 @@ model Order {
   reviewId   String?
 
   // Escrow & delivery proof
-  escrowStatus    EscrowStatus @default(NONE)
-  escrowAmount    Float?       // Amount held in escrow
+  escrowStatus     EscrowStatus @default(NONE)
+  escrowAmount     Float? // Amount held in escrow
   escrowReleasedAt DateTime?
 
   // Store multi-tenant isolation
@@ -1733,19 +1791,19 @@ model SellerCommission {
 
 enum WalletType {
   SETTLEMENT // Main platform wallet
-  WORKING    // Sub-account wallet (per seller/user)
+  WORKING // Sub-account wallet (per seller/user)
 }
 
 enum WalletTransactionType {
-  DEPOSIT          // M-Pesa STK Push or Card funded
+  DEPOSIT // M-Pesa STK Push or Card funded
   WITHDRAWAL_MPESA // Withdrawal to M-Pesa B2C
-  WITHDRAWAL_B2B   // Withdrawal to PayBill/Till
-  WITHDRAWAL_BANK  // Withdrawal via PesaLink
-  INTERNAL_IN      // Intra-wallet transfer received
-  INTERNAL_OUT     // Intra-wallet transfer sent
-  COMMISSION       // Platform commission deducted
-  REFUND           // Refund credited
-  SALE_CREDIT      // POS / order sale credited
+  WITHDRAWAL_B2B // Withdrawal to PayBill/Till
+  WITHDRAWAL_BANK // Withdrawal via PesaLink
+  INTERNAL_IN // Intra-wallet transfer received
+  INTERNAL_OUT // Intra-wallet transfer sent
+  COMMISSION // Platform commission deducted
+  REFUND // Refund credited
+  SALE_CREDIT // POS / order sale credited
 }
 
 enum WalletTransactionStatus {
@@ -1757,21 +1815,21 @@ enum WalletTransactionStatus {
 }
 
 model Wallet {
-  id            String     @id @default(cuid())
-  userId        String
-  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  intasendId    String     @unique // IntaSend wallet_id (e.g. "AWR19L")
-  walletType    WalletType @default(WORKING)
-  currency      String     @default("KES")
-  label         String // Human-readable label
-  canDisburse   Boolean    @default(true)
+  id          String     @id @default(cuid())
+  userId      String
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  intasendId  String     @unique // IntaSend wallet_id (e.g. "AWR19L")
+  walletType  WalletType @default(WORKING)
+  currency    String     @default("KES")
+  label       String // Human-readable label
+  canDisburse Boolean    @default(true)
 
   // Cached balances (synced from IntaSend)
   currentBalance   Float @default(0)
   availableBalance Float @default(0)
 
-  isActive  Boolean  @default(true)
-  isPrimary Boolean  @default(false) // Primary wallet for the user
+  isActive  Boolean @default(true)
+  isPrimary Boolean @default(false) // Primary wallet for the user
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1794,18 +1852,18 @@ model WalletTransaction {
   type   WalletTransactionType
   status WalletTransactionStatus @default(PENDING)
 
-  amount          Float // Gross amount
-  fee             Float    @default(0) // Platform or IntaSend fee
-  netAmount       Float // Net amount after fees
-  runningBalance  Float?   @default(0) // Balance after this transaction
-  currency        String   @default("KES")
+  amount         Float // Gross amount
+  fee            Float  @default(0) // Platform or IntaSend fee
+  netAmount      Float // Net amount after fees
+  runningBalance Float? @default(0) // Balance after this transaction
+  currency       String @default("KES")
 
   // Payment references
-  invoiceId          String? // IntaSend invoice_id
-  mpesaReference     String? // M-Pesa confirmation code
-  trackingId         String? // IntaSend payout tracking_id  
-  externalReference  String? // Our internal reference
-  narrative          String? // Description / memo
+  invoiceId         String? // IntaSend invoice_id
+  mpesaReference    String? // M-Pesa confirmation code
+  trackingId        String? // IntaSend payout tracking_id  
+  externalReference String? // Our internal reference
+  narrative         String? // Description / memo
 
   // Linked entities
   orderId String? // Linked order (if sale credit)
@@ -1846,19 +1904,19 @@ enum StoreStatus {
 }
 
 enum EscrowStatus {
-  NONE                          // No escrow — legacy or cash orders
-  HELD                          // Funds held in escrow
+  NONE // No escrow — legacy or cash orders
+  HELD // Funds held in escrow
   AWAITING_DELIVERY_CONFIRMATION // Waiting for customer to confirm delivery
-  DELIVERY_PROOF_SUBMITTED      // Customer uploaded delivery proof
-  RELEASED                      // Admin approved, funds released to seller
-  REFUNDED                      // Dispute resolved, refunded to buyer
+  DELIVERY_PROOF_SUBMITTED // Customer uploaded delivery proof
+  RELEASED // Admin approved, funds released to seller
+  REFUNDED // Dispute resolved, refunded to buyer
 }
 
 enum VerificationLevel {
   NONE
-  IDENTITY_VERIFIED   // Level 1
-  FARM_VERIFIED       // Level 2
-  CERTIFIED_SUPPLIER  // Level 3
+  IDENTITY_VERIFIED // Level 1
+  FARM_VERIFIED // Level 2
+  CERTIFIED_SUPPLIER // Level 3
 }
 
 enum VerificationRequestStatus {
@@ -1893,32 +1951,32 @@ enum DeliveryJobStatus {
 }
 
 model Store {
-  id          String  @id @default(cuid())
-  ownerId     String  @unique
-  owner       User    @relation("StoreOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  id      String @id @default(cuid())
+  ownerId String @unique
+  owner   User   @relation("StoreOwner", fields: [ownerId], references: [id], onDelete: Cascade)
 
   storeName        String
-  storeSlug        String     @unique
+  storeSlug        String      @unique
   storeDescription String?
   logo             String?
   bannerImage      String?
   location         String?
   contactPhone     String?
-  socialLinks      String?    // JSON: { facebook, twitter, instagram, youtube }
-  themeColor       String?    @default("#16a34a")
-  storeType        StoreType  @default(SELLER)
+  socialLinks      String? // JSON: { facebook, twitter, instagram, youtube }
+  themeColor       String?     @default("#16a34a")
+  storeType        StoreType   @default(SELLER)
   status           StoreStatus @default(ACTIVE)
 
   // Verification
   verificationLevel VerificationLevel @default(NONE)
 
   // Stats (cached)
-  totalProducts   Int   @default(0)
-  totalOrders     Int   @default(0)
-  totalRevenue    Float @default(0)
-  averageRating   Float @default(0)
-  totalReviews    Int   @default(0)
-  totalFollowers  Int   @default(0)
+  totalProducts  Int   @default(0)
+  totalOrders    Int   @default(0)
+  totalRevenue   Float @default(0)
+  averageRating  Float @default(0)
+  totalReviews   Int   @default(0)
+  totalFollowers Int   @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1947,11 +2005,11 @@ model StoreWallet {
   storeId String @unique
   store   Store  @relation(fields: [storeId], references: [id], onDelete: Cascade)
 
-  availableBalance Float @default(0) // Ready to withdraw
-  pendingBalance   Float @default(0) // Released from escrow, pending clearance
-  escrowBalance    Float @default(0) // Held in escrow
-  totalEarned      Float @default(0) // Lifetime earnings
-  totalWithdrawn   Float @default(0) // Lifetime withdrawals
+  availableBalance Float  @default(0) // Ready to withdraw
+  pendingBalance   Float  @default(0) // Released from escrow, pending clearance
+  escrowBalance    Float  @default(0) // Held in escrow
+  totalEarned      Float  @default(0) // Lifetime earnings
+  totalWithdrawn   Float  @default(0) // Lifetime withdrawals
   currency         String @default("KES")
 
   createdAt DateTime @default(now())
@@ -1967,14 +2025,14 @@ model StoreWalletTransaction {
   walletId String
   wallet   StoreWallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
 
-  type      String   // ESCROW_HOLD, ESCROW_RELEASE, WITHDRAWAL, COMMISSION, SALE_CREDIT, REFUND
-  status    String   @default("COMPLETED") // PENDING, COMPLETED, FAILED
+  type      String // ESCROW_HOLD, ESCROW_RELEASE, WITHDRAWAL, COMMISSION, SALE_CREDIT, REFUND
+  status    String  @default("COMPLETED") // PENDING, COMPLETED, FAILED
   amount    Float
-  fee       Float    @default(0)
+  fee       Float   @default(0)
   netAmount Float
   narrative String?
-  orderId   String?  // Linked order
-  saleId    String?  // Linked POS sale
+  orderId   String? // Linked order
+  saleId    String? // Linked POS sale
 
   createdAt DateTime @default(now())
 
@@ -1991,24 +2049,24 @@ model StoreWithdrawal {
   storeId String
   store   Store  @relation(fields: [storeId], references: [id], onDelete: Cascade)
 
-  amount         Float
-  method         WithdrawMethodType
-  currency       String @default("KES")
+  amount   Float
+  method   WithdrawMethodType
+  currency String             @default("KES")
 
   // Account details
-  accountName    String?
-  mpesaNumber    String?
+  accountName     String?
+  mpesaNumber     String?
   mpesaTillNumber String?
-  bankName       String?
-  bankAccount    String?
-  bankCode       String?
-  paypalEmail    String?
+  bankName        String?
+  bankAccount     String?
+  bankCode        String?
+  paypalEmail     String?
 
-  status         StoreWithdrawalStatus @default(PENDING)
-  processedAt    DateTime?
-  processedBy    String?   // Admin who approved/rejected
+  status          StoreWithdrawalStatus @default(PENDING)
+  processedAt     DateTime?
+  processedBy     String? // Admin who approved/rejected
   rejectionReason String?
-  transactionRef String?   // IntaSend payout tracking
+  transactionRef  String? // IntaSend payout tracking
 
   requestedAt DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -2027,16 +2085,16 @@ model DeliveryProof {
   order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   // Customer submission
-  submittedBy     String
-  submitter       User     @relation("DeliveryProofSubmitter", fields: [submittedBy], references: [id])
-  proofImages     String[] @default([])
-  deliveryNote    String?
-  submittedAt     DateTime @default(now())
+  submittedBy  String
+  submitter    User     @relation("DeliveryProofSubmitter", fields: [submittedBy], references: [id])
+  proofImages  String[] @default([])
+  deliveryNote String?
+  submittedAt  DateTime @default(now())
 
   // Admin verification
-  isApproved      Boolean  @default(false)
+  isApproved      Boolean   @default(false)
   approvedBy      String?
-  approver        User?    @relation("DeliveryProofApprover", fields: [approvedBy], references: [id])
+  approver        User?     @relation("DeliveryProofApprover", fields: [approvedBy], references: [id])
   approvedAt      DateTime?
   rejectionReason String?
 
@@ -2060,9 +2118,9 @@ model StoreVerification {
   status         VerificationRequestStatus @default(PENDING)
 
   // Documents
-  identityDocuments String[]  @default([])
-  farmPhotos        String[]  @default([])
-  businessDocuments String[]  @default([])
+  identityDocuments String[] @default([])
+  farmPhotos        String[] @default([])
+  businessDocuments String[] @default([])
   additionalNotes   String?
 
   // Review
@@ -2086,16 +2144,16 @@ model DeliveryPartner {
   userId String @unique
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  name             String
-  phone            String
-  vehicleType      String?
-  vehiclePlate     String?
-  location         String?
-  coverageAreas    String[] @default([])
-  isVerified       Boolean  @default(false)
-  isAvailable      Boolean  @default(true)
-  rating           Float    @default(0)
-  completedJobs    Int      @default(0)
+  name          String
+  phone         String
+  vehicleType   String?
+  vehiclePlate  String?
+  location      String?
+  coverageAreas String[] @default([])
+  isVerified    Boolean  @default(false)
+  isAvailable   Boolean  @default(true)
+  rating        Float    @default(0)
+  completedJobs Int      @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2108,25 +2166,25 @@ model DeliveryPartner {
 }
 
 model DeliveryJob {
-  id        String @id @default(cuid())
-  storeId   String
-  store     Store  @relation(fields: [storeId], references: [id])
-  orderId   String
-  order     Order  @relation(fields: [orderId], references: [id])
-  partnerId String?
-  partner   User?   @relation("DeliveryPartnerJobs", fields: [partnerId], references: [id])
+  id                String           @id @default(cuid())
+  storeId           String
+  store             Store            @relation(fields: [storeId], references: [id])
+  orderId           String
+  order             Order            @relation(fields: [orderId], references: [id])
+  partnerId         String?
+  partner           User?            @relation("DeliveryPartnerJobs", fields: [partnerId], references: [id])
   deliveryPartnerId String?
   deliveryPartner   DeliveryPartner? @relation(fields: [deliveryPartnerId], references: [id])
 
-  status       DeliveryJobStatus @default(PENDING)
-  pickupAddress  String?
+  status          DeliveryJobStatus @default(PENDING)
+  pickupAddress   String?
   deliveryAddress String?
-  notes        String?
-  fee          Float    @default(0)
-  distance     Float?   // km
+  notes           String?
+  fee             Float             @default(0)
+  distance        Float? // km
 
-  pickedUpAt   DateTime?
-  deliveredAt  DateTime?
+  pickedUpAt  DateTime?
+  deliveredAt DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2148,11 +2206,11 @@ model MarketPrice {
   averagePrice Float
   minPrice     Float?
   maxPrice     Float?
-  unit         String   @default("per unit") // per kg, per tray, per bird, etc.
-  source       String   @default("PLATFORM") // PLATFORM (auto-calculated) or MANUAL
+  unit         String @default("per unit") // per kg, per tray, per bird, etc.
+  source       String @default("PLATFORM") // PLATFORM (auto-calculated) or MANUAL
 
   recordedAt DateTime @default(now())
-  updatedBy  String?  // Admin who manually set the price
+  updatedBy  String? // Admin who manually set the price
 
   @@index([category, region])
   @@index([recordedAt])
@@ -2169,11 +2227,255 @@ model StoreSale {
   store   Store  @relation(fields: [storeId], references: [id])
   saleId  String // Reference to the Sale model's ID
 
-  amount  Float
-  method  String // CASH, MPESA, CARD
+  amount Float
+  method String // CASH, MPESA, CARD
 
   createdAt DateTime @default(now())
 
   @@index([storeId, createdAt])
   @@map("store_sales")
+}
+
+// ================================
+// Poultry Farm Management
+// ================================
+
+model Subscription {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  plan             SubscriptionPlan   @default(FREE)
+  status           SubscriptionStatus @default(INACTIVE)
+  intaSendRef      String?
+  paymentReference String?
+  startDate        DateTime?
+  endDate          DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, endDate])
+  @@map("subscriptions")
+}
+
+model FarmEmailPreference {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  dailyReminder     Boolean @default(true)
+  weeklySummary     Boolean @default(true)
+  inactivityAlerts  Boolean @default(true)
+  vaccinationAlerts Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("farm_email_preferences")
+}
+
+model Flock {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name       String
+  breed      String?
+  birdCount  Int         @default(0)
+  acquiredAt DateTime?
+  status     FlockStatus @default(ACTIVE)
+  notes      String?     @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  eggRecords       EggRecord[]
+  feedRecords      FeedRecord[]
+  mortalityRecords MortalityRecord[]
+  vaccinations     Vaccination[]
+  attachments      Attachment[]
+  reminders        Reminder[]
+
+  @@index([userId, status])
+  @@map("flocks")
+}
+
+model EggRecord {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  flockId String?
+  flock   Flock?  @relation(fields: [flockId], references: [id], onDelete: SetNull)
+
+  recordedOn   DateTime
+  quantity     Int
+  damagedCount Int      @default(0)
+  notes        String?  @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  attachments Attachment[]
+
+  @@index([userId, recordedOn])
+  @@index([flockId])
+  @@map("egg_records")
+}
+
+model FeedRecord {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  flockId String?
+  flock   Flock?  @relation(fields: [flockId], references: [id], onDelete: SetNull)
+
+  recordedOn DateTime
+  feedType   String
+  quantityKg Float
+  cost       Float?
+  notes      String?  @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  attachments Attachment[]
+
+  @@index([userId, recordedOn])
+  @@index([flockId])
+  @@map("feed_records")
+}
+
+model MortalityRecord {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  flockId String?
+  flock   Flock?  @relation(fields: [flockId], references: [id], onDelete: SetNull)
+
+  recordedOn DateTime
+  count      Int
+  cause      String?
+  notes      String?  @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  attachments Attachment[]
+
+  @@index([userId, recordedOn])
+  @@index([flockId])
+  @@map("mortality_records")
+}
+
+model Vaccination {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  flockId String?
+  flock   Flock?  @relation(fields: [flockId], references: [id], onDelete: SetNull)
+
+  vaccineName      String
+  scheduledDate    DateTime
+  administeredDate DateTime?
+  status           VaccinationStatus @default(SCHEDULED)
+  notes            String?           @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  attachments Attachment[]
+
+  @@index([userId, scheduledDate, status])
+  @@index([flockId])
+  @@map("vaccinations")
+}
+
+model Attachment {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  fileName  String
+  fileUrl   String
+  mimeType  String
+  sizeBytes Int
+
+  eggRecordId String?
+  eggRecord   EggRecord? @relation(fields: [eggRecordId], references: [id], onDelete: SetNull)
+
+  flockId String?
+  flock   Flock?  @relation(fields: [flockId], references: [id], onDelete: SetNull)
+
+  feedRecordId String?
+  feedRecord   FeedRecord? @relation(fields: [feedRecordId], references: [id], onDelete: SetNull)
+
+  mortalityRecordId String?
+  mortalityRecord   MortalityRecord? @relation(fields: [mortalityRecordId], references: [id], onDelete: SetNull)
+
+  vaccinationId String?
+  vaccination   Vaccination? @relation(fields: [vaccinationId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([eggRecordId])
+  @@index([flockId])
+  @@index([feedRecordId])
+  @@index([mortalityRecordId])
+  @@index([vaccinationId])
+  @@map("attachments")
+}
+
+model FarmImportJob {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  fileName       String
+  fileType       String?
+  status         FarmImportStatus @default(PREVIEW)
+  totalRows      Int              @default(0)
+  validRows      Int              @default(0)
+  invalidRows    Int              @default(0)
+  mapping        String?
+  previewPayload String?
+  errorLog       String?
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  confirmedAt DateTime?
+
+  @@index([userId, status, createdAt])
+  @@map("farm_import_jobs")
+}
+
+model Reminder {
+  id             String     @id @default(cuid())
+  title          String
+  description    String?
+  type           ReminderType
+  frequency      Frequency
+  customInterval Int?       // number of days when frequency = CUSTOM
+  timeOfDay      String?    // e.g. "09:00" (local time)
+  dayOfWeek      Int?       // 0 = Sunday .. 6 = Saturday (for WEEKLY)
+  nextTriggerAt  DateTime?
+  lastSentAt     DateTime?
+  isActive       Boolean    @default(true)
+
+  flockId String?
+  flock   Flock?   @relation(fields: [flockId], references: [id], onDelete: SetNull)
+
+  userId String
+  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, nextTriggerAt])
+  @@map("reminders")
 }

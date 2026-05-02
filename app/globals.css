@@ -141,7 +141,7 @@
 @layer components {
   /* Glass Morphism Effect */
   .glass-card {
-    @apply bg-white/80 dark:bg-slate-900/80;
+    @apply bg-card/80 dark:bg-card/80;
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border: 1px solid rgba(255, 255, 255, 0.18);
@@ -157,8 +157,8 @@
   /* Blog Card Premium Styling */
   .blog-card {
     @apply relative overflow-hidden rounded-2xl;
-    @apply bg-white dark:bg-slate-900;
-    @apply border border-gray-200/60 dark:border-slate-800/60;
+    @apply bg-card dark:bg-card;
+    @apply border border-border dark:border-border;
     @apply shadow-lg shadow-gray-200/50 dark:shadow-black/30;
     transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   }
@@ -466,9 +466,9 @@
   /* Interactive Category Pills */
   .category-pill {
     @apply px-4 py-2 rounded-full text-sm font-medium;
-    @apply bg-white dark:bg-slate-800;
-    @apply border-2 border-gray-200 dark:border-slate-700;
-    @apply hover:border-emerald-400 hover:bg-emerald-50;
+    @apply bg-card dark:bg-card;
+    @apply border-2 border-border dark:border-border;
+    @apply hover:border-emerald-400 hover:bg-emerald-50/50;
     @apply dark:hover:border-emerald-500 dark:hover:bg-emerald-500/10;
     @apply transition-all duration-300;
     @apply cursor-pointer select-none;
@@ -493,9 +493,9 @@
   /* Author Info Hover Card */
   .author-hover-card {
     @apply absolute left-0 top-full mt-2 p-4 rounded-xl;
-    @apply bg-white dark:bg-slate-900;
+    @apply bg-card dark:bg-card;
     @apply shadow-2xl shadow-black/20 dark:shadow-black/40;
-    @apply border border-gray-200 dark:border-slate-700;
+    @apply border border-border dark:border-border;
     @apply opacity-0 invisible translate-y-2;
     @apply transition-all duration-300 z-50;
     min-width: 280px;

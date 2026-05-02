@@ -194,7 +194,7 @@ export default function AdminApplications() {
                               <DialogHeader>
                                 <DialogTitle>Application Review</DialogTitle>
                                 <DialogDescription>
-                                  Review {application.user.name}'s application to become a {application.requestedRole.toLowerCase()}
+                                  Review {application.user.name}&apos;s application to become a {application.requestedRole.toLowerCase()}
                                 </DialogDescription>
                               </DialogHeader>
                               

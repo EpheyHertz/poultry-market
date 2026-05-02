@@ -60,6 +60,17 @@ const config: Config = {
           '4': 'hsl(var(--chart-4))',
           '5': 'hsl(var(--chart-5))',
         },
+        // Poultry Farm System (PFS) themed colors
+        pfs: {
+          green: '#1F7A63',
+          'green-700': '#165A47',
+          accent: '#F59E0B',
+          beige: '#FDF6EC',
+          muted: '#F3F4F6',
+          danger: '#DC2626',
+          info: '#2563EB',
+          surface: '#FFFFFF',
+        },
       },
       keyframes: {
         'accordion-down': {

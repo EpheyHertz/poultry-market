@@ -3,6 +3,8 @@ import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import { Toaster } from '@/components/ui/sonner';
 import { ThemeProvider } from '@/components/theme';
+import { NavigationProvider } from '@/contexts/navigation-context';
+import { FarmProvider } from '@/contexts/farm-context';
 import { seoConfig, structuredData } from '@/lib/seo';
 
 const inter = Inter({ 
@@ -157,8 +159,12 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          {children}
-          <Toaster />
+          <NavigationProvider>
+            <FarmProvider>
+              {children}
+              <Toaster />
+            </FarmProvider>
+          </NavigationProvider>
         </ThemeProvider>
       </body>
     </html>

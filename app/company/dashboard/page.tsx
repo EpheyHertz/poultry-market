@@ -6,7 +6,7 @@ import ApiKeyManager from '@/components/api-keys/api-key-manager';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Package, ShoppingCart, DollarSign, TrendingUp, Plus, Eye, QrCode, HandHeart } from 'lucide-react';
+import { Package, ShoppingCart, DollarSign, TrendingUp, Plus, Eye, QrCode, HandHeart, MapPin } from 'lucide-react';
 import Link from 'next/link';
 
 export default async function CompanyDashboard() {
@@ -207,6 +207,12 @@ export default async function CompanyDashboard() {
                 <Button className="w-full" variant="outline">
                   <TrendingUp className="mr-2 h-4 w-4" />
                   Analytics
+                </Button>
+              </Link>
+              <Link href="/farm">
+                <Button className="w-full" variant="outline">
+                  <MapPin className="mr-2 h-4 w-4" />
+                  Farm Management
                 </Button>
               </Link>
             </div>
