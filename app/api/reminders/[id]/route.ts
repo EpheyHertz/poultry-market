@@ -10,14 +10,15 @@ async function getOwnedReminder(id: string, userId: string) {
   })
 }
 
-export async function PUT(request: NextRequest, context: { params: { id: string } }) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params
     const user = await getCurrentUser()
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const existing = await getOwnedReminder(context.params.id, user.id)
+    const existing = await getOwnedReminder(id, user.id)
     if (!existing) {
       return NextResponse.json({ error: 'Reminder not found' }, { status: 404 })
     }
@@ -47,14 +48,15 @@ export async function PUT(request: NextRequest, context: { params: { id: string 
   }
 }
 
-export async function DELETE(_request: NextRequest, context: { params: { id: string } }) {
+export async function DELETE(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params
     const user = await getCurrentUser()
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const existing = await getOwnedReminder(context.params.id, user.id)
+    const existing = await getOwnedReminder(id, user.id)
     if (!existing) {
       return NextResponse.json({ error: 'Reminder not found' }, { status: 404 })
     }
