@@ -80,6 +80,8 @@ export default function HealthManagementPage() {
       mortalityRate,
     }));
   }, [healthRecords]);
+
+  const resetForm = () => {
     setEditingRecord(null);
     setFormData(INITIAL_FORM);
   };
