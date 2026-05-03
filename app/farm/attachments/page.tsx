@@ -1,33 +1,3 @@
- 'use client';
-
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { ThemeToggleLarge } from '@/components/theme/theme-toggle';
-
-export default function AttachmentsPage() {
-  return (
-    <main className="mx-auto w-full max-w-4xl p-4 sm:p-6">
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-semibold">Attachments</h1>
-        <ThemeToggleLarge />
-      </div>
-
-      <Card className="bg-card">
-        <CardHeader>
-          <CardTitle>Attachments</CardTitle>
-          <CardDescription>Upload and preview farm attachments (images, docs).</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground mb-4">Placeholder attachment UI. Thumbnails and preview components will appear here.</p>
-          <div className="flex gap-2">
-            <input type="file" accept="image/*,application/pdf" multiple className="rounded-2xl bg-input p-2" />
-            <Button>Upload</Button>
-          </div>
-        </CardContent>
-      </Card>
-    </main>
-  );
-}
 'use client';
 
 import Image from 'next/image';
