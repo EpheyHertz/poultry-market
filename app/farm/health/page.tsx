@@ -38,21 +38,6 @@ const SEVERITY_LEVELS: HealthAlertType[] = ['INFO', 'WARNING', 'CRITICAL'];
 
 type HealthFormState = {
   flockId: string;
-  const mortalityTrendData = useMemo(() => {
-    const buckets = new Map<string, number>();
-
-    healthRecords
-      .filter((record) => record.type === 'MORTALITY')
-      .forEach((record) => {
-        const week = record.date.toLocaleDateString('en-GB', { month: 'short', day: 'numeric' });
-        buckets.set(week, (buckets.get(week) || 0) + (record.quantity || 0));
-      });
-
-    return Array.from(buckets.entries()).map(([week, mortalityRate]) => ({
-      week,
-      mortalityRate,
-    }));
-  }, [healthRecords]);
   type: HealthRecordType;
   severity: HealthAlertType;
   description: string;
@@ -80,7 +65,21 @@ export default function HealthManagementPage() {
 
   const criticalAlerts = useMemo(() => healthRecords.filter((record) => record.severity === 'CRITICAL'), [healthRecords]);
 
-  const resetForm = () => {
+  const mortalityTrendData = useMemo(() => {
+    const buckets = new Map<string, number>();
+
+    healthRecords
+      .filter((record) => record.type === 'MORTALITY')
+      .forEach((record) => {
+        const week = record.date.toLocaleDateString('en-GB', { month: 'short', day: 'numeric' });
+        buckets.set(week, (buckets.get(week) || 0) + (record.quantity || 0));
+      });
+
+    return Array.from(buckets.entries()).map(([week, mortalityRate]) => ({
+      week,
+      mortalityRate,
+    }));
+  }, [healthRecords]);
     setEditingRecord(null);
     setFormData(INITIAL_FORM);
   };
