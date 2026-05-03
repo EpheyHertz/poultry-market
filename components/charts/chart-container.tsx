@@ -1,11 +1,11 @@
 'use client';
 
-import { ReactNode } from 'react';
+import { ReactElement } from 'react';
 import { ResponsiveContainer } from 'recharts';
 import { cn } from '@/lib/utils';
 
 interface ChartContainerProps {
-  children: ReactNode;
+  children: ReactElement;
   className?: string;
   heightClassName?: string;
 }
