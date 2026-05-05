@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useFarm } from '@/contexts/farm-context';
+import { FarmSwitcher } from '@/components/farm/farm-switcher';
 import { FarmStatsCard } from '@/components/farm/farm-stats-card';
 import { ProductionChart } from '@/components/farm/production-chart';
 import { HealthAlertBadge } from '@/components/farm/health-alert-badge';
@@ -20,20 +21,25 @@ import {
 } from 'lucide-react';
 
 export default function FarmDashboard() {
-  const { stats, getHealthAlerts, flocks, recalculateStats } = useFarm();
+  const { stats, getHealthAlerts, flocks, recalculateStats, activeFarmId, setActiveFarmId } = useFarm();
   const alerts = getHealthAlerts();
   const [productionData, setProductionData] = useState<Array<{ date: string; eggs: number; damaged: number }>>([]);
 
   useEffect(() => {
     recalculateStats();
-  }, []);
+  }, [activeFarmId]);
 
   useEffect(() => {
     let mounted = true;
 
     const loadDashboard = async () => {
       try {
-        const response = await fetch('/api/farm/dashboard', { cache: 'no-store' });
+        if (!activeFarmId) {
+          setProductionData([]);
+          return;
+        }
+
+        const response = await fetch(`/api/farm/dashboard?farmId=${encodeURIComponent(activeFarmId)}`, { cache: 'no-store' });
         const data = await response.json();
 
         if (!response.ok) {
@@ -65,18 +71,31 @@ export default function FarmDashboard() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [activeFarmId]);
 
   return (
     <DashboardLayout>
       <div className="mx-auto w-full max-w-7xl p-4 sm:p-6 space-y-6">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground">Farm Dashboard</h1>
-          <p className="text-muted-foreground mt-2">
-            Monitor your farm operations and performance metrics
-          </p>
+        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">Farm Dashboard</h1>
+            <p className="text-muted-foreground mt-2">
+              Monitor your farm operations and performance metrics
+            </p>
+          </div>
+          <div className="w-full sm:w-72">
+            <FarmSwitcher value={activeFarmId} onChange={setActiveFarmId} redirectTo="/farm/dashboard" />
+          </div>
         </div>
+
+        {!activeFarmId && (
+          <Card className="border-dashed">
+            <CardContent className="py-10 text-center text-sm text-muted-foreground">
+              Select a farm to view its dashboard metrics.
+            </CardContent>
+          </Card>
+        )}
 
         {/* Key Metrics */}
         <div className="grid gap-4 md:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">

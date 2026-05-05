@@ -12,10 +12,12 @@ export async function sendEmail({
   to,
   subject,
   html,
+  text,
 }: {
   to: string
   subject: string
   html: string
+  text?: string
 }) {
   try {
     await transporter.sendMail({
@@ -23,6 +25,7 @@ export async function sendEmail({
       to,
       subject,
       html,
+      text,
     })
     return { success: true }
   } catch (error) {

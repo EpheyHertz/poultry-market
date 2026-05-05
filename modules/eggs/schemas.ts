@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 export const eggRecordCreateSchema = z.object({
+  farmId: z.string().min(1).optional(),
   flockId: z.string().optional().nullable(),
   recordedOn: z.string().datetime().optional(),
   quantity: z.number().int().min(0),
@@ -11,6 +12,7 @@ export const eggRecordCreateSchema = z.object({
 export const eggRecordUpdateSchema = eggRecordCreateSchema.partial();
 
 export const flockCreateSchema = z.object({
+  farmId: z.string().min(1).optional(),
   name: z.string().min(1).max(120),
   breed: z.string().max(120).optional().nullable(),
   birdCount: z.number().int().min(0).optional().default(0),
@@ -22,6 +24,7 @@ export const flockCreateSchema = z.object({
 export const flockUpdateSchema = flockCreateSchema.partial();
 
 export const feedRecordCreateSchema = z.object({
+  farmId: z.string().min(1).optional(),
   flockId: z.string().optional().nullable(),
   recordedOn: z.string().datetime().optional(),
   feedType: z.string().min(1).max(120),
@@ -33,6 +36,7 @@ export const feedRecordCreateSchema = z.object({
 export const feedRecordUpdateSchema = feedRecordCreateSchema.partial();
 
 export const mortalityRecordCreateSchema = z.object({
+  farmId: z.string().min(1).optional(),
   flockId: z.string().optional().nullable(),
   recordedOn: z.string().datetime().optional(),
   count: z.number().int().min(0),
@@ -43,6 +47,7 @@ export const mortalityRecordCreateSchema = z.object({
 export const mortalityRecordUpdateSchema = mortalityRecordCreateSchema.partial();
 
 export const vaccinationCreateSchema = z.object({
+  farmId: z.string().min(1).optional(),
   flockId: z.string().optional().nullable(),
   vaccineName: z.string().min(1).max(120),
   scheduledDate: z.string().datetime(),
@@ -54,6 +59,7 @@ export const vaccinationCreateSchema = z.object({
 export const vaccinationUpdateSchema = vaccinationCreateSchema.partial();
 
 export const eggAnalyticsQuerySchema = z.object({
+  farmId: z.string().min(1).optional(),
   from: z.string().datetime().optional(),
   to: z.string().datetime().optional(),
   groupBy: z.enum(['day', 'week', 'month']).optional().default('day'),

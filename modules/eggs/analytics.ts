@@ -11,12 +11,16 @@ const GROUP_BY_LITERAL: Record<EggAnalyticsGroupBy, string> = {
 
 export async function getEggAnalytics(params: {
   userId: string;
+  farmId?: string;
   from: Date;
   to: Date;
   groupBy: EggAnalyticsGroupBy;
 }) {
-  const { userId, from, to, groupBy } = params;
+  const { userId, farmId, from, to, groupBy } = params;
   const groupBySql = Prisma.raw(GROUP_BY_LITERAL[groupBy]);
+  const scopeClause = farmId
+    ? Prisma.sql`"farmId" = ${farmId}`
+    : Prisma.sql`"userId" = ${userId}`;
 
   const rows = await prisma.$queryRaw<
     Array<{
@@ -34,7 +38,7 @@ export async function getEggAnalytics(params: {
       COUNT(*)::int AS "entries",
       ROUND(AVG("quantity")::numeric, 2)::float AS "avgPerEntry"
     FROM "egg_records"
-    WHERE "userId" = ${userId}
+    WHERE ${scopeClause}
       AND "recordedOn" >= ${from}
       AND "recordedOn" <= ${to}
     GROUP BY 1

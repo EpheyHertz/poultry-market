@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { flockUpdateSchema } from '@/modules/eggs/schemas';
+import { getFarmAccess } from '@/modules/farms/service';
 
 interface Context {
   params: Promise<{ id: string }>;
@@ -16,11 +17,8 @@ export async function GET(_: NextRequest, context: Context) {
 
     const { id } = await context.params;
 
-    const flock = await prisma.flock.findFirst({
-      where: {
-        id,
-        userId: user.id,
-      },
+    const flock = await prisma.flock.findUnique({
+      where: { id },
       include: {
         _count: {
           select: {
@@ -36,6 +34,15 @@ export async function GET(_: NextRequest, context: Context) {
 
     if (!flock) {
       return NextResponse.json({ error: 'Flock not found' }, { status: 404 });
+    }
+
+    if (flock.farmId) {
+      const access = await getFarmAccess(user.id, flock.farmId);
+      if (!access) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+    } else if (flock.userId !== user.id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     return NextResponse.json({ flock });
@@ -63,13 +70,22 @@ export async function PUT(request: NextRequest, context: Context) {
       );
     }
 
-    const existing = await prisma.flock.findFirst({
-      where: { id, userId: user.id },
-      select: { id: true },
+    const existing = await prisma.flock.findUnique({
+      where: { id },
+      select: { id: true, userId: true, farmId: true },
     });
 
     if (!existing) {
       return NextResponse.json({ error: 'Flock not found' }, { status: 404 });
+    }
+
+    if (existing.farmId) {
+      const access = await getFarmAccess(user.id, existing.farmId);
+      if (!access) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+    } else if (existing.userId !== user.id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const flock = await prisma.flock.update({
@@ -101,16 +117,25 @@ export async function DELETE(_: NextRequest, context: Context) {
     }
 
     const { id } = await context.params;
-    const deleted = await prisma.flock.deleteMany({
-      where: {
-        id,
-        userId: user.id,
-      },
+    const existing = await prisma.flock.findUnique({
+      where: { id },
+      select: { id: true, userId: true, farmId: true },
     });
 
-    if (deleted.count === 0) {
+    if (!existing) {
       return NextResponse.json({ error: 'Flock not found' }, { status: 404 });
     }
+
+    if (existing.farmId) {
+      const access = await getFarmAccess(user.id, existing.farmId);
+      if (!access) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+    } else if (existing.userId !== user.id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    await prisma.flock.delete({ where: { id } });
 
     return NextResponse.json({ success: true });
   } catch (error) {

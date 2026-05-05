@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { mortalityRecordCreateSchema } from '@/modules/eggs/schemas';
+import { getFarmAccess } from '@/modules/farms/service';
 
 export async function GET(request: NextRequest) {
   try {
@@ -11,13 +12,21 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
+    const farmId = searchParams.get('farmId');
     const flockId = searchParams.get('flockId');
     const from = searchParams.get('from');
     const to = searchParams.get('to');
 
+    if (farmId) {
+      const access = await getFarmAccess(user.id, farmId);
+      if (!access) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+    }
+
     const records = await prisma.mortalityRecord.findMany({
       where: {
-        userId: user.id,
+        ...(farmId ? { farmId } : { userId: user.id }),
         ...(flockId ? { flockId } : {}),
         ...(from || to
           ? {
@@ -63,11 +72,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (!parsed.data.farmId) {
+      return NextResponse.json({ error: 'farmId is required' }, { status: 400 });
+    }
+
+    const access = await getFarmAccess(user.id, parsed.data.farmId);
+    if (!access) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     if (parsed.data.flockId) {
       const flock = await prisma.flock.findFirst({
         where: {
           id: parsed.data.flockId,
-          userId: user.id,
+          farmId: parsed.data.farmId,
         },
       });
 
@@ -79,6 +97,7 @@ export async function POST(request: NextRequest) {
     const record = await prisma.mortalityRecord.create({
       data: {
         userId: user.id,
+        farmId: parsed.data.farmId,
         flockId: parsed.data.flockId || null,
         recordedOn: parsed.data.recordedOn ? new Date(parsed.data.recordedOn) : new Date(),
         count: parsed.data.count,

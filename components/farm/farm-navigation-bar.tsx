@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useFarm } from '@/contexts/farm-context';
 import {
   ArrowDownToLine,
   BellRing,
@@ -42,6 +43,7 @@ const FARM_NAV_ITEMS: FarmNavItem[] = [
 
 export function FarmNavigationBar() {
   const pathname = usePathname();
+  const { activeFarmId } = useFarm();
 
   if (!pathname?.startsWith('/farm')) {
     return null;
@@ -59,11 +61,14 @@ export function FarmNavigationBar() {
           {FARM_NAV_ITEMS.map((item) => {
             const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
             const Icon = item.icon;
+            const href = activeFarmId
+              ? `${item.href}?farmId=${encodeURIComponent(activeFarmId)}`
+              : item.href;
 
             return (
               <Link
                 key={item.href}
-                href={item.href}
+                href={href}
                 className={`inline-flex items-center gap-2 whitespace-nowrap rounded-full border px-3 py-2 text-sm font-medium transition-colors ${
                   isActive
                     ? 'border-emerald-500 bg-emerald-500 text-white shadow-sm'

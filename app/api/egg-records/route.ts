@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { eggRecordCreateSchema } from '@/modules/eggs/schemas';
+import { getFarmAccess } from '@/modules/farms/service';
 
 export async function GET(request: NextRequest) {
   try {
@@ -11,14 +12,22 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
+    const farmId = searchParams.get('farmId');
     const flockId = searchParams.get('flockId');
     const from = searchParams.get('from');
     const to = searchParams.get('to');
     const page = Number(searchParams.get('page') || 1);
     const pageSize = Math.min(Number(searchParams.get('pageSize') || 30), 100);
 
+    if (farmId) {
+      const access = await getFarmAccess(user.id, farmId);
+      if (!access) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+    }
+
     const where = {
-      userId: user.id,
+      ...(farmId ? { farmId } : { userId: user.id }),
       ...(flockId ? { flockId } : {}),
       ...(from || to
         ? {
@@ -97,22 +106,46 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    let resolvedFarmId = parsed.data.farmId || undefined;
+
     if (parsed.data.flockId) {
       const flock = await prisma.flock.findFirst({
         where: {
           id: parsed.data.flockId,
-          userId: user.id,
+        },
+        select: {
+          id: true,
+          farmId: true,
+          userId: true,
         },
       });
 
       if (!flock) {
         return NextResponse.json({ error: 'Flock not found' }, { status: 404 });
       }
+
+      if (resolvedFarmId) {
+        if (flock.farmId !== resolvedFarmId) {
+          return NextResponse.json({ error: 'Flock not found' }, { status: 404 });
+        }
+      } else if (flock.farmId) {
+        resolvedFarmId = flock.farmId;
+      } else if (flock.userId !== user.id) {
+        return NextResponse.json({ error: 'Flock not found' }, { status: 404 });
+      }
+    }
+
+    if (resolvedFarmId) {
+      const access = await getFarmAccess(user.id, resolvedFarmId);
+      if (!access) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
     }
 
     const record = await prisma.eggRecord.create({
       data: {
         userId: user.id,
+        farmId: resolvedFarmId || null,
         flockId: parsed.data.flockId || null,
         recordedOn: parsed.data.recordedOn ? new Date(parsed.data.recordedOn) : new Date(),
         quantity: parsed.data.quantity,

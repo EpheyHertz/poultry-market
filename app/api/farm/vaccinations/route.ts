@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { vaccinationCreateSchema } from '@/modules/eggs/schemas';
+import { getFarmAccess } from '@/modules/farms/service';
 
 export async function GET(request: NextRequest) {
   try {
@@ -11,6 +12,7 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
+    const farmId = searchParams.get('farmId');
     const flockId = searchParams.get('flockId');
     const status = searchParams.get('status');
     const upcoming = searchParams.get('upcoming') === 'true';
@@ -20,9 +22,16 @@ export async function GET(request: NextRequest) {
     const upcomingUntil = new Date(now);
     upcomingUntil.setDate(upcomingUntil.getDate() + Math.max(upcomingDays, 1));
 
+    if (farmId) {
+      const access = await getFarmAccess(user.id, farmId);
+      if (!access) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+    }
+
     const records = await prisma.vaccination.findMany({
       where: {
-        userId: user.id,
+        ...(farmId ? { farmId } : { userId: user.id }),
         ...(flockId ? { flockId } : {}),
         ...(status ? { status: status as any } : {}),
         ...(upcoming
@@ -70,11 +79,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (!parsed.data.farmId) {
+      return NextResponse.json({ error: 'farmId is required' }, { status: 400 });
+    }
+
+    const access = await getFarmAccess(user.id, parsed.data.farmId);
+    if (!access) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     if (parsed.data.flockId) {
       const flock = await prisma.flock.findFirst({
         where: {
           id: parsed.data.flockId,
-          userId: user.id,
+          farmId: parsed.data.farmId,
         },
       });
 
@@ -86,6 +104,7 @@ export async function POST(request: NextRequest) {
     const vaccination = await prisma.vaccination.create({
       data: {
         userId: user.id,
+        farmId: parsed.data.farmId,
         flockId: parsed.data.flockId || null,
         vaccineName: parsed.data.vaccineName,
         scheduledDate: new Date(parsed.data.scheduledDate),

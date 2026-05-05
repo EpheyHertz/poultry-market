@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { getEggAnalytics } from '@/modules/eggs/analytics';
 import { eggAnalyticsQuerySchema } from '@/modules/eggs/schemas';
+import { getFarmAccess } from '@/modules/farms/service';
 import {
   assertFeatureAccess,
   type FeatureAccessError,
@@ -32,7 +33,9 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
+    const farmId = searchParams.get('farmId') || undefined;
     const parsed = eggAnalyticsQuerySchema.safeParse({
+      farmId,
       from: searchParams.get('from') || undefined,
       to: searchParams.get('to') || undefined,
       groupBy: searchParams.get('groupBy') || undefined,
@@ -48,8 +51,16 @@ export async function GET(request: NextRequest) {
     const from = parsed.data.from ? new Date(parsed.data.from) : defaultFromDate();
     const to = parsed.data.to ? new Date(parsed.data.to) : new Date();
 
+    if (parsed.data.farmId) {
+      const access = await getFarmAccess(user.id, parsed.data.farmId);
+      if (!access) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+    }
+
     const analytics = await getEggAnalytics({
       userId: user.id,
+      farmId: parsed.data.farmId,
       from,
       to,
       groupBy: parsed.data.groupBy,
@@ -61,6 +72,7 @@ export async function GET(request: NextRequest) {
         from,
         to,
         groupBy: parsed.data.groupBy,
+        ...(parsed.data.farmId ? { farmId: parsed.data.farmId } : {}),
       },
     });
   } catch (error) {

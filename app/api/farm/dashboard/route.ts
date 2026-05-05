@@ -1,18 +1,29 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { getUserSubscriptionSnapshot } from '@/modules/subscriptions';
+import { getFarmAccess } from '@/modules/farms/service';
 
 function startOfToday(): Date {
   const now = new Date();
   return new Date(now.getFullYear(), now.getMonth(), now.getDate());
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const user = await getCurrentUser();
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const farmId = searchParams.get('farmId');
+
+    if (farmId) {
+      const access = await getFarmAccess(user.id, farmId);
+      if (!access) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
     }
 
     const todayStart = startOfToday();
@@ -37,7 +48,7 @@ export async function GET() {
     ] = await Promise.all([
       prisma.eggRecord.aggregate({
         where: {
-          userId: user.id,
+          ...(farmId ? { farmId } : { userId: user.id }),
           recordedOn: {
             gte: todayStart,
             lt: todayEnd,
@@ -53,7 +64,7 @@ export async function GET() {
       }),
       prisma.eggRecord.aggregate({
         where: {
-          userId: user.id,
+          ...(farmId ? { farmId } : { userId: user.id }),
           recordedOn: {
             gte: weekStart,
             lt: todayEnd,
@@ -69,7 +80,7 @@ export async function GET() {
       }),
       prisma.feedRecord.aggregate({
         where: {
-          userId: user.id,
+          ...(farmId ? { farmId } : { userId: user.id }),
           recordedOn: {
             gte: weekStart,
             lt: todayEnd,
@@ -81,7 +92,7 @@ export async function GET() {
       }),
       prisma.flock.findMany({
         where: {
-          userId: user.id,
+          ...(farmId ? { farmId } : { userId: user.id }),
           status: 'ACTIVE',
         },
         select: {
@@ -95,12 +106,12 @@ export async function GET() {
       }),
       prisma.attachment.count({
         where: {
-          userId: user.id,
+          ...(farmId ? { farmId } : { userId: user.id }),
         },
       }),
       prisma.vaccination.count({
         where: {
-          userId: user.id,
+          ...(farmId ? { farmId } : { userId: user.id }),
           status: 'SCHEDULED',
           scheduledDate: {
             gte: todayStart,
@@ -110,7 +121,7 @@ export async function GET() {
       }),
       prisma.eggRecord.findMany({
         where: {
-          userId: user.id,
+          ...(farmId ? { farmId } : { userId: user.id }),
         },
         include: {
           flock: {

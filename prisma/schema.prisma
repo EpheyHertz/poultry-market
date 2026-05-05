@@ -204,6 +204,12 @@ enum SubscriptionStatus {
   EXPIRED
 }
 
+enum FarmMemberStatus {
+  PENDING
+  ACTIVE
+  REJECTED
+}
+
 enum FlockStatus {
   ACTIVE
   ARCHIVED
@@ -360,6 +366,9 @@ model User {
   adminDeliveryApprovals DeliveryProof[]  @relation("DeliveryProofApprover")
 
   // Farm Management
+  ownedFarms         Farm[]        @relation("OwnedFarms")
+  farmMemberships    FarmMember[]
+  farmInvitationsSent FarmMember[] @relation("FarmMemberInviter")
   eggRecords          EggRecord[]
   flocks              Flock[]
   feedRecords         FeedRecord[]
@@ -374,6 +383,94 @@ model User {
   reminders           Reminder[]
 
   @@map("users")
+}
+
+model Farm {
+  id     String  @id @default(cuid())
+  name   String
+  slug   String? @unique
+  ownerId String
+  owner   User   @relation("OwnedFarms", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  settings Json?
+
+  // Subscription-aware workspace fields
+  subscriptionPlan   SubscriptionPlan   @default(FREE)
+  subscriptionStatus SubscriptionStatus @default(INACTIVE)
+  subscriptionEndsAt DateTime?
+  billingEmail       String?
+  billingProvider    String?
+  billingReference   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  roles       FarmRole[]
+  members     FarmMember[]
+  eggRecords  EggRecord[]
+  flocks      Flock[]
+  feedRecords FeedRecord[]
+  mortalityRecords MortalityRecord[]
+  vaccinations Vaccination[]
+  attachments Attachment[]
+  farmImportJobs FarmImportJob[]
+  reminders   Reminder[]
+
+  @@index([ownerId])
+  @@map("farms")
+}
+
+model FarmRole {
+  id          String   @id @default(cuid())
+  farmId      String
+  farm        Farm     @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  name        String
+  key         String?
+  rank        Int
+  permissions String[] @default([])
+  isSystem    Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members     FarmMember[]
+
+  @@unique([farmId, name])
+  @@index([farmId, rank])
+  @@map("farm_roles")
+}
+
+model FarmMember {
+  id          String           @id @default(cuid())
+  farmId      String
+  farm        Farm             @relation(fields: [farmId], references: [id], onDelete: Cascade)
+
+  userId      String?
+  user        User?            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  roleId      String
+  role        FarmRole         @relation(fields: [roleId], references: [id], onDelete: Restrict)
+
+  invitedById String?
+  invitedBy   User?            @relation("FarmMemberInviter", fields: [invitedById], references: [id], onDelete: SetNull)
+
+  invitedEmail String
+  invitationTokenHash String?
+  invitationExpiresAt DateTime?
+  status      FarmMemberStatus @default(PENDING)
+  rank        Int              @default(0)
+  invitedAt   DateTime         @default(now())
+  acceptedAt  DateTime?
+  rejectedAt  DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([farmId, invitedEmail])
+  @@unique([farmId, userId])
+  @@index([farmId, status])
+  @@index([userId])
+  @@map("farm_members")
 }
 
 model Product {
@@ -2280,6 +2377,9 @@ model Flock {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  farmId String?
+  farm   Farm?   @relation(fields: [farmId], references: [id], onDelete: SetNull)
+
   name       String
   breed      String?
   birdCount  Int         @default(0)
@@ -2298,6 +2398,7 @@ model Flock {
   reminders        Reminder[]
 
   @@index([userId, status])
+  @@index([farmId])
   @@map("flocks")
 }
 
@@ -2305,6 +2406,9 @@ model EggRecord {
   id     String @id @default(cuid())
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  farmId String?
+  farm   Farm?   @relation(fields: [farmId], references: [id], onDelete: SetNull)
 
   flockId String?
   flock   Flock?  @relation(fields: [flockId], references: [id], onDelete: SetNull)
@@ -2321,6 +2425,7 @@ model EggRecord {
 
   @@index([userId, recordedOn])
   @@index([flockId])
+  @@index([farmId])
   @@map("egg_records")
 }
 
@@ -2328,6 +2433,9 @@ model FeedRecord {
   id     String @id @default(cuid())
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  farmId String?
+  farm   Farm?   @relation(fields: [farmId], references: [id], onDelete: SetNull)
 
   flockId String?
   flock   Flock?  @relation(fields: [flockId], references: [id], onDelete: SetNull)
@@ -2345,6 +2453,7 @@ model FeedRecord {
 
   @@index([userId, recordedOn])
   @@index([flockId])
+  @@index([farmId])
   @@map("feed_records")
 }
 
@@ -2352,6 +2461,9 @@ model MortalityRecord {
   id     String @id @default(cuid())
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  farmId String?
+  farm   Farm?   @relation(fields: [farmId], references: [id], onDelete: SetNull)
 
   flockId String?
   flock   Flock?  @relation(fields: [flockId], references: [id], onDelete: SetNull)
@@ -2368,6 +2480,7 @@ model MortalityRecord {
 
   @@index([userId, recordedOn])
   @@index([flockId])
+  @@index([farmId])
   @@map("mortality_records")
 }
 
@@ -2375,6 +2488,9 @@ model Vaccination {
   id     String @id @default(cuid())
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  farmId String?
+  farm   Farm?   @relation(fields: [farmId], references: [id], onDelete: SetNull)
 
   flockId String?
   flock   Flock?  @relation(fields: [flockId], references: [id], onDelete: SetNull)
@@ -2392,6 +2508,7 @@ model Vaccination {
 
   @@index([userId, scheduledDate, status])
   @@index([flockId])
+  @@index([farmId])
   @@map("vaccinations")
 }
 
@@ -2399,6 +2516,9 @@ model Attachment {
   id     String @id @default(cuid())
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  farmId String?
+  farm   Farm?   @relation(fields: [farmId], references: [id], onDelete: SetNull)
 
   fileName  String
   fileUrl   String
@@ -2428,6 +2548,7 @@ model Attachment {
   @@index([feedRecordId])
   @@index([mortalityRecordId])
   @@index([vaccinationId])
+  @@index([farmId])
   @@map("attachments")
 }
 
@@ -2435,6 +2556,9 @@ model FarmImportJob {
   id     String @id @default(cuid())
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  farmId String?
+  farm   Farm?   @relation(fields: [farmId], references: [id], onDelete: SetNull)
 
   fileName       String
   fileType       String?
@@ -2451,6 +2575,7 @@ model FarmImportJob {
   confirmedAt DateTime?
 
   @@index([userId, status, createdAt])
+  @@index([farmId])
   @@map("farm_import_jobs")
 }
 
@@ -2470,6 +2595,9 @@ model Reminder {
   flockId String?
   flock   Flock?   @relation(fields: [flockId], references: [id], onDelete: SetNull)
 
+  farmId String?
+  farm   Farm?   @relation(fields: [farmId], references: [id], onDelete: SetNull)
+
   userId String
   user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -2477,5 +2605,6 @@ model Reminder {
   updatedAt DateTime @updatedAt
 
   @@index([userId, nextTriggerAt])
+  @@index([farmId, nextTriggerAt])
   @@map("reminders")
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { useSearchParams } from 'next/navigation';
 
 // TypeScript Types for Farm Management
 export type FlockStatus = 'ACTIVE' | 'SOLD' | 'CULLED' | 'PROCESSING';
@@ -23,6 +24,7 @@ export interface Flock {
 export interface HealthRecord {
   id: string;
   flockId: string;
+  farmId?: string;
   type: 'VACCINATION' | 'TREATMENT' | 'MORTALITY' | 'DISEASE_ALERT';
   description: string;
   date: Date;
@@ -68,6 +70,8 @@ export interface FarmStats {
 }
 
 interface FarmContextType {
+  activeFarmId: string | null;
+  setActiveFarmId: (farmId: string | null) => void;
   flocks: Flock[];
   healthRecords: HealthRecord[];
   feedInventory: FeedInventory[];
@@ -110,6 +114,7 @@ type ApiFlock = {
   status: FlockStatus;
   acquiredAt?: string | Date | null;
   createdAt?: string | Date;
+  farmId?: string | null;
   userId?: string;
 }
 
@@ -172,10 +177,10 @@ const mapFlock = (flock: ApiFlock): Flock => ({
   averageAge: 0,
   mortality: 0,
   FCR: 0,
-  farmId: flock.userId || 'farm',
+  farmId: flock.farmId || flock.userId || 'farm',
 });
 
-const mapFeedRecordsToInventory = (records: ApiFeedRecord[]): FeedInventory[] => {
+const mapFeedRecordsToInventory = (records: ApiFeedRecord[], farmId?: string | null): FeedInventory[] => {
   const grouped = new Map<string, {
     quantity: number;
     lastRestockDate: Date;
@@ -211,14 +216,19 @@ const mapFeedRecordsToInventory = (records: ApiFeedRecord[]): FeedInventory[] =>
     supplier: data.notes[0] || 'Recorded feed stock',
     lastRestockDate: data.lastRestockDate,
     costPerUnit: data.quantity > 0 ? data.totalCost / data.quantity : 0,
-    farmId: 'farm',
+    farmId: farmId || 'farm',
   }));
 };
 
-const mapHealthRecords = (mortalityRecords: ApiMortalityRecord[], vaccinations: ApiVaccinationRecord[]): HealthRecord[] => {
+const mapHealthRecords = (
+  mortalityRecords: ApiMortalityRecord[],
+  vaccinations: ApiVaccinationRecord[],
+  farmId?: string | null
+): HealthRecord[] => {
   const mortalityEntries = mortalityRecords.map((record) => ({
     id: record.id,
     flockId: record.flockId || record.flock?.id || '',
+    farmId: farmId || undefined,
     type: 'MORTALITY' as const,
     description: record.cause ? `Mortality - ${record.cause}` : 'Mortality record',
     date: toDate(record.recordedOn),
@@ -230,6 +240,7 @@ const mapHealthRecords = (mortalityRecords: ApiMortalityRecord[], vaccinations: 
   const vaccinationEntries = vaccinations.map((record) => ({
     id: record.id,
     flockId: record.flockId || record.flock?.id || '',
+    farmId: farmId || undefined,
     type: 'VACCINATION' as const,
     description: record.vaccineName,
     date: toDate(record.scheduledDate),
@@ -240,7 +251,7 @@ const mapHealthRecords = (mortalityRecords: ApiMortalityRecord[], vaccinations: 
   return [...vaccinationEntries, ...mortalityEntries];
 };
 
-const mapSales = (sales: ApiPosSale[]): SalesRecord[] =>
+const mapSales = (sales: ApiPosSale[], farmId?: string | null): SalesRecord[] =>
   sales.map((sale, index) => {
     const quantity = sale.items?.reduce((sum, item) => sum + item.quantity, 0) || 0;
     const firstItemName = sale.items?.[0]?.productName || 'Sale';
@@ -259,11 +270,13 @@ const mapSales = (sales: ApiPosSale[]): SalesRecord[] =>
       date: toDate(sale.createdAt),
       buyerName: sale.customerName || 'Walk-in customer',
       notes: sale.notes || undefined,
-      farmId: 'farm',
+      farmId: farmId || 'farm',
     };
   });
 
 export function FarmProvider({ children }: { children: ReactNode }) {
+  const searchParams = useSearchParams();
+  const [activeFarmId, setActiveFarmId] = useState<string | null>(null);
   const [flocks, setFlocks] = useState<Flock[]>([]);
   const [healthRecords, setHealthRecords] = useState<HealthRecord[]>([]);
   const [feedInventory, setFeedInventory] = useState<FeedInventory[]>([]);
@@ -279,15 +292,48 @@ export function FarmProvider({ children }: { children: ReactNode }) {
   });
 
   useEffect(() => {
+    const farmIdFromQuery = searchParams.get('farmId');
+
+    if (farmIdFromQuery) {
+      setActiveFarmId(farmIdFromQuery);
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem('activeFarmId', farmIdFromQuery);
+      }
+      return;
+    }
+
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem('activeFarmId');
+      if (stored) {
+        setActiveFarmId(stored);
+      }
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
     let isMounted = true;
+
+    const withFarmId = (path: string) => {
+      if (!activeFarmId) return path;
+      const separator = path.includes('?') ? '&' : '?';
+      return `${path}${separator}farmId=${encodeURIComponent(activeFarmId)}`;
+    };
 
     const loadFarmData = async () => {
       try {
+        if (!activeFarmId) {
+          setFlocks([]);
+          setFeedInventory([]);
+          setHealthRecords([]);
+          setSalesRecords([]);
+          return;
+        }
+
         const [flocksRes, feedRes, mortalityRes, vaccinationsRes, salesRes] = await Promise.all([
-          fetch('/api/farm/flocks', { cache: 'no-store' }),
-          fetch('/api/farm/feed-records', { cache: 'no-store' }),
-          fetch('/api/farm/mortality-records', { cache: 'no-store' }),
-          fetch('/api/farm/vaccinations', { cache: 'no-store' }),
+          fetch(withFarmId('/api/farm/flocks'), { cache: 'no-store' }),
+          fetch(withFarmId('/api/farm/feed-records'), { cache: 'no-store' }),
+          fetch(withFarmId('/api/farm/mortality-records'), { cache: 'no-store' }),
+          fetch(withFarmId('/api/farm/vaccinations'), { cache: 'no-store' }),
           fetch('/api/pos/sales?period=all&limit=1000', { cache: 'no-store' }),
         ]);
 
@@ -308,9 +354,9 @@ export function FarmProvider({ children }: { children: ReactNode }) {
         if (!isMounted) return;
 
         const nextFlocks = (flocksBody.flocks || []).map(mapFlock);
-        const nextFeedInventory = mapFeedRecordsToInventory(feedBody.records || []);
-        const nextHealthRecords = mapHealthRecords(mortalityBody.records || [], vaccinationsBody.records || []);
-        const nextSalesRecords = mapSales(salesBody.sales || []);
+        const nextFeedInventory = mapFeedRecordsToInventory(feedBody.records || [], activeFarmId);
+        const nextHealthRecords = mapHealthRecords(mortalityBody.records || [], vaccinationsBody.records || [], activeFarmId);
+        const nextSalesRecords = mapSales(salesBody.sales || [], activeFarmId);
 
         setFlocks(nextFlocks);
         setFeedInventory(nextFeedInventory);
@@ -326,7 +372,7 @@ export function FarmProvider({ children }: { children: ReactNode }) {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [activeFarmId]);
 
   const getMonthlySalesFrom = (records: SalesRecord[], months = 1) => {
     const now = new Date();
@@ -361,8 +407,12 @@ export function FarmProvider({ children }: { children: ReactNode }) {
   };
 
   const addFlock = (flock: Flock) => {
+    if (!activeFarmId) {
+      console.warn('Select a farm before adding a flock');
+      return;
+    }
     const optimisticId = flock.id;
-    setFlocks((prev) => [...prev, flock]);
+    setFlocks((prev) => [...prev, { ...flock, farmId: activeFarmId }]);
 
     void (async () => {
       try {
@@ -370,6 +420,7 @@ export function FarmProvider({ children }: { children: ReactNode }) {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            farmId: activeFarmId,
             name: flock.name,
             breed: flock.breed || null,
             birdCount: flock.quantity,
@@ -431,14 +482,19 @@ export function FarmProvider({ children }: { children: ReactNode }) {
   };
 
   const addHealthRecord = (record: HealthRecord) => {
+    if (!activeFarmId) {
+      console.warn('Select a farm before adding a health record');
+      return;
+    }
     const optimisticId = record.id;
-    setHealthRecords((prev) => [...prev, record]);
+    setHealthRecords((prev) => [...prev, { ...record, farmId: activeFarmId }]);
 
     void (async () => {
       try {
         const endpoint = record.type === 'MORTALITY' ? '/api/farm/mortality-records' : '/api/farm/vaccinations';
         const payload = record.type === 'MORTALITY'
           ? {
+              farmId: activeFarmId,
               flockId: record.flockId,
               count: record.quantity || 0,
               cause: record.notes || record.description,
@@ -446,6 +502,7 @@ export function FarmProvider({ children }: { children: ReactNode }) {
               recordedOn: record.date.toISOString(),
             }
           : {
+              farmId: activeFarmId,
               flockId: record.flockId,
               vaccineName: record.description,
               status: record.severity === 'CRITICAL' ? 'MISSED' : 'SCHEDULED',
@@ -552,6 +609,10 @@ export function FarmProvider({ children }: { children: ReactNode }) {
   };
 
   const addFeedInventory = (feed: FeedInventory) => {
+    if (!activeFarmId) {
+      console.warn('Select a farm before adding feed');
+      return;
+    }
     setFeedInventory((prev) => [...prev, feed]);
 
     void (async () => {
@@ -560,6 +621,7 @@ export function FarmProvider({ children }: { children: ReactNode }) {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            farmId: activeFarmId,
             flockId: null,
             feedType: feed.feedType,
             quantityKg: feed.quantity,
@@ -612,6 +674,17 @@ export function FarmProvider({ children }: { children: ReactNode }) {
   }, [flocks, healthRecords, feedInventory, salesRecords]);
 
   const value: FarmContextType = {
+    activeFarmId,
+    setActiveFarmId: (nextFarmId) => {
+      setActiveFarmId(nextFarmId);
+      if (typeof window !== 'undefined') {
+        if (nextFarmId) {
+          window.localStorage.setItem('activeFarmId', nextFarmId);
+        } else {
+          window.localStorage.removeItem('activeFarmId');
+        }
+      }
+    },
     flocks,
     healthRecords,
     feedInventory,

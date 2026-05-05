@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import DashboardLayout from '@/components/layout/dashboard-layout';
 import { useFarm, FeedInventory } from '@/contexts/farm-context';
+import { FarmSwitcher } from '@/components/farm/farm-switcher';
 import { FeedInventoryGauge } from '@/components/farm/feed-inventory-gauge';
 import { FeedConsumptionChart } from '@/components/farm/feed-consumption-chart';
 import { Button } from '@/components/ui/button';
@@ -20,7 +21,7 @@ import {
 import { Plus, AlertTriangle } from 'lucide-react';
 
 export default function FeedManagementPage() {
-  const { feedInventory, addFeedInventory, updateFeedInventory, getLowStockFeeds } = useFarm();
+  const { feedInventory, addFeedInventory, updateFeedInventory, getLowStockFeeds, activeFarmId, setActiveFarmId } = useFarm();
   const [isOpen, setIsOpen] = useState(false);
   const [isUpdate, setIsUpdate] = useState(false);
   const [formData, setFormData] = useState<Partial<FeedInventory>>({
@@ -77,7 +78,7 @@ export default function FeedManagementPage() {
         supplier: formData.supplier!,
         lastRestockDate: new Date(),
         costPerUnit: formData.costPerUnit || 0,
-        farmId: 'farm-001',
+        farmId: activeFarmId || '',
       });
     }
 
@@ -88,40 +89,44 @@ export default function FeedManagementPage() {
     <DashboardLayout>
       <div className="mx-auto w-full max-w-7xl p-4 sm:p-6 space-y-6">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-3xl font-bold text-foreground">Feed Management</h1>
             <p className="text-muted-foreground mt-2">
               Track inventory levels and manage restocking
             </p>
           </div>
-          <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogTrigger asChild>
-              <Button onClick={() => handleOpen()} className="gap-2">
-                <Plus className="h-4 w-4" />
-                Add Feed
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-md">
-              <DialogHeader>
-                <DialogTitle>{isUpdate ? 'Update Feed' : 'Add New Feed'}</DialogTitle>
-                <DialogDescription>
-                  {isUpdate ? 'Update feed information' : 'Add feed type to inventory'}
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div>
-                  <Label htmlFor="feedType">Feed Type *</Label>
-                  <Input
-                    id="feedType"
-                    placeholder="e.g., Layer Pellets"
-                    value={formData.feedType || ''}
-                    onChange={(e) =>
-                      setFormData({ ...formData, feedType: e.target.value })
-                    }
-                    className="mt-1.5"
-                  />
-                </div>
+          <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
+            <div className="w-full sm:w-64">
+              <FarmSwitcher value={activeFarmId} onChange={setActiveFarmId} redirectTo="/farm/feed" />
+            </div>
+            <Dialog open={isOpen} onOpenChange={setIsOpen}>
+              <DialogTrigger asChild>
+                <Button onClick={() => handleOpen()} className="gap-2" disabled={!activeFarmId}>
+                  <Plus className="h-4 w-4" />
+                  Add Feed
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle>{isUpdate ? 'Update Feed' : 'Add New Feed'}</DialogTitle>
+                  <DialogDescription>
+                    {isUpdate ? 'Update feed information' : 'Add feed type to inventory'}
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div>
+                    <Label htmlFor="feedType">Feed Type *</Label>
+                    <Input
+                      id="feedType"
+                      placeholder="e.g., Layer Pellets"
+                      value={formData.feedType || ''}
+                      onChange={(e) =>
+                        setFormData({ ...formData, feedType: e.target.value })
+                      }
+                      className="mt-1.5"
+                    />
+                  </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -206,9 +211,18 @@ export default function FeedManagementPage() {
                   </Button>
                 </div>
               </div>
-            </DialogContent>
-          </Dialog>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
+
+        {!activeFarmId && (
+          <Card className="border-dashed">
+            <CardContent className="py-8 text-center text-sm text-muted-foreground">
+              Select a farm to view and manage its feed inventory.
+            </CardContent>
+          </Card>
+        )}
 
         {/* Low Stock Alerts */}
         {lowStockFeeds.length > 0 && (

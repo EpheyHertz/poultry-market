@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import DashboardLayout from '@/components/layout/dashboard-layout';
 import { useFarm, HealthRecord, HealthAlertType } from '@/contexts/farm-context';
+import { FarmSwitcher } from '@/components/farm/farm-switcher';
 import { HealthAlertBadge } from '@/components/farm/health-alert-badge';
 import { MortalityChart } from '@/components/farm/mortality-chart';
 import { Button } from '@/components/ui/button';
@@ -57,7 +58,7 @@ const INITIAL_FORM: HealthFormState = {
 };
 
 export default function HealthManagementPage() {
-  const { healthRecords, flocks, addHealthRecord, updateHealthRecord, deleteHealthRecord } = useFarm();
+  const { healthRecords, flocks, addHealthRecord, updateHealthRecord, deleteHealthRecord, activeFarmId, setActiveFarmId } = useFarm();
   const [recordDialogOpen, setRecordDialogOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<HealthRecord | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<HealthRecord | null>(null);
@@ -154,11 +155,24 @@ export default function HealthManagementPage() {
             </p>
           </div>
 
-          <Button className="gap-2" onClick={openCreateDialog}>
-            <Plus className="h-4 w-4" />
-            Log Record
-          </Button>
+          <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
+            <div className="w-full sm:w-64">
+              <FarmSwitcher value={activeFarmId} onChange={setActiveFarmId} redirectTo="/farm/health" />
+            </div>
+            <Button className="gap-2" onClick={openCreateDialog} disabled={!activeFarmId}>
+              <Plus className="h-4 w-4" />
+              Log Record
+            </Button>
+          </div>
         </section>
+
+        {!activeFarmId && (
+          <Card className="border-dashed">
+            <CardContent className="py-8 text-center text-sm text-muted-foreground">
+              Select a farm to view health records and log new entries.
+            </CardContent>
+          </Card>
+        )}
 
         {criticalAlerts.length > 0 && (
           <Card className="border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950">

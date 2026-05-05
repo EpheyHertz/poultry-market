@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import DashboardLayout from '@/components/layout/dashboard-layout';
 import { useFarm, Flock, FlockStatus } from '@/contexts/farm-context';
+import { FarmSwitcher } from '@/components/farm/farm-switcher';
 import { FlockTable } from '@/components/farm/flock-table';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -31,7 +32,7 @@ import { Plus } from 'lucide-react';
 const FLOCK_STATUSES: FlockStatus[] = ['ACTIVE', 'SOLD', 'CULLED', 'PROCESSING'];
 
 export default function FlockManagementPage() {
-  const { flocks, addFlock, updateFlock, deleteFlock } = useFarm();
+  const { flocks, addFlock, updateFlock, deleteFlock, activeFarmId, setActiveFarmId } = useFarm();
   const [isOpen, setIsOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Flock | null>(null);
@@ -86,7 +87,7 @@ export default function FlockManagementPage() {
         averageAge: formData.averageAge || 0,
         mortality: formData.mortality || 0,
         FCR: formData.FCR || 0,
-        farmId: 'farm-001',
+        farmId: activeFarmId || '',
       });
     }
 
@@ -97,42 +98,46 @@ export default function FlockManagementPage() {
     <DashboardLayout>
       <div className="mx-auto w-full max-w-7xl p-4 sm:p-6 space-y-6">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-3xl font-bold text-foreground">Flock Management</h1>
             <p className="text-muted-foreground mt-2">
               Add, edit, and manage your poultry flocks
             </p>
           </div>
-          <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogTrigger asChild>
-              <Button onClick={() => handleOpen()} className="gap-2">
-                <Plus className="h-4 w-4" />
-                Add Flock
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-md">
-              <DialogHeader>
-                <DialogTitle>{editingId ? 'Edit Flock' : 'Add New Flock'}</DialogTitle>
-                <DialogDescription>
-                  {editingId
-                    ? 'Update flock information'
-                    : 'Create a new flock to start tracking'}
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div>
-                  <Label htmlFor="name">Flock Name *</Label>
-                  <Input
-                    id="name"
-                    placeholder="e.g., Layer Flock A"
-                    value={formData.name || ''}
-                    onChange={(e) =>
-                      setFormData({ ...formData, name: e.target.value })
-                    }
-                    className="mt-1.5"
-                  />
-                </div>
+          <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
+            <div className="w-full sm:w-64">
+              <FarmSwitcher value={activeFarmId} onChange={setActiveFarmId} redirectTo="/farm/flocks" />
+            </div>
+            <Dialog open={isOpen} onOpenChange={setIsOpen}>
+              <DialogTrigger asChild>
+                <Button onClick={() => handleOpen()} className="gap-2" disabled={!activeFarmId}>
+                  <Plus className="h-4 w-4" />
+                  Add Flock
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle>{editingId ? 'Edit Flock' : 'Add New Flock'}</DialogTitle>
+                  <DialogDescription>
+                    {editingId
+                      ? 'Update flock information'
+                      : 'Create a new flock to start tracking'}
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div>
+                    <Label htmlFor="name">Flock Name *</Label>
+                    <Input
+                      id="name"
+                      placeholder="e.g., Layer Flock A"
+                      value={formData.name || ''}
+                      onChange={(e) =>
+                        setFormData({ ...formData, name: e.target.value })
+                      }
+                      className="mt-1.5"
+                    />
+                  </div>
 
                 <div>
                   <Label htmlFor="breed">Breed *</Label>
@@ -268,9 +273,18 @@ export default function FlockManagementPage() {
                   </Button>
                 </div>
               </div>
-            </DialogContent>
-          </Dialog>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
+
+        {!activeFarmId && (
+          <Card className="border-dashed">
+            <CardContent className="py-8 text-center text-sm text-muted-foreground">
+              Select a farm to view and manage its flocks.
+            </CardContent>
+          </Card>
+        )}
 
         {/* Flocks Table */}
         <FlockTable

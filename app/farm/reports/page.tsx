@@ -2,6 +2,7 @@
 
 import DashboardLayout from '@/components/layout/dashboard-layout';
 import { useFarm } from '@/contexts/farm-context';
+import { FarmSwitcher } from '@/components/farm/farm-switcher';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { FileText, Download, TrendingUp, DollarSign } from 'lucide-react';
@@ -9,7 +10,7 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 
 export default function ReportsPage() {
-  const { flocks, salesRecords, healthRecords, feedInventory, stats, getMonthlySales } = useFarm();
+  const { flocks, salesRecords, healthRecords, feedInventory, stats, getMonthlySales, activeFarmId, setActiveFarmId } = useFarm();
 
   const handleExportCSV = () => {
     const headers = ['Flock Name', 'Breed', 'Quantity', 'Status', 'Mortality %', 'FCR'];
@@ -106,12 +107,25 @@ export default function ReportsPage() {
     <DashboardLayout>
       <div className="mx-auto w-full max-w-7xl p-4 sm:p-6 space-y-6">
         {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Farm Reports</h1>
-          <p className="text-muted-foreground mt-2">
-            Generate and export farm performance reports
-          </p>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">Farm Reports</h1>
+            <p className="text-muted-foreground mt-2">
+              Generate and export farm performance reports
+            </p>
+          </div>
+          <div className="w-full sm:w-64">
+            <FarmSwitcher value={activeFarmId} onChange={setActiveFarmId} redirectTo="/farm/reports" />
+          </div>
         </div>
+
+        {!activeFarmId && (
+          <Card className="border-dashed">
+            <CardContent className="py-8 text-center text-sm text-muted-foreground">
+              Select a farm to generate its reports.
+            </CardContent>
+          </Card>
+        )}
 
         {/* Report Summary Cards */}
         <div className="grid gap-4 md:gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">

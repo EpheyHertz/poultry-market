@@ -41,6 +41,8 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { FarmSwitcher } from '@/components/farm/farm-switcher';
+import { useFarm } from '@/contexts/farm-context';
 
 interface Flock {
   id: string;
@@ -124,6 +126,7 @@ function toInputDate(value: string): string {
 }
 
 export default function FarmRecordsPage() {
+  const { activeFarmId, setActiveFarmId } = useFarm();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [actionTargetId, setActionTargetId] = useState<string | null>(null);
@@ -184,11 +187,21 @@ export default function FarmRecordsPage() {
     setLoading(true);
 
     try {
+      if (!activeFarmId) {
+        setFlocks([]);
+        setFeedRecords([]);
+        setMortalityRecords([]);
+        setVaccinations([]);
+        return;
+      }
+
+      const withFarmId = (path: string) => `${path}?farmId=${encodeURIComponent(activeFarmId)}`;
+
       const [flocksRes, feedRes, mortalityRes, vaccinationsRes] = await Promise.all([
-        fetch('/api/farm/flocks', { cache: 'no-store' }),
-        fetch('/api/farm/feed-records', { cache: 'no-store' }),
-        fetch('/api/farm/mortality-records', { cache: 'no-store' }),
-        fetch('/api/farm/vaccinations', { cache: 'no-store' }),
+        fetch(withFarmId('/api/farm/flocks'), { cache: 'no-store' }),
+        fetch(withFarmId('/api/farm/feed-records'), { cache: 'no-store' }),
+        fetch(withFarmId('/api/farm/mortality-records'), { cache: 'no-store' }),
+        fetch(withFarmId('/api/farm/vaccinations'), { cache: 'no-store' }),
       ]);
 
       const [flocksData, feedData, mortalityData, vaccinationsData] = await Promise.all([
@@ -212,7 +225,7 @@ export default function FarmRecordsPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [activeFarmId]);
 
   useEffect(() => {
     loadRecords();
@@ -267,6 +280,10 @@ export default function FarmRecordsPage() {
 
   async function createFlock(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!activeFarmId) {
+      toast.error('Select a farm before creating a flock');
+      return;
+    }
     if (!flockName.trim()) {
       toast.error('Flock name is required');
       return;
@@ -278,6 +295,7 @@ export default function FarmRecordsPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          farmId: activeFarmId,
           name: flockName.trim(),
           breed: flockBreed.trim() || undefined,
           birdCount: Math.max(0, Number(flockBirdCount || '0')),
@@ -450,6 +468,10 @@ export default function FarmRecordsPage() {
 
   async function createFeedRecord(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!activeFarmId) {
+      toast.error('Select a farm before logging feed');
+      return;
+    }
     if (!feedType.trim() || Number(feedQuantity) <= 0) {
       toast.error('Feed type and quantity are required');
       return;
@@ -461,6 +483,7 @@ export default function FarmRecordsPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          farmId: activeFarmId,
           flockId: feedFlockId === 'none' ? undefined : feedFlockId,
           feedType: feedType.trim(),
           quantityKg: Number(feedQuantity),
@@ -487,6 +510,10 @@ export default function FarmRecordsPage() {
 
   async function createMortalityRecord(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!activeFarmId) {
+      toast.error('Select a farm before logging mortality');
+      return;
+    }
     if (Number(mortalityCount) <= 0) {
       toast.error('Mortality count must be greater than zero');
       return;
@@ -498,6 +525,7 @@ export default function FarmRecordsPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          farmId: activeFarmId,
           flockId: mortalityFlockId === 'none' ? undefined : mortalityFlockId,
           count: Number(mortalityCount),
           cause: mortalityCause.trim() || undefined,
@@ -522,6 +550,10 @@ export default function FarmRecordsPage() {
 
   async function createVaccination(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!activeFarmId) {
+      toast.error('Select a farm before scheduling vaccinations');
+      return;
+    }
     if (!vaccineName.trim() || !vaccinationDate) {
       toast.error('Vaccine name and scheduled date are required');
       return;
@@ -533,6 +565,7 @@ export default function FarmRecordsPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          farmId: activeFarmId,
           flockId: vaccinationFlockId === 'none' ? undefined : vaccinationFlockId,
           vaccineName: vaccineName.trim(),
           scheduledDate: dateToIso(vaccinationDate),
@@ -573,12 +606,17 @@ export default function FarmRecordsPage() {
             </p>
           </div>
 
-          <Link href="/farm">
-            <Button variant="outline" size="sm" className="gap-2 rounded-full border-pfs-muted bg-card">
-              <ArrowLeft className="h-4 w-4" />
-              Back to Dashboard
-            </Button>
-          </Link>
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+            <div className="w-full sm:w-64">
+              <FarmSwitcher value={activeFarmId} onChange={setActiveFarmId} redirectTo="/farm/records" />
+            </div>
+            <Link href="/farm">
+              <Button variant="outline" size="sm" className="gap-2 rounded-full border-pfs-muted bg-card">
+                <ArrowLeft className="h-4 w-4" />
+                Back to Dashboard
+              </Button>
+            </Link>
+          </div>
         </div>
 
         <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -613,6 +651,14 @@ export default function FarmRecordsPage() {
         </div>
       </section>
 
+      {!activeFarmId && (
+        <Card className="border-dashed">
+          <CardContent className="py-8 text-center text-sm text-muted-foreground">
+            Select a farm to view records and log new entries.
+          </CardContent>
+        </Card>
+      )}
+
       <Tabs defaultValue="flocks" className="space-y-4">
         <TabsList className="h-auto w-full flex-wrap justify-start gap-1 rounded-lg p-1">
           <TabsTrigger value="flocks">Flocks</TabsTrigger>
@@ -638,7 +684,7 @@ export default function FarmRecordsPage() {
                   value={flockBirdCount}
                   onChange={(e) => setFlockBirdCount(e.target.value)}
                 />
-                <Button type="submit" disabled={submitting} className="rounded-2xl bg-pfs-accent text-white sm:col-span-3 sm:w-fit">
+                <Button type="submit" disabled={submitting || !activeFarmId} className="rounded-2xl bg-pfs-accent text-white sm:col-span-3 sm:w-fit">
                   Add Flock
                 </Button>
               </form>
@@ -744,7 +790,7 @@ export default function FarmRecordsPage() {
                   onChange={(e) => setFeedCost(e.target.value)}
                 />
                 <Input className="rounded-2xl bg-input" type="date" value={feedDate} onChange={(e) => setFeedDate(e.target.value)} />
-                <Button type="submit" disabled={submitting} className="rounded-2xl bg-pfs-accent text-white sm:w-fit lg:col-span-3">
+                <Button type="submit" disabled={submitting || !activeFarmId} className="rounded-2xl bg-pfs-accent text-white sm:w-fit lg:col-span-3">
                   Add Feed Record
                 </Button>
               </form>
@@ -845,7 +891,7 @@ export default function FarmRecordsPage() {
                 />
                 <Input className="rounded-2xl bg-input" placeholder="Cause (optional)" value={mortalityCause} onChange={(e) => setMortalityCause(e.target.value)} />
                 <Input className="rounded-2xl bg-input" type="date" value={mortalityDate} onChange={(e) => setMortalityDate(e.target.value)} />
-                <Button type="submit" disabled={submitting} className="rounded-2xl bg-pfs-danger text-white sm:w-fit lg:col-span-4">
+                <Button type="submit" disabled={submitting || !activeFarmId} className="rounded-2xl bg-pfs-danger text-white sm:w-fit lg:col-span-4">
                   Add Mortality Log
                 </Button>
               </form>
@@ -935,7 +981,7 @@ export default function FarmRecordsPage() {
                 </Select>
                 <Input className="rounded-2xl bg-input" placeholder="Vaccine name" value={vaccineName} onChange={(e) => setVaccineName(e.target.value)} />
                 <Input className="rounded-2xl bg-input" type="date" value={vaccinationDate} onChange={(e) => setVaccinationDate(e.target.value)} />
-                <Button type="submit" disabled={submitting} className="rounded-2xl bg-pfs-accent text-white">
+                <Button type="submit" disabled={submitting || !activeFarmId} className="rounded-2xl bg-pfs-accent text-white">
                   Schedule Vaccination
                 </Button>
               </form>

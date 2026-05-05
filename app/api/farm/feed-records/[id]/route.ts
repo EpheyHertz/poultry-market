@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { feedRecordUpdateSchema } from '@/modules/eggs/schemas';
+import { getFarmAccess } from '@/modules/farms/service';
 
 interface Context {
   params: Promise<{ id: string }>;
@@ -16,8 +17,8 @@ export async function GET(_: NextRequest, context: Context) {
 
     const { id } = await context.params;
 
-    const record = await prisma.feedRecord.findFirst({
-      where: { id, userId: user.id },
+    const record = await prisma.feedRecord.findUnique({
+      where: { id },
       include: {
         flock: {
           select: { id: true, name: true },
@@ -28,6 +29,15 @@ export async function GET(_: NextRequest, context: Context) {
 
     if (!record) {
       return NextResponse.json({ error: 'Record not found' }, { status: 404 });
+    }
+
+    if (record.farmId) {
+      const access = await getFarmAccess(user.id, record.farmId);
+      if (!access) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+    } else if (record.userId !== user.id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     return NextResponse.json({ record });
@@ -55,23 +65,34 @@ export async function PUT(request: NextRequest, context: Context) {
       );
     }
 
+    const existing = await prisma.feedRecord.findUnique({
+      where: { id },
+      select: { id: true, userId: true, farmId: true },
+    });
+
+    if (!existing) {
+      return NextResponse.json({ error: 'Record not found' }, { status: 404 });
+    }
+
+    if (existing.farmId) {
+      const access = await getFarmAccess(user.id, existing.farmId);
+      if (!access) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+    } else if (existing.userId !== user.id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     if (parsed.data.flockId) {
       const flock = await prisma.flock.findFirst({
-        where: { id: parsed.data.flockId, userId: user.id },
+        where: existing.farmId
+          ? { id: parsed.data.flockId, farmId: existing.farmId }
+          : { id: parsed.data.flockId, userId: user.id },
       });
 
       if (!flock) {
         return NextResponse.json({ error: 'Flock not found' }, { status: 404 });
       }
-    }
-
-    const existing = await prisma.feedRecord.findFirst({
-      where: { id, userId: user.id },
-      select: { id: true },
-    });
-
-    if (!existing) {
-      return NextResponse.json({ error: 'Record not found' }, { status: 404 });
     }
 
     const record = await prisma.feedRecord.update({
@@ -104,13 +125,25 @@ export async function DELETE(_: NextRequest, context: Context) {
     }
 
     const { id } = await context.params;
-    const deleted = await prisma.feedRecord.deleteMany({
-      where: { id, userId: user.id },
+    const existing = await prisma.feedRecord.findUnique({
+      where: { id },
+      select: { id: true, userId: true, farmId: true },
     });
 
-    if (deleted.count === 0) {
+    if (!existing) {
       return NextResponse.json({ error: 'Record not found' }, { status: 404 });
     }
+
+    if (existing.farmId) {
+      const access = await getFarmAccess(user.id, existing.farmId);
+      if (!access) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+    } else if (existing.userId !== user.id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    await prisma.feedRecord.delete({ where: { id } });
 
     return NextResponse.json({ success: true });
   } catch (error) {
