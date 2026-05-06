@@ -438,8 +438,8 @@ export async function sendOrderNotificationWithDetails(
 
 // Send professional announcement email notification
 async function sendAnnouncementEmail(data: NotificationData, userEmail: string, userName: string) {
+  const account = data.emailProfile || 'notify'
   try {
-    const account = data.emailProfile || 'notify'
     // Extract announcement ID from the notification data
     const titleParts = data.title.split(': ')
     const announcementTitle = titleParts[1] || data.title
