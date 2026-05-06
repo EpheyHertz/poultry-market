@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AlertTriangle, CheckCircle2, LockKeyhole, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -27,11 +27,11 @@ interface InvitationDetails {
   status: string;
 }
 
-export default function AcceptInvitationPage() {
+function AcceptInvitationContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const token = searchParams.get('token') || '';
-  const farmId = searchParams.get('farmId') || '';
+  const token = searchParams?.get('token') || '';
+  const farmId = searchParams?.get('farmId') || '';
   const [invitation, setInvitation] = useState<InvitationDetails | null>(null);
   const [loading, setLoading] = useState(Boolean(token));
   const [accepting, setAccepting] = useState(false);
@@ -182,5 +182,35 @@ export default function AcceptInvitationPage() {
         </CardContent>
       </Card>
     </main>
+  );
+}
+
+export default function AcceptInvitationPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="mx-auto flex min-h-screen w-full max-w-3xl items-center justify-center p-4 sm:p-6">
+          <Card className="w-full border-border/60 bg-card/95 shadow-xl backdrop-blur">
+            <CardHeader className="space-y-3 border-b border-border/60 bg-gradient-to-r from-slate-950 via-slate-900 to-cyan-900 text-white">
+              <CardTitle className="flex items-center gap-2 text-2xl">
+                <LockKeyhole className="h-5 w-5" />
+                Accept farm invitation
+              </CardTitle>
+              <CardDescription className="text-slate-200">
+                Loading invitation details...
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5 p-6">
+              <div className="flex items-center gap-3 rounded-2xl border border-dashed border-border p-4 text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Preparing invitation...
+              </div>
+            </CardContent>
+          </Card>
+        </main>
+      }
+    >
+      <AcceptInvitationContent />
+    </Suspense>
   );
 }
