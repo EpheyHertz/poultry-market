@@ -1,6 +1,6 @@
 import { prisma } from './prisma'
 import { NotificationType, UserRole } from '@prisma/client'
-import { sendEmail, emailTemplates } from './email'
+import { sendEmail, emailTemplates, type MailerAccount } from './email'
 import  mainSendSMS  from './sms'
 
 interface NotificationData {
@@ -10,13 +10,15 @@ interface NotificationData {
   type: NotificationType
   title: string
   message: string
+  emailProfile?: MailerAccount
 }
 
 export async function createNotification(data: NotificationData) {
   try {
+    const { emailProfile, ...notificationData } = data
     const notification = await prisma.notification.create({
       data: {
-        ...data,
+        ...notificationData,
         sentAt: new Date()
       }
     })
@@ -50,6 +52,7 @@ export async function createNotification(data: NotificationData) {
 
 async function sendEmailNotification(data: NotificationData, userEmail: string, userName: string) {
   try {
+    const account = data.emailProfile || 'notify'
     // Map notification types to email templates
     let emailTemplate: string
 
@@ -138,7 +141,8 @@ async function sendEmailNotification(data: NotificationData, userEmail: string, 
     await sendEmail({
       to: userEmail,
       subject: data.title,
-      html: emailTemplate
+      html: emailTemplate,
+      account
     })
 
     console.log(`Email notification sent to ${userEmail}: ${data.title}`)
@@ -435,6 +439,7 @@ export async function sendOrderNotificationWithDetails(
 // Send professional announcement email notification
 async function sendAnnouncementEmail(data: NotificationData, userEmail: string, userName: string) {
   try {
+    const account = data.emailProfile || 'notify'
     // Extract announcement ID from the notification data
     const titleParts = data.title.split(': ')
     const announcementTitle = titleParts[1] || data.title
@@ -452,7 +457,8 @@ async function sendAnnouncementEmail(data: NotificationData, userEmail: string, 
       await sendEmail({
         to: userEmail,
         subject: data.title,
-        html: emailTemplate
+        html: emailTemplate,
+        account
       })
       return
     }
@@ -473,7 +479,8 @@ async function sendAnnouncementEmail(data: NotificationData, userEmail: string, 
     await sendEmail({
       to: userEmail,
       subject: `📢 ${announcement.type.replace('_', ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())} Announcement: ${announcement.title}`,
-      html: emailTemplate
+      html: emailTemplate,
+      account
     })
 
     console.log(`Professional announcement email sent to ${userEmail}: ${announcement.title}`)
@@ -484,7 +491,8 @@ async function sendAnnouncementEmail(data: NotificationData, userEmail: string, 
     await sendEmail({
       to: userEmail,
       subject: data.title,
-      html: emailTemplate
+      html: emailTemplate,
+      account
     })
   }
 }
@@ -569,7 +577,8 @@ export async function sendAnnouncementNotifications(
           await sendEmail({
             to: user.email,
             subject: `📢 ${announcement.type.replace('_', ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())} Announcement: ${announcement.title}`,
-            html: emailTemplate
+            html: emailTemplate,
+            account: 'admin'
           })
 
           // Send SMS for urgent announcements

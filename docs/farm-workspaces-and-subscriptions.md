@@ -10,6 +10,22 @@ Set these values for invitation email delivery and app links:
 - `NEXTAUTH_URL` - fallback base URL if `NEXT_PUBLIC_APP_URL` is not set.
 - `GMAIL_USER` - Gmail sender account for Nodemailer.
 - `GMAIL_APP_PASSWORD` - Gmail app password for Nodemailer.
+- `REMINDER_GMAIL_USER` - Gmail sender for scheduled farm reminders (e.g. reminder.poultrymarket@gmail.com).
+- `REMINDER_GMAIL_APP_PASSWORD` - App password for the reminder sender.
+- `NOTIFY_GMAIL_USER` - Gmail sender for farm invitations/notifications (e.g. notify.poultrymarket@gmail.com).
+- `NOTIFY_GMAIL_APP_PASSWORD` - App password for the notify sender.
+- `ADMIN_GMAIL_USER` - Gmail sender for admin broadcasts (e.g. admin.poultrymarket@gmail.com).
+- `ADMIN_GMAIL_APP_PASSWORD` - App password for the admin sender.
+- `ONBOARD_GMAIL_USER` - Gmail sender for verification and welcome emails (e.g. onboard.poultrymarket@gmail.com).
+- `ONBOARD_GMAIL_APP_PASSWORD` - App password for the onboarding sender.
+- `BLOG_GMAIL_USER` - Gmail sender for blog-related emails (e.g. blog.poultrymarket@gmail.com).
+- `BLOG_GMAIL_APP_PASSWORD` - App password for the blog sender.
+- `EMAIL_FROM_NAME` - optional display name for the default sender.
+- `REMINDER_EMAIL_FROM_NAME` - optional display name for the reminder sender.
+- `NOTIFY_EMAIL_FROM_NAME` - optional display name for the notify sender.
+- `ADMIN_EMAIL_FROM_NAME` - optional display name for the admin sender.
+- `ONBOARD_EMAIL_FROM_NAME` - optional display name for the onboarding sender.
+- `BLOG_EMAIL_FROM_NAME` - optional display name for the blog sender.
 - `SUPPORT_EMAIL` - optional support reply-to address.
 
 ## Seeded Roles

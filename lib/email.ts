@@ -1,37 +1,162 @@
 import nodemailer from 'nodemailer'
 
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.GMAIL_USER,
-    pass: process.env.GMAIL_APP_PASSWORD,
-  },
-})
+export type MailerAccount = 'default' | 'reminder' | 'notify' | 'admin' | 'onboard' | 'blog'
+
+type MailerConfig = {
+  user: string
+  pass: string
+  fromName: string
+  fromEmail: string
+}
+
+type EmailPayload = {
+  to: string
+  subject: string
+  html: string
+  text?: string
+  replyTo?: string
+}
+
+const transporterCache = new Map<MailerAccount, nodemailer.Transporter>()
+
+function resolveMailerConfig(account: MailerAccount): MailerConfig | null {
+  if (account === 'reminder') {
+    const user = process.env.REMINDER_GMAIL_USER
+    const pass = process.env.REMINDER_GMAIL_APP_PASSWORD
+    if (!user || !pass) return null
+    return {
+      user,
+      pass,
+      fromName: process.env.REMINDER_EMAIL_FROM_NAME || 'PoultryMarket Reminders',
+      fromEmail: user,
+    }
+  }
+
+  if (account === 'notify') {
+    const user = process.env.NOTIFY_GMAIL_USER
+    const pass = process.env.NOTIFY_GMAIL_APP_PASSWORD
+    if (!user || !pass) return null
+    return {
+      user,
+      pass,
+      fromName: process.env.NOTIFY_EMAIL_FROM_NAME || 'PoultryMarket Notifications',
+      fromEmail: user,
+    }
+  }
+
+  if (account === 'admin') {
+    const user = process.env.ADMIN_GMAIL_USER
+    const pass = process.env.ADMIN_GMAIL_APP_PASSWORD
+    if (!user || !pass) return null
+    return {
+      user,
+      pass,
+      fromName: process.env.ADMIN_EMAIL_FROM_NAME || 'PoultryMarket Admin',
+      fromEmail: user,
+    }
+  }
+
+  if (account === 'onboard') {
+    const user = process.env.ONBOARD_GMAIL_USER
+    const pass = process.env.ONBOARD_GMAIL_APP_PASSWORD
+    if (!user || !pass) return null
+    return {
+      user,
+      pass,
+      fromName: process.env.ONBOARD_EMAIL_FROM_NAME || 'PoultryMarket Onboarding',
+      fromEmail: user,
+    }
+  }
+
+  if (account === 'blog') {
+    const user = process.env.BLOG_GMAIL_USER
+    const pass = process.env.BLOG_GMAIL_APP_PASSWORD
+    if (!user || !pass) return null
+    return {
+      user,
+      pass,
+      fromName: process.env.BLOG_EMAIL_FROM_NAME || 'PoultryMarket Blog',
+      fromEmail: user,
+    }
+  }
+
+  const user = process.env.GMAIL_USER
+  const pass = process.env.GMAIL_APP_PASSWORD
+  if (!user || !pass) return null
+  return {
+    user,
+    pass,
+    fromName: process.env.EMAIL_FROM_NAME || 'PoultryMarket',
+    fromEmail: user,
+  }
+}
+
+function getTransporter(account: MailerAccount, config: MailerConfig) {
+  const cached = transporterCache.get(account)
+  if (cached) return cached
+
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: config.user,
+      pass: config.pass,
+    },
+  })
+
+  transporterCache.set(account, transporter)
+  return transporter
+}
 
 export async function sendEmail({
   to,
   subject,
   html,
   text,
-}: {
-  to: string
-  subject: string
-  html: string
-  text?: string
-}) {
+  replyTo,
+  account = 'default',
+}: EmailPayload & { account?: MailerAccount }) {
+  const config = resolveMailerConfig(account)
+  if (!config) {
+    const message = `Missing Gmail credentials for ${account} mailer`
+    console.error(message)
+    return { success: false, error: new Error(message) }
+  }
+
   try {
+    const transporter = getTransporter(account, config)
     await transporter.sendMail({
-      from: `"PoultryMarket" <${process.env.GMAIL_USER}>`,
+      from: `"${config.fromName}" <${config.fromEmail}>`,
       to,
       subject,
       html,
       text,
+      ...(replyTo ? { replyTo } : {}),
     })
     return { success: true }
   } catch (error) {
     console.error('Email sending failed:', error)
     return { success: false, error }
   }
+}
+
+export async function sendReminderEmail(payload: EmailPayload) {
+  return sendEmail({ ...payload, account: 'reminder' })
+}
+
+export async function sendNotifyEmail(payload: EmailPayload) {
+  return sendEmail({ ...payload, account: 'notify' })
+}
+
+export async function sendAdminEmail(payload: EmailPayload) {
+  return sendEmail({ ...payload, account: 'admin' })
+}
+
+export async function sendOnboardingEmail(payload: EmailPayload) {
+  return sendEmail({ ...payload, account: 'onboard' })
+}
+
+export async function sendBlogEmail(payload: EmailPayload) {
+  return sendEmail({ ...payload, account: 'blog' })
 }
 
 type BlogEmailPayload = {
@@ -1869,7 +1994,7 @@ export async function sendBlogSubmissionAcknowledgmentToAuthor(
 
   const subject = `We received your blog submission: ${blogPost.title}`
 
-  return sendEmail({
+  return sendBlogEmail({
     to: recipient,
     subject,
     html,
@@ -1892,7 +2017,7 @@ export async function sendBlogSubmissionToAdmin(
 
   const subject = `New blog submission awaiting review: ${blogPost.title}`
 
-  return sendEmail({
+  return sendBlogEmail({
     to,
     subject,
     html,
@@ -1912,7 +2037,7 @@ export async function sendCommentApprovalNotifications(
     })
 
     operations.push(
-      sendEmail({
+      sendBlogEmail({
         to: payload.postAuthor.email,
         subject: `New comment on ${payload.postTitle}`,
         html,
@@ -1933,7 +2058,7 @@ export async function sendCommentApprovalNotifications(
     })
 
     operations.push(
-      sendEmail({
+      sendBlogEmail({
         to: commentRecipient,
         subject: `Your comment on ${payload.postTitle} is live`,
         html,
@@ -1962,7 +2087,7 @@ export async function sendWeeklyBlogAnalyticsDigest(
 
   const subject = `Weekly blog analytics · ${payload.timeframe.label}`
 
-  return sendEmail({
+  return sendBlogEmail({
     to: payload.author.email,
     subject,
     html,

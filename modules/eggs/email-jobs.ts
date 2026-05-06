@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma';
-import { sendEmail } from '@/lib/email';
+import { sendReminderEmail } from '@/lib/email';
 import {
   dailyEggReminderTemplate,
   farmAlertsTemplate,
@@ -90,7 +90,7 @@ export async function runDailyEggReminderJob(): Promise<JobResult> {
 
     try {
       const content = dailyEggReminderTemplate(user.name || 'Farmer');
-      await sendEmail({
+      await sendReminderEmail({
         to: user.email!,
         subject: content.subject,
         html: content.html,
@@ -169,7 +169,7 @@ export async function runWeeklySummaryJob(): Promise<JobResult> {
         averagePerDay,
       });
 
-      await sendEmail({
+      await sendReminderEmail({
         to: user.email!,
         subject: content.subject,
         html: content.html,
@@ -288,7 +288,7 @@ export async function runFarmAlertsJob(): Promise<JobResult> {
         vaccinations,
       });
 
-      await sendEmail({
+      await sendReminderEmail({
         to: user.email!,
         subject: content.subject,
         html: content.html,

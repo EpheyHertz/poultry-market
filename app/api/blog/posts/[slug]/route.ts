@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
-import { sendBlogSubmissionAcknowledgmentToAuthor, sendBlogSubmissionToAdmin, emailTemplates, sendEmail } from '@/lib/email';
+import { sendBlogSubmissionAcknowledgmentToAuthor, sendBlogSubmissionToAdmin, emailTemplates, sendBlogEmail } from '@/lib/email';
 
 // Update blog post schema
 const updateBlogPostSchema = z.object({
@@ -409,7 +409,7 @@ export async function PUT(
             { variant: 'edit' }
           );
 
-          await sendEmail({
+          await sendBlogEmail({
             to: updatedPost.author.email,
             subject: `Your blog update "${updatedPost.title}" is under review`,
             html: authorHtml,
@@ -438,7 +438,7 @@ export async function PUT(
             { variant: 'edit' }
           );
 
-          await sendEmail({
+          await sendBlogEmail({
             to: adminEmail,
             subject: `Blog Update Pending Review: "${updatedPost.title}"`,
             html: adminHtml,

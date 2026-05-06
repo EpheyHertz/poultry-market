@@ -292,7 +292,7 @@ export function FarmProvider({ children }: { children: ReactNode }) {
   });
 
   useEffect(() => {
-    const farmIdFromQuery = searchParams.get('farmId');
+    const farmIdFromQuery = searchParams?.get('farmId');
 
     if (farmIdFromQuery) {
       setActiveFarmId(farmIdFromQuery);

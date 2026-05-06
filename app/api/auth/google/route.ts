@@ -2,8 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import {signToken} from '@/lib/auth'
-import { emailTemplates } from '@/lib/email'
-import { notificationTemplates, createNotification } from '@/lib/notifications'
+import { createNotification } from '@/lib/notifications'
 import { cookies } from 'next/headers'
 
 export async function POST(request: NextRequest) {
@@ -66,6 +65,7 @@ export async function POST(request: NextRequest) {
         title: 'Welcome to PoultryMarket',
         message: `Welcome to PoultryMarket, ${user.name}! Your account has been successfully created. Start exploring fresh poultry products from verified sellers across Kenya.`,
         type: 'EMAIL',
+        emailProfile: 'onboard',
       })
     }
 

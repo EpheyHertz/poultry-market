@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { hashPassword } from '@/lib/auth'
-import { sendEmail, emailTemplates } from '@/lib/email'
-import { sendWelcomeNotification } from '@/lib/notifications'
+import { sendOnboardingEmail, emailTemplates } from '@/lib/email'
 import { UserRole } from '@prisma/client'
 import crypto from 'crypto'
 
@@ -68,7 +67,7 @@ export async function POST(request: NextRequest) {
     // Send verification email
     const verificationUrl = `${process.env.NEXTAUTH_URL}/auth/verify-email?token=${verificationToken}`
     
-    await sendEmail({
+    await sendOnboardingEmail({
       to: email,
       subject: 'Verify your email - PoultryMarket',
       html: emailTemplates.verification(name, verificationUrl),

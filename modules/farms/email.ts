@@ -1,4 +1,4 @@
-import { sendEmail } from '@/lib/email';
+import { sendNotifyEmail } from '@/lib/email';
 
 function resolveAppUrl() {
   return process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || 'https://poultrymarket.co.ke';
@@ -71,7 +71,7 @@ export function generateFarmInvitationEmail(payload: FarmInvitationEmailPayload)
 export async function sendFarmInvitationEmail(payload: FarmInvitationEmailPayload) {
   const email = generateFarmInvitationEmail(payload);
 
-  return sendEmail({
+  return sendNotifyEmail({
     to: payload.invitedEmail,
     subject: `Invitation to join ${payload.farmName}`,
     html: email.html,

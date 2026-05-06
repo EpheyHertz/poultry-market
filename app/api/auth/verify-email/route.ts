@@ -35,11 +35,12 @@ export async function POST(request: NextRequest) {
         verificationTokenExpiry: null,
       }
     })
-          createNotification({
+          void createNotification({
             receiverId: user.id,
             title: 'Welcome to PoultryMarket',
             message: `Welcome to PoultryMarket, ${user.name}! Your account has been successfully created. Start exploring fresh poultry products from verified sellers across Kenya.`,
             type: 'EMAIL',
+            emailProfile: 'onboard',
           })
 
     return NextResponse.json({ 

@@ -1,5 +1,5 @@
 import { prisma } from '../../lib/prisma'
-import { sendEmail } from '../../lib/email'
+import { sendReminderEmail } from '../../lib/email'
 
 function addDays(date: Date, days: number) {
   const d = new Date(date)
@@ -82,7 +82,7 @@ export async function sendDueReminders() {
         <p>Scheduled at: ${r.nextTriggerAt ? new Date(r.nextTriggerAt).toLocaleString() : 'Now'}</p>
       `
 
-      await sendEmail({ to, subject, html })
+      await sendReminderEmail({ to, subject, html })
 
       const next = await computeNextTrigger(r)
       await markReminderSent(r.id, next)

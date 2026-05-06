@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { sendEmail } from '@/lib/email';
+import { sendEmail, type MailerAccount } from '@/lib/email';
 
 interface EmailLink {
   text: string;
@@ -271,6 +271,7 @@ export async function POST(request: NextRequest) {
       content,
       links, // Array of { text, url }
       senderName,
+      senderProfile, // 'admin' | 'onboard' | 'notify' | 'default' | 'blog'
       format, // 'html' | 'text'
     } = body;
 
@@ -342,6 +343,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const allowedProfiles: MailerAccount[] = ['admin', 'onboard', 'notify', 'default', 'blog'];
+    const resolvedProfile: MailerAccount = allowedProfiles.includes(senderProfile as MailerAccount)
+      ? (senderProfile as MailerAccount)
+      : 'admin';
+
     // Send emails in batches to avoid rate limiting
     const batchSize = 10;
     const results: { success: number; failed: number; errors: string[] } = {
@@ -375,6 +381,7 @@ export async function POST(request: NextRequest) {
               to: user.email,
               subject,
               html: emailContent,
+              account: resolvedProfile,
             });
 
             if (result.success) {

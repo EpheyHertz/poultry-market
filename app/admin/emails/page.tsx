@@ -210,6 +210,7 @@ export default function AdminEmailsPage() {
   const [content, setContent] = useState('');
   const [links, setLinks] = useState<EmailLink[]>([]);
   const [senderName, setSenderName] = useState('');
+  const [senderProfile, setSenderProfile] = useState<'admin' | 'onboard' | 'notify' | 'default' | 'blog'>('admin');
   const [emailFormat, setEmailFormat] = useState<'html' | 'text'>('html');
   const [verifiedOnly, setVerifiedOnly] = useState(false);
   
@@ -363,6 +364,7 @@ export default function AdminEmailsPage() {
           content,
           links: validLinks.length > 0 ? validLinks : undefined,
           senderName,
+          senderProfile,
           format: emailFormat,
         }),
       });
@@ -883,6 +885,23 @@ export default function AdminEmailsPage() {
                       onChange={(e) => setSenderName(e.target.value)}
                       className="bg-slate-900/50 border-slate-700 text-white placeholder:text-slate-500 focus:border-emerald-500 text-sm h-9 sm:h-10"
                     />
+                  </div>
+
+                  {/* Sender Profile */}
+                  <div className="space-y-2">
+                    <Label className="text-slate-300 text-xs sm:text-sm">Sender Profile</Label>
+                    <Select value={senderProfile} onValueChange={(value) => setSenderProfile(value as typeof senderProfile)}>
+                      <SelectTrigger className="bg-slate-900/50 border-slate-700 text-white h-9 sm:h-10">
+                        <SelectValue placeholder="Select sender profile" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="admin">Admin profile</SelectItem>
+                        <SelectItem value="onboard">Onboarding profile</SelectItem>
+                        <SelectItem value="notify">Notification profile</SelectItem>
+                        <SelectItem value="default">Default profile</SelectItem>
+                        <SelectItem value="blog">Blog profile</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   {/* Actions */}
