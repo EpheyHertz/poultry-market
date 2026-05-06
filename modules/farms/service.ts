@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import type { Farm, FarmMember, FarmMemberStatus, FarmRole, User } from '@prisma/client';
+import { Prisma, type Farm, FarmMember, FarmMemberStatus, FarmRole, User } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { sendFarmInvitationEmail } from './email';
 import { FARM_ROLE_SEEDS, type FarmPermission, canMemberPerform, getAssignableRolesForRank } from './permissions';
@@ -241,12 +241,20 @@ export async function updateFarmDetails(farmId: string, userId: string, data: Pa
     throw new Error('Forbidden');
   }
 
+  const normalizedSettings =
+    data.settings === undefined
+      ? undefined
+      : data.settings === null
+      ? Prisma.JsonNull
+      : (data.settings as Prisma.InputJsonValue);
+
   return prisma.farm.update({
     where: { id: farmId },
     data: {
       ...data,
       name: data.name?.trim(),
       slug: data.slug?.trim() || undefined,
+      settings: normalizedSettings,
     },
   });
 }
