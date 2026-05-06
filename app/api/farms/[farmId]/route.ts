@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import type { Prisma } from '@prisma/client';
 import { getCurrentUser } from '@/lib/auth';
 import { deleteFarm, getCurrentFarmPermissions, getFarmById, updateFarmDetails } from '@/modules/farms/service';
 import { canMemberPerform } from '@/modules/farms/permissions';
@@ -73,6 +74,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
     const farm = await updateFarmDetails(farmId, user.id, {
       ...parsed.data,
+      settings: parsed.data.settings as Prisma.JsonValue | undefined,
       subscriptionEndsAt: parsed.data.subscriptionEndsAt ? new Date(parsed.data.subscriptionEndsAt) : undefined,
     });
 
