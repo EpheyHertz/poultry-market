@@ -1,5 +1,6 @@
 import './globals.css';
 import type { Metadata, Viewport } from 'next';
+import { Suspense } from 'react';
 import { Inter } from 'next/font/google';
 import { Toaster } from '@/components/ui/sonner';
 import { ThemeProvider } from '@/components/theme';
@@ -160,10 +161,12 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <NavigationProvider>
-            <FarmProvider>
-              {children}
-              <Toaster />
-            </FarmProvider>
+            <Suspense fallback={<div className="min-h-screen" />}>
+              <FarmProvider>
+                {children}
+                <Toaster />
+              </FarmProvider>
+            </Suspense>
           </NavigationProvider>
         </ThemeProvider>
       </body>
