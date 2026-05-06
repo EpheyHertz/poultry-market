@@ -128,7 +128,7 @@ export async function deleteReminder(id: string) {
   return prisma.reminder.delete({ where: { id } })
 }
 
-export default {
+const reminderService = {
   getDueReminders,
   sendDueReminders,
   createReminder,
@@ -136,3 +136,5 @@ export default {
   updateReminder,
   deleteReminder,
 }
+
+export default reminderService
