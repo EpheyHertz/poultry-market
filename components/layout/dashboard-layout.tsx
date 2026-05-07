@@ -216,11 +216,11 @@ export default function DashboardLayout({ children, user: propUser }: DashboardL
       case 'CUSTOMER':
         return [
           ...baseItems,
+          { name: 'Farm Management', href: '/farm', icon: MapPin },
           { name: 'Browse Products', href: '/customer/products', icon: Package },
           { name: 'My Orders', href: '/customer/orders', icon: ShoppingCart },
           { name: 'Applications', href: '/customer/applications', icon: FileText },
           { name: 'Track deliveries', href: '/customer/deliveries', icon: FileText },
-          { name: 'Market Prices', href: '/market-prices', icon: TrendingUp },
           { name: 'Profile', href: '/customer/profile', icon: Settings },
           { name: 'Chats', href: '/customer/chats', icon: MessageCircle },
           { name: 'Cart', href: '/customer/cart', icon: MessageCircle },

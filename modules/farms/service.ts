@@ -35,6 +35,12 @@ export interface AcceptFarmInvitationInput {
   userId: string;
 }
 
+export interface AcceptFarmInvitationByIdInput {
+  invitationId: string;
+  userId: string;
+  userEmail: string;
+}
+
 function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
 }
@@ -460,6 +466,57 @@ export async function acceptFarmInvitation(input: AcceptFarmInvitationInput) {
     },
     include: {
       role: true,
+    },
+  });
+
+  if (existingMember) {
+    await prisma.farmMember.delete({ where: { id: invitation.id } });
+    return existingMember;
+  }
+
+  return prisma.farmMember.update({
+    where: { id: invitation.id },
+    data: {
+      userId: input.userId,
+      status: 'ACTIVE',
+      acceptedAt: new Date(),
+      invitationTokenHash: null,
+      invitationExpiresAt: null,
+      rejectedAt: null,
+    },
+    include: {
+      farm: true,
+      role: true,
+      user: true,
+    },
+  });
+}
+
+export async function acceptFarmInvitationById(input: AcceptFarmInvitationByIdInput) {
+  const invitation = await prisma.farmMember.findFirst({
+    where: {
+      id: input.invitationId,
+      status: 'PENDING',
+      invitedEmail: normalizeEmail(input.userEmail),
+      invitationExpiresAt: {
+        gt: new Date(),
+      },
+    },
+  });
+
+  if (!invitation) {
+    throw new Error('Invitation not found or expired');
+  }
+
+  const existingMember = await prisma.farmMember.findFirst({
+    where: {
+      farmId: invitation.farmId,
+      userId: input.userId,
+      status: 'ACTIVE',
+    },
+    include: {
+      role: true,
+      farm: true,
     },
   });
 

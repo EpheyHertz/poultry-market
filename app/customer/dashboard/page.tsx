@@ -3,6 +3,7 @@ import { getCurrentUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import DashboardLayout from '@/components/layout/dashboard-layout';
 import ApiKeyManager from '@/components/api-keys/api-key-manager';
+import PendingInvitationsCard from '@/components/farm/pending-invitations-card';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -43,6 +44,51 @@ export default async function CustomerDashboard() {
       take: 5
     })
   ]);
+
+  const userEmail = user.email?.toLowerCase();
+  const pendingInvitations = userEmail
+    ? await prisma.farmMember.findMany({
+        where: {
+          status: 'PENDING',
+          invitedEmail: userEmail,
+          invitationExpiresAt: {
+            gt: new Date(),
+          },
+        },
+        include: {
+          farm: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+          role: {
+            select: {
+              name: true,
+            },
+          },
+          invitedBy: {
+            select: {
+              name: true,
+              email: true,
+            },
+          },
+        },
+        orderBy: {
+          invitedAt: 'desc',
+        },
+      })
+    : [];
+
+  const pendingInvitationCards = pendingInvitations.map((invitation) => ({
+    id: invitation.id,
+    farmName: invitation.farm.name,
+    roleName: invitation.role.name,
+    invitedByName: invitation.invitedBy?.name ?? null,
+    invitedByEmail: invitation.invitedBy?.email ?? null,
+    invitedAt: invitation.invitedAt.toISOString(),
+    expiresAt: invitation.invitationExpiresAt?.toISOString() ?? null,
+  }));
 
   const stats = [
     {
@@ -94,6 +140,8 @@ export default async function CustomerDashboard() {
           <h1 className="text-3xl font-bold text-gray-900">Welcome back, {user.name}!</h1>
           <p className="text-gray-600 mt-2">Here&apos;s what&apos;s happening with your orders and account.</p>
         </div>
+
+        <PendingInvitationsCard invitations={pendingInvitationCards} />
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
