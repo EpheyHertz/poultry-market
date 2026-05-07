@@ -268,7 +268,10 @@ export default function FarmSettingsPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 {preferenceRows.map((row) => (
-                  <div key={row.key} className="flex items-start justify-between gap-4 rounded-2xl border border-border p-4">
+                  <div
+                    key={row.key}
+                    className="flex flex-col gap-3 rounded-2xl border border-border p-4 sm:flex-row sm:items-start sm:justify-between"
+                  >
                     <div className="space-y-1">
                       <p className="font-semibold text-foreground">{row.title}</p>
                       <p className="text-sm text-muted-foreground">{row.description}</p>

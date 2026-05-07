@@ -226,7 +226,7 @@ export default function PerformancePage() {
                   <div className="space-y-3">
                     {recentRows.map((entry) => (
                       <div key={entry.id} className="rounded-2xl border border-border p-3">
-                        <div className="flex items-start justify-between gap-3">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
                           <div>
                             <p className="text-sm font-medium text-foreground">
                               {entry.quantity} eggs
@@ -250,11 +250,11 @@ export default function PerformancePage() {
             <span>Export tools will be added alongside the reports module.</span>
           </div>
 
-          <div className="flex gap-2">
-            <Button variant="outline" disabled>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Button className="w-full sm:w-auto" variant="outline" disabled>
               Export CSV
             </Button>
-            <Button variant="outline" disabled>
+            <Button className="w-full sm:w-auto" variant="outline" disabled>
               Export PDF
             </Button>
           </div>

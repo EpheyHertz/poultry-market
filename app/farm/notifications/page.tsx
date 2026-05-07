@@ -112,7 +112,7 @@ export default function NotificationsPage() {
 
   return (
     <main className="mx-auto w-full max-w-4xl p-4 sm:p-6">
-      <div className="flex items-center justify-between mb-4">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-semibold">Notifications</h1>
         <ThemeToggleLarge />
       </div>
@@ -130,7 +130,10 @@ export default function NotificationsPage() {
 
             <div className="space-y-3">
               {preferenceRows.map((row) => (
-                <div key={row.key} className="flex items-start justify-between gap-4 rounded-2xl border border-border p-4">
+                <div
+                  key={row.key}
+                  className="flex flex-col gap-3 rounded-2xl border border-border p-4 sm:flex-row sm:items-start sm:justify-between"
+                >
                   <div>
                     <p className="font-medium text-foreground">{row.title}</p>
                     <p className="text-sm text-muted-foreground">{row.description}</p>

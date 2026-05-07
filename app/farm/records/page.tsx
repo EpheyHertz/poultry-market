@@ -89,15 +89,15 @@ function RecordActionButtons({
   deleting?: boolean;
 }) {
   return (
-    <div className="flex flex-wrap gap-2">
-      <Button variant="outline" size="sm" className="gap-1 rounded-full" onClick={onEdit}>
+    <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+      <Button variant="outline" size="sm" className="w-full gap-1 rounded-full sm:w-auto" onClick={onEdit}>
         <Pencil className="h-4 w-4" />
         Edit
       </Button>
       <Button
         variant="destructive"
         size="sm"
-        className="gap-1 rounded-full"
+        className="w-full gap-1 rounded-full sm:w-auto"
         onClick={onDelete}
         disabled={deleting}
       >
@@ -660,7 +660,7 @@ export default function FarmRecordsPage() {
       )}
 
       <Tabs defaultValue="flocks" className="space-y-4">
-        <TabsList className="h-auto w-full flex-wrap justify-start gap-1 rounded-lg p-1">
+        <TabsList className="h-auto w-full flex-wrap justify-start gap-2 rounded-lg p-2 sm:gap-1 sm:p-1">
           <TabsTrigger value="flocks">Flocks</TabsTrigger>
           <TabsTrigger value="feed">Feed</TabsTrigger>
           <TabsTrigger value="mortality">Mortality</TabsTrigger>
@@ -729,7 +729,7 @@ export default function FarmRecordsPage() {
                   <div className="grid gap-3 md:hidden">
                     {flocks.map((flock) => (
                       <div key={flock.id} className="rounded-2xl border border-pfs-muted bg-card p-4">
-                        <div className="flex items-start justify-between gap-3">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                           <div>
                             <p className="font-medium text-foreground">{flock.name}</p>
                             <p className="text-sm text-muted-foreground">{flock.breed || 'Breed not set'}</p>
@@ -835,7 +835,7 @@ export default function FarmRecordsPage() {
                   <div className="grid gap-3 md:hidden">
                     {feedRecords.slice(0, 20).map((record) => (
                       <div key={record.id} className="rounded-2xl border border-pfs-muted bg-card p-4 text-sm">
-                        <div className="flex items-start justify-between gap-3">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                           <div>
                             <p className="font-medium text-foreground">{record.feedType}</p>
                             <p className="text-muted-foreground">{record.quantityKg} kg</p>
@@ -934,7 +934,7 @@ export default function FarmRecordsPage() {
                   <div className="grid gap-3 md:hidden">
                     {mortalityRecords.slice(0, 20).map((record) => (
                       <div key={record.id} className="rounded-2xl border border-pfs-muted bg-card p-4 text-sm">
-                        <div className="flex items-start justify-between gap-3">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                           <div>
                             <p className="font-medium text-pfs-danger">{record.count} birds</p>
                             <p className="text-muted-foreground">{record.cause || 'Cause not provided'}</p>
@@ -1028,7 +1028,7 @@ export default function FarmRecordsPage() {
                   <div className="grid gap-3 md:hidden">
                     {vaccinations.slice(0, 20).map((record) => (
                       <div key={record.id} className="rounded-2xl border border-pfs-muted bg-card p-4 text-sm">
-                        <div className="flex items-start justify-between gap-3">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                           <div>
                             <p className="font-medium text-foreground">{record.vaccineName}</p>
                             <p className="text-muted-foreground">{new Date(record.scheduledDate).toLocaleDateString()}</p>
