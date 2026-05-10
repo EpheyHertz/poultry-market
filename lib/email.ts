@@ -274,7 +274,7 @@ export const emailTemplates = {
                 <tr>
                   <td style="background-color:#f1f5f9;padding:20px 24px;text-align:center;font-size:12px;color:#64748b;">
                     <p style="margin:0;">You are receiving this email because you submitted a blog post on PoultryMarket.</p>
-                    <p style="margin:8px 0 0;">Need help? Email us at <a href="mailto:${process.env.SUPPORT_EMAIL || 'support@poultrymarket.co.ke'}" style="color:#0f766e;text-decoration:none;">${process.env.SUPPORT_EMAIL || 'support@poultrymarket.co.ke'}</a></p>
+                    <p style="margin:8px 0 0;">Need help? Email us at <a href="mailto:${process.env.SUPPORT_EMAIL || 'poultrymarket.admin@gmail.com'}" style="color:#0f766e;text-decoration:none;">${process.env.SUPPORT_EMAIL || 'poultrymarket.admin@gmail.com'}</a></p>
                   </td>
                 </tr>
               </table>
@@ -684,7 +684,7 @@ export const emailTemplates = {
             Supporting Kenyan farmers and delivering fresh products to your door.
           </p>
           <p style="color: #9ca3af; font-size: 12px; margin: 0;">
-            Need help? Contact us at support@poultrymarket.co.ke or call +254 700 000 000
+            Need help? Contact us at pms.poultrymarket@gmail.com or call +254 700 000 000
           </p>
         </div>
       </div>
@@ -735,7 +735,7 @@ export const emailTemplates = {
         <!-- Footer -->
         <div style="background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
           <p style="color: #6b7280; font-size: 14px; margin: 0;">
-            © 2024 PoultryMarket. All rights reserved.<br>
+            © 2026 PoultryMarket. All rights reserved.<br>
             Fresh farm products delivered to your door.
           </p>
         </div>

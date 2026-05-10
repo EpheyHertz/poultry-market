@@ -318,7 +318,7 @@ export default function FarmSubscriptionPage() {
         <CardHeader>
           <CardTitle className="text-lg">Upgrade Plan</CardTitle>
           <CardDescription>
-            Choose a plan and pay via IntaSend STK push. Verify after payment if webhook is delayed.
+            Choose a plan and pay via Mpeas. Verify after payment if webhook is delayed.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

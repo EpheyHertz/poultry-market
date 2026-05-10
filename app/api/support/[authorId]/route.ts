@@ -362,7 +362,7 @@ export async function POST(
         const mpesaResponse = await fundWalletMpesa({
           first_name: sanitizedName || 'Supporter',
           last_name: '',
-          email: sanitizedEmail || 'support@poultrymarketkenya.com',
+          email: sanitizedEmail || 'poultrymarket.admin@gmail.com',
           host,
           amount: fees.grossAmount,
           phone_number: normalizedPhone,
