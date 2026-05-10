@@ -680,11 +680,11 @@ export const emailTemplates = {
         <!-- Footer -->
         <div style="background-color: #f9fafb; padding: 30px 20px; text-align: center; border-top: 1px solid #e5e7eb;">
           <p style="color: #6b7280; font-size: 14px; margin: 0 0 10px 0;">
-            © 2025 PoultryMarket. All rights reserved.<br>
+            © 2026 PoultryMarket. All rights reserved.<br>
             Supporting Kenyan farmers and delivering fresh products to your door.
           </p>
           <p style="color: #9ca3af; font-size: 12px; margin: 0;">
-            Need help? Contact us at pms.poultrymarket@gmail.com or call +254 700 000 000
+            Need help? Contact us at pms.poultrymarket@gmail.com or call +254 705423479
           </p>
         </div>
       </div>
@@ -787,7 +787,7 @@ export const emailTemplates = {
         <!-- Footer -->
         <div style="background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
           <p style="color: #6b7280; font-size: 14px; margin: 0;">
-            © 2025 PoultryMarket. All rights reserved.<br>
+            © 2026 PoultryMarket. All rights reserved.<br>
             If you have questions, contact our support team.
           </p>
         </div>
@@ -835,8 +835,8 @@ export const emailTemplates = {
         <!-- Footer -->
         <div style="background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
           <p style="color: #6b7280; font-size: 14px; margin: 0;">
-            © 2025 PoultryMarket. All rights reserved.<br>
-            This message was sent from the contact form on poultrymarket.co.ke
+            © 2026 PoultryMarket. All rights reserved.<br>
+            This message was sent from the contact form on Poultry Market
           </p>
         </div>
       </div>
@@ -885,7 +885,7 @@ export const emailTemplates = {
         <!-- Footer -->
         <div style="background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
           <p style="color: #6b7280; font-size: 14px; margin: 0;">
-            © 2025 PoultryMarket. All rights reserved.<br>
+            © 2026 PoultryMarket. All rights reserved.<br>
             Fresh farm products delivered to your door.
           </p>
         </div>
@@ -950,11 +950,11 @@ export const emailTemplates = {
         <!-- Footer -->
         <div style="background-color: #f9fafb; padding: 30px 20px; text-align: center; border-top: 1px solid #e5e7eb;">
           <p style="color: #6b7280; font-size: 14px; margin: 0 0 10px 0;">
-            © 2025 PoultryMarket. All rights reserved.<br>
+            © 2026 PoultryMarket. All rights reserved.<br>
             Supporting Kenyan farmers and delivering fresh products to your door.
           </p>
           <p style="color: #9ca3af; font-size: 12px; margin: 0;">
-            Questions? Contact us at support@comradehomes.me| epheynyaga@gmail.com or call +254 705 423 479
+            Questions? Contact us at pms.poultrymarket@gmail.com| poultrymarket.admin@gmail.com or call +254 705 423 479
           </p>
         </div>
       </div>
@@ -1021,7 +1021,7 @@ export const emailTemplates = {
             Empowering sellers to reach more customers across Kenya.
           </p>
           <p style="color: #9ca3af; font-size: 12px; margin: 0;">
-            Need help? Contact seller support at seller-support@comradehomes.com || epheynyaga@gmail.com
+            Need help? Contact seller support at seller-poultrymarket.admin@gmail.com || pms.poultrymarket@gmail.com
           </p>
         </div>
       </div>
@@ -1078,7 +1078,7 @@ export const emailTemplates = {
           <p style="color: #4b5563; line-height: 1.6; margin: 0 0 20px 0; font-size: 16px;">${message}</p>
         </div>
         <div style="background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
-          <p style="color: #6b7280; font-size: 14px; margin: 0;">© 2025 PoultryMarket. All rights reserved.</p>
+          <p style="color: #6b7280; font-size: 14px; margin: 0;">© 2026 PoultryMarket. All rights reserved.</p>
         </div>
       </div>
     </body>
@@ -1107,7 +1107,7 @@ export const emailTemplates = {
           </div>
         </div>
         <div style="background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
-          <p style="color: #6b7280; font-size: 14px; margin: 0;">© 2025 PoultryMarket. All rights reserved.</p>
+          <p style="color: #6b7280; font-size: 14px; margin: 0;">© 2026 PoultryMarket. All rights reserved.</p>
         </div>
       </div>
     </body>
@@ -1134,7 +1134,7 @@ export const emailTemplates = {
           <p style="color: #4b5563; line-height: 1.6; margin: 0 0 20px 0; font-size: 16px;">${message}</p>
         </div>
         <div style="background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
-          <p style="color: #6b7280; font-size: 14px; margin: 0;">© 2025 PoultryMarket. All rights reserved.</p>
+          <p style="color: #6b7280; font-size: 14px; margin: 0;">© 2026 PoultryMarket. All rights reserved.</p>
         </div>
       </div>
     </body>
@@ -1186,7 +1186,7 @@ export const emailTemplates = {
           <p style="color: #4b5563; line-height: 1.6; margin: 0 0 20px 0; font-size: 16px;">${message}</p>
         </div>
         <div style="background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
-          <p style="color: #6b7280; font-size: 14px; margin: 0;">© 2025 PoultryMarket. All rights reserved.</p>
+          <p style="color: #6b7280; font-size: 14px; margin: 0;">© 2026 PoultryMarket. All rights reserved.</p>
         </div>
       </div>
     </body>
@@ -1241,7 +1241,7 @@ export const emailTemplates = {
           </div>
         </div>
         <div style="background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
-          <p style="color: #6b7280; font-size: 14px; margin: 0;">© 2025 PoultryMarket. All rights reserved.</p>
+          <p style="color: #6b7280; font-size: 14px; margin: 0;">© 2026 PoultryMarket. All rights reserved.</p>
         </div>
       </div>
     </body>
@@ -1271,7 +1271,7 @@ export const emailTemplates = {
           </div>
         </div>
         <div style="background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
-          <p style="color: #6b7280; font-size: 14px; margin: 0;">© 2025 PoultryMarket. All rights reserved.</p>
+          <p style="color: #6b7280; font-size: 14px; margin: 0;">© 2026 PoultryMarket. All rights reserved.</p>
         </div>
       </div>
     </body>
@@ -1300,7 +1300,7 @@ export const emailTemplates = {
           </div>
         </div>
         <div style="background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
-          <p style="color: #6b7280; font-size: 14px; margin: 0;">© 2025 PoultryMarket. All rights reserved.</p>
+          <p style="color: #6b7280; font-size: 14px; margin: 0;">© 2026 PoultryMarket. All rights reserved.</p>
         </div>
       </div>
     </body>
@@ -1331,7 +1331,7 @@ export const emailTemplates = {
           </div>
         </div>
         <div style="background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
-          <p style="color: #6b7280; font-size: 14px; margin: 0;">© 2025 PoultryMarket. All rights reserved.</p>
+          <p style="color: #6b7280; font-size: 14px; margin: 0;">© 2026 PoultryMarket. All rights reserved.</p>
         </div>
       </div>
     </body>
@@ -1361,7 +1361,7 @@ export const emailTemplates = {
           </div>
         </div>
         <div style="background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
-          <p style="color: #6b7280; font-size: 14px; margin: 0;">© 2025 PoultryMarket. All rights reserved.</p>
+          <p style="color: #6b7280; font-size: 14px; margin: 0;">© 2026 PoultryMarket. All rights reserved.</p>
         </div>
       </div>
     </body>
@@ -1414,7 +1414,7 @@ export const emailTemplates = {
           <p style="color: #4b5563; line-height: 1.6; margin: 0 0 20px 0; font-size: 16px;">${message}</p>
         </div>
         <div style="background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
-          <p style="color: #6b7280; font-size: 14px; margin: 0;">© 2025 PoultryMarket. All rights reserved.</p>
+          <p style="color: #6b7280; font-size: 14px; margin: 0;">© 2026 PoultryMarket. All rights reserved.</p>
         </div>
       </div>
     </body>
@@ -1440,7 +1440,7 @@ export const emailTemplates = {
           <p style="color: #4b5563; line-height: 1.6; margin: 0 0 20px 0; font-size: 16px;">${message}</p>
         </div>
         <div style="background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
-          <p style="color: #6b7280; font-size: 14px; margin: 0;">© 2025 PoultryMarket. All rights reserved.</p>
+          <p style="color: #6b7280; font-size: 14px; margin: 0;">© 2026 PoultryMarket. All rights reserved.</p>
         </div>
       </div>
     </body>
@@ -1493,7 +1493,7 @@ export const emailTemplates = {
           <p style="color: #4b5563; line-height: 1.6; margin: 0 0 20px 0; font-size: 16px;">${message}</p>
         </div>
         <div style="background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
-          <p style="color: #6b7280; font-size: 14px; margin: 0;">© 2025 PoultryMarket. All rights reserved.</p>
+          <p style="color: #6b7280; font-size: 14px; margin: 0;">© 2026 PoultryMarket. All rights reserved.</p>
         </div>
       </div>
     </body>
@@ -1522,7 +1522,7 @@ export const emailTemplates = {
           </div>
         </div>
         <div style="background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
-          <p style="color: #6b7280; font-size: 14px; margin: 0;">© 2025 PoultryMarket. All rights reserved.</p>
+          <p style="color: #6b7280; font-size: 14px; margin: 0;">© 2026 PoultryMarket. All rights reserved.</p>
         </div>
       </div>
     </body>
@@ -1589,7 +1589,7 @@ export const emailTemplates = {
             Thank you for choosing PoultryMarket for your fresh poultry needs!
           </p>
           <p style="color: #6b7280; font-size: 12px; margin: 0;">
-            © 2025 PoultryMarket. All rights reserved.
+            © 2026 PoultryMarket. All rights reserved.
           </p>
         </div>
       </div>
@@ -1658,7 +1658,7 @@ export const emailTemplates = {
             Thank you for helping us maintain quality service!
           </p>
           <p style="color: #6b7280; font-size: 12px; margin: 0;">
-            © 2025 PoultryMarket. All rights reserved.
+            © 2026 PoultryMarket. All rights reserved.
           </p>
         </div>
       </div>
@@ -1686,7 +1686,7 @@ export const emailTemplates = {
           <p style="color: #4b5563; line-height: 1.6; margin: 0 0 20px 0; font-size: 16px;">${message}</p>
         </div>
         <div style="background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
-          <p style="color: #6b7280; font-size: 14px; margin: 0;">© 2025 PoultryMarket. All rights reserved.</p>
+          <p style="color: #6b7280; font-size: 14px; margin: 0;">© 2026 PoultryMarket. All rights reserved.</p>
         </div>
       </div>
     </body>
@@ -1841,11 +1841,11 @@ export const emailTemplates = {
             <img src="https://res.cloudinary.com/dgvslio7u/image/upload/v1734690503/poultry-marketplace/logo_hd2q5e.png" alt="PoultryMarket" style="height: 40px; width: auto;">
           </div>
           <p style="color: #64748b; font-size: 14px; margin: 0 0 10px 0; font-weight: 500;">
-            © 2025 PoultryMarket Kenya. All rights reserved.<br>
+            © 2026 PoultryMarket Kenya. All rights reserved.<br>
             Connecting farmers, buyers, and the poultry community across Kenya.
           </p>
           <p style="color: #94a3b8; font-size: 13px; margin: 10px 0 0 0;">
-            Need help? Contact us at <a href="mailto:support@poultrymarketke.com" style="color: #4f46e5; text-decoration: none;">support@poultrymarketke.com</a><br>
+            Need help? Contact us at <a href="mailto:poultrymarket.admin@gmail.com" style="color: #4f46e5; text-decoration: none;">support@poultrymarketke.com</a><br>
             <a href="${process.env.NEXTAUTH_URL}/unsubscribe" style="color: #94a3b8; text-decoration: underline; font-size: 12px;">Unsubscribe from announcements</a>
           </p>
         </div>
@@ -1905,9 +1905,9 @@ export const emailTemplates = {
         <!-- Footer -->
         <div style="background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
           <p style="color: #6b7280; font-size: 14px; margin: 0 0 10px 0;">
-            Need help? Contact our support team at <a href="mailto:epheynyaga@gmail.com" style="color: #059669;">epheynyaga@gmail.com</a>
+            Need help? Contact our support team at <a href="mailto:poultrymarket.admin@gmail.com" style="color: #059669;">poultrymarket.admin@gmail.com</a>
           </p>
-          <p style="color: #6b7280; font-size: 14px; margin: 0;">© 2025 PoultryMarket. All rights reserved.</p>
+          <p style="color: #6b7280; font-size: 14px; margin: 0;">© 2026 PoultryMarket. All rights reserved.</p>
         </div>
       </div>
     </body>
