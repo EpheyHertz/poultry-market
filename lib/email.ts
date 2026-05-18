@@ -390,7 +390,7 @@ export const emailTemplates = {
       status: 'APPROVED' | 'PUBLISHED' | 'REJECTED'
       rejectionReason?: string | null
       decisionAt?: Date | string | null
-      author?: { name?: string | null }
+      author?: { name?: string | null } | null
     },
     options: { appUrl?: string } = {}
   ) => {
