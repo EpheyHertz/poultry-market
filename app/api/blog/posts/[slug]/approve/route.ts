@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { sendBlogStatusUpdateToAuthor } from '@/lib/email';
 import { z } from 'zod';
 
 // Approval/rejection/publish schema
@@ -139,8 +140,20 @@ export async function PATCH(
       }
     });
 
-    // TODO: Send notification email to the author
-    // This would be implemented in the notifications system
+    if (updatedPost.author?.email && ['APPROVED', 'PUBLISHED', 'REJECTED'].includes(updatedPost.status)) {
+      try {
+        await sendBlogStatusUpdateToAuthor({
+          title: updatedPost.title,
+          slug: updatedPost.slug,
+          status: updatedPost.status as 'APPROVED' | 'PUBLISHED' | 'REJECTED',
+          rejectionReason: updatedPost.rejectionReason,
+          decisionAt: updatedPost.approvedAt || updatedPost.rejectedAt || updatedPost.publishedAt || new Date(),
+          author: updatedPost.author,
+        });
+      } catch (emailError) {
+        console.error('Failed to send blog status update email:', emailError);
+      }
+    }
 
     const actionMessages: Record<string, string> = {
       approve: publishImmediately ? 'Blog post approved and published successfully' : 'Blog post approved successfully',

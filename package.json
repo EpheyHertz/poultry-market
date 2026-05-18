@@ -15,7 +15,8 @@
     "farm:jobs:daily": "ts-node --compiler-options {\"module\":\"CommonJS\"} scripts/farm-jobs.ts daily",
     "farm:jobs:weekly": "ts-node --compiler-options {\"module\":\"CommonJS\"} scripts/farm-jobs.ts weekly",
     "farm:jobs:alerts": "ts-node --compiler-options {\"module\":\"CommonJS\"} scripts/farm-jobs.ts alerts",
-    "farm:jobs:subscription-reconcile": "ts-node --compiler-options {\"module\":\"CommonJS\"} scripts/farm-jobs.ts subscription-reconcile"
+    "farm:jobs:subscription-reconcile": "ts-node --compiler-options {\"module\":\"CommonJS\"} scripts/farm-jobs.ts subscription-reconcile",
+    "test:blog-emails": "ts-node --compiler-options \"{\\\"module\\\":\\\"CommonJS\\\"}\" scripts/test-blog-emails.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",

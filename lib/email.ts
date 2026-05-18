@@ -373,7 +373,102 @@ export const emailTemplates = {
                 <tr>
                   <td style="background-color:#0f172a;color:#94a3b8;text-align:center;padding:18px 24px;font-size:12px;">
                     <p style="margin:0;">This message was sent to the PoultryMarket editorial team.</p>
-                    <p style="margin:8px 0 0;">Need to update notification recipients? Adjust the BLOG_ADMIN_EMAIL or SUPPORT_EMAIL environment variables.</p>
+                    <p style="margin:8px 0 0;">Need to update notification recipients? Adjust the BLOG_ADMIN_EMAIL, ADMIN_EMAIL, or SUPPORT_EMAIL environment variables.</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </body>
+    </html>`
+  },
+  blogStatusUpdateAuthor: (
+    payload: {
+      title: string
+      slug?: string | null
+      status: 'APPROVED' | 'PUBLISHED' | 'REJECTED'
+      rejectionReason?: string | null
+      decisionAt?: Date | string | null
+      author?: { name?: string | null }
+    },
+    options: { appUrl?: string } = {}
+  ) => {
+    const baseUrl = (options.appUrl || resolveAppUrl()).replace(/\/$/, '')
+    const dashboardUrl = `${baseUrl}/my-blogs`
+    const authorSlug = toAuthorSlug(payload.author?.name)
+    const postUrl = payload.slug
+      ? `${baseUrl}/blog/${encodeURIComponent(authorSlug)}/${payload.slug}`
+      : dashboardUrl
+    const decisionAt = formatKenyanDateTime(payload.decisionAt)
+    const statusMap = {
+      APPROVED: {
+        title: 'Your blog post was approved',
+        message: 'Great news! Your blog post passed review and will be published soon.',
+        ctaLabel: 'Open my submissions',
+        ctaUrl: dashboardUrl,
+        accent: '#0f766e',
+      },
+      PUBLISHED: {
+        title: 'Your blog post is live',
+        message: 'Your blog post is now live on PoultryMarket. Share it with your audience to boost reach.',
+        ctaLabel: 'View live post',
+        ctaUrl: postUrl,
+        accent: '#2563eb',
+      },
+      REJECTED: {
+        title: 'Your blog post needs updates',
+        message: 'Our editors reviewed your submission and requested a few changes before it can go live.',
+        ctaLabel: 'Review feedback',
+        ctaUrl: dashboardUrl,
+        accent: '#b91c1c',
+      },
+    } as const
+
+    const statusKey = payload.status in statusMap ? payload.status : 'APPROVED'
+    const statusCopy = statusMap[statusKey]
+    const rejectionBlock =
+      payload.status === 'REJECTED' && payload.rejectionReason
+        ? `<div style="margin-top:16px;padding:14px 16px;border-radius:12px;background-color:#fef2f2;border:1px solid #fecaca;color:#991b1b;">
+            <p style="margin:0;font-weight:600;">Feedback from the editor</p>
+            <p style="margin:8px 0 0;line-height:1.6;">${escapeHtml(payload.rejectionReason)}</p>
+          </div>`
+        : ''
+
+    return `<!DOCTYPE html>
+    <html lang="en">
+      <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>${statusCopy.title}</title>
+      </head>
+      <body style="margin:0;padding:0;font-family:'Segoe UI',Arial,sans-serif;background-color:#f8fafc;color:#0f172a;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="padding:24px 0;">
+          <tr>
+            <td align="center">
+              <table role="presentation" width="640" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 20px 35px -30px rgba(15,118,110,0.45);">
+                <tr>
+                  <td style="background-color:${statusCopy.accent};padding:28px 32px;color:#ffffff;">
+                    <h1 style="margin:0;font-size:24px;font-weight:700;">${statusCopy.title}</h1>
+                    <p style="margin:10px 0 0;font-size:14px;color:rgba(255,255,255,0.9);">Decision time: ${decisionAt}</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:28px 32px;">
+                    <p style="margin:0 0 12px;line-height:1.6;">${statusCopy.message}</p>
+                    <div style="background-color:#f1f5f9;border-radius:12px;padding:16px 18px;margin:18px 0;border:1px solid #e2e8f0;">
+                      <p style="margin:0;font-weight:600;color:#0f172a;">${payload.title}</p>
+                      <p style="margin:6px 0 0;font-size:13px;color:#475569;">Status: ${payload.status}</p>
+                    </div>
+                    ${rejectionBlock}
+                    <div style="text-align:center;margin:26px 0 0;">
+                      <a href="${statusCopy.ctaUrl}" style="display:inline-block;background:${statusCopy.accent};color:#ffffff;text-decoration:none;padding:12px 26px;border-radius:999px;font-weight:600;font-size:15px;">${statusCopy.ctaLabel}</a>
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="background-color:#f1f5f9;padding:18px 24px;text-align:center;font-size:12px;color:#64748b;">
+                    <p style="margin:0;">Need help? Reply to this email or contact support.</p>
                   </td>
                 </tr>
               </table>
@@ -1927,6 +2022,23 @@ type BlogEmailOptions = {
   appUrl?: string
 }
 
+type BlogStatusUpdatePayload = {
+  title: string
+  slug?: string | null
+  status: 'APPROVED' | 'PUBLISHED' | 'REJECTED'
+  rejectionReason?: string | null
+  decisionAt?: Date | string | null
+  author?: {
+    id?: string | null
+    name?: string | null
+    email?: string | null
+  } | null
+}
+
+type BlogStatusUpdateOptions = {
+  appUrl?: string
+}
+
 type CommentApprovalEmailPayload = {
   postTitle: string
   postSlug?: string | null
@@ -2013,7 +2125,7 @@ export async function sendBlogSubmissionToAdmin(
   blogPost: BlogEmailPayload,
   options: BlogEmailOptions = {}
 ) {
-  const to = process.env.BLOG_ADMIN_EMAIL || process.env.SUPPORT_EMAIL
+  const to = process.env.BLOG_ADMIN_EMAIL || process.env.ADMIN_EMAIL || process.env.SUPPORT_EMAIL
 
   if (!to) {
     throw new Error('Cannot send blog submission notification without admin email configured')
@@ -2027,6 +2139,35 @@ export async function sendBlogSubmissionToAdmin(
 
   return sendBlogEmail({
     to,
+    subject,
+    html,
+  })
+}
+
+export async function sendBlogStatusUpdateToAuthor(
+  payload: BlogStatusUpdatePayload,
+  options: BlogStatusUpdateOptions = {}
+) {
+  const recipient = payload.author?.email
+
+  if (!recipient) {
+    throw new Error('Cannot send blog status update without author email')
+  }
+
+  const html = emailTemplates.blogStatusUpdateAuthor(payload, {
+    appUrl: options.appUrl,
+  })
+
+  const subjectMap = {
+    APPROVED: `Your blog post was approved: ${payload.title}`,
+    PUBLISHED: `Your blog post is live: ${payload.title}`,
+    REJECTED: `Update needed for your blog post: ${payload.title}`,
+  }
+
+  const subject = subjectMap[payload.status] || `Blog status update: ${payload.title}`
+
+  return sendBlogEmail({
+    to: recipient,
     subject,
     html,
   })

@@ -417,7 +417,7 @@ export async function PUT(
         }
 
         // Send notification to admin
-        const adminEmail = process.env.BLOG_ADMIN_EMAIL || process.env.SUPPORT_EMAIL;
+        const adminEmail = process.env.BLOG_ADMIN_EMAIL || process.env.ADMIN_EMAIL || process.env.SUPPORT_EMAIL;
         if (adminEmail) {
           const adminHtml = emailTemplates.blogSubmissionAdminNotification(
             {

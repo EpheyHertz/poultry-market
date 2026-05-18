@@ -181,6 +181,7 @@ export default function ChatPage() {
   const [isThinking, setIsThinking] = useState(false);
   const [isUploadingImages, setIsUploadingImages] = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
   const [hideHeader, setHideHeader] = useState(false);
   const [selectedImages, setSelectedImages] = useState<SelectedImage[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
@@ -468,6 +469,47 @@ export default function ChatPage() {
       .chat-light .border-white\/30 {
         border-color: rgba(120, 132, 112, 0.28) !important;
       }
+      .history-error-card {
+        border-radius: 16px;
+        border: 1px solid transparent;
+        padding: 14px 16px;
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+      }
+      .chat-dark .history-error-card {
+        background: rgba(24, 30, 26, 0.7);
+        border-color: rgba(120, 140, 120, 0.35);
+        color: #e3ebe3;
+      }
+      .chat-light .history-error-card {
+        background: rgba(255, 255, 255, 0.84);
+        border-color: rgba(120, 130, 120, 0.2);
+        color: #2e3a2f;
+      }
+      .history-error-title {
+        font-weight: 600;
+        letter-spacing: 0.01em;
+      }
+      .history-error-detail {
+        opacity: 0.82;
+      }
+      .history-error-action {
+        border-radius: 999px;
+        border: 1px solid transparent;
+        padding: 6px 12px;
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .chat-dark .history-error-action {
+        background: rgba(56, 72, 60, 0.72);
+        border-color: rgba(130, 150, 130, 0.4);
+        color: #e0eadf;
+      }
+      .chat-light .history-error-action {
+        background: rgba(240, 236, 226, 0.9);
+        border-color: rgba(120, 130, 120, 0.28);
+        color: #2f3a2f;
+      }
       @media (max-width: 640px) {
         .chat-header {
           margin-top: 6px;
@@ -685,7 +727,7 @@ export default function ChatPage() {
       }
     });
 
-    const genericMatches: string[] = content.match(/https?:\/\/\S+/gi) || [];
+    const genericMatches = content.match(/https?:\/\/\S+/gi) || [];
     genericMatches.forEach((url) => {
       const cleaned = url.replace(/[)\],.]+$/, "");
       if (cleaned.includes("cloudinary") || /\.(png|jpe?g|webp|gif)$/i.test(cleaned)) {
@@ -715,31 +757,90 @@ export default function ChatPage() {
     setIsUploadingImages(hasUploading);
   }, [selectedImages]);
 
+  const safeJsonParse = (raw: string) => {
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  };
+
+  const extractHistoryError = (payload: any, raw?: string): string | null => {
+    const detail = payload?.detail || payload?.error || payload?.message || payload?.conversation?.error;
+    if (typeof detail === "string" && detail.trim()) {
+      return detail.replace(/\s+/g, " ").trim();
+    }
+    if (typeof raw === "string" && raw.trim()) {
+      return raw.replace(/\s+/g, " ").trim();
+    }
+    return null;
+  };
+
+  const formatHistoryError = (status: number, payload: any, raw?: string): string => {
+    const detail = extractHistoryError(payload, raw);
+    if (detail && detail.includes("Failed to fetch from FastAPI backend")) {
+      return "Backend unavailable. Check FASTAPI_BASE_URL or BACKEND_BASE_URL in the frontend deployment.";
+    }
+    if (detail) {
+      return `Failed to load conversation history (HTTP ${status}). ${detail}`;
+    }
+    return `Failed to load conversation history (HTTP ${status}).`;
+  };
+
   const loadConversationHistory = async (thread_id: string) => {
     if (!thread_id) return;
     
     setIsLoadingHistory(true);
+    setHistoryError(null);
     try {
       const response = await fetch(`/api/proxy?path=/conversation/${encodeURIComponent(thread_id)}/history`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
         },
+        cache: "no-store",
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        // console.log('📋 Conversation History Response:', data);
-        
-        // Support both backend response formats:
-        // 1) { status: "success", data: {...} }
-        // 2) { success: true, conversation: {...} }
-        const conversationData = data?.data || data?.conversation || null;
-        // console.log('📋 Parsed Conversation Data:', conversationData);
-        
-        // Check if we have the messages array (new backend structure)
-        if (conversationData && conversationData.messages && Array.isArray(conversationData.messages)) {
-          const historyMessages: ChatMessage[] = conversationData.messages.map((msg: any, index: number) => {
+      const raw = await response.text();
+      const data = safeJsonParse(raw);
+
+      if (!response.ok) {
+        setHistoryError(formatHistoryError(response.status, data, raw));
+        setMessages([]);
+        return;
+      }
+
+      if (!data) {
+        setHistoryError("Unexpected response while loading conversation history.");
+        setMessages([]);
+        return;
+      }
+
+      if (data?.success === false) {
+        const detail = extractHistoryError(data);
+        setHistoryError(detail || "Conversation history is unavailable.");
+        setMessages([]);
+        return;
+      }
+
+      if (typeof data?.status === "string" && data.status.toLowerCase() !== "success") {
+        const detail = extractHistoryError(data);
+        setHistoryError(detail || "Conversation history is unavailable.");
+        setMessages([]);
+        return;
+      }
+
+      // console.log('📋 Conversation History Response:', data);
+      
+      // Support both backend response formats:
+      // 1) { status: "success", data: {...} }
+      // 2) { success: true, conversation: {...} }
+      const conversationData = data?.data || data?.conversation || null;
+      // console.log('📋 Parsed Conversation Data:', conversationData);
+      
+      // Check if we have the messages array (new backend structure)
+      if (conversationData && conversationData.messages && Array.isArray(conversationData.messages)) {
+        const historyMessages: ChatMessage[] = conversationData.messages.map((msg: any, index: number) => {
             // Create tools array from search links if present
             const tools: ToolExecution[] = [];
             
@@ -862,6 +963,7 @@ export default function ChatPage() {
           
           // console.log('📋 Converted History Messages:', historyMessages);
           setMessages(historyMessages);
+          setHistoryError(null);
           
           // Log additional conversation metadata
           if (conversationData.summary) {
@@ -876,16 +978,18 @@ export default function ChatPage() {
           if (conversationData.thread_context) {
             // console.log('📋 Thread Context:', conversationData.thread_context);
           }
-        } else {
-          // console.warn('📋 No messages found in conversation history');
-          setMessages([]);
-        }
       } else {
-        console.warn('Failed to load conversation history:', response.status);
+        // console.warn('📋 No messages found in conversation history');
         setMessages([]);
+        setHistoryError(null);
       }
     } catch (error) {
-      console.error('Error loading conversation history:', error);
+      const isOffline = typeof navigator !== "undefined" && navigator.onLine === false;
+      const detail = error instanceof Error ? error.message : String(error);
+      const fallback = isOffline
+        ? "Offline detected. Restore connectivity and retry."
+        : "Failed to load conversation history.";
+      setHistoryError(detail ? `${fallback} ${detail}` : fallback);
       setMessages([]);
     } finally {
       setIsLoadingHistory(false);
@@ -900,6 +1004,7 @@ export default function ChatPage() {
     setMessages([]);
     setThreadId(undefined);
     setIsThinking(false);
+    setHistoryError(null);
     currentToolsRef.current = [];
     
     if (typeof window !== "undefined") {
@@ -1573,6 +1678,12 @@ export default function ChatPage() {
             onRetry={retryMessage} 
             onCopy={copyToClipboard}
             isLoadingHistory={isLoadingHistory}
+            historyError={historyError}
+            onRetryHistory={() => {
+              if (threadId) {
+                loadConversationHistory(threadId);
+              }
+            }}
             onHeaderScrollDirection={(direction) => {
               if (direction === "up") {
                 setHideHeader(true);
@@ -1615,6 +1726,8 @@ function ChatArea({
   onRetry, 
   onCopy,
   isLoadingHistory,
+  historyError,
+  onRetryHistory,
   onHeaderScrollDirection
 }: { 
   messages: ChatMessage[]; 
@@ -1623,6 +1736,8 @@ function ChatArea({
   onRetry: (originalMessage: string, originalImages?: string[]) => void;
   onCopy: (text: string) => Promise<void>;
   isLoadingHistory: boolean;
+  historyError?: string | null;
+  onRetryHistory?: () => void;
   onHeaderScrollDirection?: (direction: "up" | "down") => void;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -1672,6 +1787,27 @@ function ChatArea({
     );
   }
 
+  if (historyError && messages.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-full px-6">
+        <div className="history-error-card max-w-md text-center">
+          <div className="flex items-center justify-center mb-3">
+            <AlertCircle className="w-5 h-5" />
+          </div>
+          <div className="history-error-title">Unable to load conversation</div>
+          <div className="history-error-detail mt-2 text-sm leading-relaxed">{historyError}</div>
+          {onRetryHistory && (
+            <div className="mt-4">
+              <button onClick={onRetryHistory} className="history-error-action">
+                Retry
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="relative h-full">
       <div 
@@ -1679,6 +1815,24 @@ function ChatArea({
         className="h-full overflow-y-auto hide-scrollbar pb-28"
         onScroll={handleScroll}
       >
+        {historyError && messages.length > 0 && (
+          <div className="px-4 pt-4">
+            <div className="history-error-card flex items-start justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="w-4 h-4 mt-0.5" />
+                <div>
+                  <div className="history-error-title text-sm">Conversation history failed to load</div>
+                  <div className="history-error-detail text-xs leading-relaxed mt-1">{historyError}</div>
+                </div>
+              </div>
+              {onRetryHistory && (
+                <button onClick={onRetryHistory} className="history-error-action">
+                  Retry
+                </button>
+              )}
+            </div>
+          </div>
+        )}
         {messages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-center px-8">
             <div className="mb-8">
