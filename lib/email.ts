@@ -19,10 +19,18 @@ type EmailPayload = {
 
 const transporterCache = new Map<MailerAccount, nodemailer.Transporter>()
 
+const normalizeGmailAppPassword = (value?: string) => {
+  if (!value) return undefined
+  const trimmed = value.trim()
+  const unquoted = trimmed.replace(/^['"]|['"]$/g, '')
+  const normalized = unquoted.replace(/\s+/g, '')
+  return normalized || undefined
+}
+
 function resolveMailerConfig(account: MailerAccount): MailerConfig | null {
   if (account === 'reminder') {
     const user = process.env.REMINDER_GMAIL_USER
-    const pass = process.env.REMINDER_GMAIL_APP_PASSWORD
+    const pass = normalizeGmailAppPassword(process.env.REMINDER_GMAIL_APP_PASSWORD)
     if (!user || !pass) return null
     return {
       user,
@@ -34,7 +42,7 @@ function resolveMailerConfig(account: MailerAccount): MailerConfig | null {
 
   if (account === 'notify') {
     const user = process.env.NOTIFY_GMAIL_USER
-    const pass = process.env.NOTIFY_GMAIL_APP_PASSWORD
+    const pass = normalizeGmailAppPassword(process.env.NOTIFY_GMAIL_APP_PASSWORD)
     if (!user || !pass) return null
     return {
       user,
@@ -46,7 +54,7 @@ function resolveMailerConfig(account: MailerAccount): MailerConfig | null {
 
   if (account === 'admin') {
     const user = process.env.ADMIN_GMAIL_USER
-    const pass = process.env.ADMIN_GMAIL_APP_PASSWORD
+    const pass = normalizeGmailAppPassword(process.env.ADMIN_GMAIL_APP_PASSWORD)
     if (!user || !pass) return null
     return {
       user,
@@ -58,7 +66,7 @@ function resolveMailerConfig(account: MailerAccount): MailerConfig | null {
 
   if (account === 'onboard') {
     const user = process.env.ONBOARD_GMAIL_USER
-    const pass = process.env.ONBOARD_GMAIL_APP_PASSWORD
+    const pass = normalizeGmailAppPassword(process.env.ONBOARD_GMAIL_APP_PASSWORD)
     if (!user || !pass) return null
     return {
       user,
@@ -70,7 +78,7 @@ function resolveMailerConfig(account: MailerAccount): MailerConfig | null {
 
   if (account === 'blog') {
     const user = process.env.BLOG_GMAIL_USER
-    const pass = process.env.BLOG_GMAIL_APP_PASSWORD
+    const pass = normalizeGmailAppPassword(process.env.BLOG_GMAIL_APP_PASSWORD)
     if (!user || !pass) return null
     return {
       user,
@@ -81,7 +89,7 @@ function resolveMailerConfig(account: MailerAccount): MailerConfig | null {
   }
 
   const user = process.env.GMAIL_USER
-  const pass = process.env.GMAIL_APP_PASSWORD
+  const pass = normalizeGmailAppPassword(process.env.GMAIL_APP_PASSWORD)
   if (!user || !pass) return null
   return {
     user,
