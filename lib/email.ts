@@ -478,6 +478,71 @@ export const emailTemplates = {
       </body>
     </html>`
   },
+  blogStatusUpdateAdmin: (
+    payload: {
+      title: string
+      slug?: string | null
+      status: 'APPROVED' | 'PUBLISHED' | 'REJECTED'
+      decisionAt?: Date | string | null
+      author?: { name?: string | null; email?: string | null } | null
+      reviewer?: { name?: string | null; email?: string | null } | null
+    },
+    options: { appUrl?: string } = {}
+  ) => {
+    const baseUrl = (options.appUrl || resolveAppUrl()).replace(/\/$/, '')
+    const adminUrl = `${baseUrl}/admin/blog/pending`
+    const authorSlug = toAuthorSlug(payload.author?.name)
+    const postUrl = payload.slug
+      ? `${baseUrl}/blog/${encodeURIComponent(authorSlug)}/${payload.slug}`
+      : adminUrl
+    const decisionAt = formatKenyanDateTime(payload.decisionAt)
+    const authorName = payload.author?.name?.trim() || 'Unknown author'
+    const authorEmail = payload.author?.email || 'Not provided'
+    const reviewerName = payload.reviewer?.name?.trim() || 'Admin'
+
+    return `<!DOCTYPE html>
+    <html lang="en">
+      <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Blog status update</title>
+      </head>
+      <body style="margin:0;padding:0;font-family:'Segoe UI',Arial,sans-serif;background-color:#f8fafc;color:#0f172a;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="padding:24px 0;">
+          <tr>
+            <td align="center">
+              <table role="presentation" width="640" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 20px 35px -30px rgba(15,118,110,0.45);">
+                <tr>
+                  <td style="background-color:#0f172a;padding:24px 32px;color:#ffffff;">
+                    <h1 style="margin:0;font-size:22px;font-weight:700;">Blog status update</h1>
+                    <p style="margin:8px 0 0;font-size:14px;color:rgba(255,255,255,0.8);">${decisionAt}</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:24px 32px;">
+                    <p style="margin:0 0 12px;line-height:1.6;">Post status changed to <strong>${payload.status}</strong> by ${reviewerName}.</p>
+                    <div style="background-color:#f1f5f9;border-radius:12px;padding:16px 18px;margin:18px 0;border:1px solid #e2e8f0;">
+                      <p style="margin:0;font-weight:600;color:#0f172a;">${payload.title}</p>
+                      <p style="margin:6px 0 0;font-size:13px;color:#475569;">Author: ${authorName} (${authorEmail})</p>
+                    </div>
+                    <div style="text-align:center;margin:22px 0 0;">
+                      <a href="${postUrl}" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;padding:12px 26px;border-radius:999px;font-weight:600;font-size:14px;">View post</a>
+                      <a href="${adminUrl}" style="display:inline-block;margin-left:8px;background:#0f766e;color:#ffffff;text-decoration:none;padding:12px 26px;border-radius:999px;font-weight:600;font-size:14px;">Open admin queue</a>
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="background-color:#f1f5f9;padding:18px 24px;text-align:center;font-size:12px;color:#64748b;">
+                    <p style="margin:0;">You are receiving this message because you are an admin.</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </body>
+    </html>`
+  },
   commentApprovedPostAuthor: (
     payload: {
       postTitle: string
@@ -2020,6 +2085,7 @@ export const emailTemplates = {
 
 type BlogEmailOptions = {
   appUrl?: string
+  variant?: 'new' | 'edit'
 }
 
 type BlogStatusUpdatePayload = {
@@ -2036,6 +2102,27 @@ type BlogStatusUpdatePayload = {
 }
 
 type BlogStatusUpdateOptions = {
+  appUrl?: string
+}
+
+type BlogStatusUpdateAdminPayload = {
+  title: string
+  slug?: string | null
+  status: 'APPROVED' | 'PUBLISHED' | 'REJECTED'
+  decisionAt?: Date | string | null
+  author?: {
+    id?: string | null
+    name?: string | null
+    email?: string | null
+  } | null
+  reviewer?: {
+    id?: string | null
+    name?: string | null
+    email?: string | null
+  } | null
+}
+
+type BlogStatusUpdateAdminOptions = {
   appUrl?: string
 }
 
@@ -2108,11 +2195,16 @@ export async function sendBlogSubmissionAcknowledgmentToAuthor(
     throw new Error('Cannot send blog acknowledgment without author email')
   }
 
+  const variant = options.variant || 'new'
   const html = emailTemplates.blogSubmissionAcknowledgment(blogPost, {
     appUrl: options.appUrl,
+    variant,
   })
 
-  const subject = `We received your blog submission: ${blogPost.title}`
+  const subject =
+    variant === 'edit'
+      ? `We received your blog update: ${blogPost.title}`
+      : `We received your blog submission: ${blogPost.title}`
 
   return sendBlogEmail({
     to: recipient,
@@ -2131,11 +2223,16 @@ export async function sendBlogSubmissionToAdmin(
     throw new Error('Cannot send blog submission notification without admin email configured')
   }
 
+  const variant = options.variant || 'new'
   const html = emailTemplates.blogSubmissionAdminNotification(blogPost, {
     appUrl: options.appUrl,
+    variant,
   })
 
-  const subject = `New blog submission awaiting review: ${blogPost.title}`
+  const subject =
+    variant === 'edit'
+      ? `Blog update awaiting review: ${blogPost.title}`
+      : `New blog submission awaiting review: ${blogPost.title}`
 
   return sendBlogEmail({
     to,
@@ -2168,6 +2265,29 @@ export async function sendBlogStatusUpdateToAuthor(
 
   return sendBlogEmail({
     to: recipient,
+    subject,
+    html,
+  })
+}
+
+export async function sendBlogStatusUpdateToAdmin(
+  payload: BlogStatusUpdateAdminPayload,
+  options: BlogStatusUpdateAdminOptions = {}
+) {
+  const to = process.env.BLOG_ADMIN_EMAIL || process.env.ADMIN_EMAIL || process.env.SUPPORT_EMAIL
+
+  if (!to) {
+    throw new Error('Cannot send blog status update without admin email configured')
+  }
+
+  const html = emailTemplates.blogStatusUpdateAdmin(payload, {
+    appUrl: options.appUrl,
+  })
+
+  const subject = `Blog status update: ${payload.title}`
+
+  return sendBlogEmail({
+    to,
     subject,
     html,
   })

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
-import { sendBlogSubmissionAcknowledgmentToAuthor, sendBlogSubmissionToAdmin, emailTemplates, sendBlogEmail } from '@/lib/email';
+import { sendBlogSubmissionAcknowledgmentToAuthor, sendBlogSubmissionToAdmin } from '@/lib/email';
 
 // Update blog post schema
 const updateBlogPostSchema = z.object({
@@ -388,62 +388,40 @@ export async function PUT(
     // Send email notifications if re-approval is required
     if (requiresReapproval) {
       try {
-        // Send confirmation to author
+        const blogEmailPayload = {
+          title: updatedPost.title,
+          slug: updatedPost.slug,
+          category: updatedPost.category,
+          submissionNotes: updatedPost.submissionNotes,
+          featuredImage: updatedPost.featuredImage,
+          readingTime: updatedPost.readingTime,
+          submittedAt: updatedPost.submittedAt || new Date(),
+          author: {
+            id: updatedPost.author.id,
+            name: updatedPost.author.name,
+            email: updatedPost.author.email,
+          },
+          tags: updatedPost.tags,
+        };
+
+        const emailOperations: Promise<unknown>[] = [];
+
         if (updatedPost.author.email) {
-          const authorHtml = emailTemplates.blogSubmissionAcknowledgment(
-            {
-              title: updatedPost.title,
-              slug: updatedPost.slug,
-              category: updatedPost.category,
-              submissionNotes: updatedPost.submissionNotes,
-              featuredImage: updatedPost.featuredImage,
-              readingTime: updatedPost.readingTime,
-              submittedAt: updatedPost.submittedAt || new Date(),
-              author: {
-                id: updatedPost.author.id,
-                name: updatedPost.author.name,
-                email: updatedPost.author.email,
-              },
-              tags: updatedPost.tags,
-            },
-            { variant: 'edit' }
+          emailOperations.push(
+            sendBlogSubmissionAcknowledgmentToAuthor(blogEmailPayload, { variant: 'edit' })
           );
-
-          await sendBlogEmail({
-            to: updatedPost.author.email,
-            subject: `Your blog update "${updatedPost.title}" is under review`,
-            html: authorHtml,
-          });
         }
 
-        // Send notification to admin
-        const adminEmail = process.env.BLOG_ADMIN_EMAIL || process.env.ADMIN_EMAIL || process.env.SUPPORT_EMAIL;
-        if (adminEmail) {
-          const adminHtml = emailTemplates.blogSubmissionAdminNotification(
-            {
-              title: updatedPost.title,
-              slug: updatedPost.slug,
-              category: updatedPost.category,
-              submissionNotes: updatedPost.submissionNotes,
-              featuredImage: updatedPost.featuredImage,
-              readingTime: updatedPost.readingTime,
-              submittedAt: updatedPost.submittedAt || new Date(),
-              author: {
-                id: updatedPost.author.id,
-                name: updatedPost.author.name,
-                email: updatedPost.author.email,
-              },
-              tags: updatedPost.tags,
-            },
-            { variant: 'edit' }
-          );
+        emailOperations.push(
+          sendBlogSubmissionToAdmin(blogEmailPayload, { variant: 'edit' })
+        );
 
-          await sendBlogEmail({
-            to: adminEmail,
-            subject: `Blog Update Pending Review: "${updatedPost.title}"`,
-            html: adminHtml,
-          });
-        }
+        const results = await Promise.allSettled(emailOperations);
+        results.forEach((result) => {
+          if (result.status === 'rejected') {
+            console.error('Blog update notification email failed:', result.reason);
+          }
+        });
       } catch (emailError) {
         console.error('Failed to send blog update notification emails:', emailError);
         // Don't fail the request if email fails

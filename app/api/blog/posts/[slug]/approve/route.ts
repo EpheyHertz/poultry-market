@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { sendBlogStatusUpdateToAuthor } from '@/lib/email';
+import { sendBlogStatusUpdateToAdmin, sendBlogStatusUpdateToAuthor } from '@/lib/email';
 import { z } from 'zod';
 
 // Approval/rejection/publish schema
@@ -140,18 +140,48 @@ export async function PATCH(
       }
     });
 
-    if (updatedPost.author?.email && ['APPROVED', 'PUBLISHED', 'REJECTED'].includes(updatedPost.status)) {
+    if (['APPROVED', 'PUBLISHED', 'REJECTED'].includes(updatedPost.status)) {
+      const decisionAt =
+        updatedPost.approvedAt || updatedPost.rejectedAt || updatedPost.publishedAt || new Date();
+
+      if (updatedPost.author?.email) {
+        try {
+          const result = await sendBlogStatusUpdateToAuthor({
+            title: updatedPost.title,
+            slug: updatedPost.slug,
+            status: updatedPost.status as 'APPROVED' | 'PUBLISHED' | 'REJECTED',
+            rejectionReason: updatedPost.rejectionReason,
+            decisionAt,
+            author: updatedPost.author,
+          });
+
+          if (!result.success) {
+            console.error('Author blog status email failed:', result.error);
+          }
+        } catch (emailError) {
+          console.error('Failed to send blog status update email:', emailError);
+        }
+      }
+
       try {
-        await sendBlogStatusUpdateToAuthor({
+        const adminResult = await sendBlogStatusUpdateToAdmin({
           title: updatedPost.title,
           slug: updatedPost.slug,
           status: updatedPost.status as 'APPROVED' | 'PUBLISHED' | 'REJECTED',
-          rejectionReason: updatedPost.rejectionReason,
-          decisionAt: updatedPost.approvedAt || updatedPost.rejectedAt || updatedPost.publishedAt || new Date(),
+          decisionAt,
           author: updatedPost.author,
+          reviewer: {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+          },
         });
+
+        if (!adminResult.success) {
+          console.error('Admin blog status email failed:', adminResult.error);
+        }
       } catch (emailError) {
-        console.error('Failed to send blog status update email:', emailError);
+        console.error('Failed to send admin blog status update email:', emailError);
       }
     }
 
