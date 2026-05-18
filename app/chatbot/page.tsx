@@ -727,7 +727,7 @@ export default function ChatPage() {
       }
     });
 
-    const genericMatches = content.match(/https?:\/\/\S+/gi) || [];
+    const genericMatches: string[] = content.match(/https?:\/\/\S+/gi) || [];
     genericMatches.forEach((url) => {
       const cleaned = url.replace(/[)\],.]+$/, "");
       if (cleaned.includes("cloudinary") || /\.(png|jpe?g|webp|gif)$/i.test(cleaned)) {
