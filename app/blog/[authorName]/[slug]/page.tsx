@@ -1,6 +1,7 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
+import { seoConfig } from '@/lib/seo';
 import PublicNavbar from '@/components/layout/public-navbar';
 import MobileBlogPost from './mobile-blog-post';
 
@@ -10,6 +11,30 @@ interface Params {
   authorName: string;
   slug: string;
 }
+
+const BRAND_NAME = 'PoultryMarket';
+const MAX_DESCRIPTION_LENGTH = 160;
+
+const buildDescription = (value?: string | null) => {
+  const cleaned = (value ?? '').replace(/\s+/g, ' ').trim();
+  if (!cleaned) {
+    return `Read this article on ${BRAND_NAME}.`;
+  }
+  if (cleaned.length <= MAX_DESCRIPTION_LENGTH) {
+    return cleaned;
+  }
+  return `${cleaned.slice(0, MAX_DESCRIPTION_LENGTH - 3).trimEnd()}...`;
+};
+
+const toAbsoluteUrl = (value?: string | null) => {
+  if (!value) {
+    return null;
+  }
+  if (value.startsWith('http://') || value.startsWith('https://')) {
+    return value;
+  }
+  return `${seoConfig.siteUrl}${value.startsWith('/') ? '' : '/'}${value}`;
+};
 
 async function getBlogPost(authorName: string, slug: string) {
   try {
@@ -276,44 +301,59 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
     };
   }
 
-  // Use AuthorProfile displayName/username if available
   const authorDisplayName = post.authorDisplayName || post.author.name;
-  const authorUsername = post.authorUsername || resolvedParams.authorName;
   const canonicalAuthorPath = post.authorUsername || resolvedParams.authorName;
-  
+  const canonicalUrl = `${seoConfig.siteUrl}/blog/${canonicalAuthorPath}/${post.slug}`;
+  const description = buildDescription(
+    post.metaDescription || post.excerpt || post.ogDescription || ''
+  );
+  const imageUrl =
+    toAbsoluteUrl(post.ogImage) ||
+    toAbsoluteUrl(post.featuredImage) ||
+    toAbsoluteUrl(post.twitterImage) ||
+    seoConfig.images?.[0]?.url ||
+    null;
+  const publishedTime = post.publishedAt
+    ? new Date(post.publishedAt).toISOString()
+    : new Date(post.createdAt).toISOString();
+  const modifiedTime = new Date(post.updatedAt).toISOString();
+
   return {
-    title: `${post.title} | ${authorDisplayName} | Poultry Market Kenya Connect`,
-    description: post.metaDescription || post.excerpt || `Read ${post.title} by ${authorDisplayName} on Poultry Market Kenya Connect`,
+    title: `${post.title} | ${BRAND_NAME}`,
+    description,
     keywords: post.metaKeywords,
     authors: [{ name: authorDisplayName }],
+    alternates: {
+      canonical: canonicalUrl,
+    },
     openGraph: {
-      title: post.ogTitle || post.title,
-      description: post.ogDescription || post.metaDescription || post.excerpt || '',
-      images: post.ogImage || post.featuredImage ? [
-        {
-          url: post.ogImage || post.featuredImage || '',
-          width: 1200,
-          height: 630,
-          alt: post.title,
-        }
-      ] : [],
+      title: `${post.title} | ${BRAND_NAME}`,
+      description,
       type: 'article',
-      publishedTime: post.publishedAt ? new Date(post.publishedAt).toISOString() : new Date(post.createdAt).toISOString(),
+      url: canonicalUrl,
+      publishedTime,
+      modifiedTime,
       authors: [authorDisplayName],
-      url: `https://poultrymarketke.vercel.app/blog/${canonicalAuthorPath}/${post.slug}`,
+      images: imageUrl
+        ? [
+            {
+              url: imageUrl,
+              width: 1200,
+              height: 630,
+              alt: post.title,
+            },
+          ]
+        : seoConfig.images,
     },
     twitter: {
       card: 'summary_large_image',
-      title: post.twitterTitle || post.title,
-      description: post.twitterDescription || post.metaDescription || post.excerpt || '',
-      images: post.twitterImage || post.featuredImage ? [(post.twitterImage || post.featuredImage) as string] : [],
+      title: `${post.title} | ${BRAND_NAME}`,
+      description,
+      images: imageUrl ? [imageUrl] : undefined,
     },
     robots: {
-      index: post.status === 'PUBLISHED',
-      follow: post.status === 'PUBLISHED',
-    },
-    alternates: {
-      canonical: `https://poultrymarketke.vercel.app/blog/${canonicalAuthorPath}/${post.slug}`,
+      index: true,
+      follow: true,
     },
   };
 }
@@ -358,55 +398,44 @@ export default async function BlogPostPage({ params }: { params: Promise<Params>
     ? `/author/${post.authorUsername}` 
     : `/blog/author/${post.author.id}`;
 
-  // Generate structured data for SEO
-  const blogPostingSchema = {
+  const canonicalUrl = `${seoConfig.siteUrl}/blog/${authorUsername}/${post.slug}`;
+  const articleDescription = buildDescription(
+    post.metaDescription || post.excerpt || ''
+  );
+  const articleImage =
+    toAbsoluteUrl(post.ogImage) ||
+    toAbsoluteUrl(post.featuredImage) ||
+    toAbsoluteUrl(post.twitterImage) ||
+    seoConfig.images?.[0]?.url ||
+    undefined;
+
+  const articleSchema = {
     '@context': 'https://schema.org',
-    '@type': 'BlogPosting',
+    '@type': 'Article',
     headline: post.title,
-    description: post.excerpt || post.metaDescription || '',
-    image: post.featuredImage || '',
+    description: articleDescription,
+    image: articleImage ? [articleImage] : undefined,
+    datePublished: post.publishedAt
+      ? new Date(post.publishedAt).toISOString()
+      : new Date(post.createdAt).toISOString(),
+    dateModified: new Date(post.updatedAt).toISOString(),
     author: {
       '@type': 'Person',
       name: authorDisplayName,
-      url: `https://poultrymarketke.vercel.app${authorProfileUrl}`,
-      image: authorAvatarUrl || undefined,
-      description: authorBio || undefined,
+      url: `${seoConfig.siteUrl}${authorProfileUrl}`,
     },
     publisher: {
       '@type': 'Organization',
-      name: 'PoultryMarket Kenya',
+      name: seoConfig.siteName,
       logo: {
         '@type': 'ImageObject',
-        url: 'https://res.cloudinary.com/dgvslio7u/image/upload/v1734690503/poultry-marketplace/logo_hd2q5e.png',
+        url: seoConfig.images?.[0]?.url || `${seoConfig.siteUrl}/images/logo.png`,
       },
     },
-    datePublished: post.publishedAt ? new Date(post.publishedAt).toISOString() : new Date(post.createdAt).toISOString(),
-    dateModified: new Date(post.updatedAt).toISOString(),
     mainEntityOfPage: {
       '@type': 'WebPage',
-      '@id': `https://poultrymarketke.vercel.app/blog/${authorUsername}/${post.slug}`,
+      '@id': canonicalUrl,
     },
-    keywords: post.tags.map(t => t.tag.name).join(', '),
-    articleSection: post.category,
-    wordCount: post.content.split(/\s+/).length,
-    timeRequired: post.readingTime ? `PT${post.readingTime}M` : undefined,
-    interactionStatistic: [
-      {
-        '@type': 'InteractionCounter',
-        interactionType: 'https://schema.org/ReadAction',
-        userInteractionCount: post.viewCount,
-      },
-      {
-        '@type': 'InteractionCounter',
-        interactionType: 'https://schema.org/LikeAction',
-        userInteractionCount: post._count?.likedBy || 0,
-      },
-      {
-        '@type': 'InteractionCounter',
-        interactionType: 'https://schema.org/CommentAction',
-        userInteractionCount: post._count?.comments || 0,
-      },
-    ],
   };
 
   // Person schema for author
@@ -414,7 +443,7 @@ export default async function BlogPostPage({ params }: { params: Promise<Params>
     '@context': 'https://schema.org',
     '@type': 'Person',
     name: authorDisplayName,
-    url: `https://poultrymarketke.vercel.app${authorProfileUrl}`,
+    url: `${seoConfig.siteUrl}${authorProfileUrl}`,
     image: authorAvatarUrl || undefined,
     description: authorBio || undefined,
     sameAs: post.author.socialLinks ? [
@@ -431,25 +460,25 @@ export default async function BlogPostPage({ params }: { params: Promise<Params>
         '@type': 'ListItem',
         position: 1,
         name: 'Home',
-        item: 'https://poultrymarketke.vercel.app',
+        item: seoConfig.siteUrl,
       },
       {
         '@type': 'ListItem',
         position: 2,
         name: 'Blog',
-        item: 'https://poultrymarketke.vercel.app/blog',
+        item: `${seoConfig.siteUrl}/blog`,
       },
       {
         '@type': 'ListItem',
         position: 3,
         name: authorDisplayName,
-        item: `https://poultrymarketke.vercel.app${authorProfileUrl}`,
+        item: `${seoConfig.siteUrl}${authorProfileUrl}`,
       },
       {
         '@type': 'ListItem',
         position: 4,
         name: post.title,
-        item: `https://poultrymarketke.vercel.app/blog/${authorUsername}/${post.slug}`,
+        item: canonicalUrl,
       },
     ],
   };
@@ -458,7 +487,7 @@ export default async function BlogPostPage({ params }: { params: Promise<Params>
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(blogPostingSchema) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(articleSchema) }}
       />
       <script
         type="application/ld+json"

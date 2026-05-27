@@ -1,76 +1,33 @@
-import { MetadataRoute } from 'next'
+import { MetadataRoute } from 'next';
+import { seoConfig } from '@/lib/seo';
 
 export default function robots(): MetadataRoute.Robots {
-  const baseUrl = process.env.NODE_ENV === 'development' 
-    ? 'http://localhost:3000'
-    : process.env.NEXT_PUBLIC_BASE_URL || 'https://poultrymarketke.vercel.app'
-  
+  const baseUrl = seoConfig.siteUrl;
+
   return {
-    rules: [
-      {
-        userAgent: '*',
-        allow: '/',
-        disallow: [
-          '/admin/',
-          '/api/',
-          '/customer/',
-          '/seller/',
-          '/delivery-agent/',
-          '/stakeholder/',
-          '/auth/reset-password/',
-          '/auth/verify-email/',
-          '/_next/',
-          '/private/',
-          '/*.json$',
-          '/search?*',
-        ],
-      },
-      {
-        userAgent: 'Googlebot',
-        allow: [
-          '/',
-          '/products/',
-          '/categories/',
-          '/store/',
-          '/chatbot/',
-          '/announcements/',
-          '/contact/',
-          '/terms/',
-        ],
-        disallow: [
-          '/admin/',
-          '/api/',
-          '/customer/',
-          '/seller/',
-          '/delivery-agent/',
-          '/stakeholder/',
-          '/auth/reset-password/',
-          '/auth/verify-email/',
-        ],
-      },
-      {
-        userAgent: 'bingbot',
-        allow: [
-          '/',
-          '/products/',
-          '/categories/',
-          '/store/',
-          '/chatbot/',
-          '/announcements/',
-          '/contact/',
-          '/terms/',
-        ],
-        disallow: [
-          '/admin/',
-          '/api/',
-          '/customer/',
-          '/seller/',
-          '/delivery-agent/',
-          '/stakeholder/',
-        ],
-      },
+    rules: {
+      userAgent: '*',
+      allow: '/',
+      disallow: [
+        '/admin/',
+        '/api/',
+        '/customer/',
+        '/seller/',
+        '/delivery-agent/',
+        '/stakeholder/',
+        '/auth/',
+        '/my-blogs/',
+        '/order/',
+        '/_next/',
+        '/private/',
+        '/*.json$',
+        '/search?*',
+      ],
+    },
+    sitemap: [
+      `${baseUrl}/sitemap.xml`,
+      `${baseUrl}/blog/sitemap.xml`,
     ],
-    sitemap: `${baseUrl}/sitemap.xml`,
     host: baseUrl,
-  }
+  };
 }
