@@ -148,7 +148,7 @@ function LoginPageContent() {
                 PoultryMarket
               </p>
               <h2 className="mt-3 text-4xl font-semibold text-slate-900 dark:text-slate-100">
-                Welcome Back To Your Poultry Hub
+                Welcome Back To  Poultry Market
               </h2>
               <p className="mt-3 text-lg text-slate-600 dark:text-slate-300">
                 Track orders, manage listings, and keep your buyers updated from one
