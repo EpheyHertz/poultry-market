@@ -1,30 +1,53 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ArrowLeft, Mail, Lock, Send, CheckCircle } from 'lucide-react';
-import { toast } from 'sonner';
+import { ThemeToggleSimple } from '@/components/theme/theme-toggle';
+import { cn } from '@/lib/utils';
+
+type FieldErrors = {
+  email?: string;
+};
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
-  const [error, setError] = useState('');
-  const [isVisible, setIsVisible] = useState(false);
+  const [formError, setFormError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
-  useEffect(() => {
-    setIsVisible(true);
-  }, []);
+  const clearFieldError = (field: keyof FieldErrors) => {
+    setFieldErrors((prev) => ({ ...prev, [field]: undefined }));
+  };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const validate = () => {
+    const nextErrors: FieldErrors = {};
+
+    if (!email.trim()) {
+      nextErrors.email = 'Email is required.';
+    } else if (!EMAIL_PATTERN.test(email)) {
+      nextErrors.email = 'Enter a valid email address.';
+    }
+
+    setFieldErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
+  };
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setFormError('');
+
+    if (!validate()) {
+      return;
+    }
+
     setIsLoading(true);
-    setError('');
 
     try {
       const response = await fetch('/api/auth/forgot-password', {
@@ -39,210 +62,180 @@ export default function ForgotPasswordPage() {
 
       if (response.ok) {
         setIsSubmitted(true);
-        toast.success('Reset link sent to your email!');
+        setSuccessMessage(
+          'If an account exists for this email, a reset link has been sent.'
+        );
       } else {
-        setError(data.error || 'Failed to send reset email');
+        setFormError(data.error || 'Failed to send reset email.');
       }
     } catch (error) {
-      setError('An error occurred. Please try again.');
+      setFormError('Network error. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  if (isSubmitted) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50 via-yellow-50 to-orange-50 relative overflow-hidden">
-        {/* Animated background elements */}
-        <div className="absolute inset-0">
-          <div className="absolute top-20 right-20 w-32 h-32 bg-gradient-to-r from-green-400 to-yellow-400 rounded-full opacity-10 animate-bounce"></div>
-          <div className="absolute bottom-20 left-20 w-24 h-24 bg-gradient-to-r from-orange-400 to-red-400 rounded-full opacity-10 animate-bounce delay-300"></div>
-        </div>
+  const inputBaseClass =
+    'h-11 rounded-none border-0 border-b bg-transparent px-0 text-sm text-slate-900 placeholder:text-slate-400 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 dark:text-slate-100 dark:placeholder:text-slate-500';
 
-        <div className="min-h-screen flex items-center justify-center p-4 relative">
-          <Card className="w-full max-w-md bg-white/80 backdrop-blur-lg shadow-2xl border-0 animate-fade-in">
-            <CardHeader className="text-center space-y-4 pb-8">
-              <div className="flex justify-center">
-                <div className="w-16 h-16 bg-gradient-to-r from-green-500 to-yellow-500 rounded-2xl flex items-center justify-center animate-pulse">
-                  <CheckCircle className="h-8 w-8 text-white" />
-                </div>
-              </div>
-              <CardTitle className="text-3xl font-bold bg-gradient-to-r from-green-600 to-yellow-600 bg-clip-text text-transparent">
-                Check Your Email
-              </CardTitle>
-              <CardDescription className="text-gray-600 text-lg">
-                We&apos;ve sent you a password reset link
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="text-center space-y-6">
-              <div className="p-6 bg-green-50 rounded-2xl border border-green-200">
-                <Mail className="h-12 w-12 text-green-600 mx-auto mb-4" />
-                <p className="text-gray-700 leading-relaxed">
-                  If an account with <strong className="text-green-600">{email}</strong> exists, we&apos;ve sent a password reset link to that email address.
-                </p>
-              </div>
-              
-              <p className="text-sm text-gray-500 bg-yellow-50 p-4 rounded-lg border border-yellow-200">
-                ⏰ The link will expire in 1 hour for security reasons.
-              </p>
-              
-              <div className="space-y-3">
-                <Link href="/auth/login">
-                  <Button className="w-full h-12 bg-gradient-to-r from-green-500 to-yellow-500 hover:from-green-600 hover:to-yellow-600 text-white font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300">
-                    <ArrowLeft className="mr-2 h-5 w-5" />
-                    Back to Login
-                  </Button>
-                </Link>
-                <Button 
-                  variant="ghost" 
-                  className="w-full h-12 text-green-600 hover:text-green-700 hover:bg-green-50 transition-all duration-300"
-                  onClick={() => {
-                    setIsSubmitted(false);
-                    setEmail('');
-                  }}
-                >
-                  <Send className="mr-2 h-4 w-4" />
-                  Send Another Email
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+  const inputClass = (hasError: boolean) =>
+    cn(
+      inputBaseClass,
+      hasError
+        ? 'border-pfs-danger focus-visible:border-pfs-danger'
+        : 'border-slate-300 focus-visible:border-pfs-green dark:border-slate-700 dark:focus-visible:border-pfs-accent'
     );
-  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 via-yellow-50 to-orange-50 relative overflow-hidden">
-      {/* Animated background elements */}
-      <div className="absolute inset-0">
-        <div className="absolute top-20 right-20 w-32 h-32 bg-gradient-to-r from-green-400 to-yellow-400 rounded-full opacity-10 animate-bounce"></div>
-        <div className="absolute bottom-20 left-20 w-24 h-24 bg-gradient-to-r from-orange-400 to-red-400 rounded-full opacity-10 animate-bounce delay-300"></div>
-        <div className="absolute top-1/2 left-10 w-16 h-16 bg-gradient-to-r from-blue-400 to-cyan-400 rounded-full opacity-10 animate-pulse"></div>
+    <main className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-100 font-sans dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
+      <div className="fixed right-4 top-4 z-20">
+        <ThemeToggleSimple />
       </div>
-
-      {/* Back to home button */}
-      <div className="absolute top-6 left-6 z-10">
-        <Link href="/">
-          <Button variant="ghost" className="text-gray-600 hover:text-green-600 hover:bg-white/50 transition-all duration-300">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Home
-          </Button>
-        </Link>
-      </div>
-
-      <div className="min-h-screen flex items-center justify-center p-4 relative">
-        <div className="grid lg:grid-cols-2 gap-12 max-w-6xl w-full items-center">
-          
-          {/* Left side - Information */}
-          <div className={`hidden lg:block space-y-8 transition-all duration-1000 ${isVisible ? 'translate-x-0 opacity-100' : '-translate-x-20 opacity-0'}`}>
-            <div className="space-y-6">
-              <div className="flex items-center space-x-3">
-                <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-yellow-500 rounded-xl flex items-center justify-center">
-                  <span className="text-white font-bold text-2xl">🐔</span>
-                </div>
-                <span className="text-3xl font-bold bg-gradient-to-r from-green-600 to-yellow-600 bg-clip-text text-transparent">
-                  PoultryMarket
-                </span>
-              </div>
-              
-              <h1 className="text-4xl lg:text-5xl font-bold text-gray-800 leading-tight">
-                Reset Your
-                <span className="bg-gradient-to-r from-green-600 to-yellow-600 bg-clip-text text-transparent"> Password</span>
-              </h1>
-              
-              <p className="text-xl text-gray-600 leading-relaxed">
-                Don&apos;t worry! It happens to the best of us. Enter your email address and we&apos;ll send you a secure link to reset your password.
+      <div className="min-h-screen flex items-center justify-center px-4 py-10 sm:px-6">
+        <div className="w-full max-w-5xl lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,420px)] lg:items-center lg:gap-12">
+          <div className="hidden lg:flex lg:flex-col lg:gap-6">
+            <div>
+              <p className="text-xs uppercase tracking-[0.28em] text-pfs-green dark:text-emerald-400">
+                PoultryMarket
+              </p>
+              <h2 className="mt-3 text-4xl font-semibold text-slate-900 dark:text-slate-100">
+                Recover Access In Minutes
+              </h2>
+              <p className="mt-3 text-lg text-slate-600 dark:text-slate-300">
+                We will send a secure reset link that expires in one hour.
               </p>
             </div>
-
-            <div className="space-y-4">
+            <ul className="space-y-3 text-sm text-slate-600 dark:text-slate-300">
               {[
-                { icon: Mail, text: "Secure email verification" },
-                { icon: Lock, text: "Protected password reset" },
-                { icon: CheckCircle, text: "Quick and easy process" }
-              ].map((feature, index) => (
-                <div key={index} className={`flex items-center space-x-3 transition-all duration-700 delay-${index * 200} ${isVisible ? 'translate-x-0 opacity-100' : '-translate-x-10 opacity-0'}`}>
-                  <div className="w-10 h-10 bg-gradient-to-r from-green-500 to-yellow-500 rounded-lg flex items-center justify-center">
-                    <feature.icon className="h-5 w-5 text-white" />
-                  </div>
-                  <span className="text-gray-700 font-medium">{feature.text}</span>
-                </div>
+                'Enter the email used on your account',
+                'Check your inbox and spam folder for the link',
+                'Create a strong password before signing in',
+              ].map((item) => (
+                <li key={item} className="flex items-start gap-3">
+                  <span className="mt-2 h-2 w-2 rounded-full bg-pfs-green dark:bg-emerald-400" />
+                  <span>{item}</span>
+                </li>
               ))}
+            </ul>
+            <div className="rounded-2xl bg-white/70 p-4 text-sm text-slate-600 shadow-sm dark:bg-slate-900/70 dark:text-slate-300">
+              If you no longer have access to this email, contact support for manual
+              verification.
             </div>
           </div>
 
-          {/* Right side - Form */}
-          <div className={`w-full max-w-md mx-auto transition-all duration-1000 delay-300 ${isVisible ? 'translate-x-0 opacity-100' : 'translate-x-20 opacity-0'}`}>
-            <Card className="bg-white/80 backdrop-blur-lg shadow-2xl border-0 hover:shadow-3xl transition-all duration-500">
-              <CardHeader className="text-center space-y-4 pb-8">
-                <div className="flex justify-center">
-                  <div className="w-16 h-16 bg-gradient-to-r from-green-500 to-yellow-500 rounded-2xl flex items-center justify-center animate-pulse">
-                    <Lock className="h-8 w-8 text-white" />
-                  </div>
-                </div>
-                <CardTitle className="text-3xl font-bold bg-gradient-to-r from-green-600 to-yellow-600 bg-clip-text text-transparent">
-                  Forgot Password?
-                </CardTitle>
-                <CardDescription className="text-gray-600 text-lg">
-                  Enter your email to receive a reset link
-                </CardDescription>
-              </CardHeader>
-              
-              <CardContent className="space-y-6">
-                <form onSubmit={handleSubmit} className="space-y-6">
-                  {error && (
-                    <Alert variant="destructive" className="animate-shake">
-                      <AlertDescription>{error}</AlertDescription>
-                    </Alert>
-                  )}
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="email" className="text-gray-700 font-medium">Email Address</Label>
-                    <div className="relative">
-                      <Input
-                        id="email"
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        required
-                        placeholder="Enter your email address"
-                        className="h-12 border-2 border-gray-200 focus:border-green-500 transition-colors duration-300 pl-12"
-                      />
-                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                    </div>
-                  </div>
-                  
-                  <Button 
-                    type="submit" 
-                    className="w-full h-12 bg-gradient-to-r from-green-500 to-yellow-500 hover:from-green-600 hover:to-yellow-600 text-white font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300" 
-                    disabled={isLoading}
+          <div className="w-full sm:max-w-[420px] sm:justify-self-center lg:max-w-none lg:justify-self-end">
+            <div className="w-full">
+              <div className="text-center">
+                <p className="text-xs uppercase tracking-[0.22em] text-pfs-green dark:text-emerald-400">
+                  PoultryMarket
+                </p>
+                <h1 className="mt-3 text-3xl font-semibold text-slate-900 dark:text-slate-100">
+                  Reset Your Password
+                </h1>
+                <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+                  Enter your email and we will send a secure reset link.
+                </p>
+              </div>
+
+              <form onSubmit={handleSubmit} noValidate className="mt-6 space-y-4">
+                {formError && (
+                  <div
+                    role="alert"
+                    className="rounded-md bg-red-50 px-3 py-2 text-sm text-pfs-danger dark:bg-red-950/40"
                   >
-                    {isLoading ? (
-                      <div className="flex items-center space-x-2">
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                        <span>Sending...</span>
-                      </div>
-                    ) : (
-                      <>
-                        <Send className="mr-2 h-5 w-5" />
-                        Send Reset Link
-                      </>
-                    )}
-                  </Button>
-                </form>
-                
-                <div className="text-center">
-                  <Link href="/auth/login" className="inline-flex items-center text-green-600 hover:text-green-700 font-medium transition-colors duration-300 hover:underline">
-                    <ArrowLeft className="mr-2 h-4 w-4" />
-                    Back to Login
-                  </Link>
+                    {formError}
+                  </div>
+                )}
+
+                {successMessage && (
+                  <div
+                    role="status"
+                    className="rounded-md bg-emerald-50 px-3 py-2 text-sm text-pfs-green dark:bg-emerald-950/40"
+                  >
+                    {successMessage}
+                  </div>
+                )}
+
+                <div>
+                  <Label htmlFor="email" className="text-sm text-slate-700 dark:text-slate-200">
+                    Email Address
+                  </Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(event) => {
+                      setEmail(event.target.value);
+                      clearFieldError('email');
+                      setFormError('');
+                      if (isSubmitted) {
+                        setIsSubmitted(false);
+                        setSuccessMessage('');
+                      }
+                    }}
+                    placeholder="you@poultrymarket.com"
+                    aria-invalid={Boolean(fieldErrors.email)}
+                    aria-describedby={
+                      fieldErrors.email ? 'forgot-email-error' : undefined
+                    }
+                    className={inputClass(Boolean(fieldErrors.email))}
+                    disabled={isSubmitted}
+                  />
+                  {fieldErrors.email && (
+                    <p
+                      id="forgot-email-error"
+                      className="mt-1 text-xs text-pfs-danger"
+                      aria-live="polite"
+                    >
+                      {fieldErrors.email}
+                    </p>
+                  )}
                 </div>
-              </CardContent>
-            </Card>
+
+                <Button
+                  type="submit"
+                  disabled={isLoading || isSubmitted}
+                  aria-busy={isLoading}
+                  className="h-11 w-full bg-pfs-green text-white transition-colors duration-150 hover:bg-pfs-green-700 disabled:cursor-not-allowed"
+                >
+                  {isLoading ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                      Sending...
+                    </span>
+                  ) : (
+                    'Send Reset Link'
+                  )}
+                </Button>
+              </form>
+
+              <div className="mt-6 text-center text-sm text-slate-600 dark:text-slate-300">
+                <Link
+                  href="/auth/login"
+                  className="font-semibold text-pfs-green transition-colors duration-150 hover:text-pfs-green-700 dark:text-emerald-400 dark:hover:text-emerald-300"
+                >
+                  Back To Login
+                </Link>
+              </div>
+
+              {isSubmitted && (
+                <div className="mt-4 text-center">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsSubmitted(false);
+                      setSuccessMessage('');
+                    }}
+                    className="text-sm font-semibold text-slate-500 transition-colors duration-150 hover:text-pfs-green dark:text-slate-400 dark:hover:text-emerald-400"
+                  >
+                    Send Another Email
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </main>
   );
 }

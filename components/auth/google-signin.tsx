@@ -145,8 +145,8 @@ export default function GoogleSignIn({ onSuccess, onError, redirectTo }: GoogleS
     <Button
       onClick={handleGoogleSignIn}
       disabled={isLoading}
-      variant="outline"
-      className="w-full"
+      variant="secondary"
+      className="w-full h-11 bg-pfs-muted text-slate-700 shadow-sm transition-colors duration-150 hover:bg-pfs-beige dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
     >
       <Chrome className="w-4 h-4 mr-2" />
       {isLoading ? 'Signing in...' : 'Continue with Google'}
