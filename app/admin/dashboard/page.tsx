@@ -21,6 +21,7 @@ import {
   MapPin,
   ArrowDownToLine,
   BarChart3,
+  Bird,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -40,7 +41,8 @@ export default async function AdminDashboard() {
     pendingApplications,
     recentApplications,
     recentOrders,
-    usersByRole
+    usersByRole,
+    totalFlocks,
   ] = await Promise.all([
     prisma.user.count(),
     prisma.product.count(),
@@ -91,7 +93,8 @@ export default async function AdminDashboard() {
       _count: {
         role: true
       }
-    })
+    }),
+    prisma.livestockFlock.count()
   ]);
 
   const stats = [
@@ -122,6 +125,13 @@ export default async function AdminDashboard() {
       icon: DollarSign,
       description: 'Revenue generated',
       color: 'text-yellow-600'
+    },
+    {
+      title: 'Total Flocks',
+      value: totalFlocks,
+      icon: Bird,
+      description: 'Internal livestock records',
+      color: 'text-emerald-600'
     },
     {
       title: 'Pending Applications',
@@ -234,6 +244,12 @@ export default async function AdminDashboard() {
                 <Button className="w-full" variant="outline">
                   <ShoppingCart className="mr-2 h-4 w-4" />
                   <span className="hidden sm:inline">View </span>Orders
+                </Button>
+              </Link>
+              <Link href="/admin/flocks">
+                <Button className="w-full" variant="outline">
+                  <Bird className="mr-2 h-4 w-4" />
+                  Flocks
                 </Button>
               </Link>
               <Link href="/admin/analytics">

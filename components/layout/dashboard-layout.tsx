@@ -137,6 +137,9 @@ export default function DashboardLayout({ children, user: propUser }: DashboardL
         return [
           ...baseItems,
           { name: 'Farm Management', href: '/farm', icon: MapPin },
+          { name: 'Flocks', href: '/admin/flocks', icon: BarChart3 },
+          { name: 'Lifecycle', href: '/admin/lifecycle', icon: TrendingUp },
+          { name: 'Sync Status', href: '/admin/sync-status', icon: ShieldCheck },
           { name: 'Users', href: '/admin/users', icon: Users },
           { name: 'Products', href: '/admin/products', icon: Package },
           { name: 'Orders', href: '/admin/orders', icon: ShoppingCart },
@@ -166,6 +169,7 @@ export default function DashboardLayout({ children, user: propUser }: DashboardL
         return [
           ...baseItems,
           { name: 'Farm Management', href: '/farm', icon: MapPin },
+          { name: 'Flocks', href: '/seller/flocks', icon: BarChart3 },
           { name: 'My Store', href: '/seller/store', icon: Store },
           { name: 'Store Products', href: '/seller/store/products', icon: Package },
           { name: 'Store Wallet', href: '/seller/store/wallet', icon: Wallet },

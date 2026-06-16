@@ -215,6 +215,42 @@ enum FlockStatus {
   ARCHIVED
 }
 
+enum LivestockBirdType {
+  BROILER
+  LAYER
+  KIENYEJI
+  TURKEY
+  OTHER
+}
+
+enum LivestockFlockStatus {
+  ACTIVE
+  SOLD
+  HARVESTED
+  INACTIVE
+}
+
+enum LivestockDeliveryScope {
+  FARM_PICKUP
+  LOCAL
+  COUNTYWIDE
+  COUNTRYWIDE
+}
+
+enum LivestockProductStage {
+  CHICK
+  GROWER
+  FINISHER
+  READY_FOR_SALE
+  SOLD
+}
+
+enum FlockEventType {
+  FLOCK_CREATED
+  FLOCK_UPDATED
+  FLOCK_DELETED
+}
+
 enum VaccinationStatus {
   SCHEDULED
   COMPLETED
@@ -370,6 +406,7 @@ model User {
   farmMemberships    FarmMember[]
   farmInvitationsSent FarmMember[] @relation("FarmMemberInviter")
   eggRecords          EggRecord[]
+  livestockFlocks     LivestockFlock[]
   flocks              Flock[]
   feedRecords         FeedRecord[]
   mortalityRecords    MortalityRecord[]
@@ -2400,6 +2437,92 @@ model Flock {
   @@index([userId, status])
   @@index([farmId])
   @@map("flocks")
+}
+
+model LivestockFlock {
+  id String @id @default(cuid())
+
+  title       String
+  breed       String
+  birdType    LivestockBirdType
+  quantity    Int
+  location    String
+  status      LivestockFlockStatus @default(ACTIVE)
+  description String              @db.Text
+
+  sellerId String
+  seller   User @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+
+  startRearingDate  DateTime
+  expectedReadyDate DateTime
+  deliveryAvailable Boolean               @default(false)
+  deliveryScope     LivestockDeliveryScope @default(FARM_PICKUP)
+  deliveryNotes     String?               @db.Text
+
+  vaccinationsGiven LivestockFlockVaccination[]
+  medicationsGiven  LivestockFlockMedication[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([sellerId, status])
+  @@index([birdType])
+  @@index([deliveryScope])
+  @@map("livestock_flocks")
+}
+
+model LivestockFlockVaccination {
+  id String @id @default(cuid())
+
+  flockId String
+  flock   LivestockFlock @relation(fields: [flockId], references: [id], onDelete: Cascade)
+
+  name      String
+  dateGiven DateTime
+  nextDue   DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([flockId, dateGiven])
+  @@map("livestock_flock_vaccinations")
+}
+
+model LivestockFlockMedication {
+  id String @id @default(cuid())
+
+  flockId String
+  flock   LivestockFlock @relation(fields: [flockId], references: [id], onDelete: Cascade)
+
+  name         String
+  reason       String
+  dateGiven    DateTime
+  durationDays Int
+
+  createdAt DateTime @default(now())
+
+  @@index([flockId, dateGiven])
+  @@map("livestock_flock_medications")
+}
+
+model PendingEvent {
+  id String @id @default(cuid())
+
+  eventType    FlockEventType
+  entityType   String
+  entityId     String
+  payload      Json
+  status       String   @default("PENDING")
+  errorMessage String?
+  retryCount   Int      @default(0)
+  lastAttemptAt DateTime?
+  sentAt       DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, createdAt])
+  @@index([entityType, entityId])
+  @@map("pending_events")
 }
 
 model EggRecord {

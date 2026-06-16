@@ -7,7 +7,7 @@ import PendingInvitationsCard from '@/components/farm/pending-invitations-card';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Package, ShoppingCart, DollarSign, TrendingUp, Plus, Eye, MapPin } from 'lucide-react';
+import { Package, ShoppingCart, DollarSign, TrendingUp, Plus, Eye, MapPin, Bird } from 'lucide-react';
 import Link from 'next/link';
 
 export default async function SellerDashboard() {
@@ -18,7 +18,7 @@ export default async function SellerDashboard() {
   }
 
   // Fetch seller statistics
-  const [products, orders, totalRevenue, recentOrders] = await Promise.all([
+  const [products, orders, totalRevenue, recentOrders, flocks] = await Promise.all([
     prisma.product.count({
       where: { sellerId: user.id }
     }),
@@ -84,6 +84,9 @@ export default async function SellerDashboard() {
       },
       orderBy: { createdAt: 'desc' },
       take: 5
+    }),
+    prisma.livestockFlock.count({
+      where: { sellerId: user.id }
     })
   ]);
 
@@ -152,6 +155,12 @@ export default async function SellerDashboard() {
       description: 'Total earnings'
     },
     {
+      title: 'Flocks',
+      value: flocks,
+      icon: Bird,
+      description: 'Internal livestock records'
+    },
+    {
       title: 'Growth',
       value: '+12%',
       icon: TrendingUp,
@@ -184,6 +193,12 @@ export default async function SellerDashboard() {
               <Button>
                 <Plus className="mr-2 h-4 w-4" />
                 Add Product
+              </Button>
+            </Link>
+            <Link href="/seller/flocks">
+              <Button variant="outline">
+                <Bird className="mr-2 h-4 w-4" />
+                Manage Flocks
               </Button>
             </Link>
             {user.dashboardSlug && (
@@ -227,6 +242,12 @@ export default async function SellerDashboard() {
                 <Button className="w-full" variant="outline">
                   <Plus className="mr-2 h-4 w-4" />
                   Add Product
+                </Button>
+              </Link>
+              <Link href="/seller/flocks">
+                <Button className="w-full" variant="outline">
+                  <Bird className="mr-2 h-4 w-4" />
+                  Manage Flocks
                 </Button>
               </Link>
               <Link href="/seller/orders">
