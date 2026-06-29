@@ -167,7 +167,7 @@ export async function sendFlockSyncEvent(params: {
   eventType: FlockEventType;
   flock: LivestockFlockRecord;
 }) {
-  const endpoint = process.env.FASTAPI_AI_SYNC_URL;
+  const endpoint = `${process.env.FASTAPI_AI_SYNC_URL}/events`;
   const payload: FlockSyncPayload = {
     event_type: params.eventType,
     entity_type: 'flock',
