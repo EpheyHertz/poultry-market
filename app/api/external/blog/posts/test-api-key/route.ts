@@ -89,12 +89,13 @@ export async function POST(request: Request) {
   }
 
   const [prefix, env, id] = parts;
-  if (!prefix || env === undefined || !id) {
+  if (!prefix || !env || !id) {
     return NextResponse.json({
       ok: false,
       apiKey: { status: 'MISSING_OR_INVALID' },
     });
   }
+
 
   // Query the key record by id.
   // Note: even if the key doesn't exist, we return coarse result.

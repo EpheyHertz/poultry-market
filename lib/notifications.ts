@@ -52,7 +52,7 @@ export async function createNotification(data: NotificationData) {
 
 async function sendEmailNotification(data: NotificationData, userEmail: string, userName: string) {
   try {
-    const account = data.emailProfile || 'notify'
+    const account = data.emailProfile || 'admin'
     // Map notification types to email templates
     let emailTemplate: string
 

@@ -304,6 +304,7 @@ export async function POST(request: Request) {
               type: 'EMAIL',
               title: 'New Blog Submission Pending Approval',
               message: `Blog "${data.title}" was submitted by ${user.name} and is waiting for your review.`,
+              emailProfile: 'blog'
             }),
           ),
         );
