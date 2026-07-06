@@ -437,7 +437,7 @@ function Navbar({ dark, toggleDark }: { dark: boolean; toggleDark: () => void })
               AI Writer
             </motion.a>
             <motion.a
-              href={LINKS.website}
+              href='/auth/register'
               target="_blank"
               rel="noopener noreferrer"
               whileHover={{ scale: 1.04 }}
@@ -492,7 +492,7 @@ function Navbar({ dark, toggleDark }: { dark: boolean; toggleDark: () => void })
                   Start AI Writing
                 </a>
                 <a
-                  href={LINKS.website+"/auth/register"}
+                  href="/auth/register"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-full text-center py-3 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 text-white font-semibold text-[13px]"
