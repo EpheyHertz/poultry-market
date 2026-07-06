@@ -1,13 +1,6 @@
-import nodemailer from 'nodemailer'
+import { Resend } from 'resend'
 
 export type MailerAccount = 'default' | 'reminder' | 'notify' | 'admin' | 'onboard' | 'blog'
-
-type MailerConfig = {
-  user: string
-  pass: string
-  fromName: string
-  fromEmail: string
-}
 
 type EmailPayload = {
   to: string
@@ -17,102 +10,19 @@ type EmailPayload = {
   replyTo?: string
 }
 
-const transporterCache = new Map<MailerAccount, nodemailer.Transporter>()
+const resolveFrom = (account: MailerAccount) => {
+  const emailFrom = process.env.MAIL_DOMAIN
+  if (!emailFrom) return null
 
-const normalizeGmailAppPassword = (value?: string) => {
-  if (!value) return undefined
-  const trimmed = value.trim()
-  const unquoted = trimmed.replace(/^['"]|['"]$/g, '')
-  const normalized = unquoted.replace(/\s+/g, '')
-  return normalized || undefined
-}
+  const atIndex = emailFrom.indexOf('@')
+  const domain = atIndex > 0 ? emailFrom.slice(atIndex + 1) : null
+  if (!domain) return null
 
-function resolveMailerConfig(account: MailerAccount): MailerConfig | null {
-  if (account === 'reminder') {
-    const user = process.env.REMINDER_GMAIL_USER
-    const pass = normalizeGmailAppPassword(process.env.REMINDER_GMAIL_APP_PASSWORD)
-    if (!user || !pass) return null
-    return {
-      user,
-      pass,
-      fromName: process.env.REMINDER_EMAIL_FROM_NAME || 'PoultryMarket Reminders',
-      fromEmail: user,
-    }
-  }
+  const prefix = account
+  const fromEmail = `${prefix}@${domain}`
+  const fromName = prefix
 
-  if (account === 'notify') {
-    const user = process.env.NOTIFY_GMAIL_USER
-    const pass = normalizeGmailAppPassword(process.env.NOTIFY_GMAIL_APP_PASSWORD)
-    if (!user || !pass) return null
-    return {
-      user,
-      pass,
-      fromName: process.env.NOTIFY_EMAIL_FROM_NAME || 'PoultryMarket Notifications',
-      fromEmail: user,
-    }
-  }
-
-  if (account === 'admin') {
-    const user = process.env.ADMIN_GMAIL_USER
-    const pass = normalizeGmailAppPassword(process.env.ADMIN_GMAIL_APP_PASSWORD)
-    if (!user || !pass) return null
-    return {
-      user,
-      pass,
-      fromName: process.env.ADMIN_EMAIL_FROM_NAME || 'PoultryMarket Admin',
-      fromEmail: user,
-    }
-  }
-
-  if (account === 'onboard') {
-    const user = process.env.ONBOARD_GMAIL_USER
-    const pass = normalizeGmailAppPassword(process.env.ONBOARD_GMAIL_APP_PASSWORD)
-    if (!user || !pass) return null
-    return {
-      user,
-      pass,
-      fromName: process.env.ONBOARD_EMAIL_FROM_NAME || 'PoultryMarket Onboarding',
-      fromEmail: user,
-    }
-  }
-
-  if (account === 'blog') {
-    const user = process.env.BLOG_GMAIL_USER
-    const pass = normalizeGmailAppPassword(process.env.BLOG_GMAIL_APP_PASSWORD)
-    if (!user || !pass) return null
-    return {
-      user,
-      pass,
-      fromName: process.env.BLOG_EMAIL_FROM_NAME || 'PoultryMarket Blog',
-      fromEmail: user,
-    }
-  }
-
-  const user = process.env.GMAIL_USER
-  const pass = normalizeGmailAppPassword(process.env.GMAIL_APP_PASSWORD)
-  if (!user || !pass) return null
-  return {
-    user,
-    pass,
-    fromName: process.env.EMAIL_FROM_NAME || 'PoultryMarket',
-    fromEmail: user,
-  }
-}
-
-function getTransporter(account: MailerAccount, config: MailerConfig) {
-  const cached = transporterCache.get(account)
-  if (cached) return cached
-
-  const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: config.user,
-      pass: config.pass,
-    },
-  })
-
-  transporterCache.set(account, transporter)
-  return transporter
+  return { fromName, fromEmail }
 }
 
 export async function sendEmail({
@@ -123,23 +33,36 @@ export async function sendEmail({
   replyTo,
   account = 'default',
 }: EmailPayload & { account?: MailerAccount }) {
-  const config = resolveMailerConfig(account)
-  if (!config) {
-    const message = `Missing Gmail credentials for ${account} mailer`
+  const apiKey = process.env.RESEND_API_KEY
+  if (!apiKey) {
+    const message = 'Missing RESEND_API_KEY env var'
     console.error(message)
     return { success: false, error: new Error(message) }
   }
 
+  const from = resolveFrom(account)
+  if (!from) {
+    const message = 'Missing EMAIL_FROM env var'
+    console.error(message)
+    return { success: false, error: new Error(message) }
+  }
+
+  // requirement: replyTo should be ADMIN_GMAIL_USER
+  // if caller explicitly passes replyTo, we still prefer ADMIN_GMAIL_USER unless it is missing
+  const resolvedReplyTo = process.env.ADMIN_GMAIL_USER || replyTo
+
   try {
-    const transporter = getTransporter(account, config)
-    await transporter.sendMail({
-      from: `"${config.fromName}" <${config.fromEmail}>`,
+    const resend = new Resend(apiKey)
+
+    await resend.emails.send({
+      from: `${from.fromName} <${from.fromEmail}>`,
       to,
       subject,
       html,
       text,
-      ...(replyTo ? { replyTo } : {}),
+      ...(resolvedReplyTo ? { reply_to: resolvedReplyTo } : {}),
     })
+
     return { success: true }
   } catch (error) {
     console.error('Email sending failed:', error)
