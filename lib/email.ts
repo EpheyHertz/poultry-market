@@ -76,15 +76,15 @@ export async function sendEmail({
     // Resend typing expects html/text only if they are strings.
     // Callers may omit either, so only pass defined string values.
    const email = {
-      from: `${from.fromName} <${from.fromEmail}>`,
-      to,
-      subject,
-      html: html ?? "<p>Default email body</p>",
-      text: text ?? "Default email body",
-      replyTo: resolvedReplyTo,
-    };
+    from: `${from.fromName} <${from.fromEmail}>`,
+    to,
+    subject,
+    html: html ?? "<p>Default email body</p>",
+    text: text ?? "Default email body",
+    replyTo: resolvedReplyTo,
+  };
 
-    const result = await resend.emails.send(email);
+  const result = await resend.emails.send(email);
 
     console.log('[EMAIL_SEND_SUCCESS]', {
       debugRequestId,
