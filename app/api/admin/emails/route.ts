@@ -377,12 +377,22 @@ export async function POST(request: NextRequest) {
                   senderName,
                 });
 
-            const result = await sendEmail({
-              to: user.email,
-              subject,
-              account: resolvedProfile,
-              ...(format === 'text' ? { text: emailContent } : { html: emailContent }),
-            });
+            const sendPayload =
+              format === 'text'
+                ? {
+                    to: user.email,
+                    subject,
+                    text: emailContent,
+                    account: resolvedProfile,
+                  }
+                : {
+                    to: user.email,
+                    subject,
+                    html: emailContent,
+                    account: resolvedProfile,
+                  }
+
+            const result = await sendEmail(sendPayload);
 
             if (result.success) {
               results.success++;

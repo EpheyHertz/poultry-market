@@ -33,6 +33,7 @@ export async function sendEmail({
   replyTo,
   account = 'default',
 }: EmailPayload & { account?: MailerAccount }) {
+
   const apiKey = process.env.RESEND_API_KEY
   if (!apiKey) {
     const message = 'Missing RESEND_API_KEY env var'
@@ -52,9 +53,27 @@ export async function sendEmail({
   const resolvedReplyTo = process.env.ADMIN_GMAIL_USER || replyTo
 
   try {
+    // Debug context (avoid dumping html/text)
+    const debugRequestId = `email_${Date.now()}_${Math.random().toString(16).slice(2)}`
+    console.log('[EMAIL_SEND_ATTEMPT]', {
+      debugRequestId,
+      account,
+      to,
+      subject,
+      from: from ? `${from.fromName} <${from.fromEmail}>` : null,
+      replyTo: resolvedReplyTo || null,
+      hasHtml: Boolean(html),
+      hasText: Boolean(text),
+      env: {
+        RESEND_API_KEY: apiKey ? 'set' : 'missing',
+        MAIL_DOMAIN: process.env.MAIL_DOMAIN ? 'set' : 'missing',
+        ADMIN_GMAIL_USER: process.env.ADMIN_GMAIL_USER ? 'set' : 'missing',
+      },
+    })
+
     const resend = new Resend(apiKey)
 
-    await resend.emails.send({
+    const result = await resend.emails.send({
       from: `${from.fromName} <${from.fromEmail}>`,
       to,
       subject,
@@ -63,9 +82,21 @@ export async function sendEmail({
       ...(resolvedReplyTo ? { reply_to: resolvedReplyTo } : {}),
     })
 
-    return { success: true }
+    console.log('[EMAIL_SEND_SUCCESS]', {
+      debugRequestId,
+      to,
+      subject,
+      result,
+    })
+
+    return { success: true, debugRequestId }
   } catch (error) {
-    console.error('Email sending failed:', error)
+    console.error('[EMAIL_SEND_FAILED]', {
+      account,
+      to,
+      subject,
+      err: error,
+    })
     return { success: false, error }
   }
 }
