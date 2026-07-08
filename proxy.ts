@@ -10,9 +10,9 @@ export const config = {
   ],
 };
 
-const allowedOrigins =['http://localhost:3000', 'http://localhost:8081','https://poultrymarketke.vercel.app']
+const allowedOrigins =['http://localhost:3000', 'http://localhost:8081','https://poultrymarketke.vercel.app','poultrymarket.app']
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const origin = request.headers.get('origin');
   const isAllowedOrigin = origin && allowedOrigins.includes(origin);
   const { pathname } = request.nextUrl;

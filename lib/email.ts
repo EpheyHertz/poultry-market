@@ -11,12 +11,16 @@ type EmailPayload = {
 }
 
 const resolveFrom = (account: MailerAccount) => {
-  const emailFrom = process.env.MAIL_DOMAIN
-  if (!emailFrom) return null
+  const mailDomain = process.env.MAIL_DOMAIN
+  if (!mailDomain) return null
 
-  const atIndex = emailFrom.indexOf('@')
-  const domain = atIndex > 0 ? emailFrom.slice(atIndex + 1) : null
-  if (!domain) return null
+  const cleaned = mailDomain.trim()
+  if (!cleaned) return null
+
+  const atIndex = cleaned.indexOf('@')
+  // MAIL_DOMAIN should look like "yourdomain.com" OR "something@yourdomain.com"
+  const domain = atIndex > 0 ? cleaned.slice(atIndex + 1).trim() : cleaned
+  if (!domain || !domain.includes('.') || domain.startsWith('.')) return null
 
   const prefix = account
   const fromEmail = `${prefix}@${domain}`
@@ -43,8 +47,11 @@ export async function sendEmail({
 
   const from = resolveFrom(account)
   if (!from) {
-    const message = 'Missing EMAIL_FROM env var'
-    console.error(message)
+    const message = 'Missing or invalid MAIL_DOMAIN env var (required to construct from address)'
+    console.error(message, {
+      account,
+      MAIL_DOMAIN: process.env.MAIL_DOMAIN,
+    })
     return { success: false, error: new Error(message) }
   }
 
