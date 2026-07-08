@@ -362,7 +362,7 @@ export async function POST(request: NextRequest) {
       await Promise.all(
         batch.map(async (user) => {
           try {
-            const emailContent = format === 'text' 
+            const emailContent = format === 'text'
               ? generateTextEmail({
                   recipientName: user.name || 'Valued Customer',
                   content,
@@ -380,8 +380,8 @@ export async function POST(request: NextRequest) {
             const result = await sendEmail({
               to: user.email,
               subject,
-              html: emailContent,
               account: resolvedProfile,
+              ...(format === 'text' ? { text: emailContent } : { html: emailContent }),
             });
 
             if (result.success) {
