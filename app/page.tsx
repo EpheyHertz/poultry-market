@@ -519,13 +519,14 @@ function Navbar({ dark, toggleDark }: { dark: boolean; toggleDark: () => void })
         </div>
       </nav>
 
+      {/* ── Mobile drawer – fixed width and alignment ── */}
       <div
-        className={`lg:hidden overflow-hidden transition-all duration-300 ease-in-out ${
-          open ? 'max-h-[400px] opacity-100' : 'max-h-0 opacity-0'
+        className={`lg:hidden w-full overflow-x-hidden transition-all duration-300 ease-in-out ${
+          open ? 'max-h-[420px] opacity-100' : 'max-h-0 opacity-0'
         }`}
       >
         <div className="bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800">
-          <div className="px-5 py-5 flex flex-col gap-1">
+          <div className="px-4 sm:px-6 py-5 flex flex-col gap-1">
             {NAV_LINKS.map((l) => (
               <a
                 key={l.label}
@@ -558,7 +559,6 @@ function Navbar({ dark, toggleDark }: { dark: boolean; toggleDark: () => void })
     </motion.header>
   );
 }
-
 /* ─── Hero ────────────────────────────────────────────────────── */
 
 function Hero() {
