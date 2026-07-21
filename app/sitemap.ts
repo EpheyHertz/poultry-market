@@ -1,19 +1,20 @@
 import { MetadataRoute } from 'next';
 import { prisma } from '@/lib/prisma';
-import { seoConfig } from '@/lib/seo';
+import { SITE_URL } from '@/lib/seo';
 
 export const revalidate = 3600;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = seoConfig.siteUrl;
+  const baseUrl = SITE_URL;
   const now = new Date();
 
+  // Static routes — only indexable, canonical, 200-status pages
   const staticRoutes: MetadataRoute.Sitemap = [
     {
       url: baseUrl,
       lastModified: now,
       changeFrequency: 'daily',
-      priority: 1,
+      priority: 1.0,
     },
     {
       url: `${baseUrl}/products`,
@@ -28,19 +29,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.8,
     },
     {
-      url: `${baseUrl}/announcements`,
-      lastModified: now,
-      changeFrequency: 'weekly',
-      priority: 0.6,
-    },
-    {
       url: `${baseUrl}/market-prices`,
-      lastModified: now,
-      changeFrequency: 'weekly',
-      priority: 0.6,
-    },
-    {
-      url: `${baseUrl}/chatbot`,
       lastModified: now,
       changeFrequency: 'weekly',
       priority: 0.6,

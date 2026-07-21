@@ -1,9 +1,13 @@
 // SEO Configuration for PoultryMarket Kenya
+// Single source of truth for base URL — every canonical, sitemap, and OG URL derives from this.
+export const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL || 'https://www.poultrymarket.app';
+
 export const seoConfig = {
   defaultTitle: 'PoultryMarket Kenya - Fresh Poultry Products & Livestock Trading Platform',
   titleTemplate: '%s | PoultryMarket Kenya',
   defaultDescription: 'Kenya\'s leading online marketplace for fresh poultry products, livestock trading, and agricultural supplies. Connect with verified farmers, sellers, and buyers across Kenya. Quality guaranteed.',
-  siteUrl: 'https://poultrymarketke.vercel.app',
+  siteUrl: SITE_URL,
   siteName: 'PoultryMarket Kenya',
   images: [
     {
@@ -44,7 +48,7 @@ export const seoConfig = {
   openGraph: {
     type: 'website',
     locale: 'en_KE',
-    url: 'https://poultrymarketke.vercel.app',
+    url: SITE_URL,
     siteName: 'PoultryMarket Kenya',
     title: 'PoultryMarket Kenya - Fresh Poultry Products & Livestock Trading Platform',
     description: 'Kenya\'s leading online marketplace for fresh poultry products, livestock trading, and agricultural supplies. Connect with verified farmers, sellers, and buyers across Kenya.',
@@ -67,14 +71,19 @@ export const seoConfig = {
   },
   verification: {
     google: 'IgPxvlBVBb5z9Qvfgv34KXZPyVNGQXGtI_XHOS7VMSo',
-    yandex: 'your-yandex-verification-code',
-    bing: 'your-bing-verification-code',
+    // Remove placeholder verification codes - only use real ones
+    // yandex: 'your-yandex-verification-code',
+    // bing: 'your-bing-verification-code',
   },
   alternates: {
-    canonical: 'https://poultrymarketke.vercel.app',
+    canonical: SITE_URL,
     languages: {
-      'en-KE': 'https://poultrymarketke.vercel.app',
-      'sw-KE': 'https://poultrymarketke.vercel.app/sw',
+      'en-KE': SITE_URL,
+      'sw-KE': `${SITE_URL}/sw`,
+    },
+    types: {
+      'application/rss+xml': `${SITE_URL}/blog/feed.xml`,
+      'application/atom+xml': `${SITE_URL}/blog/feed.xml`,
     },
   },
   robots: {
@@ -99,7 +108,7 @@ export const generatePageSEO = (
   image?: string,
   keywords?: string[]
 ) => {
-  const url = `${seoConfig.siteUrl}${path}`;
+  const url = path ? `${SITE_URL}${path.startsWith('/') ? '' : '/'}${path}` : SITE_URL;
   const pageKeywords = keywords ? [...seoConfig.keywords, ...keywords] : seoConfig.keywords;
   
   return {
@@ -128,7 +137,7 @@ export const structuredData = {
     '@context': 'https://schema.org',
     '@type': 'Organization',
     name: 'PoultryMarket Kenya',
-    url: 'https://poultrymarketke.vercel.app',
+    url: SITE_URL,
     logo: 'https://res.cloudinary.com/dgvslio7u/image/upload/v1734690503/poultry-marketplace/logo_hd2q5e.png',
     description: 'Kenya\'s leading online marketplace for fresh poultry products, livestock trading, and agricultural supplies.',
     foundingDate: '2024',
@@ -147,11 +156,14 @@ export const structuredData = {
       '@type': 'ContactPoint',
       telephone: '+254-700-000-000',
       contactType: 'Customer Service',
-      email: 'support@poultrymarketke.com',
+      email: 'support@poultrymarket.app',
     },
     sameAs: [
-      'https://www.facebook.com/groups/4228746564014783/?ref=share&mibextid=NSMWBT',
-      'https://chat.whatsapp.com/IbiitCQgb1KB4Aowo23nBQ',
+      'https://www.facebook.com/share/1HHTXLYaCt/',
+      'https://chat.whatsapp.com/HXLnMynGXW9HAd538Fi2tn',
+      'https://www.instagram.com/poultymarketkenya',
+      'https://www.threads.com/@poultymarketkenya',
+      'https://www.tiktok.com/@poultrymarket.app',
     ],
   },
   
@@ -159,10 +171,10 @@ export const structuredData = {
     '@context': 'https://schema.org',
     '@type': 'WebSite',
     name: 'PoultryMarket Kenya',
-    url: 'https://poultrymarketke.vercel.app',
+    url: SITE_URL,
     potentialAction: {
       '@type': 'SearchAction',
-      target: 'https://poultrymarketke.vercel.app/search?q={search_term_string}',
+      target: `${SITE_URL}/products?q={search_term_string}`,
       'query-input': 'required name=search_term_string',
     },
   },
@@ -171,7 +183,7 @@ export const structuredData = {
     '@context': 'https://schema.org',
     '@type': 'OnlineStore',
     name: 'PoultryMarket Kenya',
-    url: 'https://poultrymarketke.vercel.app',
+    url: SITE_URL,
     description: 'Online marketplace for fresh poultry products and livestock trading in Kenya',
     image: 'https://res.cloudinary.com/dgvslio7u/image/upload/v1734690503/poultry-marketplace/logo_hd2q5e.png',
     priceRange: 'KES 500 - KES 50000',
@@ -196,7 +208,7 @@ export const generateProductStructuredData = (product: any) => ({
   },
   offers: {
     '@type': 'Offer',
-    url: `https://poultrymarketke.vercel.app/product/${product.slug}`,
+    url: `${SITE_URL}/product/${product.slug}`,
     priceCurrency: 'KES',
     price: product.price,
     availability: product.inStock ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
@@ -219,7 +231,7 @@ export const generateBreadcrumbStructuredData = (items: Array<{ name: string; ur
     '@type': 'ListItem',
     position: index + 1,
     name: item.name,
-    item: item.url ? `https://poultrymarketke.vercel.app${item.url}` : undefined,
+    item: item.url ? `${SITE_URL}${item.url.startsWith('/') ? '' : '/'}${item.url}` : undefined,
   })),
 });
 
@@ -239,18 +251,18 @@ export const generateBlogPostingStructuredData = (blog: {
   '@type': 'BlogPosting',
   headline: blog.title,
   description: blog.description,
-  image: blog.image || `${seoConfig.siteUrl}/images/default-blog.jpg`,
+  image: blog.image || `${SITE_URL}/images/default-blog.jpg`,
   author: {
     '@type': 'Person',
     name: blog.author.name,
-    url: blog.author.url || seoConfig.siteUrl,
+    url: blog.author.url || SITE_URL,
   },
   publisher: {
     '@type': 'Organization',
     name: seoConfig.siteName,
     logo: {
       '@type': 'ImageObject',
-      url: `${seoConfig.siteUrl}/images/logo.png`,
+      url: 'https://res.cloudinary.com/dgvslio7u/image/upload/v1734690503/poultry-marketplace/logo_hd2q5e.png',
     },
   },
   datePublished: blog.publishedAt,

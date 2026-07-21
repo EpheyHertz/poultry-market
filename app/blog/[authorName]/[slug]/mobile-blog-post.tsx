@@ -102,7 +102,7 @@ function MobileBlogPost({ post, relatedPosts = [] }: BlogPostPageProps) {
   // Build author profile URL - prefer username-based URL
   const authorProfileUrl = authorUsername 
     ? `/author/${authorUsername}` 
-    : `/blog/author/${post.author.id}`;
+    : `/blog`;
 
   // Track scroll position for back to top/bottom button
   useEffect(() => {

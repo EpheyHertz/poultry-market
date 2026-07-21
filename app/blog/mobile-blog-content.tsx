@@ -695,7 +695,7 @@ export default function MobileBlogContent() {
                                       const authorUsername = post.authorUsername || post.author.username;
                                       const authorAvatar = post.authorAvatarUrl || post.author.avatarUrl || post.author.avatar;
                                       const authorIsVerified = post.authorIsVerified || post.author.isVerified;
-                                      const authorProfileUrl = authorUsername ? `/author/${authorUsername}` : `/blog/author/${post.author.id}`;
+                                      const authorProfileUrl = authorUsername ? `/author/${authorUsername}` : `/blog`;
                                       
                                       return (
                                         <div className="flex items-center space-x-3">
@@ -868,7 +868,7 @@ export default function MobileBlogContent() {
                                       const authorUsername = post.authorUsername || post.author.username;
                                       const authorAvatar = post.authorAvatarUrl || post.author.avatarUrl || post.author.avatar;
                                       const authorIsVerified = post.authorIsVerified || post.author.isVerified;
-                                      const authorProfileUrl = authorUsername ? `/author/${authorUsername}` : `/blog/author/${post.author.id}`;
+                                      const authorProfileUrl = authorUsername ? `/author/${authorUsername}` : `/blog`;
                                       
                                       return (
                                         <div className="flex items-center space-x-2.5">

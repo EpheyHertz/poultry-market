@@ -2,6 +2,7 @@ import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import PublicAuthorProfile from './public-author-profile';
+import {SITE_URL} from "@/lib/seo"
 
 interface PageProps {
   params: Promise<{ username: string }>;
@@ -30,14 +31,19 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   const title = `${profile.displayName} - Author Profile`;
   const description = profile.bio || `Read articles by ${profile.displayName} on PoultryMarket Kenya`;
+  const url = `${SITE_URL}/author/${username}`;
 
   return {
     title,
     description,
+    alternates: {
+      canonical: url,
+    },
     openGraph: {
       title,
       description,
       type: 'profile',
+      url,
       images: profile.avatarUrl ? [{ url: profile.avatarUrl }] : [],
     },
     twitter: {

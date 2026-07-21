@@ -131,9 +131,6 @@ export default function RootLayout({
         <link rel="dns-prefetch" href="//www.google-analytics.com" />
         <link rel="dns-prefetch" href="//www.googletagmanager.com" />
         
-        {/* Canonical URL */}
-        <link rel="canonical" href={seoConfig.siteUrl} />
-        
         {/* Google Search Console Verification */}
         <meta name="google-site-verification" content="IgPxvlBVBb5z9Qvfgv34KXZPyVNGQXGtI_XHOS7VMSo" />
         
@@ -148,10 +145,6 @@ export default function RootLayout({
         <meta name="geo.region" content="KE" />
         <meta name="geo.country" content="Kenya" />
         <meta name="geo.placename" content="Kenya" />
-        
-        {/* Language alternatives */}
-        <link rel="alternate" hrefLang="en-ke" href={seoConfig.siteUrl} />
-        <link rel="alternate" hrefLang="x-default" href={seoConfig.siteUrl} />
       </head>
       <body className={inter.className}>
         <ThemeProvider

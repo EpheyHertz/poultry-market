@@ -2283,7 +2283,7 @@ export async function sendCommentApprovalNotifications(
   if (commentRecipient) {
     const adminBlogUrl =
       payload.commentAuthor?.role === 'ADMIN' && payload.commentAuthor?.id
-        ? `${baseAppUrl}/blog/author/${payload.commentAuthor.id}`
+        ? `${baseAppUrl}/blog`
         : undefined
 
     const html = emailTemplates.commentApprovedCommentAuthor(payload, {

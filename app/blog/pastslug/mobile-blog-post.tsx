@@ -249,7 +249,7 @@ export default function MobileBlogPost({ params, initialPost }: Props) {
                 )}
               </div>
               <div>
-                <Link href={`/blog/author/${post.author.id}`} className="font-medium text-gray-900 hover:text-emerald-600 dark:text-slate-100 dark:hover:text-emerald-400">
+                <Link href="/blog" className="font-medium text-gray-900 hover:text-emerald-600 dark:text-slate-100 dark:hover:text-emerald-400">
                   {post.author.name}
                 </Link>
                 {post.author._count && (
@@ -381,7 +381,7 @@ export default function MobileBlogPost({ params, initialPost }: Props) {
               <div className="flex-1">
                 <h3 className="mb-2 text-xl font-semibold">
                   <Link
-                    href={`/blog/author/${post.author.id}`}
+                    href="/blog"
                     className="transition-colors hover:text-emerald-600 dark:text-slate-100 dark:hover:text-emerald-400"
                   >
                     {post.author.name}

@@ -711,21 +711,27 @@ export default function ChunkedMarkdownContent({
         className
       )}
     >
-      {/* Render visible chunks */}
-      {visibleChunks.map((chunk, index) => (
-        <motion.div
-          key={chunk.id}
-          initial={index === 0 ? false : { opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, ease: 'easeOut' }}
-        >
-          <MarkdownChunk
-            content={chunk.content}
-            accentColor={resolvedAccent}
-            accentSoft={resolvedAccentSoft}
-          />
-        </motion.div>
-      ))}
+      {/* Render ALL chunks — hidden ones remain in the DOM for SEO crawlability.
+          Only the first chunk is visible until the user clicks "Continue Reading". */}
+      {chunks.map((chunk, index) => {
+        const isVisible = index < loadedChunks;
+        return (
+          <motion.div
+            key={chunk.id}
+            initial={index === 0 ? false : { opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, ease: 'easeOut' }}
+            className={isVisible ? '' : 'hidden'}
+            aria-hidden={!isVisible}
+          >
+            <MarkdownChunk
+              content={chunk.content}
+              accentColor={resolvedAccent}
+              accentSoft={resolvedAccentSoft}
+            />
+          </motion.div>
+        );
+      })}
 
       {/* Load More Section - Fixed height container to prevent layout shift */}
       {hasMoreContent && (

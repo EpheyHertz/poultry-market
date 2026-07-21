@@ -1669,7 +1669,7 @@ function Footer() {
 
 /* ─── Root Page ──────────────────────────────────────────────── */
 
-export default function Page() {
+export default function HomePageClient() {
   const [dark, setDark] = useState(false);
 
   useEffect(() => {

@@ -1,5 +1,5 @@
 import { Metadata } from 'next';
-import { seoConfig } from '@/lib/seo';
+import { SITE_URL } from '@/lib/seo';
 
 export const metadata: Metadata = {
   title: 'Shop Poultry Products - Quality Birds, Feed & Equipment',
@@ -13,16 +13,15 @@ export const metadata: Metadata = {
     'poultry marketplace',
     'farm supplies',
     'poultry Kenya',
-    ...seoConfig.keywords,
   ],
   openGraph: {
     title: 'Shop Poultry Products - Quality Birds, Feed & Equipment',
     description: 'Browse our extensive collection of quality poultry products from verified sellers across Kenya.',
-    url: `${seoConfig.siteUrl}/products`,
-    siteName: seoConfig.siteName,
+    url: `${SITE_URL}/products`,
+    siteName: 'PoultryMarket Kenya',
     images: [
       {
-        url: `${seoConfig.siteUrl}/images/products-og.jpg`,
+        url: `${SITE_URL}/images/products-og.jpg`,
         width: 1200,
         height: 630,
         alt: 'PoultryMarket Kenya Products',
@@ -35,10 +34,10 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'Shop Poultry Products - Quality Birds, Feed & Equipment',
     description: 'Browse our extensive collection of quality poultry products from verified sellers across Kenya.',
-    images: [`${seoConfig.siteUrl}/images/products-og.jpg`],
+    images: [`${SITE_URL}/images/products-og.jpg`],
   },
   alternates: {
-    canonical: `${seoConfig.siteUrl}/products`,
+    canonical: `${SITE_URL}/products`,
   },
   robots: {
     index: true,
@@ -64,11 +63,11 @@ export default function ProductsLayout({
     '@type': 'CollectionPage',
     name: 'Poultry Products',
     description: 'Browse our extensive collection of quality poultry products from verified sellers across Kenya.',
-    url: `${seoConfig.siteUrl}/products`,
+    url: `${SITE_URL}/products`,
     isPartOf: {
       '@type': 'WebSite',
-      name: seoConfig.siteName,
-      url: seoConfig.siteUrl,
+      name:"Poultry Market Kenya",
+      url: SITE_URL,
     },
     breadcrumb: {
       '@type': 'BreadcrumbList',
@@ -77,13 +76,13 @@ export default function ProductsLayout({
           '@type': 'ListItem',
           position: 1,
           name: 'Home',
-          item: seoConfig.siteUrl,
+          item: SITE_URL,
         },
         {
           '@type': 'ListItem',
           position: 2,
           name: 'Products',
-          item: `${seoConfig.siteUrl}/products`,
+          item: `${SITE_URL}/products`,
         },
       ],
     },

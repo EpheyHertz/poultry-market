@@ -1,7 +1,7 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
-import { seoConfig } from '@/lib/seo';
+import { seoConfig, SITE_URL } from '@/lib/seo';
 import PublicNavbar from '@/components/layout/public-navbar';
 import MobileBlogPost from './mobile-blog-post';
 
@@ -33,7 +33,7 @@ const toAbsoluteUrl = (value?: string | null) => {
   if (value.startsWith('http://') || value.startsWith('https://')) {
     return value;
   }
-  return `${seoConfig.siteUrl}${value.startsWith('/') ? '' : '/'}${value}`;
+  return `${SITE_URL}${value.startsWith('/') ? '' : '/'}${value}`;
 };
 
 async function getBlogPost(authorName: string, slug: string) {
@@ -303,7 +303,7 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
 
   const authorDisplayName = post.authorDisplayName || post.author.name;
   const canonicalAuthorPath = post.authorUsername || resolvedParams.authorName;
-  const canonicalUrl = `${seoConfig.siteUrl}/blog/${canonicalAuthorPath}/${post.slug}`;
+  const canonicalUrl = `${SITE_URL}/blog/${canonicalAuthorPath}/${post.slug}`;
   const description = buildDescription(
     post.metaDescription || post.excerpt || post.ogDescription || ''
   );
@@ -396,9 +396,9 @@ export default async function BlogPostPage({ params }: { params: Promise<Params>
   const authorBio = post.authorBio || post.author.bio;
   const authorProfileUrl = post.authorUsername 
     ? `/author/${post.authorUsername}` 
-    : `/blog/author/${post.author.id}`;
+    : `/blog`;
 
-  const canonicalUrl = `${seoConfig.siteUrl}/blog/${authorUsername}/${post.slug}`;
+  const canonicalUrl = `${SITE_URL}/blog/${authorUsername}/${post.slug}`;
   const articleDescription = buildDescription(
     post.metaDescription || post.excerpt || ''
   );
@@ -411,7 +411,7 @@ export default async function BlogPostPage({ params }: { params: Promise<Params>
 
   const articleSchema = {
     '@context': 'https://schema.org',
-    '@type': 'Article',
+    '@type': 'BlogPosting',
     headline: post.title,
     description: articleDescription,
     image: articleImage ? [articleImage] : undefined,
@@ -422,14 +422,14 @@ export default async function BlogPostPage({ params }: { params: Promise<Params>
     author: {
       '@type': 'Person',
       name: authorDisplayName,
-      url: `${seoConfig.siteUrl}${authorProfileUrl}`,
+      url: `${SITE_URL}${authorProfileUrl}`,
     },
     publisher: {
       '@type': 'Organization',
       name: seoConfig.siteName,
       logo: {
         '@type': 'ImageObject',
-        url: seoConfig.images?.[0]?.url || `${seoConfig.siteUrl}/images/logo.png`,
+        url: seoConfig.images?.[0]?.url || `${SITE_URL}/images/logo.png`,
       },
     },
     mainEntityOfPage: {
@@ -443,7 +443,7 @@ export default async function BlogPostPage({ params }: { params: Promise<Params>
     '@context': 'https://schema.org',
     '@type': 'Person',
     name: authorDisplayName,
-    url: `${seoConfig.siteUrl}${authorProfileUrl}`,
+    url: `${SITE_URL}${authorProfileUrl}`,
     image: authorAvatarUrl || undefined,
     description: authorBio || undefined,
     sameAs: post.author.socialLinks ? [
@@ -460,19 +460,19 @@ export default async function BlogPostPage({ params }: { params: Promise<Params>
         '@type': 'ListItem',
         position: 1,
         name: 'Home',
-        item: seoConfig.siteUrl,
+        item: SITE_URL,
       },
       {
         '@type': 'ListItem',
         position: 2,
         name: 'Blog',
-        item: `${seoConfig.siteUrl}/blog`,
+        item: `${SITE_URL}/blog`,
       },
       {
         '@type': 'ListItem',
         position: 3,
         name: authorDisplayName,
-        item: `${seoConfig.siteUrl}${authorProfileUrl}`,
+        item: `${SITE_URL}${authorProfileUrl}`,
       },
       {
         '@type': 'ListItem',

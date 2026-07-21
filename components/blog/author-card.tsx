@@ -76,7 +76,7 @@ export default function AuthorCard({
 
   const authorUrl = authorUsername 
     ? `/author/${authorUsername}` 
-    : `/blog/author/${author.id}`;
+    : `/blog`;
 
   const formatDate = (date: string | Date) => {
     return new Date(date).toLocaleDateString('en-US', {

@@ -308,7 +308,7 @@ export default function PublicAuthorProfile({ profile }: PublicAuthorProfileProp
                     asChild 
                     className="border-0 shadow-md hover:shadow-lg transition-all duration-200 bg-white/90 dark:bg-slate-800/80"
                   >
-                    <Link href={`/blog/author/${profile.user.id}`}>
+                    <Link href={`/author/${profile.username}`}>
                       <ExternalLink className="h-4 w-4 mr-2 text-blue-600 dark:text-blue-400" />
                       View Full Profile
                     </Link>
@@ -769,7 +769,7 @@ export default function PublicAuthorProfile({ profile }: PublicAuthorProfileProp
               variant="outline" 
               className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 bg-gradient-to-r from-emerald-50 to-blue-50 dark:from-emerald-900/20 dark:to-blue-900/20"
             >
-              <Link href={`/blog/author/${profile.user.id}`} className="flex items-center gap-2">
+              <Link href={`/author/${profile.username}`} className="flex items-center gap-2">
                 <TrendingUp className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                 <span className="bg-gradient-to-r from-emerald-600 to-blue-600 bg-clip-text text-transparent font-medium">
                   View Full Author Profile & Analytics

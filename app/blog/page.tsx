@@ -2,7 +2,7 @@ import { Suspense } from 'react';
 import { Metadata } from 'next';
 import PublicNavbar from '@/components/layout/public-navbar';
 import MobileBlogContent from './mobile-blog-content';
-import { seoConfig } from '@/lib/seo';
+import { SITE_URL } from '@/lib/seo';
 
 export const metadata: Metadata = {
   title: 'Poultry Blog - Expert Insights, Tips & Industry News',
@@ -18,17 +18,16 @@ export const metadata: Metadata = {
     'chicken farming tips',
     'poultry diseases',
     'poultry management',
-    ...seoConfig.keywords.slice(0, 5),
   ],
   openGraph: {
     title: 'Poultry Blog - Expert Insights & Industry News',
     description: 'Stay informed with the latest poultry industry insights, farming tips, and expert advice from professionals.',
     type: 'website',
-    url: `${seoConfig.siteUrl}/blog`,
-    siteName: seoConfig.siteName,
+    url: `${SITE_URL}/blog`,
+    siteName: 'PoultryMarket Kenya',
     images: [
       {
-        url: `${seoConfig.siteUrl}/images/blog-og.jpg`,
+        url: `${SITE_URL}/images/blog-og.jpg`,
         width: 1200,
         height: 630,
         alt: 'PoultryMarket Kenya Blog',
@@ -40,10 +39,10 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'Poultry Blog - Expert Insights & Industry News',
     description: 'Stay informed with the latest poultry industry insights, farming tips, and expert advice.',
-    images: [`${seoConfig.siteUrl}/images/blog-og.jpg`],
+    images: [`${SITE_URL}/images/blog-og.jpg`],
   },
   alternates: {
-    canonical: `${seoConfig.siteUrl}/blog`,
+    canonical: `${SITE_URL}/blog`,
   },
   robots: {
     index: true,
@@ -102,20 +101,20 @@ export default function BlogPage() {
     '@type': 'Blog',
     name: 'PoultryMarket Kenya Blog',
     description: 'Expert insights, tips, and advice for the poultry industry in Kenya.',
-    url: `${seoConfig.siteUrl}/blog`,
+    url: `${SITE_URL}/blog`,
     publisher: {
       '@type': 'Organization',
-      name: seoConfig.siteName,
+      name: SITE_URL,
       logo: {
         '@type': 'ImageObject',
-        url: `${seoConfig.siteUrl}/images/logo.png`,
+        url: `${SITE_URL}/images/logo.png`,
       },
     },
     inLanguage: 'en-KE',
     isPartOf: {
       '@type': 'WebSite',
-      name: seoConfig.siteName,
-      url: seoConfig.siteUrl,
+      name: "Poultry Market Kenya",
+      url: SITE_URL,
     },
   };
 
@@ -127,13 +126,13 @@ export default function BlogPage() {
         '@type': 'ListItem',
         position: 1,
         name: 'Home',
-        item: seoConfig.siteUrl,
+        item:SITE_URL,
       },
       {
         '@type': 'ListItem',
         position: 2,
         name: 'Blog',
-        item: `${seoConfig.siteUrl}/blog`,
+        item: `${SITE_URL}/blog`,
       },
     ],
   };
