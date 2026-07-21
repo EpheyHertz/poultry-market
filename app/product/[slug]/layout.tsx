@@ -1,5 +1,7 @@
 import { Metadata } from 'next';
 import { prisma } from '@/lib/prisma';
+
+export const dynamic = 'force-dynamic';
 import { seoConfig, generateProductStructuredData, generateBreadcrumbStructuredData } from '@/lib/seo';
 import { notFound } from 'next/navigation';
 

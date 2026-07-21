@@ -4,6 +4,8 @@ import { prisma } from '@/lib/prisma';
 import PublicNavbar from '@/components/layout/public-navbar';
 import MobileBlogPost from './mobile-blog-post';
 
+export const dynamic = 'force-dynamic';
+
 interface Props {
   params: Promise<{
     slug: string;

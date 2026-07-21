@@ -2,10 +2,11 @@ import { SITE_URL } from '@/lib/seo';
 import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export async function GET() {
   const posts = await prisma.blogPost.findMany({
-    where: { status: 'PUBLISHED' },
+    where: { status: 'PUBLISHED', publishedAt: { not: null } },
     orderBy: { publishedAt: 'desc' },
     take: 20,
     select: {
@@ -26,8 +27,8 @@ export async function GET() {
       post.authorProfile?.username ||
       post.author.name.toLowerCase().replace(/\s+/g, '-');
     const postUrl = `${SITE_URL}/blog/${authorPath}/${post.slug}`;
-    const pubDate = new Date(post.publishedAt).toUTCString();
-    const updatedDate = new Date(post.updatedAt).toUTCString();
+    const pubDate = new Date(post.publishedAt ?? Date.now()).toUTCString();
+    const updatedDate = new Date(post.updatedAt ?? post.publishedAt ?? Date.now()).toUTCString();
 
     return `    <item>
       <title>${escapeXml(post.title)}</title>

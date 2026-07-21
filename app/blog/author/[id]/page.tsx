@@ -1,6 +1,8 @@
 ﻿import { permanentRedirect, redirect } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 
+export const dynamic = 'force-dynamic';
+
 interface PageProps {
   params: { id: string };
 }

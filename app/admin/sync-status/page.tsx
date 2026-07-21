@@ -1,6 +1,8 @@
 import { redirect } from 'next/navigation';
 import { formatDistanceToNow } from 'date-fns';
 import { prisma } from '@/lib/prisma';
+
+export const dynamic = 'force-dynamic';
 import { getCurrentUser } from '@/lib/auth';
 import DashboardLayout from '@/components/layout/dashboard-layout';
 import { DashboardContent, DashboardGrid, DashboardCard, DashboardSection } from '@/components/layout/dashboard-content';

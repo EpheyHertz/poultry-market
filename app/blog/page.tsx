@@ -4,58 +4,67 @@ import PublicNavbar from '@/components/layout/public-navbar';
 import MobileBlogContent from './mobile-blog-content';
 import { SITE_URL } from '@/lib/seo';
 
-export const metadata: Metadata = {
-  title: 'Poultry Blog - Expert Insights, Tips & Industry News',
-  description: 'Discover the latest insights, tips, and expert advice in the poultry industry. From farming techniques to market trends, stay informed with comprehensive guides and articles.',
-  keywords: [
-    'poultry blog',
-    'farming tips',
-    'poultry health',
-    'feed nutrition',
-    'market trends',
-    'industry news',
-    'poultry farming Kenya',
-    'chicken farming tips',
-    'poultry diseases',
-    'poultry management',
-  ],
-  openGraph: {
-    title: 'Poultry Blog - Expert Insights & Industry News',
-    description: 'Stay informed with the latest poultry industry insights, farming tips, and expert advice from professionals.',
-    type: 'website',
-    url: `${SITE_URL}/blog`,
-    siteName: 'PoultryMarket Kenya',
-    images: [
-      {
-        url: `${SITE_URL}/images/blog-og.jpg`,
-        width: 1200,
-        height: 630,
-        alt: 'PoultryMarket Kenya Blog',
-      },
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+export function generateMetadata(): Metadata {
+  return {
+    title: 'Poultry Blog - Expert Insights, Tips & Industry News',
+    description: 'Discover the latest insights, tips, and expert advice in the poultry industry. From farming techniques to market trends, stay informed with comprehensive guides and articles.',
+    keywords: [
+      'poultry blog',
+      'farming tips',
+      'poultry health',
+      'feed nutrition',
+      'market trends',
+      'industry news',
+      'poultry farming Kenya',
+      'chicken farming tips',
+      'poultry diseases',
+      'poultry management',
     ],
-    locale: 'en_KE',
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'Poultry Blog - Expert Insights & Industry News',
-    description: 'Stay informed with the latest poultry industry insights, farming tips, and expert advice.',
-    images: [`${SITE_URL}/images/blog-og.jpg`],
-  },
-  alternates: {
-    canonical: `${SITE_URL}/blog`,
-  },
-  robots: {
-    index: true,
-    follow: true,
-    googleBot: {
+    openGraph: {
+      title: 'Poultry Blog - Expert Insights & Industry News',
+      description: 'Stay informed with the latest poultry industry insights, farming tips, and expert advice from professionals.',
+      type: 'website',
+      url: `${SITE_URL}/blog`,
+      siteName: 'PoultryMarket Kenya',
+      images: [
+        {
+          url: `${SITE_URL}/images/blog-og.jpg`,
+          width: 1200,
+          height: 630,
+          alt: 'PoultryMarket Kenya Blog',
+        },
+      ],
+      locale: 'en_KE',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: 'Poultry Blog - Expert Insights & Industry News',
+      description: 'Stay informed with the latest poultry industry insights, farming tips, and expert advice.',
+      images: [`${SITE_URL}/images/blog-og.jpg`],
+    },
+    alternates: {
+      canonical: `${SITE_URL}/blog`,
+      types: {
+        'application/rss+xml': `${SITE_URL}/blog/feed.xml`,
+        'application/atom+xml': `${SITE_URL}/blog/feed.xml`,
+      },
+    },
+    robots: {
       index: true,
       follow: true,
-      'max-video-preview': -1,
-      'max-image-preview': 'large',
-      'max-snippet': -1,
+      googleBot: {
+        index: true,
+        follow: true,
+        'max-video-preview': -1,
+        'max-image-preview': 'large',
+        'max-snippet': -1,
+      },
     },
-  },
-};
+  };
+}
 
 function BlogLoadingSkeleton() {
   return (

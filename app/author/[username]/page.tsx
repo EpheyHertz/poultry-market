@@ -1,6 +1,8 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
+
+export const dynamic = 'force-dynamic';
 import PublicAuthorProfile from './public-author-profile';
 import {SITE_URL} from "@/lib/seo"
 
