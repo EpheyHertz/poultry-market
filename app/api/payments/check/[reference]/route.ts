@@ -17,7 +17,7 @@ export async function GET(
     // Check payment status with Lipia API
     const statusResponse = await checkPaymentStatus(reference);
     
-    // Get a simplified summary for frontend use
+    // Get a simplified summary for frontend use very nice
     const paymentSummary = getPaymentSummary(statusResponse);
 
     return NextResponse.json({
