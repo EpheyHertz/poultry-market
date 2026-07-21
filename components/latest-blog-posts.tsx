@@ -57,16 +57,18 @@ export default async function LatestBlogPosts() {
                 className="bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300 overflow-hidden flex flex-col"
               >
                 <div className="p-6 flex-1 flex flex-col">
-                  <time
-                    dateTime={post.publishedAt.toISOString()}
-                    className="text-sm text-gray-500 dark:text-gray-400 mb-2"
-                  >
-                    {new Date(post.publishedAt).toLocaleDateString('en-US', {
-                      year: 'numeric',
-                      month: 'short',
-                      day: 'numeric',
-                    })}
-                  </time>
+                  {post.publishedAt && (
+                    <time
+                      dateTime={post.publishedAt.toISOString()}
+                      className="text-sm text-gray-500 dark:text-gray-400 mb-2"
+                    >
+                      {new Date(post.publishedAt).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                      })}
+                    </time>
+                  )}
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3 line-clamp-2">
                     <Link href={postUrl} className="hover:text-orange-500 transition-colors">
                       {post.title}
