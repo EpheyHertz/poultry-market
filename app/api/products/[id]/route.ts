@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'
 import { sendEmail } from '@/lib/email'
 import { generateProductUpdateEmail, type ProductUpdateEmailData } from '@/lib/email-templates'
+import { submitPathToIndexNow } from '@/lib/indexnow'
 import { ProductType } from '@prisma/client'
 import { formatProductTypeLabel } from '@/lib/utils'
 
@@ -182,6 +183,18 @@ export async function PUT(
       // Don't fail the request if email fails
     }
 
+    // Notify search engines about the updated product page (fire-and-forget)
+    try {
+      const productPath = `/product/${updatedProduct.slug || updatedProduct.id}`
+      const indexNowResult = await submitPathToIndexNow(productPath, 'updated')
+      if (!indexNowResult.ok) {
+        console.warn(`IndexNow product update submission failed (${indexNowResult.status}): ${indexNowResult.message}`)
+      }
+    } catch (indexNowError) {
+      console.error('Failed to notify IndexNow about updated product:', indexNowError)
+      // Don't fail the request if IndexNow fails
+    }
+
     return NextResponse.json(updatedProduct)
   } catch (error) {
     console.error('Error updating product:', error)
@@ -216,6 +229,18 @@ export async function DELETE(
     await prisma.product.delete({
       where: { id: id }
     })
+
+    // Notify search engines that the product page is gone (fire-and-forget)
+    try {
+      const productPath = `/product/${product.slug || product.id}`
+      const indexNowResult = await submitPathToIndexNow(productPath, 'deleted')
+      if (!indexNowResult.ok) {
+        console.warn(`IndexNow product delete submission failed (${indexNowResult.status}): ${indexNowResult.message}`)
+      }
+    } catch (indexNowError) {
+      console.error('Failed to notify IndexNow about deleted product:', indexNowError)
+      // Don't fail the request if IndexNow fails
+    }
 
     return NextResponse.json({ message: 'Product deleted successfully' })
   } catch (error) {

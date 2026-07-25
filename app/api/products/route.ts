@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'
 import { createNotification } from '@/lib/notifications'
 import { sendEmail } from '@/lib/email'
+import { submitPathToIndexNow } from '@/lib/indexnow'
 import { ProductType } from '@prisma/client'
 import { formatProductTypeLabel } from '@/lib/utils'
 
@@ -218,6 +219,18 @@ export async function POST(request: NextRequest) {
     } catch (notificationError) {
       console.error('Failed to send admin notification:', notificationError)
       // Don't fail product creation if notification fails
+    }
+
+    // Notify search engines about the new product page (fire-and-forget)
+    try {
+      const productPath = `/product/${product.slug || product.id}`
+      const indexNowResult = await submitPathToIndexNow(productPath, 'created')
+      if (!indexNowResult.ok) {
+        console.warn(`IndexNow product create submission failed (${indexNowResult.status}): ${indexNowResult.message}`)
+      }
+    } catch (indexNowError) {
+      console.error('Failed to notify IndexNow about new product:', indexNowError)
+      // Don't fail product creation if IndexNow fails
     }
 
     return NextResponse.json(product)

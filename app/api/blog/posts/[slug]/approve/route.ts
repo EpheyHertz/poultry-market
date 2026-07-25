@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { sendBlogStatusUpdateToAdmin, sendBlogStatusUpdateToAuthor } from '@/lib/email';
+import { submitPathToIndexNow } from '@/lib/indexnow';
 import { z } from 'zod';
 
 // Approval/rejection/publish schema
@@ -130,6 +131,11 @@ export async function PATCH(
             email: true
           }
         },
+        authorProfile: {
+          select: {
+            username: true
+          }
+        },
         approvedByUser: {
           select: {
             id: true,
@@ -182,6 +188,23 @@ export async function PATCH(
         }
       } catch (emailError) {
         console.error('Failed to send admin blog status update email:', emailError);
+      }
+    }
+
+    // Notify search engines when a post becomes publicly available (fire-and-forget)
+    if (updatedPost.status === 'PUBLISHED') {
+      try {
+        const authorPath =
+          updatedPost.authorProfile?.username ||
+          (updatedPost.author?.name || 'author').replace(/\s+/g, '-').toLowerCase();
+        const blogPath = `/blog/${authorPath}/${updatedPost.slug}`;
+        const indexNowResult = await submitPathToIndexNow(blogPath, 'created');
+        if (!indexNowResult.ok) {
+          console.warn(`IndexNow blog publish submission failed (${indexNowResult.status}): ${indexNowResult.message}`);
+        }
+      } catch (indexNowError) {
+        console.error('Failed to notify IndexNow about published blog:', indexNowError);
+        // Don't fail the approval flow if IndexNow fails
       }
     }
 
