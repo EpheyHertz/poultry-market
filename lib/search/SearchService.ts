@@ -228,8 +228,8 @@ export class SearchService {
              setweight(to_tsvector('english', coalesce(
                (SELECT string_agg(bt.name, ' ')
                 FROM blog_post_tags bpt
-                JOIN blog_tags bt ON bt.id = bpt.tag_id
-                WHERE bpt.post_id = bp.id), ''
+                JOIN blog_tags bt ON bt.id = bpt."tagId"
+                WHERE bpt."postId" = bp.id), ''
              )), 'B') ||
              setweight(to_tsvector('english', coalesce(bp.excerpt, '')), 'C') ||
              setweight(to_tsvector('english', coalesce(bp.content, '')), 'D'),
@@ -246,8 +246,8 @@ export class SearchService {
              setweight(to_tsvector('english', coalesce(
                (SELECT string_agg(bt.name, ' ')
                 FROM blog_post_tags bpt
-                JOIN blog_tags bt ON bt.id = bpt.tag_id
-                WHERE bpt.post_id = bp.id), ''
+                JOIN blog_tags bt ON bt.id = bpt."tagId"
+                WHERE bpt."postId" = bp.id), ''
              )), 'B') ||
              setweight(to_tsvector('english', coalesce(bp.excerpt, '')), 'C') ||
              setweight(to_tsvector('english', coalesce(bp.content, '')), 'D')
