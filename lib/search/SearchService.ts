@@ -85,7 +85,9 @@ const STOPWORDS = new Set([
 // ---------------------------------------------------------------------------
 
 function clampLimit(limit?: number): number {
-  if (limit === undefined || limit === null) return DEFAULT_LIMIT;
+  if (limit === undefined || limit === null || !Number.isFinite(limit)) {
+    return DEFAULT_LIMIT;
+  }
   return Math.min(Math.max(1, Math.floor(limit)), MAX_LIMIT);
 }
 
