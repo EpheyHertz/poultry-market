@@ -1,11 +1,15 @@
 /**
- * SearchService — Blog Search & Semantic Search
+ * SearchService — Blog Search & Hybrid Semantic Search
  *
  * Clean-architecture service layer for blog search operations.
  * All search logic lives here; route handlers only orchestrate.
  *
- * Future: swap the internal ranking in `semanticSearch()` with
- * pgvector / Pinecone by replacing the scoring function only.
+ * The "semantic" search uses a hybrid approach:
+ *   1. PostgreSQL Full-Text Search (tsvector/tsquery) — stemming + ranking
+ *   2. Prisma keyword contains search — exact substring matching
+ *   3. Reciprocal Rank Fusion (RRF) — merges both result sets
+ *
+ * No external embedding APIs required. Runs entirely in Postgres.
  */
 
 import { prisma } from '@/lib/prisma';
@@ -24,14 +28,12 @@ import type {
 const DEFAULT_LIMIT = 10;
 const MAX_LIMIT = 20;
 
-/** Weights used for semantic relevance scoring. */
-const SCORE_WEIGHTS = {
-  title: 0.35,
-  tags: 0.25,
-  category: 0.15,
-  excerpt: 0.15,
-  content: 0.10,
-} as const;
+/** RRF constant — standard value from the original paper. */
+const RRF_K = 60;
+
+/** Number of candidates each sub-search retrieves before fusion. */
+const FTS_CANDIDATE_LIMIT = 30;
+const KEYWORD_CANDIDATE_LIMIT = 30;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -54,68 +56,30 @@ function buildPostUrl(
   return `${SITE_URL}/blog/${authorPath}/${slug}`;
 }
 
-/** Tokenise a query string into lowercase terms. */
-function tokenize(text: string): string[] {
-  return text
+/**
+ * Sanitise a user query into a safe tsquery string.
+ * Strips special characters, joins terms with OR for broad matching.
+ * Uses prefix matching (:*) on the last term for partial-word support.
+ */
+function buildTsQuery(query: string): string {
+  const terms = query
     .toLowerCase()
     .replace(/[^a-z0-9\s]/g, ' ')
     .split(/\s+/)
     .filter((t) => t.length > 1);
-}
 
-/**
- * Compute a relevance score (0–1) for a post against query terms.
- *
- * This is a lightweight TF-based scorer designed to be replaced later
- * by a vector-similarity score from pgvector or Pinecone.
- */
-function computeRelevanceScore(
-  terms: string[],
-  fields: {
-    title: string;
-    excerpt: string;
-    content: string;
-    category: string;
-    tags: string[];
-  },
-): number {
-  if (terms.length === 0) return 0;
+  if (terms.length === 0) return '';
 
-  const titleLower = fields.title.toLowerCase();
-  const excerptLower = (fields.excerpt || '').toLowerCase();
-  const contentLower = fields.content.toLowerCase();
-  const categoryLower = fields.category.toLowerCase().replace(/_/g, ' ');
-  const tagsJoined = fields.tags.join(' ').toLowerCase();
-
-  let score = 0;
-
-  for (const term of terms) {
-    // Title
-    if (titleLower.includes(term)) score += SCORE_WEIGHTS.title;
-    // Tags
-    if (tagsJoined.includes(term)) score += SCORE_WEIGHTS.tags;
-    // Category
-    if (categoryLower.includes(term)) score += SCORE_WEIGHTS.category;
-    // Excerpt
-    if (excerptLower.includes(term)) score += SCORE_WEIGHTS.excerpt;
-    // Content
-    if (contentLower.includes(term)) score += SCORE_WEIGHTS.content;
-  }
-
-  // Normalise to 0–1 range
-  const maxPossible = terms.length * (
-    SCORE_WEIGHTS.title +
-    SCORE_WEIGHTS.tags +
-    SCORE_WEIGHTS.category +
-    SCORE_WEIGHTS.excerpt +
-    SCORE_WEIGHTS.content
+  // Prefix-match the last term, exact-match the rest, joined with OR
+  const parts = terms.map((t, i) =>
+    i === terms.length - 1 ? `${t}:*` : t,
   );
 
-  return maxPossible > 0 ? Math.min(1, score / maxPossible) : 0;
+  return parts.join(' | ');
 }
 
 // ---------------------------------------------------------------------------
-// Prisma select shapes (only fields the AI needs)
+// Prisma select shapes
 // ---------------------------------------------------------------------------
 
 const searchSelect = {
@@ -125,18 +89,6 @@ const searchSelect = {
   excerpt: true,
   category: true,
   publishedAt: true,
-  authorProfile: { select: { username: true } },
-  author: { select: { name: true } },
-  tags: { select: { tag: { select: { name: true } } } },
-} as const;
-
-const semanticSelect = {
-  id: true,
-  title: true,
-  slug: true,
-  excerpt: true,
-  content: true,
-  category: true,
   authorProfile: { select: { username: true } },
   author: { select: { name: true } },
   tags: { select: { tag: { select: { name: true } } } },
@@ -206,57 +158,261 @@ export class SearchService {
   }
 
   /**
-   * Semantic search for AI agents.
+   * Hybrid semantic search for AI agents.
    *
-   * Currently uses a lightweight term-frequency scorer across title,
-   * tags, category, excerpt, and content. Designed so the scoring
-   * function can be swapped for pgvector / Pinecone later without
-   * changing the public interface.
+   * Combines two signals:
+   *   1. PostgreSQL Full-Text Search — stemming, weighted fields, ts_rank_cd
+   *   2. Prisma keyword contains — catches exact substrings FTS may miss
+   *
+   * Results are merged with Reciprocal Rank Fusion (RRF) for a final
+   * ranking that benefits from both approaches.
    */
   async semanticSearch(
     params: SemanticSearchParams,
   ): Promise<SemanticSearchResult[]> {
     const limit = clampLimit(params.limit);
-    const terms = tokenize(params.query);
+    const query = params.query.trim();
 
-    // Fetch a broader candidate set, then rank in-memory.
-    // A production vector search would push this filtering to the DB.
-    const candidates = await prisma.blogPost.findMany({
-      where: { status: 'PUBLISHED' },
-      select: semanticSelect,
-      take: 100,
-      orderBy: { publishedAt: 'desc' },
+    if (!query) return [];
+
+    // Run both searches in parallel
+    const [ftsResults, keywordResults] = await Promise.all([
+      this.fullTextSearch(query, FTS_CANDIDATE_LIMIT),
+      this.keywordContainsSearch(query, KEYWORD_CANDIDATE_LIMIT),
+    ]);
+
+    // Merge with Reciprocal Rank Fusion
+    const fused = this.reciprocalRankFusion(ftsResults, keywordResults);
+
+    return fused.slice(0, limit);
+  }
+
+  // -------------------------------------------------------------------------
+  // PostgreSQL Full-Text Search
+  // -------------------------------------------------------------------------
+
+  /**
+   * Full-text search using Postgres tsvector/tsquery.
+   *
+   * Builds a weighted tsvector from title (A), tags (B), excerpt (C),
+   * and content (D). Uses ts_rank_cd for relevance scoring.
+   * Falls back to an empty array on error (e.g., if the DB doesn't
+   * support the function).
+   */
+  private async fullTextSearch(
+    query: string,
+    limit: number,
+  ): Promise<SemanticSearchResult[]> {
+    const tsQuery = buildTsQuery(query);
+    if (!tsQuery) return [];
+
+    try {
+      const results = await prisma.$queryRawUnsafe<
+        {
+          id: string;
+          title: string;
+          slug: string;
+          excerpt: string | null;
+          rank: number;
+          author_username: string | null;
+          author_name: string | null;
+        }[]
+      >(
+        `SELECT
+           bp.id,
+           bp.title,
+           bp.slug,
+           bp.excerpt,
+           ts_rank_cd(
+             setweight(to_tsvector('english', coalesce(bp.title, '')), 'A') ||
+             setweight(to_tsvector('english', coalesce(
+               (SELECT string_agg(bt.name, ' ')
+                FROM blog_post_tags bpt
+                JOIN blog_tags bt ON bt.id = bpt.tag_id
+                WHERE bpt.post_id = bp.id), ''
+             )), 'B') ||
+             setweight(to_tsvector('english', coalesce(bp.excerpt, '')), 'C') ||
+             setweight(to_tsvector('english', coalesce(bp.content, '')), 'D'),
+             to_tsquery('english', $1)
+           ) AS rank,
+           ap.username AS author_username,
+           u.name AS author_name
+         FROM blog_posts bp
+         LEFT JOIN author_profiles ap ON ap.id = bp."authorProfileId"
+         LEFT JOIN users u ON u.id = bp."authorId"
+         WHERE bp.status = 'PUBLISHED'
+           AND (
+             setweight(to_tsvector('english', coalesce(bp.title, '')), 'A') ||
+             setweight(to_tsvector('english', coalesce(
+               (SELECT string_agg(bt.name, ' ')
+                FROM blog_post_tags bpt
+                JOIN blog_tags bt ON bt.id = bpt.tag_id
+                WHERE bpt.post_id = bp.id), ''
+             )), 'B') ||
+             setweight(to_tsvector('english', coalesce(bp.excerpt, '')), 'C') ||
+             setweight(to_tsvector('english', coalesce(bp.content, '')), 'D')
+           ) @@ to_tsquery('english', $1)
+         ORDER BY rank DESC
+         LIMIT $2`,
+        tsQuery,
+        limit,
+      );
+
+      return results.map((r) => ({
+        id: r.id,
+        title: r.title,
+        slug: r.slug,
+        excerpt: r.excerpt,
+        url: buildPostUrl(r.slug, r.author_username, r.author_name),
+        score: Math.round(Number(r.rank) * 1000) / 1000,
+      }));
+    } catch (err) {
+      console.error('[SearchService] FTS query failed, falling back:', err);
+      return [];
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Keyword contains search (broadened)
+  // -------------------------------------------------------------------------
+
+  /**
+   * Simple keyword search using Prisma `contains` across individual terms.
+   * This catches exact substrings that FTS stemming might alter.
+   * Each query term is searched independently (OR logic).
+   */
+  private async keywordContainsSearch(
+    query: string,
+    limit: number,
+  ): Promise<SemanticSearchResult[]> {
+    const terms = query
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .split(/\s+/)
+      .filter((t) => t.length > 2); // skip very short words
+
+    if (terms.length === 0) return [];
+
+    // Build OR conditions: each term searched across title, excerpt, content, tags
+    const orConditions: Record<string, unknown>[] = [];
+
+    for (const term of terms) {
+      orConditions.push(
+        { title: { contains: term, mode: 'insensitive' } },
+        { excerpt: { contains: term, mode: 'insensitive' } },
+        { content: { contains: term, mode: 'insensitive' } },
+        {
+          tags: {
+            some: {
+              tag: { name: { contains: term, mode: 'insensitive' } },
+            },
+          },
+        },
+      );
+    }
+
+    // Also match category
+    const categoryMatch = this.matchCategory(query);
+    if (categoryMatch) {
+      orConditions.push({ category: categoryMatch });
+    }
+
+    try {
+      const posts = await prisma.blogPost.findMany({
+        where: {
+          status: 'PUBLISHED',
+          OR: orConditions,
+        },
+        select: {
+          id: true,
+          title: true,
+          slug: true,
+          excerpt: true,
+          authorProfile: { select: { username: true } },
+          author: { select: { name: true } },
+        },
+        take: limit,
+        orderBy: { publishedAt: 'desc' },
+      });
+
+      return posts.map((post) => ({
+        id: post.id,
+        title: post.title,
+        slug: post.slug,
+        excerpt: post.excerpt,
+        url: buildPostUrl(
+          post.slug,
+          post.authorProfile?.username ?? null,
+          post.author?.name ?? null,
+        ),
+        score: 0, // score will be replaced by RRF
+      }));
+    } catch (err) {
+      console.error('[SearchService] Keyword search failed:', err);
+      return [];
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Reciprocal Rank Fusion
+  // -------------------------------------------------------------------------
+
+  /**
+   * Merge two ranked result lists using Reciprocal Rank Fusion (RRF).
+   *
+   * RRF score for a document = Σ 1 / (k + rank_i) across all lists
+   * where k = 60 (standard constant from the RRF paper).
+   *
+   * This produces a combined ranking that benefits from both FTS
+   * (stemming, relevance) and keyword (exact match) signals.
+   */
+  private reciprocalRankFusion(
+    ftsResults: SemanticSearchResult[],
+    keywordResults: SemanticSearchResult[],
+  ): SemanticSearchResult[] {
+    const scoreMap = new Map<
+      string,
+      { result: SemanticSearchResult; rrfScore: number }
+    >();
+
+    // Score from FTS results
+    ftsResults.forEach((result, index) => {
+      const rrfScore = 1 / (RRF_K + index + 1);
+      const existing = scoreMap.get(result.id);
+      if (existing) {
+        existing.rrfScore += rrfScore;
+      } else {
+        scoreMap.set(result.id, { result, rrfScore });
+      }
     });
 
-    const scored = candidates
-      .map((post) => {
-        const score = computeRelevanceScore(terms, {
-          title: post.title,
-          excerpt: post.excerpt || '',
-          content: post.content,
-          category: post.category,
-          tags: post.tags.map((t) => t.tag.name),
-        });
+    // Score from keyword results
+    keywordResults.forEach((result, index) => {
+      const rrfScore = 1 / (RRF_K + index + 1);
+      const existing = scoreMap.get(result.id);
+      if (existing) {
+        existing.rrfScore += rrfScore;
+      } else {
+        scoreMap.set(result.id, { result, rrfScore });
+      }
+    });
 
-        return {
-          id: post.id,
-          title: post.title,
-          slug: post.slug,
-          excerpt: post.excerpt,
-          url: buildPostUrl(
-            post.slug,
-            post.authorProfile?.username ?? null,
-            post.author?.name ?? null,
-          ),
-          score: Math.round(score * 1000) / 1000, // 3 decimal places
-        };
-      })
-      .filter((r) => r.score > 0)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, limit);
+    // Sort by RRF score descending, normalise to 0–1
+    const sorted = Array.from(scoreMap.values()).sort(
+      (a, b) => b.rrfScore - a.rrfScore,
+    );
 
-    return scored;
+    const maxScore = sorted.length > 0 ? sorted[0].rrfScore : 1;
+
+    return sorted.map(({ result, rrfScore }) => ({
+      ...result,
+      score: Math.round((rrfScore / maxScore) * 1000) / 1000,
+    }));
   }
+
+  // -------------------------------------------------------------------------
+  // Category matching
+  // -------------------------------------------------------------------------
 
   /**
    * Attempt to match a raw query string to a BlogPostCategory enum value.
