@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { seoConfig, SITE_URL } from '@/lib/seo';
 import PublicNavbar from '@/components/layout/public-navbar';
 import MobileBlogPost from './mobile-blog-post';
+import AdsenseScript from '@/components/ads';
 
 export const dynamic = 'force-dynamic';
 
@@ -485,6 +486,7 @@ export default async function BlogPostPage({ params }: { params: Promise<Params>
 
   return (
     <>
+        <AdsenseScript />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(articleSchema) }}
@@ -497,6 +499,7 @@ export default async function BlogPostPage({ params }: { params: Promise<Params>
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
       />
+   
       <PublicNavbar />
       <MobileBlogPost post={post} relatedPosts={transformedRelatedPosts} />
     </>

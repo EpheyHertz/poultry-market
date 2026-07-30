@@ -3,6 +3,7 @@ import { Metadata } from 'next';
 import PublicNavbar from '@/components/layout/public-navbar';
 import MobileBlogContent from './mobile-blog-content';
 import { SITE_URL } from '@/lib/seo';
+import AdsenseScript from '@/components/ads';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -68,6 +69,7 @@ export function generateMetadata(): Metadata {
 
 function BlogLoadingSkeleton() {
   return (
+
     <div className="min-h-screen bg-white dark:bg-slate-950">
       {/* Hero Skeleton */}
       <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 dark:from-emerald-600 dark:to-emerald-800 animate-pulse">
@@ -148,6 +150,7 @@ export default function BlogPage() {
 
   return (
     <>
+        <AdsenseScript />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
