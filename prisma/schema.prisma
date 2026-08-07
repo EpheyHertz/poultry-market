@@ -1456,6 +1456,14 @@ model BlogPost {
   authorProfileId String?
   authorProfile   AuthorProfile? @relation("AuthorProfilePosts", fields: [authorProfileId], references: [id], onDelete: SetNull)
 
+  // Search engine fields (maintained by DB triggers - read-only here)
+  tagNames     String? @map("tag_names")
+  authorName   String? @map("author_name")
+  searchVector Unsupported("tsvector")?
+
+  // Domain concepts (poultry knowledge graph, Phase 8)
+  concepts BlogPostConcept[]
+
   // Relationships
   tags      BlogPostTag[]
   comments  BlogComment[]
@@ -1489,6 +1497,126 @@ model BlogTag {
   updatedAt DateTime @updatedAt
 
   @@map("blog_tags")
+}
+
+// ============================================================
+// Search engine models (tables created by the raw-SQL migration
+// 20260803115226_add_search_engine; kept in sync manually)
+// ============================================================
+
+enum ConceptType {
+  DISEASE
+  VACCINE
+  MEDICINE
+  FEED_TYPE
+  BREED
+  PRODUCTION_SYSTEM
+  EQUIPMENT
+  AGE_GROUP
+  PRACTICE
+  HEALTH_TOPIC
+
+  @@map("concept_type")
+}
+
+model SearchQuery {
+  id              String   @id @default(dbgenerated("gen_random_uuid()"))
+  query           String
+  normalized      String
+  filtersJson     Json?    @map("filters_json")
+  sort            String?
+  resultCount     Int      @default(0) @map("result_count")
+  noResults       Boolean  @default(false) @map("no_results")
+  userId          String?  @map("user_id")
+  sessionId       String?  @map("session_id")
+  ipHash          String?  @map("ip_hash")
+  referrer        String?
+  responseMs      Int?     @map("response_ms")
+  searchDurationMs Int?    @map("search_duration_ms")
+  clickedPostId   String?  @map("clicked_post_id")
+  clickedPosition Int?     @map("clicked_position")
+  timeToClickMs   Int?     @map("time_to_click_ms")
+  openedRelatedId String?  @map("opened_related_id")
+  autocompleteUsed Boolean @default(false) @map("autocomplete_used")
+  didYouMeanShown  Boolean @default(false) @map("did_you_mean_shown")
+  didYouMeanUsed   Boolean @default(false) @map("did_you_mean_used")
+  source          String?
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([normalized, createdAt(sort: Desc)])
+  @@index([createdAt])
+  @@map("search_queries")
+}
+
+model SearchSynonym {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  words SearchSynonymWord[]
+
+  @@map("search_synonyms")
+}
+
+model SearchSynonymWord {
+  id        String @id @default(cuid())
+  synonymId String @map("synonymId")
+  word      String
+
+  synonym SearchSynonym @relation(fields: [synonymId], references: [id], onDelete: Cascade)
+
+  @@unique([synonymId, word])
+  @@index([word])
+  @@map("search_synonym_words")
+}
+
+model SearchConfiguration {
+  key         String   @id
+  value       Decimal  @db.Decimal(65, 30)
+  description String?
+  updatedAt   DateTime @default(now()) @updatedAt
+
+  @@map("search_configuration")
+}
+
+model SearchBoostRule {
+  id        String    @id @default(cuid())
+  keyword   String
+  weight    Decimal   @db.Decimal(65, 30)
+  enabled   Boolean   @default(true)
+  startDate DateTime? @map("startDate") @db.Timestamptz(6)
+  endDate   DateTime? @map("endDate") @db.Timestamptz(6)
+  reason    String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@map("search_boost_rules")
+}
+
+model DomainConcept {
+  id        String      @id @default(cuid())
+  name      String      @unique
+  type      ConceptType
+  aliases   String[]    @default([])
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  posts BlogPostConcept[]
+
+  @@map("domain_concepts")
+}
+
+model BlogPostConcept {
+  postId    String
+  conceptId String
+
+  post    BlogPost      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  concept DomainConcept @relation(fields: [conceptId], references: [id], onDelete: Cascade)
+
+  @@id([postId, conceptId])
+  @@index([conceptId])
+  @@map("blog_post_concepts")
 }
 
 model BlogPostTag {

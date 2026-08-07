@@ -3,6 +3,7 @@ import { getCurrentUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import { sendBlogSubmissionAcknowledgmentToAuthor, sendBlogSubmissionToAdmin } from '@/lib/email';
+import { RelatedPostsService } from '@/lib/search-v2/RelatedPostsService';
 
 // Update blog post schema
 const updateBlogPostSchema = z.object({
@@ -384,6 +385,15 @@ export async function PUT(
         }
       }
     });
+
+    // Content/tags/slug may have changed → related-posts caches are stale.
+    // Slug could have been regenerated, so invalidate the whole related cache.
+    // Fire-and-forget, never fails the update flow.
+    try {
+      RelatedPostsService.invalidate();
+    } catch (e) {
+      console.error('Failed to invalidate related-posts cache:', e);
+    }
 
     // Send email notifications if re-approval is required
     if (requiresReapproval) {

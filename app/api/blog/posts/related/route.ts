@@ -1,13 +1,121 @@
+/**
+ * GET /api/blog/posts/related — legacy related-posts endpoint.
+ *
+ * Phase 4 (§7): this route now DELEGATES to RelatedPostsService (the v2
+ * hybrid engine) while preserving its original response shape
+ * `{ posts, total }` so existing consumers keep working. New clients should
+ * use GET /api/blog/{slug}/related instead.
+ *
+ * Params (unchanged for backward compat):
+ *   exclude  (required) — id of the post to find related content for
+ *   category (ignored)  — kept for compat; the v2 engine derives category
+ *                         similarity from the source post itself
+ *   tags     (ignored)  — same as category
+ *   limit    (optional) — default 3
+ *
+ * Fallback: if the source post is unknown or not public, returns the newest
+ * public posts (the historical behavior for missing context).
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
+import { BlogPostCategory } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
+import { checkRateLimit, getClientIdentifier } from '@/lib/rate-limit';
+import { RelatedPostsService } from '@/lib/search-v2/RelatedPostsService';
+import { SearchValidationError } from '@/lib/search-v2/types';
+
+export const dynamic = 'force-dynamic';
+
+const LEGACY_SELECT = {
+  id: true,
+  title: true,
+  slug: true,
+  excerpt: true,
+  featuredImage: true,
+  readingTime: true,
+  estimatedReadTime: true,
+  publishedAt: true,
+  category: true,
+  viewCount: true,
+  likes: true,
+  author: {
+    select: {
+      id: true,
+      name: true,
+      avatar: true,
+    },
+  },
+  tags: {
+    select: {
+      tag: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+        },
+      },
+    },
+  },
+} as const;
+
+/** Row shape produced by LEGACY_SELECT (enrichment + fallback queries). */
+interface LegacyPostRow {
+  id: string;
+  title: string;
+  slug: string;
+  excerpt: string | null;
+  featuredImage: string | null;
+  readingTime: number | null;
+  estimatedReadTime: number | null;
+  publishedAt: Date | null;
+  category: BlogPostCategory;
+  viewCount: number;
+  likes: number;
+  author: { id: string; name: string; avatar: string | null };
+  tags: { tag: { id: string; name: string; slug: string } }[];
+}
+
+function toLegacyShape(post: LegacyPostRow) {
+  return {
+    id: post.id,
+    title: post.title,
+    slug: post.slug,
+    excerpt: post.excerpt,
+    featuredImage: post.featuredImage,
+    readingTime: post.estimatedReadTime ?? post.readingTime,
+    publishedAt: post.publishedAt?.toISOString() || '',
+    category: post.category,
+    views: post.viewCount,
+    likes: post.likes,
+    author: {
+      id: post.author.id,
+      name: post.author.name,
+      avatar: post.author.avatar,
+    },
+    tags: post.tags.map((tagRelation) => tagRelation.tag),
+  };
+}
 
 export async function GET(request: NextRequest) {
+  const identifier = getClientIdentifier(request);
+  const rate = checkRateLimit(`blog-related-legacy:${identifier}`, {
+    maxRequests: 30,
+    windowMs: 60 * 1000,
+  });
+
+  if (!rate.allowed) {
+    return NextResponse.json(
+      { error: 'Too many requests. Please slow down.' },
+      { status: 429, headers: { 'Cache-Control': 'no-store' } },
+    );
+  }
+
   try {
     const { searchParams } = new URL(request.url);
     const exclude = searchParams.get('exclude');
-    const category = searchParams.get('category');
-    const tags = searchParams.get('tags')?.split(',').filter(Boolean) || [];
-    const limit = parseInt(searchParams.get('limit') || '3');
+    const limit = parseInt(searchParams.get('limit') || '3', 10);
+    const effectiveLimit =
+      Number.isFinite(limit) && limit > 0 ? Math.min(limit, 12) : 3;
 
     if (!exclude) {
       return NextResponse.json(
@@ -16,177 +124,64 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Build the where clause for related posts
-    const whereClause: any = {
-      id: { not: exclude },
-      status: { in: ['PUBLISHED', 'APPROVED'] }, // Include both statuses
-    };
+    // Delegate to the v2 engine: resolve source slug, then recommend.
+    const source = await prisma.blogPost.findUnique({
+      where: { id: exclude },
+      select: { slug: true },
+    });
 
-    // Create an OR condition for related content
-    const orConditions: any[] = [];
+    if (source) {
+      try {
+        const envelope = await RelatedPostsService.findRelated(
+          source.slug,
+          effectiveLimit
+        );
 
-    // Same category
-    if (category) {
-      orConditions.push({ category });
-    }
+        if (envelope.relatedPosts.length > 0) {
+          // Enrich with author/tags in the legacy shape (one extra query).
+          const ids = envelope.relatedPosts.map((p) => p.id);
+          const enrichment = await prisma.blogPost.findMany({
+            where: { id: { in: ids } },
+            select: LEGACY_SELECT,
+          });
+          const byId = new Map(enrichment.map((p) => [p.id, p]));
 
-    // Similar tags
-    if (tags.length > 0) {
-      orConditions.push({
-        tags: {
-          some: {
-            tag: {
-              slug: { in: tags }
-            }
-          }
+          const posts = envelope.relatedPosts
+            .map((p) => byId.get(p.id))
+            .filter((p): p is LegacyPostRow => Boolean(p))
+            .map(toLegacyShape);
+
+          return NextResponse.json(
+            { posts, total: posts.length },
+            { headers: { 'Cache-Control': 'no-store' } },
+          );
         }
-      });
+      } catch (err) {
+        // 404 from the service (post unpublished) → fall through to the
+        // recent-posts fallback below; anything else is logged and falls
+        // back too, so the legacy contract never degrades to an error page.
+        if (!(err instanceof SearchValidationError)) {
+          console.error('[api/blog/posts/related] v2 delegation error:', err);
+        }
+      }
     }
 
-    // If we have related conditions, use them; otherwise get recent posts
-    if (orConditions.length > 0) {
-      whereClause.OR = orConditions;
-    }
-
-    const relatedPosts = await prisma.blogPost.findMany({
-      where: whereClause,
-      select: {
-        id: true,
-        title: true,
-        slug: true,
-        excerpt: true,
-        featuredImage: true,
-        readingTime: true,
-        publishedAt: true,
-        category: true,
-        views: true,
-        likes: true,
-        author: {
-          select: {
-            id: true,
-            name: true,
-            avatar: true,
-          },
-        },
-        tags: {
-          select: {
-            tag: {
-              select: {
-                id: true,
-                name: true,
-                slug: true,
-              },
-            },
-          },
-        },
+    // Fallback: newest public posts (historical behavior).
+    const recentPosts = await prisma.blogPost.findMany({
+      where: {
+        id: { not: exclude },
+        status: { in: ['PUBLISHED', 'APPROVED'] },
       },
-      orderBy: [
-        { publishedAt: 'desc' },
-        { views: 'desc' },
-      ],
-      take: limit * 2, // Get more to have better selection
+      select: LEGACY_SELECT,
+      orderBy: [{ publishedAt: 'desc' }],
+      take: effectiveLimit,
     });
 
-    // Transform the data
-    const transformedPosts = relatedPosts.map((post) => ({
-      id: post.id,
-      title: post.title,
-      slug: post.slug,
-      excerpt: post.excerpt,
-      featuredImage: post.featuredImage,
-      readingTime: post.readingTime,
-      publishedAt: post.publishedAt?.toISOString() || '',
-      category: post.category,
-      views: post.views,
-      likes: post.likes,
-      author: {
-        id: post.author.id,
-        name: post.author.name,
-        avatar: post.author.avatar,
-      },
-      tags: post.tags.map((tagRelation) => tagRelation.tag),
-    }));
-
-    // If we don't have enough related posts, get recent ones
-    let finalPosts = transformedPosts;
-    if (finalPosts.length < limit) {
-      const recentPosts = await prisma.blogPost.findMany({
-        where: {
-          id: { not: exclude },
-          status: { in: ['PUBLISHED', 'APPROVED'] }, // Include both statuses
-        },
-        select: {
-          id: true,
-          title: true,
-          slug: true,
-          excerpt: true,
-          featuredImage: true,
-          readingTime: true,
-          publishedAt: true,
-          category: true,
-          views: true,
-          likes: true,
-          author: {
-            select: {
-              id: true,
-              name: true,
-              avatar: true,
-            },
-          },
-          tags: {
-            select: {
-              tag: {
-                select: {
-                  id: true,
-                  name: true,
-                  slug: true,
-                },
-              },
-            },
-          },
-        },
-        orderBy: [
-          { publishedAt: 'desc' },
-        ],
-        take: limit,
-      });
-
-      const transformedRecentPosts = recentPosts.map((post) => ({
-        id: post.id,
-        title: post.title,
-        slug: post.slug,
-        excerpt: post.excerpt,
-        featuredImage: post.featuredImage,
-        readingTime: post.readingTime,
-        publishedAt: post.publishedAt?.toISOString() || '',
-        category: post.category,
-        views: post.views,
-        likes: post.likes,
-        author: {
-          id: post.author.id,
-          name: post.author.name,
-          avatar: post.author.avatar,
-        },
-        tags: post.tags.map((tagRelation) => tagRelation.tag),
-      }));
-
-      // Combine and deduplicate
-      const combinedPosts = [...finalPosts, ...transformedRecentPosts];
-      const uniquePosts = combinedPosts.filter(
-        (post, index, self) => 
-          index === self.findIndex((p) => p.id === post.id)
-      );
-      
-      finalPosts = uniquePosts.slice(0, limit);
-    } else {
-      finalPosts = finalPosts.slice(0, limit);
-    }
-
-    return NextResponse.json({
-      posts: finalPosts,
-      total: finalPosts.length,
-    });
-
+    const posts = recentPosts.map(toLegacyShape);
+    return NextResponse.json(
+      { posts, total: posts.length },
+      { headers: { 'Cache-Control': 'no-store' } },
+    );
   } catch (error) {
     console.error('Error fetching related posts:', error);
     return NextResponse.json(

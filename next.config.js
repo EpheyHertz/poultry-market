@@ -1,12 +1,15 @@
  /** @type {import('next').NextConfig} */
 const nextConfig = {
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
-  images: { 
+  images: {
     unoptimized: true,
-    domains: ['images.pexels.com', 'localhost', 'res.cloudinary.com']
+    // `images.domains` is deprecated — use explicit remotePatterns instead.
+    remotePatterns: [
+      { protocol: 'https', hostname: 'images.pexels.com' },
+      { protocol: 'https', hostname: 'res.cloudinary.com' },
+      { protocol: 'http', hostname: 'localhost' },
+    ],
   },
+
   
   // Enforce consistent trailing slash behavior (no trailing slashes except root)
   trailingSlash: false,

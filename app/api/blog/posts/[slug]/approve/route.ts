@@ -3,6 +3,7 @@ import { getCurrentUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { sendBlogStatusUpdateToAdmin, sendBlogStatusUpdateToAuthor } from '@/lib/email';
 import { submitPathToIndexNow } from '@/lib/indexnow';
+import { RelatedPostsService } from '@/lib/search-v2/RelatedPostsService';
 import { z } from 'zod';
 
 // Approval/rejection/publish schema
@@ -145,6 +146,15 @@ export async function PATCH(
         }
       }
     });
+
+    // Status changed → related-posts caches are stale for every post (this
+    // post as source AND as candidate). Invalidate the whole related cache
+    // (§7 invalidation hook); fire-and-forget, never fails the flow.
+    try {
+      RelatedPostsService.invalidate();
+    } catch (e) {
+      console.error('Failed to invalidate related-posts cache:', e);
+    }
 
     if (['APPROVED', 'PUBLISHED', 'REJECTED'].includes(updatedPost.status)) {
       const decisionAt =

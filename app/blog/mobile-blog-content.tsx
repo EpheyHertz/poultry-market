@@ -27,7 +27,9 @@ import {
   ArrowUp,
   ArrowDown,
   ChevronsUpDown,
-  BadgeCheck
+  BadgeCheck,
+  CheckCircle2,
+  Sparkles
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -35,6 +37,13 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import MarkdownExcerpt from '@/components/blog/markdown-excerpt';
+import HighlightedText from '@/components/blog/highlighted-text';
+import SearchAutocomplete, {
+  SearchAutocompleteHandle,
+  Suggestion,
+} from '@/components/blog/search-autocomplete';
+import { trackSearchClick } from '@/lib/search-v2/trackClick';
+import { BLOG_CATEGORIES } from '@/types/blog';
 
 interface BlogPost {
   id: string;
@@ -74,6 +83,9 @@ interface BlogPost {
   };
   readingTime?: number;
   views?: number;
+  /** v2 search additions — only present in search mode (§6, §9) */
+  snippet?: string | null;
+  highlightedTitle?: string | null;
 }
 
 interface Category {
@@ -105,6 +117,87 @@ interface Pagination {
   hasPrevPage: boolean;
 }
 
+/** Minimal shape of a v2 search result item (GET /api/blog/search). */
+interface V2ResultItem {
+  id: string;
+  slug: string;
+  title: string;
+  excerpt: string | null;
+  snippet: string | null;
+  highlightedTitle: string | null;
+  category: string;
+  tags: string[];
+  author: string | null;
+  authorId: string;
+  authorProfileId: string | null;
+  authorUsername: string | null;
+  publishedAt: string | null;
+  readingTime: number | null;
+  views: number;
+  likes: number;
+  featured: boolean;
+  thumbnail: string | null;
+  featuredImage: string | null;
+}
+
+interface V2Facets {
+  categories: { name: string; count: number }[];
+  tags: { name: string; count: number }[];
+}
+
+/** Map a v2 envelope item onto the legacy BlogPost card shape. */
+function mapV2ResultToBlogPost(item: V2ResultItem): BlogPost {
+  const catInfo = BLOG_CATEGORIES[item.category as keyof typeof BLOG_CATEGORIES];
+  return {
+    id: item.id,
+    title: item.title,
+    slug: item.slug,
+    excerpt: item.excerpt || '',
+    content: '',
+    featuredImage: item.featuredImage || item.thumbnail || undefined,
+    publishedAt: item.publishedAt ? new Date(item.publishedAt) : null,
+    authorUsername: item.authorUsername,
+    authorDisplayName: item.author,
+    author: {
+      id: item.authorId,
+      name: item.author || 'Unknown',
+      displayName: item.author,
+      username: item.authorUsername,
+      _count: { followers: 0 },
+    },
+    category: item.category
+      ? {
+          id: item.category,
+          name: catInfo?.name || item.category,
+          slug: item.category,
+        }
+      : undefined,
+    tags: (item.tags || []).map((t) => ({
+      id: t,
+      name: t,
+      slug: t.toLowerCase().replace(/\s+/g, '-'),
+    })),
+    _count: { likes: item.likes ?? 0, comments: 0 },
+    readingTime: item.readingTime ?? undefined,
+    views: item.views ?? 0,
+    snippet: item.snippet,
+    highlightedTitle: item.highlightedTitle,
+  };
+}
+
+/** UI sort → v2 sort param (relevance only makes sense with a query). */
+function v2SortFor(sort: string, hasQuery: boolean): string {
+  switch (sort) {
+    case 'popular':
+      return 'views';
+    case 'trending':
+      return 'trending';
+    case 'latest':
+    default:
+      return hasQuery ? 'relevance' : 'newest';
+  }
+}
+
 export default function MobileBlogContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -127,6 +220,26 @@ export default function MobileBlogContent() {
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [isNearBottom, setIsNearBottom] = useState(false);
+
+  // ---- v2 search engine state (§9: /api/blog/search powers query mode) ----
+  /** keyset cursor for v2 search pagination (null = no more pages) */
+  const nextCursorRef = useRef<string | null>(null);
+  const [hasMoreResults, setHasMoreResults] = useState(false);
+  /** correction banner text from the envelope's didYouMean */
+  const [didYouMean, setDidYouMean] = useState('');
+  /** result stats for the "N results in Xms" line */
+  const [searchMeta, setSearchMeta] = useState<{ totalResults: number; searchTimeMs: number } | null>(null);
+  /** queryId of the current results page — click attribution key */
+  const queryIdRef = useRef<string | undefined>(undefined);
+  /** when the results last rendered — feeds timeToClickMs */
+  const searchRenderedAtRef = useRef<number>(0);
+  /** true after the user applied the didYouMean correction */
+  const didYouMeanAppliedRef = useRef(false);
+  const autocompleteRef = useRef<SearchAutocompleteHandle>(null);
+  const [searchFocused, setSearchFocused] = useState(false);
+
+  /** Query mode = the v2 search endpoint is in charge of results. */
+  const isSearchMode = searchQuery.trim().length > 0;
 
   // Track scroll position for back to top/bottom button
   useEffect(() => {
@@ -166,6 +279,12 @@ export default function MobileBlogContent() {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
+  /**
+   * Dual-mode post fetching (§9 frontend integration):
+   * - search mode (query present)  → GET /api/blog/search (v2 hybrid engine),
+   *   cursor keyset pagination, results mapped through mapV2ResultToBlogPost.
+   * - browse mode (no query)       → legacy GET /api/blog/posts offset paging.
+   */
   const fetchPosts = useCallback(async (page = 1, append = false) => {
     try {
       if (append) {
@@ -173,24 +292,74 @@ export default function MobileBlogContent() {
       } else {
         setLoading(true);
       }
-      const params = new URLSearchParams();
-      params.set('page', page.toString());
-      params.set('limit', '10');
-      if (searchQuery) params.set('search', searchQuery);
-      if (selectedCategory) params.set('category', selectedCategory);
-      if (selectedTag) params.set('tag', selectedTag);
-      if (sortBy) params.set('sort', sortBy);
-      
-      const response = await fetch(`/api/blog/posts?${params}`);
-      if (response.ok) {
-        const data = await response.json();
-        if (append) {
-          setPosts(prev => [...prev, ...(data.posts || [])]);
-        } else {
-          setPosts(data.posts || []);
+
+      const query = searchQuery.trim();
+
+      if (query) {
+        // ---------------- v2 search mode ----------------
+        const params = new URLSearchParams();
+        params.set('q', query);
+        params.set('limit', '10');
+        if (selectedCategory) params.set('categories', selectedCategory);
+        if (selectedTag) params.set('tags', selectedTag);
+        params.set('sort', v2SortFor(sortBy, true));
+        if (append && nextCursorRef.current) {
+          params.set('cursor', nextCursorRef.current);
         }
-        setPagination(data.pagination || null);
-        setCurrentPage(page);
+
+        const response = await fetch(`/api/blog/search?${params.toString()}`);
+        if (response.ok) {
+          const data = await response.json();
+          const mapped: BlogPost[] = (data.results || []).map(mapV2ResultToBlogPost);
+          if (append) {
+            setPosts(prev => [...prev, ...mapped]);
+          } else {
+            setPosts(mapped);
+          }
+          nextCursorRef.current = data.nextCursor || null;
+          setHasMoreResults(Boolean(data.nextCursor));
+          setDidYouMean(typeof data.didYouMean === 'string' ? data.didYouMean : '');
+          setSearchMeta({
+            totalResults: typeof data.totalResults === 'number' ? data.totalResults : mapped.length,
+            searchTimeMs: typeof data.searchTimeMs === 'number' ? data.searchTimeMs : 0,
+          });
+          queryIdRef.current = data.queryId;
+          searchRenderedAtRef.current = Date.now();
+          if (!append) {
+            didYouMeanAppliedRef.current = false;
+          }
+          // Offset paging is irrelevant in search mode; keep page state neutral.
+          setCurrentPage(1);
+          setPagination(null);
+        } else {
+          console.error('Search request failed with status', response.status);
+        }
+      } else {
+        // ---------------- legacy browse mode ----------------
+        const params = new URLSearchParams();
+        params.set('page', page.toString());
+        params.set('limit', '10');
+        if (selectedCategory) params.set('category', selectedCategory);
+        if (selectedTag) params.set('tag', selectedTag);
+        if (sortBy) params.set('sort', sortBy);
+
+        const response = await fetch(`/api/blog/posts?${params}`);
+        if (response.ok) {
+          const data = await response.json();
+          if (append) {
+            setPosts(prev => [...prev, ...(data.posts || [])]);
+          } else {
+            setPosts(data.posts || []);
+          }
+          setPagination(data.pagination || null);
+          setCurrentPage(page);
+          // Reset search-mode artifacts when leaving search mode.
+          nextCursorRef.current = null;
+          setHasMoreResults(false);
+          setDidYouMean('');
+          setSearchMeta(null);
+          queryIdRef.current = undefined;
+        }
       }
     } catch (error) {
       console.error('Error fetching posts:', error);
@@ -200,8 +369,12 @@ export default function MobileBlogContent() {
     }
   }, [searchQuery, selectedCategory, selectedTag, sortBy]);
 
+  /** Load more — cursor-based in search mode, offset-based in browse mode. */
   const loadMorePosts = () => {
-    if (pagination?.hasNextPage && !loadingMore) {
+    if (loadingMore) return;
+    if (isSearchMode) {
+      if (nextCursorRef.current) fetchPosts(1, true);
+    } else if (pagination?.hasNextPage) {
       fetchPosts(currentPage + 1, true);
     }
   };
@@ -270,9 +443,22 @@ export default function MobileBlogContent() {
     };
   }, []);
 
-  // Handle navigation to blog post with loading state
-  const handlePostClick = (e: React.MouseEvent, url: string) => {
+  // Handle navigation to blog post with loading state + click telemetry (§9)
+  const handlePostClick = (e: React.MouseEvent, url: string, post?: BlogPost, position?: number) => {
     e.preventDefault();
+    // v2 search: attribute the click to the query that surfaced this result.
+    if (isSearchMode && post) {
+      trackSearchClick({
+        queryId: queryIdRef.current,
+        query: searchQuery.trim(),
+        postId: post.id,
+        source: 'results',
+        position,
+        timeToClickMs: searchRenderedAtRef.current
+          ? Date.now() - searchRenderedAtRef.current
+          : undefined,
+      });
+    }
     setNavigating(true);
     router.push(url);
   };
@@ -290,6 +476,47 @@ export default function MobileBlogContent() {
     router.push('/blog');
   };
 
+  /**
+   * Autocomplete selection (§9). Category suggestions arrive as display
+   * labels from the suggest endpoint, so they are reverse-mapped to enum
+   * keys via BLOG_CATEGORIES before being applied as a filter.
+   */
+  const handleSuggestionSelect = (suggestion: Suggestion) => {
+    if (suggestion.type === 'category') {
+      const entry = Object.entries(BLOG_CATEGORIES).find(
+        ([, meta]) => meta.name.toLowerCase() === suggestion.text.toLowerCase()
+      );
+      if (entry) {
+        setSelectedCategory(entry[0]);
+        updateURL('category', entry[0]);
+        // Clear any pending search text when switching to a category browse.
+        setSearchInput('');
+        setSearchQuery('');
+        updateURL('search', '');
+        return;
+      }
+    }
+    // title / tag / author / popular / trending / recent → run as a query
+    setSearchInput(suggestion.text);
+    setSearchQuery(suggestion.text);
+    updateURL('search', suggestion.text);
+  };
+
+  /** Apply the didYouMean correction: replace the query and attribute the click. */
+  const applyDidYouMean = () => {
+    if (!didYouMean) return;
+    trackSearchClick({
+      queryId: queryIdRef.current,
+      query: searchQuery.trim(),
+      postId: 'did-you-mean',
+      source: 'didYouMean',
+    });
+    didYouMeanAppliedRef.current = true;
+    setSearchInput(didYouMean);
+    setSearchQuery(didYouMean);
+    updateURL('search', didYouMean);
+  };
+
   const featuredPosts = posts.slice(0, 3);
   const regularPosts = posts.slice(3);
 
@@ -305,13 +532,25 @@ export default function MobileBlogContent() {
         
         <div className="relative px-4 py-8 sm:px-6 sm:py-12 lg:px-8 lg:py-16">
           <div className="max-w-4xl mx-auto text-center">
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4 }}
+              className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-4 py-1.5 text-xs font-medium text-emerald-50 backdrop-blur-sm sm:text-sm"
+            >
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-300 opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-300" />
+              </span>
+              The official Poultry Market blog
+            </motion.div>
             <motion.h1 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
               className="text-3xl font-bold mb-3 sm:text-4xl lg:text-5xl tracking-tight text-glow"
             >
-              PoultryHub Blog
+              Poultry Market <span className="text-emerald-200">Blog</span>
             </motion.h1>
             <motion.p 
               initial={{ opacity: 0, y: 20 }}
@@ -319,7 +558,7 @@ export default function MobileBlogContent() {
               transition={{ duration: 0.6, delay: 0.1 }}
               className="text-emerald-100 text-sm mb-6 sm:mb-8 sm:text-base lg:text-lg"
             >
-              Expert insights for poultry professionals
+              Guides, health tips &amp; market insights for smarter poultry farming
             </motion.p>
             
             {/* Premium Search Bar */}
@@ -338,6 +577,9 @@ export default function MobileBlogContent() {
                     placeholder="Search articles, topics, authors..."
                     value={searchInput}
                     onChange={(e) => handleSearchInput(e.target.value)}
+                    onFocus={() => setSearchFocused(true)}
+                    onBlur={() => setSearchFocused(false)}
+                    onKeyDown={(e) => autocompleteRef.current?.handleKeyDown(e)}
                     className="pl-12 pr-12 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 border-0 h-12 sm:h-14 text-sm sm:text-base rounded-xl shadow-2xl focus:ring-2 focus:ring-emerald-400/50"
                   />
                   {searchInput !== searchQuery && (
@@ -345,6 +587,13 @@ export default function MobileBlogContent() {
                       <Loader2 className="h-5 w-5 text-emerald-500 animate-spin" />
                     </div>
                   )}
+                  {/* Autocomplete dropdown (debounced suggest endpoint) */}
+                  <SearchAutocomplete
+                    ref={autocompleteRef}
+                    query={searchInput}
+                    inputFocused={searchFocused}
+                    onSelect={handleSuggestionSelect}
+                  />
                 </div>
               </div>
             </motion.div>
@@ -507,6 +756,74 @@ export default function MobileBlogContent() {
 
           {/* Posts Grid */}
           <div className="lg:col-span-3">
+            {/* Category quick-filter chips (horizontal scroll) */}
+            {categories.length > 0 && !loading && (
+              <div className="featured-scroll -mx-3 mb-6 flex snap-x gap-2 overflow-x-auto px-3 pb-1 sm:-mx-0 sm:px-0">
+                <button
+                  onClick={() => {
+                    setSelectedCategory('');
+                    updateURL('category', '');
+                  }}
+                  className={`flex-shrink-0 snap-start rounded-full border px-4 py-1.5 text-sm font-medium transition-all duration-200 ${
+                    !selectedCategory
+                      ? 'border-emerald-500 bg-emerald-500 text-white shadow-md shadow-emerald-500/30'
+                      : 'border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-600 dark:text-slate-300 hover:border-emerald-400 dark:hover:border-emerald-500'
+                  }`}
+                >
+                  All
+                </button>
+                {categories.map((category) => (
+                  <button
+                    key={category.key || category.slug || category.id}
+                    onClick={() => {
+                      setSelectedCategory(category.slug);
+                      updateURL('category', category.slug);
+                    }}
+                    className={`flex flex-shrink-0 snap-start items-center gap-1.5 rounded-full border px-4 py-1.5 text-sm font-medium transition-all duration-200 ${
+                      selectedCategory === category.slug
+                        ? 'border-emerald-500 bg-emerald-500 text-white shadow-md shadow-emerald-500/30'
+                        : 'border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-600 dark:text-slate-300 hover:border-emerald-400 dark:hover:border-emerald-500'
+                    }`}
+                  >
+                    {category.icon && <span aria-hidden>{category.icon}</span>}
+                    <span className="whitespace-nowrap">{category.name}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* v2 search: didYouMean correction banner */}
+            {isSearchMode && didYouMean && !didYouMeanAppliedRef.current && (
+              <motion.div
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 px-4 py-3"
+              >
+                <Sparkles className="h-4 w-4 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+                <span className="text-sm text-gray-700 dark:text-slate-300">Did you mean</span>
+                <button
+                  onClick={applyDidYouMean}
+                  className="text-sm font-semibold text-emerald-700 dark:text-emerald-300 underline decoration-emerald-400 underline-offset-2 hover:text-emerald-800 dark:hover:text-emerald-200 transition-colors"
+                >
+                  {didYouMean}
+                </button>
+                <span className="text-sm text-gray-700 dark:text-slate-300">?</span>
+              </motion.div>
+            )}
+
+            {/* v2 search: result stats + mode indicator */}
+            {isSearchMode && searchMeta && !loading && (
+              <div className="mb-4 flex items-center gap-2 text-xs text-gray-500 dark:text-slate-400">
+                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                <span>
+                  {searchMeta.totalResults} result{searchMeta.totalResults === 1 ? '' : 's'} for
+                  {' '}&ldquo;{searchQuery}&rdquo;
+                </span>
+                <span className="text-gray-300 dark:text-slate-600">·</span>
+                <span>{searchMeta.searchTimeMs}ms</span>
+              </div>
+            )}
+
             {loading ? (
               <div className="space-y-6">
                 {[...Array(6)].map((_, i) => (
@@ -586,29 +903,33 @@ export default function MobileBlogContent() {
                       <div className="p-2 bg-gradient-to-br from-amber-400 to-orange-500 rounded-xl shadow-lg shadow-amber-500/30">
                         <TrendingUp className="h-5 w-5 text-white" />
                       </div>
-                      <h2 className="text-xl font-bold text-gray-900 dark:text-slate-100">Featured Articles</h2>
+                      <h2 className="text-xl font-bold text-gray-900 dark:text-slate-100">
+                        {isSearchMode ? 'Top Matches' : 'Featured Articles'}
+                      </h2>
                     </motion.div>
-                    <div className="space-y-6">
-                      {featuredPosts.map((post, index) => (
-                        <motion.div
-                          key={post.id}
-                          initial={{ opacity: 0, y: 40 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ 
-                            delay: index * 0.15,
-                            duration: 0.5,
-                            ease: [0.4, 0, 0.2, 1]
-                          }}
-                          whileHover={{ y: -8 }}
-                          className="group"
-                        >
-                          <Card className="blog-card-featured overflow-hidden border-0 bg-white dark:bg-slate-900/90 backdrop-blur-sm">
-                            <div className="flex flex-col sm:flex-row relative">
+                    {/* Horizontal carousel — scrolls sideways on every device */}
+                    <div className="relative">
+                      <div className="featured-scroll -mx-3 flex snap-x snap-mandatory gap-5 overflow-x-auto px-3 pb-4 sm:-mx-0 sm:px-0">
+                        {featuredPosts.map((post, index) => (
+                          <motion.div
+                            key={post.id}
+                            initial={{ opacity: 0, y: 40 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ 
+                              delay: index * 0.15,
+                              duration: 0.5,
+                              ease: [0.4, 0, 0.2, 1]
+                            }}
+                            whileHover={{ y: -6 }}
+                            className="group w-[85vw] max-w-[560px] flex-shrink-0 snap-start sm:w-[540px]"
+                          >
+                            <Card className="blog-card-featured h-full overflow-hidden border-0 bg-white dark:bg-slate-900/90 backdrop-blur-sm">
+                            <div className="flex h-full flex-col relative">
                               {/* Gradient Overlay */}
                               <div className="absolute inset-0 bg-gradient-to-r from-emerald-50/50 via-transparent to-blue-50/30 dark:from-emerald-500/5 dark:via-transparent dark:to-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none rounded-2xl" />
                               
                               {/* Image Container */}
-                              <div className="relative w-full sm:w-80 lg:w-96 h-56 sm:h-64 lg:h-72 flex-shrink-0 overflow-hidden image-hover-zoom">
+                              <div className="relative w-full h-52 sm:h-60 flex-shrink-0 overflow-hidden image-hover-zoom">
                                 {post.featuredImage ? (
                                   <Image
                                     src={post.featuredImage}
@@ -655,16 +976,26 @@ export default function MobileBlogContent() {
                                         href={postUrl} 
                                         className="block group/link"
                                         prefetch={false}
-                                        onClick={(e) => handlePostClick(e, postUrl)}
+                                        onClick={(e) => handlePostClick(e, postUrl, post, index)}
                                       >
                                         <h3 className="font-bold mb-3 line-clamp-2 text-xl lg:text-2xl leading-tight text-gray-900 dark:text-slate-100 group-hover/link:text-emerald-600 dark:group-hover/link:text-emerald-400 transition-colors duration-300">
-                                          {post.title}
+                                          {post.highlightedTitle ? (
+                                            <HighlightedText text={post.highlightedTitle} />
+                                          ) : (
+                                            post.title
+                                          )}
                                         </h3>
-                                        <MarkdownExcerpt
-                                          content={post.excerpt}
-                                          clampLines={3}
-                                          className="text-gray-600 dark:text-slate-400 text-sm leading-relaxed"
-                                        />
+                                        {post.snippet ? (
+                                          <div className="text-gray-600 dark:text-slate-400 text-sm leading-relaxed line-clamp-3">
+                                            <HighlightedText text={post.snippet} />
+                                          </div>
+                                        ) : (
+                                          <MarkdownExcerpt
+                                            content={post.excerpt}
+                                            clampLines={3}
+                                            className="text-gray-600 dark:text-slate-400 text-sm leading-relaxed"
+                                          />
+                                        )}
                                       </Link>
                                     );
                                   })()}
@@ -755,7 +1086,8 @@ export default function MobileBlogContent() {
                             </div>
                           </Card>
                         </motion.div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
                   </div>
                 )}
@@ -772,7 +1104,9 @@ export default function MobileBlogContent() {
                       <div className="p-2 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-xl shadow-lg shadow-blue-500/30">
                         <BookOpen className="h-5 w-5 text-white" />
                       </div>
-                      <h2 className="text-xl font-bold text-gray-900 dark:text-slate-100">Latest Articles</h2>
+                      <h2 className="text-xl font-bold text-gray-900 dark:text-slate-100">
+                        {isSearchMode ? 'More Matches' : 'Latest Articles'}
+                      </h2>
                     </motion.div>
                     <div className="space-y-5">
                       {regularPosts.map((post, index) => (
@@ -830,16 +1164,26 @@ export default function MobileBlogContent() {
                                         href={postUrl} 
                                         className="block group/link"
                                         prefetch={false}
-                                        onClick={(e) => handlePostClick(e, postUrl)}
+                                        onClick={(e) => handlePostClick(e, postUrl, post, index + 3)}
                                       >
                                         <h3 className="font-bold mb-2 line-clamp-2 text-lg leading-tight text-gray-900 dark:text-slate-100 group-hover/link:text-emerald-600 dark:group-hover/link:text-emerald-400 transition-colors duration-200">
-                                          {post.title}
+                                          {post.highlightedTitle ? (
+                                            <HighlightedText text={post.highlightedTitle} />
+                                          ) : (
+                                            post.title
+                                          )}
                                         </h3>
-                                        <MarkdownExcerpt
-                                          content={post.excerpt}
-                                          clampLines={2}
-                                          className="text-gray-600 dark:text-slate-400 text-sm leading-relaxed"
-                                        />
+                                        {post.snippet ? (
+                                          <div className="text-gray-600 dark:text-slate-400 text-sm leading-relaxed line-clamp-2">
+                                            <HighlightedText text={post.snippet} />
+                                          </div>
+                                        ) : (
+                                          <MarkdownExcerpt
+                                            content={post.excerpt}
+                                            clampLines={2}
+                                            className="text-gray-600 dark:text-slate-400 text-sm leading-relaxed"
+                                          />
+                                        )}
                                       </Link>
                                     );
                                   })()}
@@ -929,8 +1273,8 @@ export default function MobileBlogContent() {
                   </div>
                 )}
 
-                {/* Find More Blogs Section */}
-                {pagination && (
+                {/* Find More Blogs Section (legacy browse pagination) */}
+                {!isSearchMode && pagination && (
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -1032,6 +1376,42 @@ export default function MobileBlogContent() {
                         </div>
                       </CardContent>
                     </Card>
+                  </motion.div>
+                )}
+
+                {/* Load more — v2 search mode (cursor-based keyset paging) */}
+                {isSearchMode && (nextCursorRef.current || loadingMore) && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2 }}
+                    className="mt-8 text-center"
+                  >
+                    <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                      <Button
+                        onClick={loadMorePosts}
+                        disabled={loadingMore}
+                        size="lg"
+                        className="btn-premium px-10 py-4 rounded-full text-base font-semibold group"
+                      >
+                        {loadingMore ? (
+                          <>
+                            <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                            Loading...
+                          </>
+                        ) : (
+                          <>
+                            <span>Load More Results</span>
+                            <ArrowRight className="h-5 w-5 ml-2 group-hover:translate-x-1 transition-transform" />
+                          </>
+                        )}
+                      </Button>
+                    </motion.div>
+                    {searchMeta && (
+                      <p className="mt-3 text-xs text-gray-500 dark:text-slate-500">
+                        Showing {posts.length} of {searchMeta.totalResults} matches
+                      </p>
+                    )}
                   </motion.div>
                 )}
               </div>

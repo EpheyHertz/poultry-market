@@ -42,6 +42,7 @@ import ReadingProgress from '@/components/blog/reading-progress';
 import TableOfContents from '@/components/blog/table-of-contents';
 import AuthorCard from '@/components/blog/author-card';
 import { ThemeToggle } from '@/components/theme';
+import AdSlot from '@/components/ads/ad-slot';
 
 // Extended interfaces to support AuthorProfile data
 interface ExtendedAuthor {
@@ -518,6 +519,9 @@ function MobileBlogPost({ post, relatedPosts = [] }: BlogPostPageProps) {
           </div>
         </motion.div>
 
+        {/* ── Ad: Post Inline (after article body) ──────────────────────── */}
+        <AdSlot name="postInline" className="my-8" />
+
         {/* Tags - Mobile Responsive with Premium Styling */}
         {post.tags && post.tags.length > 0 && (
           <motion.div
@@ -650,6 +654,9 @@ function MobileBlogPost({ post, relatedPosts = [] }: BlogPostPageProps) {
         >
           <BlogComments postId={post.id} />
         </motion.div>
+
+        {/* ── Ad: Post Bottom (before related posts) ────────────────────── */}
+        <AdSlot name="postBottom" className="my-6" />
 
         {/* Related Posts - Mobile Responsive with Premium Styling */}
         {relatedPosts.length > 0 && (

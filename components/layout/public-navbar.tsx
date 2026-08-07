@@ -107,7 +107,7 @@ export default function PublicNavbar({ showAuth = true }: PublicNavbarProps) {
                 <Bird className="h-6 w-6 sm:h-7 sm:w-7 text-emerald-600 dark:text-emerald-400" />
               </motion.div>
               <span className="text-base sm:text-lg font-bold text-gray-900 dark:text-white">
-                PoultryHub
+                Poultry Market
               </span>
             </Link>
 

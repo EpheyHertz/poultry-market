@@ -212,6 +212,17 @@
     50% { background-position: 100% 50%; }
   }
 
+  /* Featured articles carousel — horizontal snap scroll, hidden scrollbar */
+  .featured-scroll {
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE/Edge */
+    scroll-behavior: smooth;
+  }
+
+  .featured-scroll::-webkit-scrollbar {
+    display: none; /* Chrome/Safari */
+  }
+
   /* Animated Border Effect */
   .animated-border {
     @apply relative;
@@ -326,6 +337,13 @@
     @apply transition-all duration-200;
     @apply border border-transparent;
     @apply hover:border-emerald-200 dark:hover:border-emerald-500/30;
+  }
+
+  /* Search match highlighting (search-v2 snippets, §6/§9) */
+  .search-mark {
+    @apply rounded-sm px-0.5 font-semibold;
+    @apply bg-emerald-100 text-emerald-800;
+    @apply dark:bg-emerald-500/20 dark:text-emerald-300;
   }
 
   /* Author Avatar Ring */

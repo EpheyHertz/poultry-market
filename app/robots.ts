@@ -8,7 +8,14 @@ export default function robots(): MetadataRoute.Robots {
     rules: [
       {
         userAgent: '*',
-        allow: '/',
+        allow: [
+          '/',
+          // Explicitly welcome the crawlable blog listing variants so the
+          // paginated/category archives are discovered and indexed.
+          '/blog',
+          '/blog?page=*',
+          '/blog?category=*',
+        ],
         disallow: [
           '/admin/',
           '/api/',
@@ -33,6 +40,9 @@ export default function robots(): MetadataRoute.Robots {
           '/private/',
           '/*.json$',
           '/search?*',
+          // Search-result listings are thin/duplicate content — keep them out
+          // of the index while the archives above stay crawlable.
+          '/blog?search=*',
           '/blog/submit',
           '/blog/edit/',
         ],

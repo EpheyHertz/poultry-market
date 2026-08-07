@@ -1,17 +1,37 @@
 import { Suspense } from 'react';
 import { Metadata } from 'next';
 import PublicNavbar from '@/components/layout/public-navbar';
-import MobileBlogContent from './mobile-blog-content';
+import BlogHome from './blog-home';
+import { getBlogPosts } from '@/lib/blog/get-posts';
 import { SITE_URL } from '@/lib/seo';
 import AdsenseScript from '@/components/ads';
 
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+// ISR: revalidate every 5 minutes
+export const revalidate = 300;
 
-export function generateMetadata(): Metadata {
+interface BlogPageProps {
+  /** Next.js 15+ passes searchParams as a Promise — it must be awaited. */
+  searchParams: Promise<{ page?: string; category?: string; search?: string }>;
+}
+
+export async function generateMetadata({ searchParams }: BlogPageProps): Promise<Metadata> {
+  const resolved = await searchParams;
+  const page = Math.max(1, parseInt(resolved?.page || '1', 10) || 1);
+  const category = resolved?.category;
+
+  // Per-page canonical URL
+  const params = new URLSearchParams();
+  if (page > 1) params.set('page', String(page));
+  if (category) params.set('category', category);
+  const query = params.toString();
+  const canonicalPath = query ? `/blog?${query}` : '/blog';
+
   return {
-    title: 'Poultry Blog - Expert Insights, Tips & Industry News',
-    description: 'Discover the latest insights, tips, and expert advice in the poultry industry. From farming techniques to market trends, stay informed with comprehensive guides and articles.',
+    title: page > 1 
+      ? `Poultry Blog - Page ${page}` 
+      : 'Poultry Blog - Expert Insights, Tips & Industry News',
+    description:
+      'Discover the latest insights, tips, and expert advice in the poultry industry. From farming techniques to market trends, stay informed with comprehensive guides and articles.',
     keywords: [
       'poultry blog',
       'farming tips',
@@ -26,9 +46,10 @@ export function generateMetadata(): Metadata {
     ],
     openGraph: {
       title: 'Poultry Blog - Expert Insights & Industry News',
-      description: 'Stay informed with the latest poultry industry insights, farming tips, and expert advice from professionals.',
+      description:
+        'Stay informed with the latest poultry industry insights, farming tips, and expert advice from professionals.',
       type: 'website',
-      url: `${SITE_URL}/blog`,
+      url: `${SITE_URL}${canonicalPath}`,
       siteName: 'PoultryMarket Kenya',
       images: [
         {
@@ -43,11 +64,12 @@ export function generateMetadata(): Metadata {
     twitter: {
       card: 'summary_large_image',
       title: 'Poultry Blog - Expert Insights & Industry News',
-      description: 'Stay informed with the latest poultry industry insights, farming tips, and expert advice.',
+      description:
+        'Stay informed with the latest poultry industry insights, farming tips, and expert advice.',
       images: [`${SITE_URL}/images/blog-og.jpg`],
     },
     alternates: {
-      canonical: `${SITE_URL}/blog`,
+      canonical: `${SITE_URL}${canonicalPath}`,
       types: {
         'application/rss+xml': `${SITE_URL}/blog/feed.xml`,
         'application/atom+xml': `${SITE_URL}/blog/feed.xml`,
@@ -69,33 +91,31 @@ export function generateMetadata(): Metadata {
 
 function BlogLoadingSkeleton() {
   return (
-
     <div className="min-h-screen bg-white dark:bg-slate-950">
-      {/* Hero Skeleton */}
-      <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 dark:from-emerald-600 dark:to-emerald-800 animate-pulse">
-        <div className="px-4 py-8 sm:px-6 sm:py-12">
-          <div className="max-w-4xl mx-auto text-center space-y-4">
-            <div className="h-8 bg-emerald-400 dark:bg-emerald-500 rounded mx-auto w-48"></div>
-            <div className="h-4 bg-emerald-400 dark:bg-emerald-500 rounded mx-auto w-64"></div>
-            <div className="h-10 bg-white dark:bg-slate-800 rounded mx-auto max-w-md"></div>
-          </div>
+      {/* Search bar skeleton */}
+      <div className="sticky top-12 z-40 border-b border-gray-200 bg-white/95 backdrop-blur-sm dark:border-slate-700 dark:bg-slate-900/95 sm:top-16">
+        <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6 lg:px-8">
+          <div className="mx-auto h-10 max-w-md animate-pulse rounded-lg bg-gray-200 dark:bg-slate-800 sm:h-10"></div>
         </div>
       </div>
-      
-      {/* Content Skeleton */}
-      <div className="max-w-6xl mx-auto px-4 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Sidebar Skeleton */}
-          <div className="hidden lg:block space-y-4">
-            <div className="bg-gray-200 dark:bg-slate-800 rounded-lg h-32 animate-pulse"></div>
-            <div className="bg-gray-200 dark:bg-slate-800 rounded-lg h-48 animate-pulse"></div>
+
+      {/* Content skeleton */}
+      <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          {/* Sidebar skeleton */}
+          <div className="hidden space-y-4 lg:block">
+            <div className="h-32 animate-pulse rounded-lg bg-gray-200 dark:bg-slate-800"></div>
+            <div className="h-48 animate-pulse rounded-lg bg-gray-200 dark:bg-slate-800"></div>
           </div>
-          
-          {/* Posts Skeleton */}
-          <div className="lg:col-span-3">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+          {/* Posts skeleton */}
+          <div className="lg:col-span-2">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {[...Array(6)].map((_, i) => (
-                <div key={i} className="bg-gray-200 dark:bg-slate-800 rounded-lg aspect-video animate-pulse"></div>
+                <div
+                  key={i}
+                  className="aspect-video animate-pulse rounded-lg bg-gray-200 dark:bg-slate-800"
+                ></div>
               ))}
             </div>
           </div>
@@ -105,8 +125,29 @@ function BlogLoadingSkeleton() {
   );
 }
 
-export default function BlogPage() {
-  // Generate structured data for blog page
+export default async function BlogPage({ searchParams }: BlogPageProps) {
+  // Only server-render browse mode (no search query)
+  const resolved = await searchParams;
+  const page = Math.max(1, parseInt(resolved?.page || '1', 10) || 1);
+  const category = resolved?.category || '';
+  const search = resolved?.search || '';
+
+  let initialPosts: any[] | null = null;
+  let initialPagination: any | null = null;
+
+  // Server-render page 1 browse; client will handle search mode
+  if (!search) {
+    try {
+      const result = await getBlogPosts({ page, category, limit: 12 });
+      initialPosts = result.posts;
+      initialPagination = result.pagination;
+    } catch (error) {
+      console.error('Error fetching blog posts:', error);
+      // Fall back to client-side fetch
+    }
+  }
+
+  // Generate structured data
   const structuredData = {
     '@context': 'https://schema.org',
     '@type': 'Blog',
@@ -115,7 +156,7 @@ export default function BlogPage() {
     url: `${SITE_URL}/blog`,
     publisher: {
       '@type': 'Organization',
-      name: SITE_URL,
+      name: 'PoultryMarket Kenya',
       logo: {
         '@type': 'ImageObject',
         url: `${SITE_URL}/images/logo.png`,
@@ -124,7 +165,7 @@ export default function BlogPage() {
     inLanguage: 'en-KE',
     isPartOf: {
       '@type': 'WebSite',
-      name: "Poultry Market Kenya",
+      name: 'Poultry Market Kenya',
       url: SITE_URL,
     },
   };
@@ -137,7 +178,7 @@ export default function BlogPage() {
         '@type': 'ListItem',
         position: 1,
         name: 'Home',
-        item:SITE_URL,
+        item: SITE_URL,
       },
       {
         '@type': 'ListItem',
@@ -148,9 +189,25 @@ export default function BlogPage() {
     ],
   };
 
+  // ItemList schema for rendered posts (SEO crawlability)
+  const itemListSchema =
+    initialPosts && initialPosts.length > 0
+      ? {
+          '@context': 'https://schema.org',
+          '@type': 'ItemList',
+          numberOfItems: initialPosts.length,
+          itemListElement: initialPosts.map((post, index) => ({
+            '@type': 'ListItem',
+            position: index + 1,
+            url: `${SITE_URL}/blog/${post.authorUsername || post.author?.username || post.author?.name?.replace(/\s+/g, '-').toLowerCase()}/${post.slug}`,
+            name: post.title,
+          })),
+        }
+      : null;
+
   return (
     <>
-        <AdsenseScript />
+      <AdsenseScript />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
@@ -159,9 +216,15 @@ export default function BlogPage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
       />
+      {itemListSchema && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListSchema) }}
+        />
+      )}
       <PublicNavbar showAuth />
       <Suspense fallback={<BlogLoadingSkeleton />}>
-        <MobileBlogContent />
+        <BlogHome initialPosts={initialPosts} initialPagination={initialPagination} />
       </Suspense>
     </>
   );
