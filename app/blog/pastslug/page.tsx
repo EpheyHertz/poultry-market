@@ -1,198 +1,76 @@
-import { Metadata } from 'next';
-import { notFound } from 'next/navigation';
+/**
+ * Legacy article route (§25 — stable URLs).
+ *
+ * `/blog/pastslug` is a historical, author-less entry point. It no longer
+ * renders an article of its own: the canonical location for every post is
+ * `/blog/{authorUsername}/{slug}`, so this route now resolves the slug and
+ * issues a permanent redirect. That keeps old links, bookmarks and any indexed
+ * copies working while consolidating SEO signals onto one URL.
+ *
+ * The slug arrives as a query parameter (`/blog/pastslug?slug=my-article`);
+ * anything we cannot resolve falls back to the blog index rather than a dead end.
+ */
+
+
+import { permanentRedirect, redirect } from 'next/navigation';
+
 import { prisma } from '@/lib/prisma';
-import PublicNavbar from '@/components/layout/public-navbar';
-import MobileBlogPost from './mobile-blog-post';
 
 export const dynamic = 'force-dynamic';
 
 interface Props {
-  params: Promise<{
-    slug: string;
-  }>;
+  params: Promise<{ slug?: string | string[] }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
-async function getBlogPost(slug: string) {
-  try {
-    const post = await prisma.blogPost.findUnique({
-      where: { slug },
-      include: {
-        author: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            avatar: true,
-            role: true,
-            bio: true,
-            _count: {
-              select: {
-                blogPosts: true,
-                followers: true,
-                following: true
-              }
-            }
-          }
-        },
-        tags: {
-          include: {
-            tag: true
-          }
-        },
-        comments: {
-          where: {
-            isApproved: true,
-            parentId: null // Only top-level comments
-          },
-          include: {
-            author: {
-              select: {
-                id: true,
-                name: true,
-                avatar: true
-              }
-            },
-            replies: {
-              where: {
-                isApproved: true
-              },
-              include: {
-                author: {
-                  select: {
-                    id: true,
-                    name: true,
-                    avatar: true
-                  }
-                }
-              },
-              orderBy: {
-                createdAt: 'asc'
-              }
-            }
-          },
-          orderBy: {
-            createdAt: 'desc'
-          }
-        },
-        _count: {
-          select: {
-            likedBy: true,
-            comments: true
-          }
-        }
-      }
-    });
+const PUBLIC_STATUSES = ['PUBLISHED', 'APPROVED'] as const;
 
-    if (!post) {
-      return null;
-    }
+/** URL-safe author segment, mirroring the canonical article route. */
+const slugifyAuthorName = (name: string) =>
+  name
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
 
-    // Check if post should be visible (only published posts for public access)
-    if (post.status !== 'PUBLISHED') {
-      return null;
-    }
+const firstValue = (value?: string | string[] | null) =>
+  (Array.isArray(value) ? value[0] : value)?.trim() || null;
 
-    // Increment view count for published posts
-    await prisma.blogPost.update({
-      where: { slug },
-      data: { viewCount: { increment: 1 } }
-    });
+export const metadata = {
+  title: 'Redirecting…',
+  robots: { index: false, follow: true },
+};
 
-    // Get related posts (same category, excluding current post)
-    const relatedPosts = await prisma.blogPost.findMany({
-      where: {
-        category: post.category,
-        status: 'PUBLISHED',
-        id: { not: post.id }
-      },
-      include: {
-        author: {
-          select: {
-            id: true,
-            name: true,
-            avatar: true
-          }
-        },
-        tags: {
-          include: {
-            tag: true
-          }
-        }
-      },
-      orderBy: {
-        publishedAt: 'desc'
-      },
-      take: 3
-    });
+export default async function LegacyBlogPostRedirect({ params, searchParams }: Props) {
+  const [resolvedParams, resolvedSearch] = await Promise.all([params, searchParams]);
+  const slug = firstValue(resolvedParams?.slug) ?? firstValue(resolvedSearch?.slug);
 
-    return {
-      ...post,
-      publishedAt: post.publishedAt ? post.publishedAt.toISOString() : null,
-      _count: {
-        likes: post._count.likedBy,
-        comments: post._count.comments
-      },
-      tags: post.tags.map(t => t.tag),
-      relatedPosts: relatedPosts.map(p => ({
-        ...p,
-        publishedAt: p.publishedAt ? p.publishedAt.toISOString() : null,
-        tags: p.tags.map(t => t.tag),
-        relatedPosts: [], // Related posts for related posts are empty
-        _count: {
-          likes: 0, // We don't need like counts for related posts in this context
-          comments: 0 // We don't need comment counts for related posts in this context
-        }
-      }))
-    };
-  } catch (error) {
-    console.error('Error fetching blog post:', error);
-    return null;
+  if (!slug) {
+    redirect('/blog');
   }
-}
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const resolvedParams = await params;
-  const post = await getBlogPost(resolvedParams.slug);
+  const post = await prisma.blogPost
+    .findFirst({
+      where: { slug, status: { in: [...PUBLIC_STATUSES] } },
+      select: {
+        slug: true,
+        author: { select: { name: true } },
+        authorProfile: { select: { username: true } },
+      },
+    })
+    .catch((error) => {
+      console.error('[blog/pastslug] lookup failed:', error);
+      return null;
+    });
 
   if (!post) {
-    return {
-      title: 'Post Not Found - Poultry Blog',
-      description: 'The blog post you are looking for could not be found.'
-    };
+    // Unknown or unpublished slug — send the reader somewhere useful instead
+    // of a dead end, and keep the 404 signal off this legacy path.
+    redirect('/blog');
   }
 
-  return {
-    title: `${post.title} - Poultry Blog`,
-    description: post.excerpt || post.title,
-    openGraph: {
-      title: post.title,
-      description: post.excerpt || post.title,
-      images: post.featuredImage ? [post.featuredImage] : [],
-      type: 'article',
-      publishedTime: post.publishedAt ? new Date(post.publishedAt).toISOString() : undefined,
-      authors: [post.author.name],
-    },
-    twitter: {
-      card: 'summary_large_image',
-      title: post.title,
-      description: post.excerpt || post.title,
-      images: post.featuredImage ? [post.featuredImage] : [],
-    },
-  };
-}
+  const authorSegment =
+    post.authorProfile?.username || slugifyAuthorName(post.author?.name ?? '') || 'author';
 
-export default async function BlogPostPage({ params }: Props) {
-  const resolvedParams = await params;
-  const post = await getBlogPost(resolvedParams.slug);
-
-  if (!post) {
-    notFound();
-  }
-
-  return (
-    <div className="min-h-screen bg-white">
-      <PublicNavbar />
-      <MobileBlogPost params={params} initialPost={post} />
-    </div>
-  );
+  permanentRedirect(`/blog/${authorSegment}/${post.slug}`);
 }
