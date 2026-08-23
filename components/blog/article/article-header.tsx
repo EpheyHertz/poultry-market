@@ -152,6 +152,7 @@ export function ArticleHeader({ article, className }: ArticleHeaderProps) {
                     <AuthorAvatar name={article.author.name} avatarUrl={article.author.avatarUrl} />
                     <div className="min-w-0">
                         <div className="flex items-center gap-1.5">
+                            <span className="text-sm text-gray-500 dark:text-gray-400">By</span>
                             {article.author.href ? (
                                 <Link
                                     href={article.author.href}
@@ -172,7 +173,15 @@ export function ArticleHeader({ article, className }: ArticleHeaderProps) {
                             ) : null}
                         </div>
 
+                        {/* Professional title (author-spec §13) — credibility line, one source of truth. */}
+                        {article.author.professionalTitle ? (
+                            <p className="mt-0.5 truncate text-[12.5px] font-medium text-emerald-700 dark:text-emerald-400">
+                                {article.author.professionalTitle}
+                            </p>
+                        ) : null}
+
                         <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12.5px] text-gray-500 dark:text-gray-400">
+
                             {publishedLabel ? (
                                 <span className="inline-flex items-center gap-1">
                                     <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" />

@@ -19,13 +19,17 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { ArrowUp, MessageCircle, ShieldCheck, Tag } from 'lucide-react';
+import { ArrowUp, Mail, MessageCircle, Package, ShieldCheck, Tag } from 'lucide-react';
 
 import AdSlot from '@/components/ads/ad-slot';
+import { trackEvent } from '@/components/analytics/google-analytics';
+import { AuthorResourcesSection } from '@/components/author/author-resource-card';
+import AuthorSocialLinks from '@/components/author/author-social-links';
 import BlogComments from '@/components/blog/blog-comments';
 import FollowButton from '@/components/blog/follow-button';
 import SupportButton from '@/components/blog/SupportButton';
 import { cn } from '@/lib/utils';
+
 import type { ArticleHeading } from '@/lib/blog/article/content';
 import { formatCompactNumber } from '@/lib/blog/article/format';
 import type { RecommendedArticle } from '@/lib/blog/article/recommendations';
@@ -82,6 +86,14 @@ function ScrollToTop() {
     );
 }
 
+/**
+ * End-of-article author card (author-spec §14, §16).
+ *
+ * Everything shown here comes from the same author record that powers the
+ * public profile page — no hard-coded or duplicated author data (§34).
+ * Socials use the shared `AuthorSocialLinks` component so the article surface
+ * and the profile page can never drift apart (§4).
+ */
 function AuthorCard({ article }: { article: ArticleView }) {
     const { author } = article;
     const initials = author.name
@@ -90,12 +102,25 @@ function AuthorCard({ article }: { article: ArticleView }) {
         .slice(0, 2)
         .map((part) => part[0]?.toUpperCase() ?? '')
         .join('');
+    // §13 — the professional title is the credibility line; tagline is the fallback.
+    const roleLine = author.professionalTitle || author.tagline;
+    const firstName = author.name.split(/\s+/).filter(Boolean)[0] || author.name;
+
+    const trackAuthorClick = (event: string, extra?: Record<string, string | number>) => {
+        trackEvent(event, {
+            author_username: author.username ?? undefined,
+            source: 'article_author_card',
+            article_id: article.id,
+            ...extra,
+        });
+    };
 
     return (
         <section
-            className="rounded-2xl border border-gray-200 bg-gradient-to-br from-gray-50 to-white p-5 dark:border-gray-800 dark:from-gray-900 dark:to-gray-900/60 sm:p-6"
+            className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900 sm:p-6"
             aria-label="About the author"
         >
+
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
                 {author.avatarUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -137,32 +162,51 @@ function AuthorCard({ article }: { article: ArticleView }) {
                         <p className="text-lg font-bold text-gray-900 dark:text-white">{author.name}</p>
                     )}
 
-                    {author.tagline ? (
-                        <p className="text-sm font-medium text-gray-600 dark:text-gray-300">{author.tagline}</p>
+                    {roleLine ? (
+                        <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">{roleLine}</p>
                     ) : null}
+
                     {author.bio ? (
                         <p className="line-clamp-3 text-sm leading-relaxed text-gray-600 dark:text-gray-400">
                             {author.bio}
                         </p>
                     ) : null}
 
+                    {/* Real counters only — never fabricated, and hidden while still empty (§18, §32). */}
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[12.5px] text-gray-500 dark:text-gray-400">
                         <span>
                             <strong className="font-semibold text-gray-900 dark:text-gray-200">
                                 {formatCompactNumber(author.posts)}
                             </strong>{' '}
-                            articles
+                            {author.posts === 1 ? 'article' : 'articles'}
                         </span>
-                        <span>
-                            <strong className="font-semibold text-gray-900 dark:text-gray-200">
-                                {formatCompactNumber(author.followers)}
-                            </strong>{' '}
-                            followers
-                        </span>
+                        {author.followers > 0 ? (
+                            <span>
+                                <strong className="font-semibold text-gray-900 dark:text-gray-200">
+                                    {formatCompactNumber(author.followers)}
+                                </strong>{' '}
+                                {author.followers === 1 ? 'follower' : 'followers'}
+                            </span>
+                        ) : null}
                     </div>
 
+
                     <div className="flex flex-wrap items-center gap-2 pt-1">
-                        <FollowButton userId={author.id} />
+                        <FollowButton
+                            userId={author.id}
+                            onFollowChange={(following) =>
+                                following ? trackAuthorClick('author_follow') : undefined
+                            }
+                        />
+                        {author.href ? (
+                            <Link
+                                href={author.href}
+                                onClick={() => trackAuthorClick('author_profile_click')}
+                                className="inline-flex h-9 items-center rounded-full border border-gray-200 px-4 text-sm font-medium text-gray-700 transition-colors hover:border-emerald-300 hover:text-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:border-gray-700 dark:text-gray-200 dark:hover:border-emerald-700 dark:hover:text-emerald-400 dark:focus-visible:ring-offset-gray-900"
+                            >
+                                View profile
+                            </Link>
+                        ) : null}
                         {author.profileId || author.username ? (
                             <SupportButton
                                 authorId={author.profileId || author.username || ''}
@@ -173,11 +217,63 @@ function AuthorCard({ article }: { article: ArticleView }) {
                             />
                         ) : null}
                     </div>
+
+                    {/*
+                     * Socials + opt-in contact (§14, §16). Rendered only when the author
+                     * actually has them, so the card never shows an empty row (§32).
+                     * `contactEmail` is already gated on the author's own opt-in (§3) —
+                     * private account emails never reach this component.
+                     */}
+                    {author.socialLinks.length > 0 ||
+                        author.contactEmail ||
+                        (author.hasResources && author.href) ? (
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-3 border-t border-gray-100 pt-3 dark:border-gray-800">
+                            <AuthorSocialLinks
+                                links={author.socialLinks}
+                                authorName={author.name}
+                                size="sm"
+                                onLinkClick={(platform) =>
+                                    trackAuthorClick('author_social_click', { platform })
+                                }
+                            />
+                            {author.contactEmail ? (
+                                <a
+                                    href={`mailto:${author.contactEmail}`}
+                                    onClick={() => trackAuthorClick('author_email_click')}
+                                    className="inline-flex min-h-[36px] items-center gap-1.5 text-sm font-medium text-gray-600 transition-colors hover:text-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:text-gray-300 dark:hover:text-emerald-400 dark:focus-visible:ring-offset-gray-900"
+                                >
+                                    <Mail className="h-4 w-4" aria-hidden="true" />
+                                    <span>Email {firstName}</span>
+                                </a>
+                            ) : null}
+                            {/*
+                             * ext §12 — the author card gets a *link*, never a grid of
+                             * recommendation cards. The full section lives on the profile,
+                             * so a reader is never shown products unrelated to the article.
+                             */}
+                            {author.hasResources && author.href ? (
+                                <Link
+                                    href={`${author.href}#author-resources`}
+                                    onClick={() =>
+                                        trackAuthorClick('author_resources_click', {
+                                            placement: 'author_card',
+                                        })
+                                    }
+                                    className="inline-flex min-h-[36px] items-center gap-1.5 text-sm font-medium text-gray-600 transition-colors hover:text-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:text-gray-300 dark:hover:text-emerald-400 dark:focus-visible:ring-offset-gray-900"
+                                >
+                                    <Package className="h-4 w-4" aria-hidden="true" />
+                                    <span>Recommended resources</span>
+                                    <span aria-hidden="true">&rarr;</span>
+                                </Link>
+                            ) : null}
+                        </div>
+                    ) : null}
                 </div>
             </div>
         </section>
     );
 }
+
 
 export function ArticleShell({
     article,
@@ -267,6 +363,21 @@ export function ArticleShell({
                                 </p>
                                 <ShareButtons url={article.canonicalUrl} title={article.title} variant="row" />
                             </div>
+
+                            {/*
+                             * ext §12 / §13 — only resources the author *deliberately
+                             * attached to this article*. Empty for most posts, and the
+                             * section renders nothing when empty (§29), so no article is
+                             * ever padded out with unrelated products.
+                             */}
+                            <AuthorResourcesSection
+                                resources={article.resources}
+                                authorName={article.author.name}
+                                authorId={article.author.id}
+                                articleId={article.id}
+                                placement="article"
+                                columns={2}
+                            />
 
                             <AuthorCard article={article} />
 

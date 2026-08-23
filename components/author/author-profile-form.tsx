@@ -24,9 +24,13 @@ import {
   Github,
   Facebook,
   Instagram,
+  Youtube,
   Link as LinkIcon,
   Check,
   X,
+  Plus,
+  Mail,
+  Sparkles,
   Loader2,
   Upload,
   AlertCircle,
@@ -39,29 +43,53 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { AUTHOR_EXPERTISE_LIMIT } from '@/lib/author-profile';
+
+/** Same cap the API enforces, so the UI can never submit an invalid list. */
+const EXPERTISE_LIMIT = AUTHOR_EXPERTISE_LIMIT;
+
+/** Suggestions drawn from the topics the blog already covers (§11). */
+const EXPERTISE_SUGGESTIONS = [
+  'Poultry Health',
+  'Broiler Farming',
+  'Layer Farming',
+  'Poultry Nutrition',
+  'Farm Management',
+  'Poultry Business',
+  'Technology',
+];
+
 
 interface AuthorProfile {
   id?: string;
   displayName: string;
   username: string;
+  /** Short professional title shown under the name across the blog (§2, §10). */
+  tagline: string;
   bio: string;
   avatarUrl: string;
   website: string;
   location: string;
   occupation: string;
   company: string;
+  /** Areas of expertise rendered as clean tags on the public profile (§11). */
+  expertise: string[];
   socialLinks: {
     twitter?: string;
     linkedin?: string;
     github?: string;
     facebook?: string;
     instagram?: string;
+    youtube?: string;
   };
   isPublic: boolean;
   allowComments: boolean;
+  /** §3 — opt-in that reveals a "Email author" link on the public profile. */
+  showEmail: boolean;
   emailOnComment: boolean;
   emailOnFollow: boolean;
 }
+
 
 interface AuthorProfileFormProps {
   existingProfile?: AuthorProfile | null;
@@ -79,18 +107,51 @@ export default function AuthorProfileForm({ existingProfile, onSuccess }: Author
   const [profile, setProfile] = useState<AuthorProfile>({
     displayName: existingProfile?.displayName || '',
     username: existingProfile?.username || '',
+    tagline: existingProfile?.tagline || '',
     bio: existingProfile?.bio || '',
     avatarUrl: existingProfile?.avatarUrl || '',
     website: existingProfile?.website || '',
     location: existingProfile?.location || '',
     occupation: existingProfile?.occupation || '',
     company: existingProfile?.company || '',
+    expertise: existingProfile?.expertise || [],
     socialLinks: existingProfile?.socialLinks || {},
     isPublic: existingProfile?.isPublic ?? true,
     allowComments: existingProfile?.allowComments ?? true,
+    // Public contact is opt-out by default — the account email stays private (§3).
+    showEmail: existingProfile?.showEmail ?? false,
     emailOnComment: existingProfile?.emailOnComment ?? true,
     emailOnFollow: existingProfile?.emailOnFollow ?? true,
   });
+
+  /** Free-text entry for expertise tags; committed on Enter/comma (§11). */
+  const [expertiseDraft, setExpertiseDraft] = useState('');
+
+  const addExpertiseTag = (raw: string) => {
+    const tag = raw.replace(/[<>]/g, '').replace(/\s+/g, ' ').trim();
+    if (!tag) return;
+
+    if (tag.length > 40) {
+      toast.error('Each area of expertise must be 40 characters or fewer');
+      return;
+    }
+    if (profile.expertise.length >= EXPERTISE_LIMIT) {
+      toast.error(`You can list up to ${EXPERTISE_LIMIT} areas of expertise`);
+      return;
+    }
+    if (profile.expertise.some((item) => item.toLowerCase() === tag.toLowerCase())) {
+      setExpertiseDraft('');
+      return;
+    }
+
+    setProfile((prev) => ({ ...prev, expertise: [...prev.expertise, tag] }));
+    setExpertiseDraft('');
+  };
+
+  const removeExpertiseTag = (tag: string) => {
+    setProfile((prev) => ({ ...prev, expertise: prev.expertise.filter((item) => item !== tag) }));
+  };
+
 
   const isEditing = !!existingProfile?.id;
 
@@ -111,7 +172,7 @@ export default function AuthorProfileForm({ existingProfile, onSuccess }: Author
           body: JSON.stringify({ username: profile.username }),
         });
         const data = await response.json();
-        
+
         if (!data.valid) {
           setUsernameAvailable(false);
           setUsernameError(data.error);
@@ -131,7 +192,7 @@ export default function AuthorProfileForm({ existingProfile, onSuccess }: Author
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!profile.displayName.trim()) {
       toast.error('Display name is required');
       return;
@@ -163,7 +224,7 @@ export default function AuthorProfileForm({ existingProfile, onSuccess }: Author
       }
 
       toast.success(isEditing ? 'Profile updated successfully' : 'Author profile created!');
-      
+
       if (onSuccess) {
         onSuccess();
       } else {
@@ -305,8 +366,8 @@ export default function AuthorProfileForm({ existingProfile, onSuccess }: Author
                 <Input
                   id="username"
                   value={profile.username}
-                  onChange={(e) => setProfile(prev => ({ 
-                    ...prev, 
+                  onChange={(e) => setProfile(prev => ({
+                    ...prev,
                     username: e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, '')
                   }))}
                   placeholder="your-username"
@@ -332,6 +393,24 @@ export default function AuthorProfileForm({ existingProfile, onSuccess }: Author
               )}
               <p className="text-xs text-gray-400">
                 Your profile URL: poultrymarket.ke/author/<span style={{ color: 'rgba(16, 185, 129, 0.8)' }}>{profile.username || 'your-username'}</span>
+              </p>
+            </div>
+
+            {/* Professional title — the credibility line shown under your name
+                on the profile, article bylines and author card (§2, §10, §13). */}
+            <div className="space-y-2">
+              <Label htmlFor="tagline" className="text-gray-700 dark:text-gray-300">Professional Title</Label>
+              <Input
+                id="tagline"
+                value={profile.tagline}
+                onChange={(e) => setProfile(prev => ({ ...prev, tagline: e.target.value }))}
+                placeholder="e.g., Poultry Farming & Technology Writer"
+                maxLength={120}
+                className="border-0 shadow-md focus:shadow-lg transition-all duration-200 dark:bg-slate-800/80"
+                style={{ background: 'rgba(255,255,255,0.9)' }}
+              />
+              <p className="text-xs text-gray-400">
+                Shown under your name on your profile, your articles and your author card.
               </p>
             </div>
 
@@ -436,6 +515,96 @@ export default function AuthorProfileForm({ existingProfile, onSuccess }: Author
                 />
               </div>
             </div>
+
+            {/* Areas of expertise — rendered as clean tags on the public profile (§11). */}
+            <div className="space-y-3 pt-2">
+              <div className="flex items-center justify-between gap-3">
+                <Label htmlFor="expertise" className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                  <Sparkles className="h-4 w-4" style={{ color: 'rgba(16, 185, 129, 0.7)' }} />
+                  Areas of Expertise
+                </Label>
+                <span className="text-xs text-gray-400">
+                  {profile.expertise.length}/{EXPERTISE_LIMIT}
+                </span>
+              </div>
+
+              <div className="flex gap-2">
+                <Input
+                  id="expertise"
+                  value={expertiseDraft}
+                  onChange={(e) => setExpertiseDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ',') {
+                      // Keep Enter from submitting the whole profile form.
+                      e.preventDefault();
+                      addExpertiseTag(expertiseDraft);
+                    }
+                  }}
+                  placeholder="e.g., Poultry Health"
+                  maxLength={40}
+                  disabled={profile.expertise.length >= EXPERTISE_LIMIT}
+                  className="border-0 shadow-md focus:shadow-lg transition-all duration-200 dark:bg-slate-800/80"
+                  style={{ background: 'rgba(255,255,255,0.9)' }}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => addExpertiseTag(expertiseDraft)}
+                  disabled={!expertiseDraft.trim() || profile.expertise.length >= EXPERTISE_LIMIT}
+                  className="shrink-0 border-0 shadow-md hover:shadow-lg transition-all duration-200"
+                  style={{ background: 'rgba(16, 185, 129, 0.1)', color: 'rgba(16, 185, 129, 0.95)' }}
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Add
+                </Button>
+              </div>
+
+              {profile.expertise.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {profile.expertise.map((tag) => (
+                    <Badge
+                      key={tag}
+                      variant="secondary"
+                      className="gap-1.5 py-1.5 pl-3 pr-1.5 font-medium bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 dark:hover:bg-emerald-950/60"
+                    >
+                      {tag}
+                      <button
+                        type="button"
+                        onClick={() => removeExpertiseTag(tag)}
+                        aria-label={`Remove ${tag}`}
+                        className="rounded-full p-0.5 transition-colors hover:bg-emerald-200/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:hover:bg-emerald-800/70"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+              )}
+
+              {profile.expertise.length < EXPERTISE_LIMIT && (
+                <div className="space-y-2">
+                  <p className="text-xs text-gray-400">Suggestions</p>
+                  <div className="flex flex-wrap gap-2">
+                    {EXPERTISE_SUGGESTIONS.filter(
+                      (suggestion) => !profile.expertise.some((tag) => tag.toLowerCase() === suggestion.toLowerCase())
+                    ).map((suggestion) => (
+                      <button
+                        key={suggestion}
+                        type="button"
+                        onClick={() => addExpertiseTag(suggestion)}
+                        className="rounded-full border border-dashed border-gray-300 px-3 py-1 text-xs text-gray-600 transition-colors hover:border-emerald-400 hover:text-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:border-gray-700 dark:text-gray-400 dark:hover:border-emerald-500 dark:hover:text-emerald-300"
+                      >
+                        + {suggestion}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <p className="text-xs text-gray-400">
+                Press Enter or comma to add. These appear as topic tags on your public profile.
+              </p>
+            </div>
           </CardContent>
         </Card>
       </motion.div>
@@ -467,8 +636,8 @@ export default function AuthorProfileForm({ existingProfile, onSuccess }: Author
                 <Input
                   id="twitter"
                   value={profile.socialLinks.twitter || ''}
-                  onChange={(e) => setProfile(prev => ({ 
-                    ...prev, 
+                  onChange={(e) => setProfile(prev => ({
+                    ...prev,
                     socialLinks: { ...prev.socialLinks, twitter: e.target.value }
                   }))}
                   placeholder="@username or full URL"
@@ -484,8 +653,8 @@ export default function AuthorProfileForm({ existingProfile, onSuccess }: Author
                 <Input
                   id="linkedin"
                   value={profile.socialLinks.linkedin || ''}
-                  onChange={(e) => setProfile(prev => ({ 
-                    ...prev, 
+                  onChange={(e) => setProfile(prev => ({
+                    ...prev,
                     socialLinks: { ...prev.socialLinks, linkedin: e.target.value }
                   }))}
                   placeholder="Profile URL or username"
@@ -501,8 +670,8 @@ export default function AuthorProfileForm({ existingProfile, onSuccess }: Author
                 <Input
                   id="facebook"
                   value={profile.socialLinks.facebook || ''}
-                  onChange={(e) => setProfile(prev => ({ 
-                    ...prev, 
+                  onChange={(e) => setProfile(prev => ({
+                    ...prev,
                     socialLinks: { ...prev.socialLinks, facebook: e.target.value }
                   }))}
                   placeholder="Profile URL or username"
@@ -518,8 +687,8 @@ export default function AuthorProfileForm({ existingProfile, onSuccess }: Author
                 <Input
                   id="instagram"
                   value={profile.socialLinks.instagram || ''}
-                  onChange={(e) => setProfile(prev => ({ 
-                    ...prev, 
+                  onChange={(e) => setProfile(prev => ({
+                    ...prev,
                     socialLinks: { ...prev.socialLinks, instagram: e.target.value }
                   }))}
                   placeholder="@username"
@@ -527,7 +696,45 @@ export default function AuthorProfileForm({ existingProfile, onSuccess }: Author
                   style={{ background: 'rgba(255,255,255,0.9)' }}
                 />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="youtube" className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                  <Youtube className="h-4 w-4" style={{ color: 'rgba(255, 0, 0, 0.75)' }} />
+                  YouTube
+                </Label>
+                <Input
+                  id="youtube"
+                  value={profile.socialLinks.youtube || ''}
+                  onChange={(e) => setProfile(prev => ({
+                    ...prev,
+                    socialLinks: { ...prev.socialLinks, youtube: e.target.value }
+                  }))}
+                  placeholder="@channel or full URL"
+                  className="border-0 shadow-md focus:shadow-lg transition-all duration-200 dark:bg-slate-800/80"
+                  style={{ background: 'rgba(255,255,255,0.9)' }}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="github" className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                  <Github className="h-4 w-4" style={{ color: 'rgba(55, 65, 81, 0.85)' }} />
+                  GitHub
+                </Label>
+                <Input
+                  id="github"
+                  value={profile.socialLinks.github || ''}
+                  onChange={(e) => setProfile(prev => ({
+                    ...prev,
+                    socialLinks: { ...prev.socialLinks, github: e.target.value }
+                  }))}
+                  placeholder="username"
+                  className="border-0 shadow-md focus:shadow-lg transition-all duration-200 dark:bg-slate-800/80"
+                  style={{ background: 'rgba(255,255,255,0.9)' }}
+                />
+              </div>
             </div>
+            <p className="text-xs text-gray-400 mt-4">
+              Enter a username or a full https:// link — we validate and normalise both. Only the
+              platforms you fill in will be shown to readers.
+            </p>
           </CardContent>
         </Card>
       </motion.div>
@@ -560,6 +767,25 @@ export default function AuthorProfileForm({ existingProfile, onSuccess }: Author
               <Switch
                 checked={profile.isPublic}
                 onCheckedChange={(checked) => setProfile(prev => ({ ...prev, isPublic: checked }))}
+              />
+            </div>
+            <Separator style={{ background: 'rgba(16, 185, 129, 0.1)' }} />
+            {/* §3 — the account email stays private unless the author opts in here. */}
+            <div className="flex items-center justify-between gap-4 p-4 rounded-xl transition-all duration-200" style={{ background: profile.showEmail ? 'rgba(16, 185, 129, 0.05)' : 'rgba(156, 163, 175, 0.05)' }}>
+              <div className="space-y-0.5">
+                <Label className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                  <Mail className="h-4 w-4" style={{ color: 'rgba(16, 185, 129, 0.7)' }} />
+                  Public Contact Email
+                </Label>
+                <p className="text-sm text-gray-400">
+                  Show an &ldquo;Email author&rdquo; link on your profile and author card. Off by
+                  default — your account email is never published unless you enable this.
+                </p>
+              </div>
+              <Switch
+                checked={profile.showEmail}
+                onCheckedChange={(checked) => setProfile(prev => ({ ...prev, showEmail: checked }))}
+                aria-label="Show a public contact email on my author profile"
               />
             </div>
             <Separator style={{ background: 'rgba(16, 185, 129, 0.1)' }} />
@@ -686,15 +912,15 @@ export default function AuthorProfileForm({ existingProfile, onSuccess }: Author
       )}
 
       {/* Actions */}
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: isEditing ? 0.5 : 0.4 }}
         className="flex justify-end gap-4 pt-4"
       >
-        <Button 
-          type="button" 
-          variant="outline" 
+        <Button
+          type="button"
+          variant="outline"
           onClick={() => router.back()}
           disabled={loading || uploading}
           className="border-0 shadow-md hover:shadow-lg transition-all duration-200"
@@ -702,8 +928,8 @@ export default function AuthorProfileForm({ existingProfile, onSuccess }: Author
         >
           Cancel
         </Button>
-        <Button 
-          type="submit" 
+        <Button
+          type="submit"
           disabled={loading || uploading}
           className="shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
           style={{ background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.9), rgba(59, 130, 246, 0.9))' }}

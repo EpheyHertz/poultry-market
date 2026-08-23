@@ -1,96 +1,70 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
+import { cache } from 'react';
+
 import { prisma } from '@/lib/prisma';
+import { SITE_URL, seoConfig } from '@/lib/seo';
+import {
+  buildAuthorSocialLinks,
+  buildProfessionalTitle,
+  formatJoinedLabel,
+  getAuthorProfileHref,
+  resolveAuthorContactEmail,
+} from '@/lib/author-profile';
+import { toAuthorResourceView } from '@/lib/author-resources';
+
+import PublicAuthorProfile, { type PublicAuthorProfileData } from './public-author-profile';
 
 export const dynamic = 'force-dynamic';
-import PublicAuthorProfile from './public-author-profile';
-import {SITE_URL} from "@/lib/seo"
 
 interface PageProps {
   params: Promise<{ username: string }>;
 }
 
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const { username } = await params;
-  
-  const profile = await prisma.authorProfile.findUnique({
-    where: { username: username.toLowerCase() },
-    include: {
-      user: {
-        select: {
-          name: true,
-          avatar: true
-        }
-      }
-    }
-  });
-
-  if (!profile || !profile.isPublic) {
-    return {
-      title: 'Author Not Found',
-    };
-  }
-
-  const title = `${profile.displayName} - Author Profile`;
-  const description = profile.bio || `Read articles by ${profile.displayName} on PoultryMarket Kenya`;
-  const url = `${SITE_URL}/author/${username}`;
-
-  return {
-    title,
-    description,
-    alternates: {
-      canonical: url,
-    },
-    openGraph: {
-      title,
-      description,
-      type: 'profile',
-      url,
-      images: profile.avatarUrl ? [{ url: profile.avatarUrl }] : [],
-    },
-    twitter: {
-      card: 'summary',
-      title,
-      description,
-      images: profile.avatarUrl ? [profile.avatarUrl] : [],
-    },
-  };
-}
-
-export default async function PublicAuthorPage({ params }: PageProps) {
-  const { username } = await params;
-  
-  const profile = await prisma.authorProfile.findUnique({
+/**
+ * Single query used by both `generateMetadata` and the page render.
+ * `cache()` de-duplicates it within one request so the profile is only
+ * fetched once (§30 performance).
+ */
+const getAuthorProfile = cache(async (username: string) => {
+  return prisma.authorProfile.findUnique({
     where: { username: username.toLowerCase() },
     include: {
       user: {
         select: {
           id: true,
           name: true,
+          email: true,
           avatar: true,
           createdAt: true,
-          _count: {
-            select: {
-              followers: true,
-              following: true
-            }
-          }
-        }
+          _count: { select: { followers: true } },
+        },
       },
-      // Include wallet to check if support is enabled
-      wallet: {
+      // Wallet presence controls whether "Support author" is offered.
+      wallet: { select: { id: true, status: true } },
+      // Recommended / affiliate resources. Read from stored columns only —
+      // a public render never fetches a merchant URL (ext §24).
+      resources: {
+        where: { isActive: true },
+        orderBy: [{ displayOrder: 'asc' }, { createdAt: 'asc' }],
         select: {
           id: true,
-          status: true,
-        }
+          title: true,
+          description: true,
+          url: true,
+          domain: true,
+          merchant: true,
+          imageUrl: true,
+          isAffiliate: true,
+          affiliateDisclosure: true,
+          isActive: true,
+          displayOrder: true,
+        },
       },
       blogPosts: {
-        where: {
-          status: 'PUBLISHED'
-        },
-        orderBy: {
-          publishedAt: 'desc'
-        },
+        // Drafts / pending / archived posts are never exposed publicly (§12).
+        where: { status: 'PUBLISHED' },
+        orderBy: { publishedAt: 'desc' },
         select: {
           id: true,
           title: true,
@@ -101,130 +75,205 @@ export default async function PublicAuthorPage({ params }: PageProps) {
           readingTime: true,
           viewCount: true,
           publishedAt: true,
-          author: {
-            select: {
-              id: true,
-              name: true
-            }
-          },
-          tags: {
-            include: {
-              tag: true
-            }
-          },
-          _count: {
-            select: {
-              likedBy: true,
-              comments: true
-            }
-          }
-        }
-      }
-    }
+          author: { select: { id: true, name: true } },
+          tags: { include: { tag: true } },
+          _count: { select: { likedBy: true, comments: true } },
+        },
+      },
+    },
   });
+});
+
+/** Trim a bio into a clean meta description without cutting words in half. */
+function toMetaDescription(text: string, limit = 160): string {
+  const clean = text.replace(/\s+/g, ' ').trim();
+  if (clean.length <= limit) return clean;
+  const cut = clean.slice(0, limit);
+  const lastSpace = cut.lastIndexOf(' ');
+  return `${(lastSpace > 60 ? cut.slice(0, lastSpace) : cut).replace(/[,.;:\-–—]$/, '')}…`;
+}
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { username } = await params;
+  const profile = await getAuthorProfile(username);
+
+  if (!profile || !profile.isPublic) {
+    return {
+      title: 'Author not found',
+      robots: { index: false, follow: false },
+    };
+  }
+
+  const professionalTitle =
+    buildProfessionalTitle(profile.occupation, profile.company) || profile.tagline || null;
+
+  // Unique per-author title/description — never a shared template (§20).
+  const title = professionalTitle
+    ? `${profile.displayName} — ${professionalTitle} | ${seoConfig.siteName}`
+    : `${profile.displayName} — Author | ${seoConfig.siteName}`;
+
+  const descriptionSource =
+    (profile.bio && profile.bio.trim()) ||
+    (profile.tagline && profile.tagline.trim()) ||
+    [
+      professionalTitle,
+      profile.expertise.length ? `Writes about ${profile.expertise.slice(0, 3).join(', ')}.` : null,
+      `Read ${profile.totalPosts || profile.blogPosts.length} published articles on ${seoConfig.siteName}.`,
+    ]
+      .filter(Boolean)
+      .join(' ');
+
+  const description = toMetaDescription(descriptionSource);
+  const canonical = `${SITE_URL}${getAuthorProfileHref(profile.username) ?? `/author/${profile.username}`}`;
+  const image = profile.avatarUrl || profile.user.avatar || undefined;
+
+  return {
+    title,
+    description,
+    alternates: { canonical },
+    openGraph: {
+      title,
+      description,
+      type: 'profile',
+      url: canonical,
+      siteName: seoConfig.siteName,
+      images: image ? [{ url: image, alt: `${profile.displayName} profile photo` }] : undefined,
+    },
+    twitter: {
+      card: 'summary',
+      title,
+      description,
+      images: image ? [image] : undefined,
+    },
+    robots: { index: true, follow: true },
+  };
+}
+
+export default async function PublicAuthorPage({ params }: PageProps) {
+  const { username } = await params;
+  const profile = await getAuthorProfile(username);
 
   if (!profile || !profile.isPublic) {
     notFound();
   }
 
-  // Build social links object from individual fields
-  const socialLinks = {
-    twitter: profile.twitterHandle || undefined,
-    linkedin: profile.linkedinUrl || undefined,
-    facebook: profile.facebookUrl || undefined,
-    instagram: profile.instagramHandle || undefined,
-    github: profile.githubUsername || undefined,
-    youtube: profile.youtubeChannel || undefined,
-  };
+  const profileHref = getAuthorProfileHref(profile.username) ?? `/author/${profile.username}`;
+  const canonical = `${SITE_URL}${profileHref}`;
 
-  // Filter out undefined values for sameAs
-  const sameAsLinks = Object.values(socialLinks).filter((link): link is string => Boolean(link));
+  // Shared helpers guarantee identical, validated output on every surface (§34).
+  const socialLinks = buildAuthorSocialLinks({
+    facebookUrl: profile.facebookUrl,
+    instagramHandle: profile.instagramHandle,
+    twitterHandle: profile.twitterHandle,
+    linkedinUrl: profile.linkedinUrl,
+    youtubeChannel: profile.youtubeChannel,
+    githubUsername: profile.githubUsername,
+    website: profile.website,
+  });
 
-  // Generate JSON-LD structured data
-  const jsonLd = {
+  // The account email is only ever surfaced when the author opted in (§3).
+  const contactEmail = resolveAuthorContactEmail({
+    showEmail: profile.showEmail,
+    email: profile.user.email,
+  });
+
+  const professionalTitle =
+    buildProfessionalTitle(profile.occupation, profile.company) || profile.tagline || null;
+
+  const structuredData = {
     '@context': 'https://schema.org',
-    '@type': 'ProfilePage',
-    mainEntity: {
-      '@type': 'Person',
-      name: profile.displayName,
-      url: `https://poultrymarketke.vercel.app/author/${profile.username}`,
-      image: profile.avatarUrl,
-      description: profile.bio,
-      jobTitle: profile.occupation,
-      worksFor: profile.company ? {
-        '@type': 'Organization',
-        name: profile.company
-      } : undefined,
-      address: profile.location ? {
-        '@type': 'PostalAddress',
-        addressLocality: profile.location
-      } : undefined,
-      sameAs: sameAsLinks.length > 0 ? sameAsLinks : undefined
-    }
+    '@graph': [
+      {
+        '@type': 'ProfilePage',
+        '@id': `${canonical}#profile`,
+        url: canonical,
+        name: `${profile.displayName} — ${seoConfig.siteName}`,
+        mainEntity: { '@id': `${canonical}#person` },
+      },
+      {
+        '@type': 'Person',
+        '@id': `${canonical}#person`,
+        name: profile.displayName,
+        url: canonical,
+        ...(profile.avatarUrl ? { image: profile.avatarUrl } : {}),
+        ...(profile.bio ? { description: profile.bio } : {}),
+        ...(profile.occupation ? { jobTitle: profile.occupation } : {}),
+        ...(profile.company
+          ? { worksFor: { '@type': 'Organization', name: profile.company } }
+          : {}),
+        ...(profile.location
+          ? { address: { '@type': 'PostalAddress', addressLocality: profile.location } }
+          : {}),
+        ...(profile.expertise.length ? { knowsAbout: profile.expertise } : {}),
+        ...(socialLinks.length ? { sameAs: socialLinks.map((link) => link.href) } : {}),
+      },
+      {
+        '@type': 'BreadcrumbList',
+        '@id': `${canonical}#breadcrumb`,
+        itemListElement: [
+          { '@type': 'ListItem', position: 1, name: 'Home', item: SITE_URL },
+          { '@type': 'ListItem', position: 2, name: 'Blog', item: `${SITE_URL}/blog` },
+          { '@type': 'ListItem', position: 3, name: profile.displayName, item: canonical },
+        ],
+      },
+    ],
   };
 
-  // Transform profile to match component interface
-  // Check if support is enabled (wallet exists and is active)
-  const supportEnabled = profile.wallet?.status === 'ACTIVE';
-  
-  const transformedProfile = {
+  const data: PublicAuthorProfileData = {
     id: profile.id,
+    userId: profile.user.id,
     displayName: profile.displayName,
     username: profile.username,
-    bio: profile.bio || undefined,
-    tagline: profile.tagline || undefined,
-    avatarUrl: profile.avatarUrl || undefined,
-    coverImageUrl: profile.coverImageUrl || undefined,
-    website: profile.website || undefined,
-    location: profile.location || undefined,
-    occupation: profile.occupation || undefined,
-    company: profile.company || undefined,
-    expertise: profile.expertise || [],
-    socialLinks,
+    bio: profile.bio,
+    tagline: profile.tagline,
+    professionalTitle,
+    avatarUrl: profile.avatarUrl || profile.user.avatar,
+    coverImageUrl: profile.coverImageUrl,
+    location: profile.location,
+    expertise: profile.expertise ?? [],
     isVerified: profile.isVerified,
-    totalPosts: profile.totalPosts,
-    totalViews: profile.totalViews,
-    totalLikes: profile.totalLikes,
-    createdAt: profile.createdAt.toISOString(),
-    supportEnabled, // Add support status
-    user: {
-      id: profile.user.id,
-      name: profile.user.name,
-      avatar: profile.user.avatar || undefined,
-      createdAt: profile.user.createdAt.toISOString(),
-      _count: profile.user._count
+    socialLinks,
+    contactEmail,
+    joinedLabel: formatJoinedLabel(profile.createdAt),
+    stats: {
+      posts: profile.totalPosts,
+      views: profile.totalViews,
+      likes: profile.totalLikes,
+      followers: profile.user._count.followers,
     },
-    blogPosts: profile.blogPosts.map(post => ({
+    supportEnabled: profile.wallet?.status === 'ACTIVE',
+    // Already filtered to active rows by the query; mapped through the shared
+    // view helper so every surface renders the same shape (ext §26).
+    resources: profile.resources.map(toAuthorResourceView),
+    posts: profile.blogPosts.map((post) => ({
       id: post.id,
       title: post.title,
       slug: post.slug,
-      excerpt: post.excerpt || undefined,
-      featuredImage: post.featuredImage || undefined,
+      excerpt: post.excerpt,
+      featuredImage: post.featuredImage,
       category: post.category,
-      readingTime: post.readingTime || undefined,
+      readingTime: post.readingTime,
       viewCount: post.viewCount,
-      publishedAt: post.publishedAt?.toISOString() || new Date().toISOString(),
+      publishedAt: post.publishedAt ? post.publishedAt.toISOString() : null,
       authorId: post.author.id,
       authorName: post.author.name,
-      authorUsername: profile.username, // Use profile username for all posts
-      tags: post.tags.map(t => ({
-        tag: {
-          id: t.tag.id,
-          name: t.tag.name,
-          slug: t.tag.slug
-        }
+      tags: post.tags.map((entry) => ({
+        id: entry.tag.id,
+        name: entry.tag.name,
+        slug: entry.tag.slug,
       })),
-      _count: post._count
-    }))
+      likes: post._count.likedBy,
+      comments: post._count.comments,
+    })),
   };
 
   return (
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
       />
-      <PublicAuthorProfile profile={transformedProfile} />
+      <PublicAuthorProfile profile={data} />
     </>
   );
 }

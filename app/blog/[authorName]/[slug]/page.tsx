@@ -20,10 +20,17 @@ import { cache } from 'react';
 import AdsenseScript from '@/components/ads';
 import ArticleShell from '@/components/blog/article/article-shell';
 import PublicNavbar from '@/components/layout/public-navbar';
+import {
+  buildAuthorSocialLinks,
+  buildProfessionalTitle,
+  getAuthorProfileHref,
+  resolveAuthorContactEmail,
+} from '@/lib/author-profile';
 import { buildExcerpt, extractHeadings, resolveReadingTime } from '@/lib/blog/article/content';
 import { hasMeaningfulUpdate, toIsoDate } from '@/lib/blog/article/format';
 import { getRecommendations } from '@/lib/blog/article/recommendations';
 import type { ArticleView } from '@/lib/blog/article/types';
+import { toAuthorResourceView } from '@/lib/author-resources';
 import { prisma } from '@/lib/prisma';
 import { seoConfig, SITE_URL } from '@/lib/seo';
 import { BLOG_CATEGORIES } from '@/types/blog';
@@ -106,6 +113,8 @@ const POST_SELECT = {
     select: {
       id: true,
       name: true,
+      // Account email: only ever used behind the author's `showEmail` opt-in.
+      email: true,
       avatar: true,
       bio: true,
       _count: { select: { blogPosts: true, followers: true } },
@@ -121,13 +130,49 @@ const POST_SELECT = {
       tagline: true,
       website: true,
       location: true,
+      occupation: true,
+      company: true,
+      showEmail: true,
       twitterHandle: true,
       linkedinUrl: true,
+      facebookUrl: true,
+      instagramHandle: true,
+      youtubeChannel: true,
+      githubUsername: true,
       isVerified: true,
       totalPosts: true,
+      // ext §12: we only need to know *whether* the author has any public
+      // recommendations, so the author card can offer a link instead of a grid.
+      resources: { where: { isActive: true }, select: { id: true }, take: 1 },
     },
   },
   tags: { select: { tag: { select: { id: true, name: true, slug: true } } } },
+  /**
+   * Resources the author deliberately attached to *this* article (ext §13 — a
+   * real relation, not ids in a text column). Stored metadata only: rendering a
+   * public page never touches the merchant (ext §24).
+   */
+  resourceLinks: {
+    where: { resource: { isActive: true } },
+    orderBy: { resource: { displayOrder: 'asc' } },
+    select: {
+      resource: {
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          url: true,
+          domain: true,
+          merchant: true,
+          imageUrl: true,
+          isAffiliate: true,
+          affiliateDisclosure: true,
+          isActive: true,
+          displayOrder: true,
+        },
+      },
+    },
+  },
   _count: { select: { likedBy: true, comments: true } },
 } as const;
 
@@ -206,6 +251,18 @@ function toArticleView(post: PostRecord, authorSegment: string): ArticleView {
   const displayName = post.authorProfile?.displayName || post.author?.name || 'PoultryMarket';
   const username = post.authorProfile?.username ?? null;
 
+  // Same helpers as the author profile page → one source of truth (§34) and a
+  // single place where author-supplied URLs are validated (§33).
+  const socialLinks = buildAuthorSocialLinks({
+    facebookUrl: post.authorProfile?.facebookUrl,
+    instagramHandle: post.authorProfile?.instagramHandle,
+    twitterHandle: post.authorProfile?.twitterHandle,
+    linkedinUrl: post.authorProfile?.linkedinUrl,
+    youtubeChannel: post.authorProfile?.youtubeChannel,
+    githubUsername: post.authorProfile?.githubUsername,
+    website: post.authorProfile?.website,
+  });
+
   return {
     id: post.id,
     slug: post.slug,
@@ -238,11 +295,26 @@ function toArticleView(post: PostRecord, authorSegment: string): ArticleView {
       avatarUrl: post.authorProfile?.avatarUrl || post.author?.avatar || null,
       bio: post.authorProfile?.bio || post.author?.bio || null,
       tagline: post.authorProfile?.tagline ?? null,
+      professionalTitle:
+        buildProfessionalTitle(post.authorProfile?.occupation, post.authorProfile?.company) ||
+        post.authorProfile?.tagline ||
+        null,
       isVerified: Boolean(post.authorProfile?.isVerified),
       followers: post.author?._count?.followers ?? 0,
       posts: post.authorProfile?.totalPosts ?? post.author?._count?.blogPosts ?? 0,
-      href: username ? `/author/${username}` : null,
+      href: getAuthorProfileHref(username),
+      socialLinks,
+      // Private account emails are never exposed without an explicit opt-in (§3).
+      contactEmail: resolveAuthorContactEmail({
+        showEmail: post.authorProfile?.showEmail,
+        email: post.author?.email,
+      }),
+      // ext §12 — the author card links to the profile section instead of
+      // repeating a full recommendation grid inside the article.
+      hasResources: (post.authorProfile?.resources?.length ?? 0) > 0,
     },
+    // ext §13 — only resources explicitly attached to this article.
+    resources: (post.resourceLinks ?? []).map((link) => toAuthorResourceView(link.resource)),
     canonicalUrl: toAbsoluteUrl(post.canonicalUrl) || `${SITE_URL}${href}`,
     href,
   };
@@ -402,13 +474,13 @@ export default async function BlogPostPage({ params }: { params: Promise<Params>
         url: authorUrl,
         image: toAbsoluteUrl(article.author.avatarUrl) || undefined,
         description: article.author.bio || undefined,
-        sameAs: [
-          post.authorProfile?.twitterHandle
-            ? `https://twitter.com/${post.authorProfile.twitterHandle.replace(/^@/, '')}`
-            : null,
-          post.authorProfile?.linkedinUrl || null,
-          post.authorProfile?.website || null,
-        ].filter(Boolean),
+        ...(article.author.professionalTitle
+          ? { jobTitle: article.author.professionalTitle }
+          : {}),
+        // Validated links only — same list the UI renders.
+        ...(article.author.socialLinks.length
+          ? { sameAs: article.author.socialLinks.map((link) => link.href) }
+          : {}),
       },
       {
         '@type': 'BreadcrumbList',

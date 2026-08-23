@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import AuthorProfileForm from '@/components/author/author-profile-form';
+import AuthorResourcesManager from '@/components/author/author-resources-manager';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PenTool, User } from 'lucide-react';
@@ -39,12 +40,12 @@ export default function EditProfilePage() {
           <div className="h-8 w-64 rounded-lg animate-pulse" style={{ background: 'linear-gradient(90deg, rgba(16, 185, 129, 0.3), rgba(59, 130, 246, 0.3))' }} />
           <div className="h-4 w-80 rounded animate-pulse" style={{ background: 'rgba(0,0,0,0.1)' }} />
         </div>
-        
+
         {/* Form Card Skeleton */}
         <Card className="overflow-hidden border-0 shadow-xl" style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.95) 100%)' }}>
           {/* Top accent bar */}
           <div className="h-1.5" style={{ background: 'linear-gradient(90deg, rgba(16, 185, 129, 0.8), rgba(59, 130, 246, 0.8), rgba(249, 115, 22, 0.8))' }} />
-          
+
           <CardContent className="p-6 space-y-6">
             {/* Avatar Upload Skeleton */}
             <div className="flex flex-col items-center space-y-4">
@@ -54,7 +55,7 @@ export default function EditProfilePage() {
               </div>
               <div className="h-4 w-32 rounded animate-pulse" style={{ background: 'rgba(0,0,0,0.1)' }} />
             </div>
-            
+
             {/* Form Fields Skeleton */}
             <div className="grid md:grid-cols-2 gap-4">
               {[1, 2, 3, 4].map((i) => (
@@ -64,13 +65,13 @@ export default function EditProfilePage() {
                 </div>
               ))}
             </div>
-            
+
             {/* Bio Skeleton */}
             <div className="space-y-2">
               <div className="h-4 w-16 rounded animate-pulse" style={{ background: 'rgba(0,0,0,0.1)' }} />
               <div className="h-32 w-full rounded-lg animate-pulse" style={{ background: 'rgba(249, 115, 22, 0.1)' }} />
             </div>
-            
+
             {/* Social Links Skeleton */}
             <div className="space-y-3">
               <div className="h-5 w-28 rounded animate-pulse" style={{ background: 'rgba(59, 130, 246, 0.2)' }} />
@@ -80,7 +81,7 @@ export default function EditProfilePage() {
                 ))}
               </div>
             </div>
-            
+
             {/* Submit Button Skeleton */}
             <div className="flex justify-end pt-4">
               <div className="h-11 w-32 rounded-lg animate-pulse" style={{ background: 'linear-gradient(90deg, rgba(16, 185, 129, 0.4), rgba(59, 130, 246, 0.4))' }} />
@@ -93,7 +94,7 @@ export default function EditProfilePage() {
 
   return (
     <div className="max-w-3xl mx-auto">
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         className="mb-8 p-6 rounded-2xl shadow-xl bg-gradient-to-br from-emerald-50/50 via-blue-50/50 to-white dark:from-slate-800/80 dark:via-slate-900/80 dark:to-slate-900/80 border border-gray-100 dark:border-slate-700"
@@ -111,24 +112,40 @@ export default function EditProfilePage() {
               {profile ? 'Edit Author Profile' : 'Create Author Profile'}
             </h1>
             <p className="text-gray-500 dark:text-gray-400">
-              {profile 
-                ? 'Update your author information and settings' 
+              {profile
+                ? 'Update your author information and settings'
                 : 'Set up your author profile to start publishing'}
             </p>
           </div>
         </div>
       </motion.div>
-      
+
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
       >
-        <AuthorProfileForm 
-          existingProfile={profile} 
+        <AuthorProfileForm
+          existingProfile={profile}
           onSuccess={() => router.push('/author/dashboard')}
         />
       </motion.div>
+
+      {/*
+        ext §1 / §14: recommended resources are managed from the author's own
+        profile area. Only offered once a profile exists, because every
+        /api/author/resources endpoint is scoped to an existing AuthorProfile.
+      */}
+      {profile && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="mt-6"
+        >
+          <AuthorResourcesManager authorUsername={profile.username} />
+        </motion.div>
+      )}
     </div>
   );
 }

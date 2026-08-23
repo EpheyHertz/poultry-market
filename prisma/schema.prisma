@@ -1386,9 +1386,77 @@ model AuthorProfile {
   // Author Support Wallet
   wallet AuthorWallet?
 
+  // Recommended / affiliate resources curated by this author
+  resources AuthorResource[] @relation("AuthorProfileResources")
+
   @@index([username])
   @@index([isPublic, isVerified])
   @@map("author_profiles")
+}
+
+/// Author-curated external recommendation (product, guide, service...).
+///
+/// Metadata is resolved ONCE when the author saves the resource and stored here,
+/// so rendering a public author profile never makes an outbound request to
+/// Amazon/Jumia/etc. Belongs to the existing AuthorProfile — there is no separate
+/// affiliate author identity.
+model AuthorResource {
+  id        String        @id @default(cuid())
+  profileId String
+  profile   AuthorProfile @relation("AuthorProfileResources", fields: [profileId], references: [id], onDelete: Cascade)
+
+  // Presentation (author-editable, seeded from Open Graph metadata)
+  title       String
+  description String? @db.Text
+  imageUrl    String? @db.Text
+
+  // Destination. `url` keeps the author's affiliate parameters verbatim.
+  url      String  @db.Text
+  domain   String // Normalised hostname, e.g. "amazon.com"
+  merchant String? // Friendly merchant name when confidently identified
+
+  // Affiliate handling
+  isAffiliate         Boolean @default(false)
+  affiliateDisclosure String? @db.Text
+
+  // Management
+  isActive     Boolean @default(true)
+  displayOrder Int     @default(0)
+
+  // Denormalised click counter (GA holds the detailed events)
+  clickCount Int @default(0)
+
+  /// When the stored metadata was last resolved from the destination.
+  metadataFetchedAt DateTime?
+  /// False when the destination returned no usable Open Graph metadata and the
+  /// author supplied the title/description/image manually.
+  metadataResolved  Boolean   @default(false)
+
+  // Optional per-article associations (a resource is only shown on an article
+  // the author deliberately linked it to).
+  articles AuthorResourceArticle[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([profileId, isActive, displayOrder])
+  @@map("author_resources")
+}
+
+/// Explicit many-to-many join between a recommended resource and a blog post.
+/// Prevents irrelevant affiliate content appearing on unrelated articles.
+model AuthorResourceArticle {
+  id         String         @id @default(cuid())
+  resourceId String
+  resource   AuthorResource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  postId     String
+  post       BlogPost       @relation("BlogPostResources", fields: [postId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([resourceId, postId])
+  @@index([postId])
+  @@map("author_resource_articles")
 }
 
 // Blog Models
@@ -1472,6 +1540,9 @@ model BlogPost {
 
   // Support transactions from this post
   supportTransactions SupportTransaction[] @relation("BlogPostSupport")
+
+  // Author recommendations deliberately associated with this article
+  resourceLinks AuthorResourceArticle[] @relation("BlogPostResources")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
