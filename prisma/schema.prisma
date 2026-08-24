@@ -1527,7 +1527,7 @@ model BlogPost {
   // Search engine fields (maintained by DB triggers - read-only here)
   tagNames     String? @map("tag_names")
   authorName   String? @map("author_name")
-  searchVector Unsupported("tsvector")?
+  searchVector Unsupported("tsvector")? @map("search_vector")
 
   // Domain concepts (poultry knowledge graph, Phase 8)
   concepts BlogPostConcept[]
