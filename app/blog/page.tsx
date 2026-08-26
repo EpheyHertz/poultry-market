@@ -3,6 +3,7 @@ import { Metadata } from 'next';
 import PublicNavbar from '@/components/layout/public-navbar';
 import BlogHome from './blog-home';
 import { getBlogPosts } from '@/lib/blog/get-posts';
+import { BLOG_PAGE_SIZE, FEATURED_LIMIT } from '@/lib/blog/listing-config';
 import { SITE_URL } from '@/lib/seo';
 import AdsenseScript from '@/components/ads';
 
@@ -27,8 +28,8 @@ export async function generateMetadata({ searchParams }: BlogPageProps): Promise
   const canonicalPath = query ? `/blog?${query}` : '/blog';
 
   return {
-    title: page > 1 
-      ? `Poultry Blog - Page ${page}` 
+    title: page > 1
+      ? `Poultry Blog - Page ${page}`
       : 'Poultry Blog - Expert Insights, Tips & Industry News',
     description:
       'Discover the latest insights, tips, and expert advice in the poultry industry. From farming techniques to market trends, stay informed with comprehensive guides and articles.',
@@ -134,16 +135,35 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
 
   let initialPosts: any[] | null = null;
   let initialPagination: any | null = null;
+  let initialFeatured: any[] | null = null;
 
-  // Server-render page 1 browse; client will handle search mode
+  // Server-render the requested browse page; client handles search mode.
+  //
+  // Featured posts and the paginated listing are two independent queries:
+  //  - Featured uses the `featured` DB flag so the rail is not limited to
+  //    whatever happens to be on the current page.
+  //  - The listing is a normal offset page, so ?page=N is crawlable and
+  //    directly shareable.
+  // They run in parallel to keep TTFB flat, and Promise.allSettled means a
+  // failure in one never blanks the other.
   if (!search) {
-    try {
-      const result = await getBlogPosts({ page, category, limit: 12 });
-      initialPosts = result.posts;
-      initialPagination = result.pagination;
-    } catch (error) {
-      console.error('Error fetching blog posts:', error);
+    const [listResult, featuredResult] = await Promise.allSettled([
+      getBlogPosts({ page, category, limit: BLOG_PAGE_SIZE }),
+      getBlogPosts({ page: 1, featured: true, limit: FEATURED_LIMIT }),
+    ]);
+
+    if (listResult.status === 'fulfilled') {
+      initialPosts = listResult.value.posts;
+      initialPagination = listResult.value.pagination;
+    } else {
+      console.error('Error fetching blog posts:', listResult.reason);
       // Fall back to client-side fetch
+    }
+
+    if (featuredResult.status === 'fulfilled') {
+      initialFeatured = featuredResult.value.posts;
+    } else {
+      console.error('Error fetching featured blog posts:', featuredResult.reason);
     }
   }
 
@@ -193,16 +213,16 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
   const itemListSchema =
     initialPosts && initialPosts.length > 0
       ? {
-          '@context': 'https://schema.org',
-          '@type': 'ItemList',
-          numberOfItems: initialPosts.length,
-          itemListElement: initialPosts.map((post, index) => ({
-            '@type': 'ListItem',
-            position: index + 1,
-            url: `${SITE_URL}/blog/${post.authorUsername || post.author?.username || post.author?.name?.replace(/\s+/g, '-').toLowerCase()}/${post.slug}`,
-            name: post.title,
-          })),
-        }
+        '@context': 'https://schema.org',
+        '@type': 'ItemList',
+        numberOfItems: initialPosts.length,
+        itemListElement: initialPosts.map((post, index) => ({
+          '@type': 'ListItem',
+          position: index + 1,
+          url: `${SITE_URL}/blog/${post.authorUsername || post.author?.username || post.author?.name?.replace(/\s+/g, '-').toLowerCase()}/${post.slug}`,
+          name: post.title,
+        })),
+      }
       : null;
 
   return (
@@ -224,7 +244,11 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
       )}
       <PublicNavbar showAuth />
       <Suspense fallback={<BlogLoadingSkeleton />}>
-        <BlogHome initialPosts={initialPosts} initialPagination={initialPagination} />
+        <BlogHome
+          initialPosts={initialPosts}
+          initialPagination={initialPagination}
+          initialFeatured={initialFeatured}
+        />
       </Suspense>
     </>
   );

@@ -1,26 +1,15 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { Search, Loader2, LayoutGrid } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { BLOG_CATEGORIES, type BlogCategory } from '@/types/blog';
 import { trackSearchClick } from '@/lib/search-v2/trackClick';
 import SearchAutocomplete, { SearchAutocompleteHandle, Suggestion } from '@/components/blog/search-autocomplete';
-import {
-  FeaturedCard,
-  HorizontalCard,
-  CompactCard,
-  GridCard,
-  type BlogCardPost,
-} from '@/components/blog/cards';
-import {
-  FeaturedCardSkeleton,
-  HorizontalCardSkeleton,
-  GridCardSkeleton,
-  CompactCardSkeleton,
-} from '@/components/blog/skeletons';
+import { GridCard, type BlogCardPost } from '@/components/blog/cards';
+import { GridCardSkeleton } from '@/components/blog/skeletons';
 import {
   SectionHeader,
   FilterChips,
@@ -29,10 +18,16 @@ import {
   NewsletterCTA,
   EmptyState,
 } from '@/components/blog/sections';
+import { FeaturedCarousel } from '@/components/blog/featured-carousel';
 import AdSlot from '@/components/ads/ad-slot';
 import { BlogPagination } from '@/components/blog/pagination';
+import { BLOG_PAGE_SIZE, FEATURED_LIMIT } from '@/lib/blog/listing-config';
 
-const PAGE_SIZE = 12;
+/**
+ * Posts per page for "All Articles". Shared with the server component so the
+ * SSR-seeded page and client-fetched pages use identical offsets.
+ */
+const PAGE_SIZE = BLOG_PAGE_SIZE;
 
 
 /** Every value is a real BLOG_CATEGORIES key so the API filter actually matches. */
@@ -195,14 +190,29 @@ interface InitialPagination {
 }
 
 interface BlogHomeProps {
-  /** Server-rendered first page — present only in browse mode (no ?search=). */
+  /** Server-rendered page of "All Articles" — present only in browse mode. */
   initialPosts?: any[] | null;
   initialPagination?: InitialPagination | null;
+  /** Server-rendered featured posts (DB `featured` flag), ordering preserved. */
+  initialFeatured?: any[] | null;
 }
 
-export default function BlogHome({ initialPosts, initialPagination }: BlogHomeProps = {}) {
+/** Cached browse pages are keyed by the full filter context + page number. */
+function makeCacheKey(category: string, sort: string, page: number) {
+  return `${category}|${sort}|${page}`;
+}
+
+function parsePage(value: string | null | undefined): number {
+  const parsed = parseInt(value || '1', 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
+}
+
+export default function BlogHome({
+  initialPosts,
+  initialPagination,
+  initialFeatured,
+}: BlogHomeProps = {}) {
   const searchParams = useSearchParams();
-  const router = useRouter();
 
   // Seed from the server payload so Googlebot (and the first paint) get real
   // article markup instead of skeletons.
@@ -210,9 +220,32 @@ export default function BlogHome({ initialPosts, initialPagination }: BlogHomePr
     () => (initialPosts?.length ? initialPosts.map(normalizeApiPost) : []),
     [initialPosts]
   );
+  const seededFeatured = useMemo<BlogCardPost[]>(
+    () => (initialFeatured?.length ? initialFeatured.map(normalizeApiPost) : []),
+    [initialFeatured]
+  );
 
+  // ── Filter / navigation state ─────────────────────────────────────────────
+  // The URL stays the source of truth for sharing, but it is mirrored into
+  // state so a page change never has to re-run the blog Server Component.
+  const [searchQuery, setSearchQuery] = useState(searchParams?.get('search') || '');
+  const [searchInput, setSearchInput] = useState(searchParams?.get('search') || '');
+  const [selectedCategory, setSelectedCategory] = useState(searchParams?.get('category') || '');
+  const [sortBy] = useState(searchParams?.get('sort') || 'latest');
+  const [page, setPage] = useState(() =>
+    initialPagination?.currentPage ?? parsePage(searchParams?.get('page'))
+  );
+  const [searchFocused, setSearchFocused] = useState(false);
+
+  const isSearchMode = searchQuery.trim().length > 0;
+
+  // ── "All Articles" state ──────────────────────────────────────────────────
   const [posts, setPosts] = useState<BlogCardPost[]>(seededPosts);
-  const [loading, setLoading] = useState(seededPosts.length === 0);
+  const [pagination, setPagination] = useState<InitialPagination | null>(
+    initialPagination ?? null
+  );
+  const [listLoading, setListLoading] = useState(seededPosts.length === 0);
+  const [pendingPage, setPendingPage] = useState<number | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [totalPosts, setTotalPosts] = useState<number | null>(
@@ -220,119 +253,299 @@ export default function BlogHome({ initialPosts, initialPagination }: BlogHomePr
   );
   const [hasMore, setHasMore] = useState(initialPagination?.hasNextPage ?? false);
 
+  // ── Featured state (completely independent of All Articles) ───────────────
+  const [featuredPosts, setFeaturedPosts] = useState<BlogCardPost[]>(seededFeatured);
+  const [featuredLoading, setFeaturedLoading] = useState(seededFeatured.length === 0);
 
-  const [searchQuery, setSearchQuery] = useState(searchParams?.get('search') || '');
-  const [searchInput, setSearchInput] = useState(searchParams?.get('search') || '');
-  const [selectedCategory, setSelectedCategory] = useState(searchParams?.get('category') || '');
-  const [sortBy] = useState(searchParams?.get('sort') || 'latest');
-  const [searchFocused, setSearchFocused] = useState(false);
+  // ── Trending sidebar: recomputed per filter context, stable across pages ──
+  const [trendingPosts, setTrendingPosts] = useState<BlogCardPost[]>(() =>
+    [...seededPosts].sort((a, b) => (b.views || 0) - (a.views || 0)).slice(0, 5)
+  );
+  const trendingContextRef = useRef<string | null>(
+    seededPosts.length ? `|${selectedCategory}|${sortBy}` : null
+  );
 
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const autocompleteRef = useRef<SearchAutocompleteHandle>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
-  // Pagination cursors: browse mode is offset-based, search mode is cursor-based.
-  const pageRef = useRef(1);
+  // Search-mode pagination is cursor based.
   const cursorRef = useRef<string | null>(null);
-  
-  // Skip the initial refetch when we have seeded SSR data
-  const skipInitialFetchRef = useRef(seededPosts.length > 0);
+
+  // Guards the featured request so pagination/re-renders can never fire it twice.
+  const featuredFetchedRef = useRef(false);
+
+  // Only the newest request is allowed to write state, so a slow page 2 can
+  // never overwrite a page 3 the user has already asked for.
+  const requestIdRef = useRef(0);
+
+  // Already-visited browse pages are replayed from memory, which is what makes
+  // Back/Forward instant and prevents duplicate API calls.
+  const pageCacheRef = useRef<Map<string, { posts: BlogCardPost[]; pagination: InitialPagination }>>(
+    new Map(
+      seededPosts.length && initialPagination
+        ? [
+          [
+            makeCacheKey(selectedCategory, sortBy, initialPagination.currentPage),
+            { posts: seededPosts, pagination: initialPagination },
+          ],
+        ]
+        : []
+    )
+  );
+
+  /** Identifies exactly which dataset should currently be on screen. */
+  const dataKey = `${searchQuery.trim()}|${selectedCategory}|${sortBy}|${page}`;
+  const loadedKeyRef = useRef<string | null>(seededPosts.length ? dataKey : null);
 
   // Search click attribution
   const queryIdRef = useRef<string | undefined>(undefined);
   const renderedAtRef = useRef(0);
 
-  // router.push during the first render throws "Router action dispatched before
-  // initialization", so URL sync is gated until after mount.
-  const mountedRef = useRef(false);
+  /**
+   * Push the new filter/page state into the URL *without* re-running the
+   * server render. `history.pushState` is integrated with the App Router, so
+   * the URL stays shareable and Back/Forward keeps working, while the page
+   * itself (header, featured rail, sidebar) is never torn down.
+   */
+  const pushUrlState = useCallback(
+    (updates: Record<string, string | null>, options: { replace?: boolean } = {}) => {
+      if (typeof window === 'undefined') return;
+      const params = new URLSearchParams(window.location.search);
+      for (const [key, value] of Object.entries(updates)) {
+        if (value) params.set(key, value);
+        else params.delete(key);
+      }
+      const qs = params.toString();
+      const url = qs ? `/blog?${qs}` : '/blog';
+      if (options.replace) window.history.replaceState(null, '', url);
+      else window.history.pushState(null, '', url);
+    },
+    []
+  );
+
+  const applyTrending = useCallback(
+    (source: BlogCardPost[], contextKey: string) => {
+      // Keep the sidebar stable while paginating; refresh it when the filter
+      // context (search / category / sort) actually changes.
+      if (trendingContextRef.current === contextKey) return;
+      trendingContextRef.current = contextKey;
+      setTrendingPosts([...source].sort((a, b) => (b.views || 0) - (a.views || 0)).slice(0, 5));
+    },
+    []
+  );
+
+  // ── Featured posts: fetched once, never refetched by pagination ───────────
   useEffect(() => {
-    mountedRef.current = true;
-  }, []);
+    // Already seeded by the server render, already fetched, or hidden because
+    // the user is searching — in all three cases there is nothing to request.
+    if (seededFeatured.length > 0 || featuredFetchedRef.current) return;
+    if (isSearchMode) {
+      setFeaturedLoading(false);
+      return;
+    }
 
-  const isSearchMode = searchQuery.trim().length > 0;
+    featuredFetchedRef.current = true;
+    let cancelled = false;
+    (async () => {
+      setFeaturedLoading(true);
+      try {
+        const res = await fetch(`/api/blog/posts?featured=true&limit=${FEATURED_LIMIT}`);
+        if (!res.ok) throw new Error(`Failed to load featured posts (${res.status})`);
+        const data = await res.json();
+        if (cancelled) return;
+        setFeaturedPosts((data.posts || []).map(normalizeApiPost));
+      } catch (err) {
+        // A failed featured fetch must never break the main listing.
+        console.error('Error fetching featured posts:', err);
+        if (!cancelled) setFeaturedPosts([]);
+      } finally {
+        if (!cancelled) setFeaturedLoading(false);
+      }
+    })();
 
-  const fetchPosts = useCallback(
-    async (append: boolean) => {
-      const query = searchQuery.trim();
-      append ? setLoadingMore(true) : setLoading(true);
+    return () => {
+      cancelled = true;
+    };
+  }, [isSearchMode, seededFeatured.length]);
+
+  // ── Browse-mode page fetch (server-side pagination via existing API) ──────
+  const fetchBrowsePage = useCallback(
+    async (targetPage: number, key: string) => {
+      const cacheKey = makeCacheKey(selectedCategory, sortBy, targetPage);
+      const cached = pageCacheRef.current.get(cacheKey);
+      const contextKey = `|${selectedCategory}|${sortBy}`;
+
+      if (cached) {
+        requestIdRef.current += 1;
+        loadedKeyRef.current = key;
+        setPosts(cached.posts);
+        setPagination(cached.pagination);
+        setTotalPosts(cached.pagination.totalPosts);
+        setHasMore(cached.pagination.hasNextPage);
+        setError(null);
+        setListLoading(false);
+        setPendingPage(null);
+        applyTrending(cached.posts, contextKey);
+        return;
+      }
+
+      const requestId = ++requestIdRef.current;
+      setListLoading(true);
+      setPendingPage(targetPage);
       setError(null);
 
       try {
-        if (query) {
-          const params = new URLSearchParams({
-            q: query,
-            limit: String(PAGE_SIZE),
-            sort: v2SortFor(sortBy),
-          });
-          if (selectedCategory) params.set('categories', selectedCategory);
-          if (append && cursorRef.current) params.set('cursor', cursorRef.current);
+        const params = new URLSearchParams({
+          page: String(targetPage),
+          limit: String(PAGE_SIZE),
+          sort: sortBy,
+        });
+        if (selectedCategory) params.set('category', selectedCategory);
 
-          const res = await fetch(`/api/blog/search?${params}`);
-          if (!res.ok) throw new Error(`Search failed (${res.status})`);
-          const data = await res.json();
+        const res = await fetch(`/api/blog/posts?${params}`);
+        if (!res.ok) throw new Error(`Failed to load posts (${res.status})`);
+        const data = await res.json();
+        if (requestId !== requestIdRef.current) return;
 
-          const mapped = (data.results || []).map(normalizeSearchResult);
-          setPosts((prev) => (append ? dedupeById([...prev, ...mapped]) : mapped));
-          cursorRef.current = data.nextCursor || null;
-          setHasMore(Boolean(data.nextCursor));
-          setTotalPosts(typeof data.total === 'number' ? data.total : null);
-          queryIdRef.current = data.queryId;
-          renderedAtRef.current = Date.now();
-        } else {
-          const nextPage = append ? pageRef.current + 1 : 1;
-          const params = new URLSearchParams({
-            page: String(nextPage),
-            limit: String(PAGE_SIZE),
-            sort: sortBy,
-          });
-          if (selectedCategory) params.set('category', selectedCategory);
+        const mapped: BlogCardPost[] = (data.posts || []).map(normalizeApiPost);
+        const meta: InitialPagination = {
+          currentPage: data.pagination?.currentPage ?? targetPage,
+          totalPages: data.pagination?.totalPages ?? 1,
+          totalPosts: data.pagination?.totalPosts ?? mapped.length,
+          hasNextPage: Boolean(data.pagination?.hasNextPage),
+          hasPrevPage: Boolean(data.pagination?.hasPrevPage),
+        };
 
-          const res = await fetch(`/api/blog/posts?${params}`);
-          if (!res.ok) throw new Error(`Failed to load posts (${res.status})`);
-          const data = await res.json();
+        pageCacheRef.current.set(cacheKey, { posts: mapped, pagination: meta });
+        loadedKeyRef.current = key;
+        setPosts(mapped);
+        setPagination(meta);
+        setTotalPosts(meta.totalPosts);
+        setHasMore(meta.hasNextPage);
+        applyTrending(mapped, contextKey);
+      } catch (err) {
+        if (requestId !== requestIdRef.current) return;
+        console.error('Error fetching posts:', err);
+        setError(err instanceof Error ? err.message : 'Something went wrong.');
+        setPosts([]);
+        setHasMore(false);
+      } finally {
+        if (requestId === requestIdRef.current) {
+          setListLoading(false);
+          setPendingPage(null);
+        }
+      }
+    },
+    [applyTrending, selectedCategory, sortBy]
+  );
 
-          const mapped = (data.posts || []).map(normalizeApiPost);
-          setPosts((prev) => (append ? dedupeById([...prev, ...mapped]) : mapped));
-          pageRef.current = nextPage;
-          setHasMore(Boolean(data.pagination?.hasNextPage));
-          setTotalPosts(data.pagination?.totalPosts ?? null);
+  // ── Search-mode fetch (cursor based, "Load more") ─────────────────────────
+  const fetchSearch = useCallback(
+    async (append: boolean, key?: string) => {
+      const query = searchQuery.trim();
+      if (!query) return;
+
+      const requestId = append ? requestIdRef.current : ++requestIdRef.current;
+      append ? setLoadingMore(true) : setListLoading(true);
+      setError(null);
+
+      try {
+        const params = new URLSearchParams({
+          q: query,
+          limit: String(PAGE_SIZE),
+          sort: v2SortFor(sortBy),
+        });
+        if (selectedCategory) params.set('categories', selectedCategory);
+        if (append && cursorRef.current) params.set('cursor', cursorRef.current);
+
+        const res = await fetch(`/api/blog/search?${params}`);
+        if (!res.ok) throw new Error(`Search failed (${res.status})`);
+        const data = await res.json();
+        if (!append && requestId !== requestIdRef.current) return;
+
+        const mapped: BlogCardPost[] = (data.results || []).map(normalizeSearchResult);
+        setPosts((prev) => (append ? dedupeById([...prev, ...mapped]) : mapped));
+        cursorRef.current = data.nextCursor || null;
+        setHasMore(Boolean(data.nextCursor));
+        setTotalPosts(typeof data.total === 'number' ? data.total : null);
+        setPagination(null);
+        queryIdRef.current = data.queryId;
+        renderedAtRef.current = Date.now();
+        if (!append) {
+          if (key) loadedKeyRef.current = key;
+          applyTrending(mapped, `${query}|${selectedCategory}|${sortBy}`);
         }
       } catch (err) {
-        console.error('Error fetching posts:', err);
+        console.error('Error searching posts:', err);
         setError(err instanceof Error ? err.message : 'Something went wrong.');
         if (!append) setPosts([]);
         setHasMore(false);
       } finally {
-        setLoading(false);
+        setListLoading(false);
         setLoadingMore(false);
       }
     },
-    [searchQuery, selectedCategory, sortBy]
+    [applyTrending, searchQuery, selectedCategory, sortBy]
   );
 
-  // Any change to query/category/sort restarts pagination from the first page.
+  // Single orchestrator: whatever the current context is, make sure the
+  // matching dataset is loaded. Server-seeded data is never refetched.
   useEffect(() => {
-    // Skip the initial fetch if we already have server-rendered posts
-    if (skipInitialFetchRef.current) {
-      skipInitialFetchRef.current = false;
-      return;
-    }
-    
-    pageRef.current = 1;
-    cursorRef.current = null;
-    fetchPosts(false);
-  }, [fetchPosts]);
+    if (loadedKeyRef.current === dataKey) return;
 
-  const updateURL = useCallback(
-    (updates: Record<string, string>) => {
-      if (!mountedRef.current) return;
-      const params = new URLSearchParams(searchParams?.toString() ?? '');
-      for (const [key, value] of Object.entries(updates)) {
-        value ? params.set(key, value) : params.delete(key);
-      }
-      const qs = params.toString();
-      router.push(qs ? `/blog?${qs}` : '/blog', { scroll: false });
+    if (isSearchMode) {
+      cursorRef.current = null;
+      fetchSearch(false, dataKey);
+    } else {
+      fetchBrowsePage(page, dataKey);
+    }
+    // `dataKey` already encodes every input that should trigger a refetch.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dataKey]);
+
+  // ── Browser Back / Forward ────────────────────────────────────────────────
+  // `history.pushState` entries have no RSC payload, so the URL is replayed
+  // into state here; cached pages then render instantly with no new request.
+  useEffect(() => {
+    const handlePopState = () => {
+      const params = new URLSearchParams(window.location.search);
+      const nextSearch = params.get('search') || '';
+      const nextCategory = params.get('category') || '';
+      const nextPage = parsePage(params.get('page'));
+
+      setSearchQuery(nextSearch);
+      setSearchInput(nextSearch);
+      setSelectedCategory(nextCategory);
+      setPage(nextPage);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  /** Bring the listing back into view without hiding it behind the sticky bar. */
+  const scrollToList = useCallback(() => {
+    const el = listRef.current;
+    if (!el) return;
+    const top = el.getBoundingClientRect().top + window.scrollY - 96;
+    window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+  }, []);
+
+  const handlePageChange = useCallback(
+    (nextPage: number) => {
+      // Guard: never queue a second request while one is in flight, and ignore
+      // repeated clicks on the page that is already active.
+      if (listLoading || pendingPage !== null) return;
+      const totalPages = pagination?.totalPages ?? 1;
+      const target = Math.min(Math.max(1, nextPage), Math.max(1, totalPages));
+      if (target === page) return;
+
+      setPage(target);
+      pushUrlState({ page: target > 1 ? String(target) : null });
+      scrollToList();
     },
-    [router, searchParams]
+    [listLoading, page, pagination?.totalPages, pendingPage, pushUrlState, scrollToList]
   );
 
   const handleSearchInput = (value: string) => {
@@ -340,7 +553,8 @@ export default function BlogHome({ initialPosts, initialPagination }: BlogHomePr
     if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
     searchTimeoutRef.current = setTimeout(() => {
       setSearchQuery(value);
-      updateURL({ search: value });
+      setPage(1);
+      pushUrlState({ search: value || null, page: null });
     }, 500);
   };
 
@@ -365,44 +579,52 @@ export default function BlogHome({ initialPosts, initialPagination }: BlogHomePr
         setSelectedCategory(entry);
         setSearchInput('');
         setSearchQuery('');
-        updateURL({ category: entry, search: '' });
+        setPage(1);
+        pushUrlState({ category: entry, search: null, page: null });
         return;
       }
     }
     setSearchInput(suggestion.text);
     setSearchQuery(suggestion.text);
-    updateURL({ search: suggestion.text });
+    setPage(1);
+    pushUrlState({ search: suggestion.text, page: null });
   };
 
   const handleCategorySelect = (value: string) => {
+    if (value === selectedCategory) return;
     setSelectedCategory(value);
-    updateURL({ category: value });
+    setPage(1);
+    pushUrlState({ category: value || null, page: null });
   };
 
   const resetFilters = () => {
     setSearchInput('');
     setSearchQuery('');
     setSelectedCategory('');
-    updateURL({ search: '', category: '' });
+    setPage(1);
+    pushUrlState({ search: null, category: null, page: null });
   };
 
-  // Layout slices. Everything past the hero block lands in "All Articles" so no
-  // fetched post is ever silently dropped from the page.
-  const { featuredPost, sidePosts, latestPosts, restPosts, trendingPosts } = useMemo(() => {
-    return {
-      featuredPost: posts[0],
-      sidePosts: posts.slice(1, 3),
-      latestPosts: posts.slice(3, 9),
-      restPosts: posts.slice(9),
-      trendingPosts: [...posts].sort((a, b) => (b.views || 0) - (a.views || 0)).slice(0, 5),
-    };
-  }, [posts]);
+  const totalPages = pagination?.totalPages ?? 1;
+  const currentPage = pagination?.currentPage ?? page;
 
   const resultLabel = isSearchMode
     ? `${totalPosts ?? posts.length} result${(totalPosts ?? posts.length) === 1 ? '' : 's'} for “${searchQuery.trim()}”`
     : selectedCategory
       ? BLOG_CATEGORIES[selectedCategory as BlogCategory]?.name
       : null;
+
+  // Range label ("Showing 13–24 of 96") derived from existing API metadata —
+  // no extra requests needed.
+  const rangeLabel = useMemo(() => {
+    if (isSearchMode || !pagination || posts.length === 0) return null;
+    const start = (pagination.currentPage - 1) * PAGE_SIZE + 1;
+    const end = start + posts.length - 1;
+    return `Showing ${start}–${end} of ${pagination.totalPosts} articles`;
+  }, [isSearchMode, pagination, posts.length]);
+
+  // Match the skeleton count to what is on screen so paging never jumps.
+  const skeletonCount = posts.length > 0 ? posts.length : PAGE_SIZE;
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
@@ -452,194 +674,169 @@ export default function BlogHome({ initialPosts, initialPagination }: BlogHomePr
           className="mb-4"
         />
 
-        {resultLabel && !loading && (
-          <p className="mb-3 text-sm text-gray-600 dark:text-slate-400">{resultLabel}</p>
-        )}
+        <div className="space-y-8 sm:space-y-10">
+          {/* Ad: Blog Top */}
+          <AdSlot name="blogTop" />
 
-        {loading ? (
-          <div className="space-y-8">
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-              <div className="lg:col-span-2">
-                <FeaturedCardSkeleton />
-              </div>
-              <div className="space-y-6">
-                <GridCardSkeleton />
-                <GridCardSkeleton />
-              </div>
-            </div>
-            <div className="space-y-4">
-              <HorizontalCardSkeleton />
-              <HorizontalCardSkeleton />
-              <HorizontalCardSkeleton />
-            </div>
-          </div>
-        ) : error ? (
-          <div className="rounded-2xl border border-red-100 bg-red-50 p-8 text-center dark:border-red-900/40 dark:bg-red-950/30">
-            <h3 className="mb-2 text-lg font-semibold text-red-800 dark:text-red-300">
-              Couldn&apos;t load articles
-            </h3>
-            <p className="mb-5 text-sm text-red-600 dark:text-red-400">{error}</p>
-            <Button onClick={() => fetchPosts(false)} className="rounded-full px-8">
-              Try Again
-            </Button>
-          </div>
-        ) : posts.length === 0 ? (
-          <EmptyState
-            variant={isSearchMode ? 'no-results' : selectedCategory ? 'no-category' : 'no-posts'}
-            onAction={resetFilters}
-            actionLabel="View All Posts"
-          />
-        ) : (
-          <div className="space-y-8 sm:space-y-10">
-            {/* Ad: Blog Top */}
-            {posts.length > 0 && <AdSlot name="blogTop" className="mb-4" />}
+          {/*
+            FEATURED POSTS — driven by the DB `featured` flag and completely
+            independent of the All Articles pagination below, so paging never
+            replaces or reloads this rail.
+          */}
+          {!isSearchMode && (
+            <FeaturedCarousel
+              posts={featuredPosts}
+              loading={featuredLoading}
+              onPostClick={handlePostClick}
+            />
+          )}
 
-            {/* Featured */}
-            <section aria-labelledby="featured-heading">
-              <div className="grid grid-cols-1 gap-5 lg:grid-cols-3 lg:gap-6">
-                <div className="lg:col-span-2">
-                  <FeaturedCard
-                    post={featuredPost}
-                    onClick={(e) => handlePostClick(e, featuredPost, 0)}
-                    priority
+          {/* ── ALL ARTICLES + TRENDING ──────────────────────────────────── */}
+          <div ref={listRef} className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+            <section aria-label="All articles" className="lg:col-span-2">
+              <SectionHeader
+                title={isSearchMode ? 'Search Results' : 'All Articles'}
+                icon={<LayoutGrid className="h-5 w-5" />}
+                description={resultLabel || rangeLabel || undefined}
+                action={
+                  listLoading && posts.length > 0 ? (
+                    <span className="hidden items-center gap-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400 sm:flex">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                      Loading…
+                    </span>
+                  ) : undefined
+                }
+              />
+
+              {/* Only this region swaps between skeletons, cards and messages —
+                  the header, featured rail and sidebar stay mounted. */}
+              <div aria-busy={listLoading || undefined} aria-live="polite">
+                {listLoading ? (
+                  <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:gap-6">
+                    {Array.from({ length: skeletonCount }).map((_, i) => (
+                      <GridCardSkeleton key={`post-skeleton-${i}`} />
+                    ))}
+                  </div>
+                ) : error ? (
+                  <div className="rounded-2xl border border-red-100 bg-red-50 p-8 text-center dark:border-red-900/40 dark:bg-red-950/30">
+                    <h3 className="mb-2 text-lg font-semibold text-red-800 dark:text-red-300">
+                      Couldn&apos;t load articles
+                    </h3>
+                    <p className="mb-5 text-sm text-red-600 dark:text-red-400">{error}</p>
+                    <Button
+                      onClick={() =>
+                        isSearchMode ? fetchSearch(false, dataKey) : fetchBrowsePage(page, dataKey)
+                      }
+                      className="rounded-full px-8"
+                    >
+                      Try Again
+                    </Button>
+                  </div>
+                ) : posts.length === 0 ? (
+                  <EmptyState
+                    variant={
+                      isSearchMode ? 'no-results' : selectedCategory ? 'no-category' : 'no-posts'
+                    }
+                    onAction={resetFilters}
+                    actionLabel="View All Posts"
                   />
-                </div>
-                {sidePosts.length > 0 && (
-                  <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-1 lg:gap-6">
-                    {sidePosts.map((post, i) => (
+                ) : (
+                  <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:gap-6">
+                    {posts.map((post, i) => (
                       <GridCard
                         key={post.id}
                         post={post}
-                        onClick={(e) => handlePostClick(e, post, i + 1)}
+                        onClick={(e) => handlePostClick(e, post, i)}
                       />
                     ))}
                   </div>
                 )}
-              </div>
-            </section>
 
-            {/* Latest + Trending */}
-            {latestPosts.length > 0 && (
-              <section aria-labelledby="latest-heading">
-                <div className="grid grid-cols-1 gap-8 lg:grid-cols-3 lg:gap-8">
-                  <div className="lg:col-span-2">
-                    <SectionHeader title="Latest Articles" description="Fresh from our community" />
-                    <div className="space-y-4">
-                      {latestPosts.map((post, i) => {
-                        // Insert inline ad as 4th item (index 3)
-                        if (i === 3) {
-                          return (
-                            <div key={`ad-inline-${i}`}>
-                              <AdSlot name="blogInline" format="fluid" className="mb-4" />
-                              <HorizontalCard
-                                key={post.id}
-                                post={post}
-                                onClick={(e) => handlePostClick(e, post, i + 3)}
-                              />
-                            </div>
-                          );
-                        }
-                        return (
-                          <HorizontalCard
-                            key={post.id}
-                            post={post}
-                            onClick={(e) => handlePostClick(e, post, i + 3)}
-                          />
-                        );
-                      })}
-                    </div>
+                {/* Appending skeletons keep the height stable in search mode */}
+                {loadingMore && (
+                  <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:gap-6">
+                    {Array.from({ length: 2 }).map((_, i) => (
+                      <GridCardSkeleton key={`more-skeleton-${i}`} />
+                    ))}
                   </div>
-
-                  <div className="space-y-6">
-                    <TrendingSidebar
-                      posts={trendingPosts}
-                      onPostClick={(e, post) => handlePostClick(e, post)}
-                    />
-                    {/* Ad: Blog Sidebar (desktop only) */}
-                    {posts.length > 0 && <AdSlot name="blogSidebar" className="hidden lg:block" />}
-                  </div>
-                </div>
-              </section>
-            )}
-
-            {/* All Articles — everything else, including each loaded page */}
-            {restPosts.length > 0 && (
-              <section aria-labelledby="all-heading">
-                <SectionHeader
-                  title="All Articles"
-                  icon={<LayoutGrid className="h-5 w-5" />}
-                />
-                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 lg:gap-6">
-                  {restPosts.map((post, i) => (
-                    <CompactCard
-                      key={post.id}
-                      post={post}
-                      onClick={(e) => handlePostClick(e, post, i + 9)}
-                    />
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {/* Appending skeletons keep the page height stable while loading */}
-            {loadingMore && (
-              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 lg:gap-6">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <CompactCardSkeleton key={i} />
-                ))}
-              </div>
-            )}
-
-            {/* Ad: Blog Bottom */}
-            {posts.length > 0 && <AdSlot name="blogBottom" className="py-2" />}
-
-            {/* Load More (search mode) or Pagination (browse mode) */}
-            {!isSearchMode && initialPagination ? (
-              <BlogPagination
-                currentPage={initialPagination.currentPage}
-                totalPages={initialPagination.totalPages}
-                category={selectedCategory}
-                className="pt-4"
-              />
-            ) : hasMore ? (
-              <div className="flex flex-col items-center gap-3 pt-2">
-                <Button
-                  onClick={() => !loadingMore && fetchPosts(true)}
-                  disabled={loadingMore}
-                  size="lg"
-                  className="h-12 w-full max-w-xs rounded-full bg-emerald-600 px-10 text-base font-semibold text-white shadow-lg shadow-emerald-500/25 transition-colors hover:bg-emerald-700 disabled:opacity-70 sm:w-auto"
-                >
-                  {loadingMore ? (
-                    <>
-                      <Loader2 className="mr-2 h-5 w-5 animate-spin" aria-hidden />
-                      Loading more…
-                    </>
-                  ) : (
-                    'Load More Articles'
-                  )}
-                </Button>
-                {totalPosts !== null && (
-                  <p className="text-xs text-gray-500 dark:text-slate-400">
-                    Showing {posts.length} of {totalPosts} articles
-                  </p>
                 )}
               </div>
-            ) : (
-              posts.length > PAGE_SIZE && (
-                <p className="pt-2 text-center text-sm text-gray-500 dark:text-slate-400">
-                  You&apos;ve reached the end — {posts.length} articles.
-                </p>
-              )
-            )}
 
-            <NewsletterCTA
-              onSubscribe={async (email) => {
-                console.log('Newsletter subscribe:', email);
-                // TODO: wire to the newsletter endpoint once available
-              }}
-            />
+              {/* Ad: Blog Inline — stable node, so paging never re-pushes it */}
+              <AdSlot name="blogInline" format="fluid" className="mt-6" />
+
+              {/* Pagination (browse) or Load More (search) */}
+              {!isSearchMode ? (
+                totalPages > 1 && (
+                  <div className="mt-6 space-y-3">
+                    <BlogPagination
+                      currentPage={currentPage}
+                      totalPages={totalPages}
+                      category={selectedCategory}
+                      sort={sortBy}
+                      onPageChange={handlePageChange}
+                      isLoading={listLoading || pendingPage !== null}
+                      pendingPage={pendingPage}
+                    />
+                    <p className="text-center text-xs text-gray-500 dark:text-slate-400">
+                      Page {currentPage} of {totalPages}
+                      {totalPosts !== null ? ` · ${totalPosts} articles` : ''}
+                    </p>
+                  </div>
+                )
+              ) : hasMore ? (
+                <div className="mt-6 flex flex-col items-center gap-3">
+                  <Button
+                    onClick={() => !loadingMore && fetchSearch(true)}
+                    disabled={loadingMore}
+                    size="lg"
+                    className="h-12 w-full max-w-xs rounded-full bg-emerald-600 px-10 text-base font-semibold text-white shadow-lg shadow-emerald-500/25 transition-colors hover:bg-emerald-700 disabled:opacity-70 sm:w-auto"
+                  >
+                    {loadingMore ? (
+                      <>
+                        <Loader2 className="mr-2 h-5 w-5 animate-spin" aria-hidden />
+                        Loading more…
+                      </>
+                    ) : (
+                      'Load More Articles'
+                    )}
+                  </Button>
+                  {totalPosts !== null && (
+                    <p className="text-xs text-gray-500 dark:text-slate-400">
+                      Showing {posts.length} of {totalPosts} articles
+                    </p>
+                  )}
+                </div>
+              ) : (
+                posts.length > 0 && (
+                  <p className="mt-6 text-center text-sm text-gray-500 dark:text-slate-400">
+                    You&apos;ve reached the end — {posts.length} results.
+                  </p>
+                )
+              )}
+            </section>
+
+            {/* Sidebar stays mounted across page changes */}
+            <div className="space-y-6">
+              <TrendingSidebar
+                posts={trendingPosts}
+                loading={listLoading && trendingPosts.length === 0}
+                onPostClick={(e, post) => handlePostClick(e, post)}
+              />
+              <AdSlot name="blogSidebar" className="hidden lg:block" />
+            </div>
           </div>
-        )}
+
+          {/* Ad: Blog Bottom */}
+          <AdSlot name="blogBottom" className="py-2" />
+
+          <NewsletterCTA
+            onSubscribe={async (email) => {
+              console.log('Newsletter subscribe:', email);
+              // TODO: wire to the newsletter endpoint once available
+            }}
+          />
+        </div>
       </main>
     </div>
   );
