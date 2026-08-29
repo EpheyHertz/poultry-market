@@ -71,14 +71,16 @@ export interface RecommendationSet {
     /** 3 large cards below the article (§17). */
     bottom: RecommendedArticle[];
     /**
-     * In-content suggestions, rendered between sections for interlinking (§17).
-     * Ordered — slot 1 first. Falls back to the best-ranked posts when the pool
-     * is too small to give every placement a unique article.
+     * In-content suggestions for interlinking (§17) — **one entry per insertion
+     * slot, in document order**. `null` means "leave that boundary empty"
+     * (no sufficiently relevant post was available), so slots stay aligned with
+     * the surrounding sections instead of being filled with padding.
      */
-    inArticle: RecommendedArticle[];
+    inArticle: Array<RecommendedArticle | null>;
     /** Full de-duplicated, ranked pool (useful for tests/debugging). */
     all: RecommendedArticle[];
 }
+
 
 const SIDEBAR_COUNT = 4;
 const BOTTOM_COUNT = 3;
@@ -410,12 +412,28 @@ async function loadFromPrisma(
  */
 export async function getRecommendations(
     source: RecommendationSource,
-    options: { sidebarCount?: number; bottomCount?: number; inArticleCount?: number } = {},
+    options: {
+        sidebarCount?: number;
+        bottomCount?: number;
+        inArticleCount?: number;
+        /**
+         * Plain-text snapshot of the section surrounding each in-article slot
+         * (see `planRelatedInserts`). When provided, each slot is matched to the
+         * candidate that best fits *that* section instead of just taking the
+         * next best post overall. Length also defines the number of slots.
+         */
+        inArticleContexts?: string[];
+    } = {},
 ): Promise<RecommendationSet> {
     const sidebarCount = Math.max(0, options.sidebarCount ?? SIDEBAR_COUNT);
     const bottomCount = Math.max(0, options.bottomCount ?? BOTTOM_COUNT);
-    const inArticleCount = Math.max(0, options.inArticleCount ?? IN_ARTICLE_COUNT);
+    const contexts = options.inArticleContexts ?? [];
+    const inArticleCount = Math.max(
+        0,
+        contexts.length || options.inArticleCount || IN_ARTICLE_COUNT,
+    );
     const target = sidebarCount + bottomCount + inArticleCount || POOL_SIZE;
+
 
     const seenIds = new Set<string>([source.id]);
     const seenSlugs = new Set<string>([source.slug]);
@@ -491,11 +509,117 @@ export async function getRecommendations(
     // then fall back to the strongest matches so interlinking still happens on
     // sites with only a handful of posts.
     const usedElsewhere = new Set([...sidebar, ...bottom].map((item) => item.id));
-    const unused = ranked.filter((item) => !usedElsewhere.has(item.id));
-    const inArticle = [...unused, ...ranked.filter((item) => !unused.includes(item))].slice(
-        0,
-        inArticleCount,
-    );
+    const inArticlePool = ranked.filter((item) => !usedElsewhere.has(item.id));
+    const inArticle = assignInArticle(inArticlePool, contexts, inArticleCount, tagsById);
 
     return { sidebar, bottom, inArticle, all: ranked };
 }
+
+/* ------------------------------------------------------------------ *
+ * Contextual in-article assignment
+ * ------------------------------------------------------------------ */
+
+/** Minimum contextual overlap before a card is considered "relevant enough". */
+const MIN_CONTEXT_OVERLAP = 2;
+
+/**
+ * How well does `candidate` fit the text immediately around an insertion point?
+ * Pure token overlap against the section text — no extra queries, no recency
+ * bias (recency already lives in the global ranking used as the tiebreaker).
+ */
+function contextAffinity(
+    contextTokens: Set<string>,
+    candidate: RecommendedArticle,
+    candidateTags: string[],
+): { score: number; overlap: number } {
+    if (!contextTokens.size) return { score: 0, overlap: 0 };
+
+    const titleTokens = tokenize(candidate.title);
+    const excerptTokens = candidate.excerpt ? tokenize(candidate.excerpt) : new Set<string>();
+
+    let titleHits = 0;
+    titleTokens.forEach((token) => {
+        if (contextTokens.has(token)) titleHits += 1;
+    });
+
+    let excerptHits = 0;
+    excerptTokens.forEach((token) => {
+        if (contextTokens.has(token)) excerptHits += 1;
+    });
+
+    let tagHits = 0;
+    for (const tag of candidateTags) {
+        // Multi-word tags are split so "brooding chicks" can match either token.
+        const parts = Array.from(tokenize(tag));
+        if (parts.some((part) => contextTokens.has(part))) tagHits += 1;
+    }
+
+    const categoryTokens = Array.from(tokenize(candidate.category.replace(/_/g, ' ')));
+    const categoryHit = categoryTokens.some((token) => contextTokens.has(token)) ? 1 : 0;
+
+    const overlap = titleHits + tagHits + excerptHits + categoryHit;
+    const score = titleHits * 3 + tagHits * 2 + categoryHit * 1.5 + Math.min(3, excerptHits) * 0.5;
+
+    return { score, overlap };
+}
+
+/**
+ * Give every insertion slot the candidate that best matches *its* section.
+ *
+ * Greedy, one article per slot, in document order. A slot stays empty (`null`)
+ * when no remaining candidate is relevant to it — better fewer cards than
+ * unrelated ones. Without contexts (or when relevance is a wash) we fall back to
+ * the global ranking so interlinking still happens on small sites.
+ */
+function assignInArticle(
+    pool: RecommendedArticle[],
+    contexts: string[],
+    slots: number,
+    tagsById: Map<string, string[]>,
+): Array<RecommendedArticle | null> {
+    if (!slots) return [];
+
+    const fallback = [...pool];
+    if (!contexts.length) return fallback.slice(0, slots);
+
+    const taken = new Set<string>();
+    const result: Array<RecommendedArticle | null> = [];
+
+    for (let index = 0; index < slots; index += 1) {
+        const contextTokens = tokenize(contexts[index] ?? '');
+
+        let best: RecommendedArticle | null = null;
+        let bestScore = 0;
+
+        for (const candidate of pool) {
+            if (taken.has(candidate.id)) continue;
+
+            const { score, overlap } = contextAffinity(
+                contextTokens,
+                candidate,
+                tagsById.get(candidate.id) ?? [],
+            );
+            if (overlap < MIN_CONTEXT_OVERLAP) continue;
+            // Global relevance breaks ties between equally contextual matches.
+            const combined = score + Math.min(1, candidate.score / 10);
+            if (combined > bestScore) {
+                bestScore = combined;
+                best = candidate;
+            }
+        }
+
+        if (!best) {
+            // Nothing matched this section. Use the next strongest overall post
+            // so a mid-length article still links out, but only while unused
+            // candidates remain — never repeat and never pad past the pool.
+            best = fallback.find((candidate) => !taken.has(candidate.id)) ?? null;
+        }
+
+        if (best) taken.add(best.id);
+        result.push(best);
+    }
+
+    return result;
+}
+
+

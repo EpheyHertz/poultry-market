@@ -1,11 +1,13 @@
 /**
  * Markdown content analysis for the article page.
  *
- * Two jobs:
+ * Three jobs:
  *  1. Extract the heading outline so the Table of Contents (§6) is generated
  *     from the real content instead of being hand-maintained.
  *  2. Compute reading time (§14) from the article body only — never from
  *     navigation, sidebar or recommendation text.
+ *  3. Plan where in-article related-post cards may be inserted (§17), always at
+ *     content-block boundaries so a paragraph is never cut in half.
  *
  * The slugs produced here are generated with `github-slugger`, the same
  * algorithm `rehype-slug` uses when rendering, so TOC links always resolve to
@@ -22,6 +24,7 @@ export interface ArticleHeading {
 }
 
 const WORDS_PER_MINUTE = 210;
+const HEADING_PATTERN = /^\s{0,3}(#{1,6})\s+(.*\S)\s*$/;
 
 /** Remove fenced code blocks so their contents never pollute analysis. */
 function stripFencedCode(markdown: string): string {
@@ -131,107 +134,279 @@ export function resolveReadingTime(
     return 1;
 }
 
+/* ------------------------------------------------------------------ *
+ * In-article related-post placement (§17)
+ * ------------------------------------------------------------------ */
+
+/** How many in-article related posts an article of this length can carry. */
+export function relatedInsertCount(wordCount: number): number {
+    if (wordCount < 800) return 1;
+    if (wordCount < 1500) return 2;
+    if (wordCount < 2500) return 3;
+    if (wordCount < 3500) return 4;
+    return 5;
+}
+
+/** Where each card should land, as a fraction of the article's words. */
+const TARGET_RATIOS: Record<number, number[]> = {
+    1: [0.5],
+    2: [0.35, 0.7],
+    3: [0.3, 0.55, 0.8],
+    4: [0.25, 0.45, 0.65, 0.85],
+    5: [0.18, 0.34, 0.5, 0.66, 0.82],
+};
+
+/** Never interrupt the opening or the closing of an article. */
+const MIN_RATIO = 0.15;
+const MAX_RATIO = 0.9;
+/** Keep cards apart, both in reading distance and in blocks. */
+const MIN_RATIO_GAP = 0.12;
+const MIN_BLOCK_GAP = 2;
+
+type BlockKind = 'heading' | 'code' | 'paragraph' | 'other';
+
+interface ContentBlock {
+    text: string;
+    words: number;
+    kind: BlockKind;
+    headingText: string | null;
+}
+
+export interface RelatedInsertPlan {
+    /**
+     * Markdown pieces to render in order. One card goes between consecutive
+     * pieces, so there are always `contexts.length + 1` segments.
+     */
+    segments: string[];
+    /**
+     * Plain-text surrounding each boundary. Used to pick a post that is relevant
+     * to the section the reader just finished, instead of an arbitrary one.
+     */
+    contexts: string[];
+    wordCount: number;
+}
+
 /**
- * Split the body so in-content elements (related-article links, an inline ad)
- * can be inserted *after meaningful sections* rather than mid-sentence
- * (§17 — "do not interrupt the reader too aggressively").
- *
- * Returns 2…`maxInserts + 1` Markdown segments — the caller renders one slot
- * between consecutive segments — or `null` meaning "render in one piece" when:
- *   - the article is too short to justify an interruption,
- *   - there is no usable h2/h3 boundary outside the intro, or
- *   - a heading text repeats (each segment gets its own slugger, so duplicated
- *     text would generate colliding heading ids and break the TOC).
+ * Split Markdown into top-level blocks: paragraphs, headings, lists, tables,
+ * blockquotes and fenced code. Blank lines separate blocks, fences are kept
+ * whole, and headings always start a block of their own.
  */
-export function splitMarkdownForInserts(
-    markdown: string | null | undefined,
-    maxInserts = 1,
-    options?: { minLength?: number },
-): string[] | null {
-    const source = markdown ?? '';
-    const length = source.trim().length;
-    const minLength = options?.minLength ?? 3200;
-
-    if (maxInserts < 1 || length < minLength) return null;
-
-    // One interruption per `minLength` of prose, never more than asked for.
-    const inserts = Math.max(1, Math.min(maxInserts, Math.floor(length / minLength)));
-
-    const lines = source.split(/\r?\n/);
-    const candidates: { line: number; offset: number }[] = [];
-    const headingCounts = new Map<string, number>();
-
-    let offset = 0;
+function toBlocks(markdown: string): ContentBlock[] {
+    const lines = markdown.split(/\r?\n/);
+    const groups: string[][] = [];
+    let buffer: string[] = [];
     let fence: string | null = null;
 
-    for (let index = 0; index < lines.length; index += 1) {
-        const line = lines[index];
+    const flush = () => {
+        if (buffer.length) groups.push(buffer);
+        buffer = [];
+    };
+
+    for (const line of lines) {
         const fenceMatch = /^\s{0,3}(```+|~~~+)/.exec(line);
 
         if (fence) {
-            if (fenceMatch && fenceMatch[1][0] === fence[0]) fence = null;
-        } else if (fenceMatch) {
-            fence = fenceMatch[1];
-        } else {
-            const heading = /^(#{1,6})\s+(.*\S)\s*$/.exec(line);
-            if (heading) {
-                const text = headingToPlainText(heading[2]).toLowerCase();
-                headingCounts.set(text, (headingCounts.get(text) ?? 0) + 1);
+            buffer.push(line);
+            if (fenceMatch && fenceMatch[1][0] === fence[0]) {
+                fence = null;
+                flush();
+            }
+            continue;
+        }
 
-                // Only h2/h3 are real section boundaries; skip the intro band and
-                // never split so late that the tail is a stub.
-                if (
-                    heading[1].length <= 3 &&
-                    offset > source.length * 0.2 &&
-                    offset < source.length * 0.85
-                ) {
-                    candidates.push({ line: index, offset });
-                }
+        if (fenceMatch) {
+            flush();
+            fence = fenceMatch[1];
+            buffer.push(line);
+            continue;
+        }
+
+        if (!line.trim()) {
+            flush();
+            continue;
+        }
+
+        if (HEADING_PATTERN.test(line)) {
+            flush();
+            groups.push([line]);
+            continue;
+        }
+
+        buffer.push(line);
+    }
+    flush();
+
+    return groups.map((group) => {
+        const text = group.join('\n');
+        const first = group[0] ?? '';
+        const heading = HEADING_PATTERN.exec(first);
+
+        let kind: BlockKind = 'other';
+        if (heading) kind = 'heading';
+        else if (/^\s{0,3}(```+|~~~+)/.test(first)) kind = 'code';
+        else if (!/^\s*([-*+]|\d+[.)]|>|\||!\[)/.test(first)) kind = 'paragraph';
+
+        return {
+            text,
+            words: countWords(text),
+            kind,
+            headingText: heading ? headingToPlainText(heading[2]) : null,
+        };
+    });
+}
+
+/**
+ * Boundaries that would separate two headings sharing the same text. Each
+ * segment is rendered by its own Markdown renderer with its own slugger, so
+ * splitting between duplicates would produce colliding heading ids and break
+ * TOC anchors (§6).
+ */
+function duplicateHeadingRanges(blocks: ContentBlock[]): { from: number; to: number }[] {
+    const positions = new Map<string, number[]>();
+
+    blocks.forEach((block, index) => {
+        if (!block.headingText) return;
+        const key = block.headingText.toLowerCase();
+        const list = positions.get(key);
+        if (list) list.push(index);
+        else positions.set(key, [index]);
+    });
+
+    const ranges: { from: number; to: number }[] = [];
+    for (const list of positions.values()) {
+        if (list.length > 1) ranges.push({ from: list[0], to: list[list.length - 1] });
+    }
+    return ranges;
+}
+
+/**
+ * Plan in-article related-post insertions (§17).
+ *
+ * The number of cards comes from the article's real word count, and each card
+ * is placed at a content-block boundary near an editorially sensible position —
+ * preferably just before a heading, otherwise after a paragraph. Short articles
+ * (or articles with no usable boundary) come back with a single segment and no
+ * contexts, so the caller simply renders the body untouched.
+ */
+export function planRelatedInserts(
+    markdown: string | null | undefined,
+    options?: { maxInserts?: number },
+): RelatedInsertPlan {
+    const source = (markdown ?? '').trim();
+    const wordCount = countWords(source);
+
+    if (!source) return { segments: [], contexts: [], wordCount };
+
+    const single: RelatedInsertPlan = { segments: [source], contexts: [], wordCount };
+    const desired = Math.min(
+        relatedInsertCount(wordCount),
+        Math.max(0, options?.maxInserts ?? 5),
+    );
+    if (desired < 1) return single;
+
+    const blocks = toBlocks(source);
+    // Fewer than three blocks leaves no room for a card between real content.
+    if (blocks.length < 3) return single;
+
+    const totalWords = blocks.reduce((sum, block) => sum + block.words, 0);
+    if (totalWords <= 0) return single;
+
+    const forbidden = duplicateHeadingRanges(blocks);
+    const candidates: { index: number; ratio: number; bonus: number }[] = [];
+    let consumed = 0;
+
+    for (let index = 0; index < blocks.length; index += 1) {
+        // `index` splits *before* blocks[index]; skip the article's first block.
+        if (index > 0) {
+            const ratio = consumed / totalWords;
+            const previous = blocks[index - 1];
+            const isBlocked = forbidden.some((range) => index > range.from && index <= range.to);
+
+            if (
+                ratio >= MIN_RATIO &&
+                ratio <= MAX_RATIO &&
+                !isBlocked &&
+                // Never orphan a heading from the section it introduces.
+                previous.kind !== 'heading'
+            ) {
+                const bonus =
+                    blocks[index].kind === 'heading' ? 2 : previous.kind === 'paragraph' ? 1 : 0;
+                candidates.push({ index, ratio, bonus });
             }
         }
 
-        offset += line.length + 1;
+        consumed += blocks[index].words;
     }
 
-    if (candidates.length === 0) return null;
-    for (const count of headingCounts.values()) {
-        if (count > 1) return null;
-    }
+    if (!candidates.length) return single;
 
-    // Spread the slots evenly and keep them at least a section apart.
-    const minGap = source.length * 0.15;
-    const chosen: { line: number; offset: number }[] = [];
-
-    for (let slot = 1; slot <= inserts; slot += 1) {
-        const target = (source.length * slot) / (inserts + 1);
-        let best: { line: number; offset: number } | null = null;
-        let bestDistance = Number.POSITIVE_INFINITY;
+    const chosen: { index: number; ratio: number }[] = [];
+    for (const target of TARGET_RATIOS[desired] ?? TARGET_RATIOS[1]) {
+        let best: { index: number; ratio: number } | null = null;
+        let bestCost = Number.POSITIVE_INFINITY;
 
         for (const candidate of candidates) {
-            if (chosen.some((picked) => Math.abs(picked.offset - candidate.offset) < minGap)) continue;
-            const distance = Math.abs(candidate.offset - target);
-            if (distance < bestDistance) {
-                bestDistance = distance;
-                best = candidate;
+            const tooClose = chosen.some(
+                (picked) =>
+                    Math.abs(picked.ratio - candidate.ratio) < MIN_RATIO_GAP ||
+                    Math.abs(picked.index - candidate.index) < MIN_BLOCK_GAP,
+            );
+            if (tooClose) continue;
+
+            // Distance to the ideal position, nudged by how clean the break is.
+            const cost = Math.abs(candidate.ratio - target) - candidate.bonus * 0.03;
+            if (cost < bestCost) {
+                bestCost = cost;
+                best = { index: candidate.index, ratio: candidate.ratio };
             }
         }
 
         if (best) chosen.push(best);
     }
 
-    if (chosen.length === 0) return null;
-    chosen.sort((a, b) => a.line - b.line);
+    if (!chosen.length) return single;
+    chosen.sort((a, b) => a.index - b.index);
 
     const segments: string[] = [];
+    const contexts: string[] = [];
     let start = 0;
-    for (const point of chosen) {
-        segments.push(lines.slice(start, point.line).join('\n').trim());
-        start = point.line;
-    }
-    segments.push(lines.slice(start).join('\n').trim());
 
-    // An empty segment would render a gap with no prose around it.
-    return segments.every(Boolean) ? segments : null;
+    for (const point of chosen) {
+        segments.push(
+            blocks
+                .slice(start, point.index)
+                .map((block) => block.text)
+                .join('\n\n'),
+        );
+
+        // Context = nearest heading above + the blocks either side of the card.
+        const headingAbove = blocks
+            .slice(0, point.index)
+            .reverse()
+            .find((block) => block.headingText)?.headingText;
+        const around = [
+            ...blocks.slice(Math.max(0, point.index - 2), point.index),
+            ...blocks.slice(point.index, point.index + 2),
+        ].map((block) => block.text);
+
+        contexts.push(
+            markdownToPlainText([headingAbove ?? '', ...around].join('\n\n')).slice(0, 800),
+        );
+
+        start = point.index;
+    }
+
+    segments.push(
+        blocks
+            .slice(start)
+            .map((block) => block.text)
+            .join('\n\n'),
+    );
+
+    // A blank segment would leave a card with no prose on one side.
+    if (segments.some((segment) => !segment.trim())) return single;
+
+    return { segments, contexts, wordCount };
 }
 
 /** Short, clean summary from Markdown — used when `excerpt` is empty. */

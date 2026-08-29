@@ -141,38 +141,78 @@ export function RecommendedPostCard({
     }
 
     if (variant === 'inline') {
+        // Mobile: stacked and compact. Desktop (sm+): horizontal so the card
+        // stays short and never dominates the reading column (§18).
         return (
-            <Link
-                href={article.href}
-                onClick={handleClick}
+            <aside
                 className={cn(
-                    'group flex items-center gap-4 rounded-2xl border border-emerald-100 bg-emerald-50/50 p-3 transition-all hover:border-emerald-200 hover:bg-emerald-50 dark:border-emerald-500/20 dark:bg-emerald-500/5 dark:hover:bg-emerald-500/10',
+                    'not-prose rounded-2xl border border-emerald-100 bg-emerald-50/40 p-3 dark:border-emerald-500/20 dark:bg-emerald-500/[0.06] sm:p-4',
                     className,
                 )}
+                aria-label="Related article"
             >
-                <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-white dark:bg-gray-800 sm:h-20 sm:w-24">
-                    <CardImage
-                        src={article.thumbnail ?? article.featuredImage}
-                        alt={article.title}
-                        className="h-full w-full"
-                    />
-                </div>
-                <div className="min-w-0 flex-1">
-                    <p className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-emerald-600 dark:text-emerald-400">
-                        Recommended reading
-                    </p>
-                    <h4 className="mt-1 line-clamp-2 text-[15px] font-semibold leading-snug text-gray-900 dark:text-gray-100">
-                        {article.title}
-                    </h4>
-                    <MetaRow article={article} className="mt-1.5" />
-                </div>
-                <ArrowRight
-                    className="hidden h-5 w-5 shrink-0 text-emerald-500 transition-transform group-hover:translate-x-1 sm:block"
-                    aria-hidden="true"
-                />
-            </Link>
+                <p className="mb-2.5 text-[10.5px] font-semibold uppercase tracking-[0.14em] text-emerald-700 dark:text-emerald-400">
+                    Related reading
+                </p>
+                <Link
+                    href={article.href}
+                    onClick={handleClick}
+                    className="group flex flex-col gap-3 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:ring-offset-emerald-50 dark:focus-visible:ring-offset-gray-900 sm:flex-row sm:items-start sm:gap-4"
+                >
+                    <div className="aspect-[16/9] w-full shrink-0 overflow-hidden rounded-xl bg-white dark:bg-gray-800 sm:aspect-auto sm:h-[76px] sm:w-32">
+                        <CardImage
+                            src={article.thumbnail ?? article.featuredImage}
+                            alt={article.title}
+                            className="h-full w-full"
+                        />
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                        <span className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">
+                            {categoryLabel(article.category)}
+                        </span>
+                        <h4 className="mt-1 line-clamp-2 text-[15px] font-semibold leading-snug text-gray-900 transition-colors group-hover:text-emerald-700 dark:text-gray-100 dark:group-hover:text-emerald-400">
+                            {article.title}
+                        </h4>
+                        {article.excerpt ? (
+                            <p className="mt-1 line-clamp-2 text-[13px] leading-relaxed text-gray-600 dark:text-gray-400">
+                                {truncate(article.excerpt, 110)}
+                            </p>
+                        ) : null}
+
+                        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+                            {article.authorName ? (
+                                <span className="inline-flex items-center gap-1.5 text-[12px] text-gray-500 dark:text-gray-400">
+                                    {article.authorAvatarUrl ? (
+                                        // eslint-disable-next-line @next/next/no-img-element
+                                        <img
+                                            src={article.authorAvatarUrl}
+                                            alt=""
+                                            loading="lazy"
+                                            decoding="async"
+                                            referrerPolicy="no-referrer"
+                                            className="h-4 w-4 rounded-full object-cover"
+                                        />
+                                    ) : null}
+                                    {article.authorName}
+                                </span>
+                            ) : null}
+                            <MetaRow article={article} />
+                        </div>
+
+                        <span className="mt-2 inline-flex items-center gap-1 text-[12.5px] font-semibold text-emerald-700 dark:text-emerald-400">
+                            Read more
+                            <ArrowRight
+                                className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5"
+                                aria-hidden="true"
+                            />
+                        </span>
+                    </div>
+                </Link>
+            </aside>
         );
     }
+
 
     return (
         <Link

@@ -26,7 +26,13 @@ import {
   getAuthorProfileHref,
   resolveAuthorContactEmail,
 } from '@/lib/author-profile';
-import { buildExcerpt, extractHeadings, resolveReadingTime } from '@/lib/blog/article/content';
+import {
+  buildExcerpt,
+  extractHeadings,
+  planRelatedInserts,
+  resolveReadingTime,
+} from '@/lib/blog/article/content';
+
 import { hasMeaningfulUpdate, toIsoDate } from '@/lib/blog/article/format';
 import { getRecommendations } from '@/lib/blog/article/recommendations';
 import type { ArticleView } from '@/lib/blog/article/types';
@@ -410,6 +416,15 @@ export default async function BlogPostPage({ params }: { params: Promise<Params>
   // §6 — the TOC is generated from the article's own headings, never curated.
   const headings = extractHeadings(article.content);
 
+  /*
+   * §17 — where the in-content interlinks go. The plan is computed here, on the
+   * server, from the article's real word count and content blocks: how many
+   * cards the article earns, the segment boundaries they sit on (never
+   * mid-paragraph), and the surrounding text used to pick a *relevant* post for
+   * each one.
+   */
+  const insertPlan = planRelatedInserts(article.content);
+
   // §15/§16/§29 — scored, de-duplicated and guaranteed to exclude this article.
   const recommendations = await getRecommendations(
     {
@@ -420,8 +435,13 @@ export default async function BlogPostPage({ params }: { params: Promise<Params>
       tagNames: post.tagNames,
       authorId: article.author.id,
     },
-    { sidebarCount: 4, bottomCount: 3, inArticleCount: 2 },
+    {
+      sidebarCount: 4,
+      bottomCount: 3,
+      inArticleContexts: insertPlan.contexts,
+    },
   );
+
 
   const description = buildDescription(
     post.metaDescription || article.excerpt || buildExcerpt(article.content),
@@ -520,8 +540,10 @@ export default async function BlogPostPage({ params }: { params: Promise<Params>
           headings={headings}
           sidebarRecommendations={recommendations.sidebar}
           bottomRecommendations={recommendations.bottom}
+          contentSegments={insertPlan.segments}
           inArticleRecommendations={recommendations.inArticle}
         />
+
       </main>
     </>
   );

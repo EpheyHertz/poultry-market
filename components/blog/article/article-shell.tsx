@@ -52,9 +52,18 @@ interface ArticleShellProps {
     headings: ArticleHeading[];
     sidebarRecommendations: RecommendedArticle[];
     bottomRecommendations: RecommendedArticle[];
-    /** In-content interlinks, rendered between sections (§17). */
-    inArticleRecommendations: RecommendedArticle[];
+    /**
+     * Markdown split on real content-block boundaries (`planRelatedInserts`).
+     * One entry means the body renders untouched.
+     */
+    contentSegments: string[];
+    /**
+     * In-content interlinks (§17) — one entry per boundary between segments,
+     * in document order. `null` leaves that boundary empty.
+     */
+    inArticleRecommendations: Array<RecommendedArticle | null>;
 }
+
 
 /** Subtle back-to-top affordance — one button, no scroll hijacking (§30). */
 function ScrollToTop() {
@@ -281,22 +290,44 @@ export function ArticleShell({
     headings,
     sidebarRecommendations,
     bottomRecommendations,
+    contentSegments,
     inArticleRecommendations,
 }: ArticleShellProps) {
+    const segments = contentSegments.length ? contentSegments : [article.content];
+    const boundaries = Math.max(0, segments.length - 1);
+
     /*
-     * In-content slots (§17): one related-article link per section boundary, so
-     * the reader always has a next step without leaving the flow. The inline ad
-     * rides along with the first slot only — never repeated.
+     * In-content slots (§17): one contextual related-article card per section
+     * boundary, so the reader always has a next step without leaving the flow.
+     * A boundary with no relevant match simply stays empty — fewer cards beats
+     * unrelated ones. The inline ad rides along with the first boundary only.
      */
-    const inlineSlots = inArticleRecommendations
-        // §29 defence in depth: the current article can never link to itself.
-        .filter((item) => item.id !== article.id)
-        .map((item, index) => (
-            <div key={item.id} className="space-y-6">
-                <RecommendedPostCard article={item} variant="inline" placement="in-article" />
-                {index === 0 ? <AdSlot name="postInline" /> : null}
+    const shownElsewhere = new Set<string>([
+        article.id,
+        ...bottomRecommendations.map((item) => item.id),
+    ]);
+    const seenInline = new Set<string>();
+
+    const inlineSlots = Array.from({ length: boundaries }, (_, index) => {
+        const item = inArticleRecommendations[index] ?? null;
+        // §29 defence in depth: never the current article, never a duplicate,
+        // and never a post already featured in the bottom rail.
+        const usable = item && !shownElsewhere.has(item.id) && !seenInline.has(item.id) ? item : null;
+        if (usable) seenInline.add(usable.id);
+
+        const ad = index === 0 ? <AdSlot name="postInline" /> : null;
+        if (!usable && !ad) return null;
+
+        return (
+            <div key={usable?.id ?? `slot-${index}`} className="space-y-6">
+                {usable ? (
+                    <RecommendedPostCard article={usable} variant="inline" placement="in-article" />
+                ) : null}
+                {ad}
             </div>
-        ));
+        );
+    });
+
 
     return (
         <ArticleAnalyticsProvider
@@ -338,15 +369,18 @@ export function ArticleShell({
 
                             <article className="mx-auto w-full max-w-[46rem]">
                                 <ArticleContent
-                                    content={article.content}
+                                    segments={segments}
                                     id={CONTENT_ID}
-                                    inlineSlots={
-                                        inlineSlots.length
-                                            ? inlineSlots
-                                            : [<AdSlot key="postInline" name="postInline" />]
-                                    }
+                                    inlineSlots={inlineSlots}
                                 />
+                                {/* Very short posts have no usable boundary — keep the ad. */}
+                                {boundaries === 0 ? (
+                                    <div className="not-prose mt-10">
+                                        <AdSlot name="postInline" />
+                                    </div>
+                                ) : null}
                             </article>
+
                         </div>
 
                         <div className="mx-auto mt-10 w-full max-w-[46rem] space-y-8">
