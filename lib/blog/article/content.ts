@@ -132,29 +132,34 @@ export function resolveReadingTime(
 }
 
 /**
- * Split the body so a single mid-article element (recommendation / in-content
- * ad) can be inserted *after a meaningful section* rather than mid-sentence
+ * Split the body so in-content elements (related-article links, an inline ad)
+ * can be inserted *after meaningful sections* rather than mid-sentence
  * (§17 — "do not interrupt the reader too aggressively").
  *
- * Returns `null` — meaning "render in one piece" — when:
- *   - the article is too short to justify an interruption, or
- *   - there is no suitable heading near the middle, or
- *   - the two halves would contain repeated heading text (splitting would make
- *     the two renderers generate colliding heading ids and break the TOC).
+ * Returns 2…`maxInserts + 1` Markdown segments — the caller renders one slot
+ * between consecutive segments — or `null` meaning "render in one piece" when:
+ *   - the article is too short to justify an interruption,
+ *   - there is no usable h2/h3 boundary outside the intro, or
+ *   - a heading text repeats (each segment gets its own slugger, so duplicated
+ *     text would generate colliding heading ids and break the TOC).
  */
-export function splitMarkdownForMidInsert(
+export function splitMarkdownForInserts(
     markdown: string | null | undefined,
-    options?: { minLength?: number; targetRatio?: number },
-): { before: string; after: string } | null {
+    maxInserts = 1,
+    options?: { minLength?: number },
+): string[] | null {
     const source = markdown ?? '';
+    const length = source.trim().length;
     const minLength = options?.minLength ?? 3200;
-    const targetRatio = options?.targetRatio ?? 0.55;
 
-    if (source.trim().length < minLength) return null;
+    if (maxInserts < 1 || length < minLength) return null;
+
+    // One interruption per `minLength` of prose, never more than asked for.
+    const inserts = Math.max(1, Math.min(maxInserts, Math.floor(length / minLength)));
 
     const lines = source.split(/\r?\n/);
-    const candidates: { line: number; offset: number; text: string }[] = [];
-    const headingsByLine = new Map<number, string>();
+    const candidates: { line: number; offset: number }[] = [];
+    const headingCounts = new Map<string, number>();
 
     let offset = 0;
     let fence: string | null = null;
@@ -168,13 +173,19 @@ export function splitMarkdownForMidInsert(
         } else if (fenceMatch) {
             fence = fenceMatch[1];
         } else {
-            const heading = /^(#{2,3})\s+(.*\S)\s*$/.exec(line);
+            const heading = /^(#{1,6})\s+(.*\S)\s*$/.exec(line);
             if (heading) {
                 const text = headingToPlainText(heading[2]).toLowerCase();
-                headingsByLine.set(index, text);
-                // Never split on the very first heading — it is usually the intro.
-                if (candidates.length > 0 || offset > source.length * 0.2) {
-                    candidates.push({ line: index, offset, text });
+                headingCounts.set(text, (headingCounts.get(text) ?? 0) + 1);
+
+                // Only h2/h3 are real section boundaries; skip the intro band and
+                // never split so late that the tail is a stub.
+                if (
+                    heading[1].length <= 3 &&
+                    offset > source.length * 0.2 &&
+                    offset < source.length * 0.85
+                ) {
+                    candidates.push({ line: index, offset });
                 }
             }
         }
@@ -183,39 +194,44 @@ export function splitMarkdownForMidInsert(
     }
 
     if (candidates.length === 0) return null;
+    for (const count of headingCounts.values()) {
+        if (count > 1) return null;
+    }
 
-    const target = source.length * targetRatio;
-    const lowerBound = source.length * 0.3;
-    const upperBound = source.length * 0.75;
+    // Spread the slots evenly and keep them at least a section apart.
+    const minGap = source.length * 0.15;
+    const chosen: { line: number; offset: number }[] = [];
 
-    let chosen: { line: number; offset: number } | null = null;
-    let bestDistance = Number.POSITIVE_INFINITY;
+    for (let slot = 1; slot <= inserts; slot += 1) {
+        const target = (source.length * slot) / (inserts + 1);
+        let best: { line: number; offset: number } | null = null;
+        let bestDistance = Number.POSITIVE_INFINITY;
 
-    for (const candidate of candidates) {
-        if (candidate.offset < lowerBound || candidate.offset > upperBound) continue;
-        const distance = Math.abs(candidate.offset - target);
-        if (distance < bestDistance) {
-            bestDistance = distance;
-            chosen = candidate;
+        for (const candidate of candidates) {
+            if (chosen.some((picked) => Math.abs(picked.offset - candidate.offset) < minGap)) continue;
+            const distance = Math.abs(candidate.offset - target);
+            if (distance < bestDistance) {
+                bestDistance = distance;
+                best = candidate;
+            }
         }
+
+        if (best) chosen.push(best);
     }
 
-    if (!chosen) return null;
+    if (chosen.length === 0) return null;
+    chosen.sort((a, b) => a.line - b.line);
 
-    const beforeTexts = new Set<string>();
-    const afterTexts = new Set<string>();
-    for (const [line, text] of headingsByLine) {
-        (line < chosen.line ? beforeTexts : afterTexts).add(text);
+    const segments: string[] = [];
+    let start = 0;
+    for (const point of chosen) {
+        segments.push(lines.slice(start, point.line).join('\n').trim());
+        start = point.line;
     }
-    for (const text of afterTexts) {
-        if (beforeTexts.has(text)) return null;
-    }
+    segments.push(lines.slice(start).join('\n').trim());
 
-    const before = lines.slice(0, chosen.line).join('\n').trimEnd();
-    const after = lines.slice(chosen.line).join('\n').trim();
-
-    if (!before || !after) return null;
-    return { before, after };
+    // An empty segment would render a gap with no prose around it.
+    return segments.every(Boolean) ? segments : null;
 }
 
 /** Short, clean summary from Markdown — used when `excerpt` is empty. */

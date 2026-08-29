@@ -70,16 +70,21 @@ export interface RecommendationSet {
     sidebar: RecommendedArticle[];
     /** 3 large cards below the article (§17). */
     bottom: RecommendedArticle[];
-    /** Optional single mid-article suggestion (§17). */
-    midArticle: RecommendedArticle | null;
+    /**
+     * In-content suggestions, rendered between sections for interlinking (§17).
+     * Ordered — slot 1 first. Falls back to the best-ranked posts when the pool
+     * is too small to give every placement a unique article.
+     */
+    inArticle: RecommendedArticle[];
     /** Full de-duplicated, ranked pool (useful for tests/debugging). */
     all: RecommendedArticle[];
 }
 
 const SIDEBAR_COUNT = 4;
 const BOTTOM_COUNT = 3;
-/** Sidebar + bottom + mid-article, with headroom for filtering. */
-const POOL_SIZE = SIDEBAR_COUNT + BOTTOM_COUNT + 1;
+const IN_ARTICLE_COUNT = 2;
+/** Sidebar + bottom + in-content, with headroom for filtering. */
+const POOL_SIZE = SIDEBAR_COUNT + BOTTOM_COUNT + IN_ARTICLE_COUNT;
 
 const STOP_WORDS = new Set([
     'a', 'an', 'and', 'are', 'as', 'at', 'be', 'best', 'but', 'by', 'can', 'do',
@@ -405,12 +410,12 @@ async function loadFromPrisma(
  */
 export async function getRecommendations(
     source: RecommendationSource,
-    options: { sidebarCount?: number; bottomCount?: number; includeMidArticle?: boolean } = {},
+    options: { sidebarCount?: number; bottomCount?: number; inArticleCount?: number } = {},
 ): Promise<RecommendationSet> {
     const sidebarCount = Math.max(0, options.sidebarCount ?? SIDEBAR_COUNT);
     const bottomCount = Math.max(0, options.bottomCount ?? BOTTOM_COUNT);
-    const includeMidArticle = options.includeMidArticle ?? true;
-    const target = sidebarCount + bottomCount + (includeMidArticle ? 1 : 0) || POOL_SIZE;
+    const inArticleCount = Math.max(0, options.inArticleCount ?? IN_ARTICLE_COUNT);
+    const target = sidebarCount + bottomCount + inArticleCount || POOL_SIZE;
 
     const seenIds = new Set<string>([source.id]);
     const seenSlugs = new Set<string>([source.slug]);
@@ -438,7 +443,7 @@ export async function getRecommendations(
     }
 
     if (!pool.length) {
-        return { sidebar: [], bottom: [], midArticle: null, all: [] };
+        return { sidebar: [], bottom: [], inArticle: [], all: [] };
     }
 
     // Rank everything with the same transparent formula.
@@ -481,9 +486,16 @@ export async function getRecommendations(
     const sidebar = ranked.slice(0, sidebarCount);
     const bottomStart = ranked.length > sidebarCount + bottomCount ? sidebarCount : 0;
     const bottom = ranked.slice(bottomStart, bottomStart + bottomCount);
-    const midArticle = includeMidArticle
-        ? ranked.find((item) => !sidebar.includes(item) && !bottom.includes(item)) ?? null
-        : null;
 
-    return { sidebar, bottom, midArticle, all: ranked };
+    // In-content links prefer articles not already shown elsewhere on the page,
+    // then fall back to the strongest matches so interlinking still happens on
+    // sites with only a handful of posts.
+    const usedElsewhere = new Set([...sidebar, ...bottom].map((item) => item.id));
+    const unused = ranked.filter((item) => !usedElsewhere.has(item.id));
+    const inArticle = [...unused, ...ranked.filter((item) => !unused.includes(item))].slice(
+        0,
+        inArticleCount,
+    );
+
+    return { sidebar, bottom, inArticle, all: ranked };
 }

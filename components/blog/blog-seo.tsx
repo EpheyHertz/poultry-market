@@ -38,8 +38,8 @@ export function generateBlogMetadata({
   url,
   type = 'website'
 }: BlogSEOProps): Metadata {
-  const siteUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://poultrymarket.ke';
-  
+  const siteUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://poultrymarket.app';
+
   // For individual blog posts
   if (post) {
     const postUrl = `${siteUrl}/blog/${post.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
@@ -47,9 +47,9 @@ export function generateBlogMetadata({
     const postDescription = post.metaDescription || post.ogDescription || post.excerpt || '';
     const postImage = post.ogImage || post.featuredImage || `${siteUrl}/images/blog-default.jpg`;
     const publishedTime = new Date(post.publishedAt).toISOString();
-    
+
     return {
-      title: `${postTitle} - Poultry Market KE Blog`,
+      title: `${postTitle} - Poultry Market Kenya Blog`,
       description: postDescription,
       authors: [{ name: post.author.name }],
       keywords: post.tags.map(tag => tag.name).join(', '),
@@ -70,15 +70,15 @@ export function generateBlogMetadata({
         authors: [post.author.name],
         section: post.category.replace('_', ' '),
         tags: post.tags.map(tag => tag.name),
-        siteName: 'Poultry Market KE',
+        siteName: 'Poultry Market Kenya',
       },
       twitter: {
         card: 'summary_large_image',
         title: post.twitterTitle || postTitle,
         description: post.twitterDescription || postDescription,
         images: [post.twitterImage || postImage],
-        creator: '@PoultryMarketKE',
-        site: '@PoultryMarketKE',
+        creator: '@devepheyhertz',
+        site: '@PoultryMarketkenya',
       },
       alternates: {
         canonical: postUrl,
@@ -91,13 +91,13 @@ export function generateBlogMetadata({
       }
     };
   }
-  
+
   // For blog listing and other pages
-  const pageTitle = title || 'Blog - Poultry Market KE';
+  const pageTitle = title || 'Blog - Poultry Market Kenya';
   const pageDescription = description || 'Discover expert tips, industry insights, and success stories from Kenya\'s leading poultry marketplace. Learn about farming techniques, health management, nutrition, and market trends.';
   const pageImage = image || `${siteUrl}/images/blog-hero.jpg`;
   const pageUrl = url || `${siteUrl}/blog`;
-  
+
   return {
     title: pageTitle,
     description: pageDescription,
@@ -115,15 +115,15 @@ export function generateBlogMetadata({
           alt: pageTitle,
         }
       ],
-      siteName: 'Poultry Market KE',
+      siteName: 'Poultry Market Kenya',
     },
     twitter: {
       card: 'summary_large_image',
       title: pageTitle,
       description: pageDescription,
       images: [pageImage],
-      creator: '@PoultryMarketKE',
-      site: '@PoultryMarketKE',
+      creator: '@devepheyhertz',
+      site: '@PoultryMarketkenya',
     },
     alternates: {
       canonical: pageUrl,
@@ -133,9 +133,9 @@ export function generateBlogMetadata({
 
 // JSON-LD Structured Data
 export function generateBlogStructuredData(post: BlogPost, postSlug: string) {
-  const siteUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://poultrymarket.ke';
+  const siteUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://poultrymarket.app';
   const postUrl = `${siteUrl}/blog/${postSlug}`;
-  
+
   return {
     '@context': 'https://schema.org',
     '@type': 'BlogPosting',
@@ -148,7 +148,7 @@ export function generateBlogStructuredData(post: BlogPost, postSlug: string) {
     },
     publisher: {
       '@type': 'Organization',
-      name: 'Poultry Market KE',
+      name: 'Poultry Market Kenya',
       logo: {
         '@type': 'ImageObject',
         url: `${siteUrl}/images/logo.png`,
@@ -169,7 +169,7 @@ export function generateBlogStructuredData(post: BlogPost, postSlug: string) {
     },
     isPartOf: {
       '@type': 'Blog',
-      name: 'Poultry Market KE Blog',
+      name: 'Poultry Market Kenya Blog',
       url: `${siteUrl}/blog`,
     },
   };
@@ -177,8 +177,8 @@ export function generateBlogStructuredData(post: BlogPost, postSlug: string) {
 
 // Breadcrumb Structured Data
 export function generateBlogBreadcrumbData(post?: BlogPost, postSlug?: string) {
-  const siteUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://poultrymarket.ke';
-  
+  const siteUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://poultrymarket.app';
+
   const breadcrumbItems = [
     {
       '@type': 'ListItem',
@@ -193,7 +193,7 @@ export function generateBlogBreadcrumbData(post?: BlogPost, postSlug?: string) {
       item: `${siteUrl}/blog`,
     },
   ];
-  
+
   if (post && postSlug) {
     breadcrumbItems.push({
       '@type': 'ListItem',
@@ -202,7 +202,7 @@ export function generateBlogBreadcrumbData(post?: BlogPost, postSlug?: string) {
       item: `${siteUrl}/blog/${postSlug}`,
     });
   }
-  
+
   return {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
@@ -212,25 +212,25 @@ export function generateBlogBreadcrumbData(post?: BlogPost, postSlug?: string) {
 
 // Website Structured Data for Blog
 export function generateBlogWebsiteData() {
-  const siteUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://poultrymarket.ke';
-  
+  const siteUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://poultrymarket.app';
+
   return {
     '@context': 'https://schema.org',
     '@type': 'WebSite',
-    name: 'Poultry Market KE Blog',
+    name: 'Poultry Market kenya Blog',
     url: `${siteUrl}/blog`,
     description: 'Expert poultry farming tips, industry insights, and success stories from Kenya\'s leading poultry marketplace.',
     publisher: {
       '@type': 'Organization',
-      name: 'Poultry Market KE',
+      name: 'Poultry Market Kenya',
       logo: {
         '@type': 'ImageObject',
         url: `${siteUrl}/images/logo.png`,
       },
       sameAs: [
-        'https://www.facebook.com/PoultryMarketKE',
-        'https://twitter.com/PoultryMarketKE',
-        'https://www.linkedin.com/company/poultrymarket-ke',
+        'https://www.facebook.com/share/1HHTXLYaCt/',
+        'https://www.threads.com/@poultymarketkenya',
+        'https://www.tiktok.com/@poultrymarket.app?_r=1&_t=ZS-97oGn2cijDx',
       ],
     },
     potentialAction: {

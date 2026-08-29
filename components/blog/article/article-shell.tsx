@@ -52,7 +52,8 @@ interface ArticleShellProps {
     headings: ArticleHeading[];
     sidebarRecommendations: RecommendedArticle[];
     bottomRecommendations: RecommendedArticle[];
-    midArticleRecommendation: RecommendedArticle | null;
+    /** In-content interlinks, rendered between sections (§17). */
+    inArticleRecommendations: RecommendedArticle[];
 }
 
 /** Subtle back-to-top affordance — one button, no scroll hijacking (§30). */
@@ -280,8 +281,23 @@ export function ArticleShell({
     headings,
     sidebarRecommendations,
     bottomRecommendations,
-    midArticleRecommendation,
+    inArticleRecommendations,
 }: ArticleShellProps) {
+    /*
+     * In-content slots (§17): one related-article link per section boundary, so
+     * the reader always has a next step without leaving the flow. The inline ad
+     * rides along with the first slot only — never repeated.
+     */
+    const inlineSlots = inArticleRecommendations
+        // §29 defence in depth: the current article can never link to itself.
+        .filter((item) => item.id !== article.id)
+        .map((item, index) => (
+            <div key={item.id} className="space-y-6">
+                <RecommendedPostCard article={item} variant="inline" placement="in-article" />
+                {index === 0 ? <AdSlot name="postInline" /> : null}
+            </div>
+        ));
+
     return (
         <ArticleAnalyticsProvider
             postId={article.id}
@@ -324,17 +340,10 @@ export function ArticleShell({
                                 <ArticleContent
                                     content={article.content}
                                     id={CONTENT_ID}
-                                    midSlot={
-                                        <div className="space-y-6">
-                                            {midArticleRecommendation ? (
-                                                <RecommendedPostCard
-                                                    article={midArticleRecommendation}
-                                                    variant="inline"
-                                                    placement="mid-article"
-                                                />
-                                            ) : null}
-                                            <AdSlot name="postInline" />
-                                        </div>
+                                    inlineSlots={
+                                        inlineSlots.length
+                                            ? inlineSlots
+                                            : [<AdSlot key="postInline" name="postInline" />]
                                     }
                                 />
                             </article>

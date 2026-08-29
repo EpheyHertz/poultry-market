@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 
 /**
- * SearchAutocomplete — typeahead dropdown for the blog search box (§6, §9).
+ * SearchAutocomplete — typeahead dropdown for the blog search box .
  *
  * Debounces keystrokes, fetches typed suggestions from
  * GET /api/blog/search/suggest and renders an accessible dropdown.
@@ -231,11 +231,10 @@ const SearchAutocomplete = forwardRef<SearchAutocompleteHandle, SearchAutocomple
                           e.preventDefault();
                           select(s);
                         }}
-                        className={`flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm transition-colors ${
-                          active
+                        className={`flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm transition-colors ${active
                             ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
                             : 'text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800'
-                        }`}
+                          }`}
                       >
                         <Icon className="h-4 w-4 flex-shrink-0 text-gray-400 dark:text-slate-500" />
                         <span className="flex-1 truncate font-medium">{s.text}</span>

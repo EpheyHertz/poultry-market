@@ -420,7 +420,7 @@ export default async function BlogPostPage({ params }: { params: Promise<Params>
       tagNames: post.tagNames,
       authorId: article.author.id,
     },
-    { sidebarCount: 4, bottomCount: 3, includeMidArticle: true },
+    { sidebarCount: 4, bottomCount: 3, inArticleCount: 2 },
   );
 
   const description = buildDescription(
@@ -520,7 +520,7 @@ export default async function BlogPostPage({ params }: { params: Promise<Params>
           headings={headings}
           sidebarRecommendations={recommendations.sidebar}
           bottomRecommendations={recommendations.bottom}
-          midArticleRecommendation={recommendations.midArticle}
+          inArticleRecommendations={recommendations.inArticle}
         />
       </main>
     </>
