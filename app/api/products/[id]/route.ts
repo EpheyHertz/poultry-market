@@ -6,6 +6,8 @@ import { generateProductUpdateEmail, type ProductUpdateEmailData } from '@/lib/e
 import { submitPathToIndexNow } from '@/lib/indexnow'
 import { ProductType } from '@prisma/client'
 import { formatProductTypeLabel } from '@/lib/utils'
+import { isValidProductId } from '@/lib/seller-products'
+
 
 // export async function GET(
 //   request: NextRequest,
@@ -48,7 +50,7 @@ export async function PUT(
   const { id } = await context.params;
   try {
     const user = await getCurrentUser()
-    
+
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -65,10 +67,10 @@ export async function PUT(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-  const { name, description, price, stock, images, type, customType } = await request.json()
+    const { name, description, price, stock, images, type, customType } = await request.json()
 
-  const normalizedType = type as ProductType
-  const trimmedCustomType = typeof customType === 'string' ? customType.trim() : ''
+    const normalizedType = type as ProductType
+    const trimmedCustomType = typeof customType === 'string' ? customType.trim() : ''
 
     // Validate required fields
     if (!name?.trim() || !description?.trim() || !type) {
@@ -202,6 +204,20 @@ export async function PUT(
   }
 }
 
+/**
+ * Delete a product.
+ *
+ * Authorization is enforced entirely server-side:
+ *  - the request must carry a valid session (401 otherwise)
+ *  - the account must be able to manage a catalogue: SELLER / COMPANY / ADMIN (403)
+ *  - the product must belong to the caller unless the caller is an ADMIN (404/403)
+ *
+ * Because `OrderItem`, `Review` and `SaleItem` reference products without a
+ * cascade rule, a hard delete would either violate a foreign key or destroy
+ * historical commercial records. So we only remove products that have never
+ * been transacted, and otherwise fall back to the archive flag (`isActive`)
+ * that already exists in the schema and is respected by every public listing.
+ */
 export async function DELETE(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
@@ -209,26 +225,67 @@ export async function DELETE(
   const { id } = await context.params;
   try {
     const user = await getCurrentUser()
-    
+
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ error: 'You need to sign in to manage products.' }, { status: 401 })
+    }
+
+    const canManageCatalogue = user.role === 'SELLER' || user.role === 'COMPANY' || user.role === 'ADMIN'
+    if (!canManageCatalogue) {
+      return NextResponse.json(
+        { error: 'Your account does not have permission to manage products.' },
+        { status: 403 }
+      )
+    }
+
+    if (!isValidProductId(id)) {
+      return NextResponse.json({ error: 'Invalid product reference.' }, { status: 400 })
     }
 
     const product = await prisma.product.findUnique({
-      where: { id: id }
+      where: { id },
+      select: { id: true, name: true, slug: true, sellerId: true, isActive: true }
     })
 
     if (!product) {
-      return NextResponse.json({ error: 'Product not found' }, { status: 404 })
+      return NextResponse.json({ error: 'Product not found.' }, { status: 404 })
     }
 
-    if (product.sellerId !== user.id && user.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    // Ownership check — a seller may never delete another seller's product,
+    // even if they craft the request with an arbitrary product id.
+    const isOwner = product.sellerId === user.id
+    if (!isOwner && user.role !== 'ADMIN') {
+      return NextResponse.json(
+        { error: 'You can only delete products from your own catalogue.' },
+        { status: 403 }
+      )
     }
 
-    await prisma.product.delete({
-      where: { id: id }
-    })
+    // Look for references that must survive for accounting/history reasons.
+    const [orderItems, saleItems, reviews] = await Promise.all([
+      prisma.orderItem.count({ where: { productId: product.id } }),
+      prisma.saleItem.count({ where: { productId: product.id } }),
+      prisma.review.count({ where: { productId: product.id } }),
+    ])
+
+    const hasCommercialHistory = orderItems > 0 || saleItems > 0 || reviews > 0
+
+    if (hasCommercialHistory) {
+      // Soft delete: keep the row so orders, sales and reviews stay intact,
+      // but remove it from the marketplace. Cart entries are cleared so nobody
+      // can check out a delisted product.
+      await prisma.$transaction([
+        prisma.product.update({
+          where: { id: product.id },
+          data: { isActive: false, stock: 0 },
+        }),
+        prisma.cartItem.deleteMany({ where: { productId: product.id } }),
+      ])
+    } else {
+      // Never transacted — safe to remove permanently. Related rows that only
+      // describe the listing itself cascade automatically.
+      await prisma.product.delete({ where: { id: product.id } })
+    }
 
     // Notify search engines that the product page is gone (fire-and-forget)
     try {
@@ -242,11 +299,23 @@ export async function DELETE(
       // Don't fail the request if IndexNow fails
     }
 
-    return NextResponse.json({ message: 'Product deleted successfully' })
+    return NextResponse.json({
+      message: hasCommercialHistory
+        ? `"${product.name}" was removed from your storefront. Past orders and reviews were kept for your records.`
+        : `"${product.name}" was deleted.`,
+      id: product.id,
+      deleted: !hasCommercialHistory,
+      archived: hasCommercialHistory,
+    })
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to delete product' }, { status: 500 })
+    console.error('Error deleting product:', error)
+    return NextResponse.json(
+      { error: 'We could not delete this product. Please try again.' },
+      { status: 500 }
+    )
   }
 }
+
 
 
 export async function GET(
@@ -310,12 +379,12 @@ export async function GET(
     // Check if product is discounted
     let currentPrice = product.price;
     let isDiscounted = false;
-    
+
     if (product.hasDiscount && product.discountStartDate && product.discountEndDate) {
       const now = new Date();
       const startDate = new Date(product.discountStartDate);
       const endDate = new Date(product.discountEndDate);
-      
+
       if (now >= startDate && now <= endDate) {
         isDiscounted = true;
         if (product.discountType === 'PERCENTAGE') {
