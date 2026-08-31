@@ -66,6 +66,8 @@ export default function PublicProductsPage() {
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const initialPriceBoundsSet = useRef(false);
   const priceBoundsRef = useRef<[number, number]>([0, 10000]);
+  /** After the first successful load, filter changes refresh in place instead of blanking the grid. */
+  const hasLoadedOnce = useRef(false);
 
   // Check authentication status
   useEffect(() => {
@@ -139,6 +141,7 @@ export default function PublicProductsPage() {
       if (response.ok) {
         const data = await response.json();
         setLoadError(null);
+        hasLoadedOnce.current = true;
         setProducts(data.products || []);
         setTotalPages(data.pagination?.pages || 1);
         setTotalProducts(Number(data.pagination?.total ?? (data.products?.length || 0)));
@@ -582,8 +585,20 @@ export default function PublicProductsPage() {
     });
   }
 
-  const showSkeletons = loading || authLoading;
+  /** Full skeletons only on the very first paint; later fetches dim the existing grid instead. */
+  const showSkeletons = (loading || authLoading) && !hasLoadedOnce.current;
+  const isRefreshing = loading && hasLoadedOnce.current;
   const cartCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+
+  const rangeStart = totalProducts === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
+  const rangeEnd = Math.min(currentPage * PAGE_SIZE, totalProducts);
+  const resultsSummary = showSkeletons
+    ? 'Loading products…'
+    : totalProducts === 0
+      ? 'No products'
+      : totalPages > 1
+        ? `${rangeStart}–${rangeEnd} of ${totalProducts} products`
+        : `${totalProducts} product${totalProducts === 1 ? '' : 's'}`;
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -715,10 +730,15 @@ export default function PublicProductsPage() {
               </Sheet>
 
               <div className="min-w-0 flex-1 sm:order-3 sm:flex-none">
-                <p className="truncate text-sm text-muted-foreground" aria-live="polite">
-                  {showSkeletons
-                    ? 'Loading products…'
-                    : `${totalProducts} product${totalProducts === 1 ? '' : 's'}`}
+                <p
+                  className="flex items-center gap-1.5 truncate text-sm text-muted-foreground"
+                  aria-live="polite"
+                  aria-busy={loading}
+                >
+                  {isRefreshing && (
+                    <RefreshCw className="h-3.5 w-3.5 shrink-0 animate-spin" aria-hidden="true" />
+                  )}
+                  <span className="truncate font-medium tabular-nums">{resultsSummary}</span>
                 </p>
               </div>
 
@@ -812,7 +832,9 @@ export default function PublicProductsPage() {
               <div
                 className={cn(
                   'grid gap-3 sm:gap-4',
-                  viewMode === 'grid' ? 'grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' : 'grid-cols-1'
+                  viewMode === 'grid'
+                    ? 'grid-cols-2 md:grid-cols-3 xl:grid-cols-4'
+                    : 'grid-cols-1'
                 )}
               >
                 {Array.from({ length: PAGE_SIZE }).map((_, i) => (
@@ -853,8 +875,11 @@ export default function PublicProductsPage() {
             ) : (
               <div
                 className={cn(
-                  'grid gap-3 sm:gap-4',
-                  viewMode === 'grid' ? 'grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' : 'grid-cols-1'
+                  'grid gap-3 transition-opacity duration-200 sm:gap-4',
+                  viewMode === 'grid'
+                    ? 'grid-cols-2 md:grid-cols-3 xl:grid-cols-4'
+                    : 'grid-cols-1',
+                  isRefreshing && 'pointer-events-none opacity-60'
                 )}
               >
                 {products.map(product => (
