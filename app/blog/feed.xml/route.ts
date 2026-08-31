@@ -28,7 +28,7 @@ export async function GET() {
       post.author.name.toLowerCase().replace(/\s+/g, '-');
     const postUrl = `${SITE_URL}/blog/${authorPath}/${post.slug}`;
     const pubDate = new Date(post.publishedAt ?? Date.now()).toUTCString();
-    const updatedDate = new Date(post.updatedAt ?? post.publishedAt ?? Date.now()).toUTCString();
+    const updatedDate = new Date(post.updatedAt ?? post.publishedAt ?? Date.now()).toISOString();
 
     return `    <item>
       <title>${escapeXml(post.title)}</title>
