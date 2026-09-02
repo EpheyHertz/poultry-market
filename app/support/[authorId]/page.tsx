@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+
 import { useParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
@@ -35,9 +36,9 @@ interface AuthorInfo {
   authorName: string;
   authorBio?: string;
   authorImage?: string;
-  recentSupporters: number;
-  totalSupport?: string;
+  supportersCount: number;
 }
+
 
 const PRESET_AMOUNTS = [10, 20, 30, 50, 100, 200, 500, 1000];
 
@@ -79,6 +80,17 @@ export default function SupportAuthorPage() {
   const [paymentErrorAction, setPaymentErrorAction] = useState<string | null>(null);
   const [canRetry, setCanRetry] = useState(true);
 
+  // Teardown handle for the IntaSend popup so it never outlives this page.
+  const closeIntaSendRef = useRef<(() => void) | null>(null);
+  const closeIntaSend = useCallback(() => {
+    const close = closeIntaSendRef.current;
+    closeIntaSendRef.current = null;
+    close?.();
+  }, []);
+
+  useEffect(() => closeIntaSend, [closeIntaSend]);
+
+
   const fetchAuthorInfo = useCallback(async () => {
     try {
       const response = await fetch(`/api/support/${authorId}`);
@@ -93,13 +105,37 @@ export default function SupportAuthorPage() {
       }
 
       const data = await response.json();
-      setAuthorInfo(data);
+
+      // The API returns a nested payload. Flatten it into the shape this page renders.
+      const author = data?.author ?? {};
+      const displayName: string =
+        (typeof author.displayName === 'string' && author.displayName.trim()) ||
+        (typeof author.username === 'string' && author.username.trim()) ||
+        'this author';
+
+      if (data?.supportEnabled !== true) {
+        setError(
+          typeof data?.message === 'string' && data.message
+            ? data.message
+            : `${displayName} has not set up reader support yet.`
+        );
+        return;
+      }
+
+      setAuthorInfo({
+        authorName: displayName,
+        authorBio: author.tagline || author.bio || undefined,
+        authorImage: author.avatarUrl || undefined,
+        supportersCount:
+          typeof data?.stats?.supportersCount === 'number' ? data.stats.supportersCount : 0,
+      });
     } catch (err) {
       setError('Failed to load author information');
     } finally {
       setIsLoading(false);
     }
   }, [authorId]);
+
 
   useEffect(() => {
     fetchAuthorInfo();
@@ -223,12 +259,15 @@ export default function SupportAuthorPage() {
         // Payment is only ever confirmed by our webhook/polling.
         setPaymentStatus('pending');
         try {
-          await openIntaSendCheckout({
+          closeIntaSendRef.current = await openIntaSendCheckout({
             checkoutId: data.checkout.checkoutId,
             signature: data.checkout.signature,
             live: data.checkout.live === true,
+            onComplete: closeIntaSend,
+            onFailed: closeIntaSend,
           });
         } catch {
+
           // SDK blocked or failed to load - fall back to hosted checkout page.
           if (data.checkoutUrl) {
             window.location.href = data.checkoutUrl;
@@ -253,9 +292,11 @@ export default function SupportAuthorPage() {
   };
 
   const handleReset = () => {
+    closeIntaSend();
     setPaymentStatus('idle');
     setTransactionId(null);
     setPaymentError(null);
+
     setPaymentErrorAction(null);
     setCanRetry(true);
   };
@@ -422,9 +463,10 @@ export default function SupportAuthorPage() {
               ) : (
                 <div className="w-24 h-24 rounded-full bg-gradient-to-br from-pink-400 to-purple-500 flex items-center justify-center border-4 border-white shadow-lg">
                   <span className="text-3xl font-bold text-white">
-                    {authorInfo.authorName[0].toUpperCase()}
+                    {(authorInfo.authorName.charAt(0) || 'A').toUpperCase()}
                   </span>
                 </div>
+
               )}
               <div className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-pink-500 flex items-center justify-center">
                 <Heart className="h-4 w-4 text-white" />
@@ -438,11 +480,12 @@ export default function SupportAuthorPage() {
                 {authorInfo.authorBio}
               </p>
             )}
-            {authorInfo.recentSupporters > 0 && (
+            {authorInfo.supportersCount > 0 && (
               <Badge variant="secondary" className="mt-3">
-                {authorInfo.recentSupporters} supporters this month
+                {authorInfo.supportersCount} {authorInfo.supportersCount === 1 ? 'supporter' : 'supporters'} so far
               </Badge>
             )}
+
           </div>
 
           {/* Support Form */}

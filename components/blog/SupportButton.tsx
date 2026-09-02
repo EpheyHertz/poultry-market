@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
@@ -88,6 +89,17 @@ export function SupportButton({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [errorAction, setErrorAction] = useState<string | null>(null);
   const [canRetry, setCanRetry] = useState(true);
+
+  // Teardown handle for the IntaSend popup so it never outlives this component.
+  const closeIntaSendRef = useRef<(() => void) | null>(null);
+  const closeIntaSend = useCallback(() => {
+    const close = closeIntaSendRef.current;
+    closeIntaSendRef.current = null;
+    close?.();
+  }, []);
+
+  useEffect(() => closeIntaSend, [closeIntaSend]);
+
 
   // Check if author has wallet
   useEffect(() => {
@@ -234,13 +246,27 @@ export function SupportButton({
         // Payment is still only confirmed by our webhook/polling - the
         // client-side COMPLETE event just moves the UI along.
         setPaymentStatus('pending');
+        // Radix sets `pointer-events: none` on <body> while a dialog is open,
+        // which would leave the IntaSend iframe visible but unclickable. Close
+        // our dialog first; polling keeps running and reopens on the result.
+        setIsOpen(false);
         try {
-          await openIntaSendCheckout({
+          closeIntaSendRef.current = await openIntaSendCheckout({
             checkoutId: data.checkout.checkoutId,
             signature: data.checkout.signature,
             live: data.checkout.live === true,
+            onComplete: () => {
+              closeIntaSend();
+              setIsOpen(true);
+            },
+            onFailed: () => {
+              closeIntaSend();
+              setIsOpen(true);
+            },
           });
         } catch {
+          setIsOpen(true);
+
           // SDK blocked or failed to load - fall back to hosted checkout page.
           if (data.checkoutUrl) {
             window.location.href = data.checkoutUrl;
@@ -264,6 +290,7 @@ export function SupportButton({
   };
 
   const handleReset = () => {
+    closeIntaSend();
     setPaymentStatus('idle');
     setTransactionId(null);
     setErrorMessage(null);
@@ -272,7 +299,9 @@ export function SupportButton({
   };
 
   const handleClose = () => {
+    closeIntaSend();
     setIsOpen(false);
+
     setTimeout(() => {
       setPaymentStatus('idle');
       setTransactionId(null);
