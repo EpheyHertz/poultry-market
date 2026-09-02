@@ -1,14 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { 
+import {
   fundWalletMpesa,
   fundWalletCheckout,
   validateSupportAmount,
   calculateFees,
   normalizePhoneNumber,
-  SUPPORT_CONFIG 
+  SUPPORT_CONFIG,
+  INTASEND_LIVE,
 } from '@/lib/intasend-wallets';
+
 
 // Simple in-memory rate limiting (consider using Redis in production)
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
@@ -18,16 +20,16 @@ const MAX_REQUESTS_PER_WINDOW = 10; // Max 10 payment attempts per minute per IP
 function checkRateLimit(ip: string): boolean {
   const now = Date.now();
   const record = rateLimitMap.get(ip);
-  
+
   if (!record || now > record.resetTime) {
     rateLimitMap.set(ip, { count: 1, resetTime: now + RATE_LIMIT_WINDOW });
     return true;
   }
-  
+
   if (record.count >= MAX_REQUESTS_PER_WINDOW) {
     return false;
   }
-  
+
   record.count++;
   return true;
 }
@@ -209,10 +211,10 @@ export async function POST(
 ) {
   try {
     // Get client IP for rate limiting
-    const ip = request.headers.get('x-forwarded-for')?.split(',')[0] || 
-               request.headers.get('x-real-ip') || 
-               'unknown';
-    
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0] ||
+      request.headers.get('x-real-ip') ||
+      'unknown';
+
     // Check rate limit
     if (!checkRateLimit(ip)) {
       return NextResponse.json(
@@ -223,7 +225,7 @@ export async function POST(
 
     const { authorId } = await context.params;
     const body = await request.json();
-    
+
     const {
       amount,
       paymentMethod, // 'MPESA_STK' or 'CARD_CHECKOUT'
@@ -418,6 +420,16 @@ export async function POST(
         return NextResponse.json({
           success: true,
           paymentMethod: 'CARD_CHECKOUT',
+          transactionId: transaction.id,
+          // Consumed by the IntaSend Payment Button (InlineJS SDK). The amount,
+          // currency and destination wallet are already sealed into this
+          // checkout server-side, so the browser cannot alter them.
+          checkout: {
+            checkoutId: checkoutResponse.id,
+            signature: checkoutResponse.signature,
+            live: INTASEND_LIVE,
+          },
+          // Fallback for browsers where the SDK cannot load.
           checkoutUrl: checkoutResponse.url,
           transaction: {
             id: transaction.id,
@@ -426,6 +438,7 @@ export async function POST(
             status: 'PENDING',
           },
         });
+
 
       } else {
         return NextResponse.json(

@@ -35,6 +35,7 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/formatCurrency';
+import { openIntaSendCheckout } from '@/lib/intasend-checkout';
 
 interface SupportButtonProps {
   authorId: string;
@@ -82,7 +83,7 @@ export function SupportButton({
   const [paymentMethod, setPaymentMethod] = useState<'MPESA_STK' | 'CARD_CHECKOUT'>('MPESA_STK');
   const [paymentStatus, setPaymentStatus] = useState<'idle' | 'pending' | 'success' | 'failed'>('idle');
   const [transactionId, setTransactionId] = useState<string | null>(null);
-  
+
   // Error state for better error display
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [errorAction, setErrorAction] = useState<string | null>(null);
@@ -226,6 +227,27 @@ export function SupportButton({
           title: 'Check Your Phone',
           description: 'An M-Pesa prompt has been sent to your phone.',
         });
+      } else if (data.checkout?.checkoutId && data.checkout?.signature) {
+        // IntaSend Payment Button (InlineJS SDK). The checkout was created
+        // server-side, so the amount, currency and destination wallet are
+        // already sealed and cannot be tampered with from the browser.
+        // Payment is still only confirmed by our webhook/polling - the
+        // client-side COMPLETE event just moves the UI along.
+        setPaymentStatus('pending');
+        try {
+          await openIntaSendCheckout({
+            checkoutId: data.checkout.checkoutId,
+            signature: data.checkout.signature,
+            live: data.checkout.live === true,
+          });
+        } catch {
+          // SDK blocked or failed to load - fall back to hosted checkout page.
+          if (data.checkoutUrl) {
+            window.location.href = data.checkoutUrl;
+          } else {
+            throw new Error('Unable to open the payment window. Please try again.');
+          }
+        }
       } else if (data.checkoutUrl) {
         window.location.href = data.checkoutUrl;
       }
@@ -343,14 +365,24 @@ export function SupportButton({
               className="text-center py-8"
             >
               <div className="w-16 h-16 rounded-full bg-gradient-to-br from-green-400 to-green-500 flex items-center justify-center mx-auto mb-4 animate-pulse">
-                <Smartphone className="h-8 w-8 text-white" />
+                {paymentMethod === 'MPESA_STK' ? (
+                  <Smartphone className="h-8 w-8 text-white" />
+                ) : (
+                  <CreditCard className="h-8 w-8 text-white" />
+                )}
               </div>
-              <h3 className="text-xl font-bold mb-2">Check Your Phone</h3>
+              <h3 className="text-xl font-bold mb-2">
+                {paymentMethod === 'MPESA_STK' ? 'Check Your Phone' : 'Complete Your Payment'}
+              </h3>
               <p className="text-gray-600 dark:text-gray-400 mb-2">
-                M-Pesa prompt sent to {supporterPhone}
+                {paymentMethod === 'MPESA_STK'
+                  ? `M-Pesa prompt sent to ${supporterPhone}`
+                  : 'Finish the payment in the secure IntaSend window'}
               </p>
               <p className="text-sm text-gray-500 mb-6">
-                Enter your PIN to complete {formatCurrency(getFinalAmount())} payment
+                {paymentMethod === 'MPESA_STK'
+                  ? `Enter your PIN to complete ${formatCurrency(getFinalAmount())} payment`
+                  : `We'll confirm your ${formatCurrency(getFinalAmount())} support automatically`}
               </p>
               <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -472,7 +504,7 @@ export function SupportButton({
                       }`}
                   >
                     <CreditCard className="h-4 w-4 text-blue-600" />
-                    <span className="text-sm font-medium">Card</span>
+                    <span className="text-sm font-medium">Card / Bank</span>
                   </button>
                 </div>
 

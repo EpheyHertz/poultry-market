@@ -11,8 +11,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { 
-  Heart, 
+import {
+  Heart,
   Coffee,
   Star,
   Gift,
@@ -29,6 +29,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/formatCurrency';
+import { openIntaSendCheckout } from '@/lib/intasend-checkout';
 
 interface AuthorInfo {
   authorName: string;
@@ -72,7 +73,7 @@ export default function SupportAuthorPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [transactionId, setTransactionId] = useState<string | null>(null);
   const [paymentStatus, setPaymentStatus] = useState<'idle' | 'pending' | 'success' | 'failed'>('idle');
-  
+
   // Error state for better error display
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [paymentErrorAction, setPaymentErrorAction] = useState<string | null>(null);
@@ -81,7 +82,7 @@ export default function SupportAuthorPage() {
   const fetchAuthorInfo = useCallback(async () => {
     try {
       const response = await fetch(`/api/support/${authorId}`);
-      
+
       if (!response.ok) {
         if (response.status === 404) {
           setError('Author not found or has not enabled support');
@@ -215,8 +216,28 @@ export default function SupportAuthorPage() {
           title: 'Check Your Phone',
           description: 'An M-Pesa prompt has been sent to your phone. Please enter your PIN to complete.',
         });
+      } else if (data.checkout?.checkoutId && data.checkout?.signature) {
+        // IntaSend Payment Button (InlineJS SDK). The checkout was created
+        // server-side, so the amount, currency and destination wallet are
+        // already sealed and cannot be tampered with from the browser.
+        // Payment is only ever confirmed by our webhook/polling.
+        setPaymentStatus('pending');
+        try {
+          await openIntaSendCheckout({
+            checkoutId: data.checkout.checkoutId,
+            signature: data.checkout.signature,
+            live: data.checkout.live === true,
+          });
+        } catch {
+          // SDK blocked or failed to load - fall back to hosted checkout page.
+          if (data.checkoutUrl) {
+            window.location.href = data.checkoutUrl;
+          } else {
+            throw new Error('Unable to open the payment window. Please try again.');
+          }
+        }
       } else if (data.checkoutUrl) {
-        // Redirect to card checkout
+        // Fallback: redirect to hosted checkout
         window.location.href = data.checkoutUrl;
       }
 
@@ -301,23 +322,34 @@ export default function SupportAuthorPage() {
     );
   }
 
-  // Pending state (M-Pesa STK Push)
+  // Pending state (M-Pesa STK Push or IntaSend checkout window)
   if (paymentStatus === 'pending') {
+    const isStkPush = paymentMethod === 'MPESA_STK';
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-4">
         <Card className="max-w-md w-full text-center">
           <CardContent className="p-8">
             <div className="w-20 h-20 rounded-full bg-gradient-to-br from-green-400 to-green-500 flex items-center justify-center mx-auto mb-6 animate-pulse">
-              <Smartphone className="h-10 w-10 text-white" />
+              {isStkPush ? (
+                <Smartphone className="h-10 w-10 text-white" />
+              ) : (
+                <CreditCard className="h-10 w-10 text-white" />
+              )}
             </div>
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-              Check Your Phone
+              {isStkPush ? 'Check Your Phone' : 'Complete Your Payment'}
             </h2>
             <p className="text-gray-600 dark:text-gray-400 mb-4">
-              An M-Pesa prompt has been sent to <span className="font-semibold">{supporterPhone}</span>
+              {isStkPush ? (
+                <>An M-Pesa prompt has been sent to <span className="font-semibold">{supporterPhone}</span></>
+              ) : (
+                <>Finish the payment in the secure IntaSend window</>
+              )}
             </p>
             <p className="text-sm text-gray-500 dark:text-gray-500 mb-6">
-              Enter your M-Pesa PIN to complete the payment of {formatCurrency(getFinalAmount())}
+              {isStkPush
+                ? `Enter your M-Pesa PIN to complete the payment of ${formatCurrency(getFinalAmount())}`
+                : `We'll confirm your ${formatCurrency(getFinalAmount())} support automatically once it goes through`}
             </p>
             <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -495,7 +527,7 @@ export default function SupportAuthorPage() {
                         }`}
                     >
                       <CreditCard className="h-5 w-5 text-blue-600" />
-                      <span className="font-medium">Card</span>
+                      <span className="font-medium">Card / Bank</span>
                     </button>
                   </div>
                 </div>

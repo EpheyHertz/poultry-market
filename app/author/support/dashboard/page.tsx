@@ -11,9 +11,9 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { 
-  Wallet, 
-  ArrowUpRight, 
+import {
+  Wallet,
+  ArrowUpRight,
   ArrowDownLeft,
   Phone,
   History,
@@ -136,7 +136,7 @@ export default function AuthorSupportDashboardPage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isUpdatingSettings, setIsUpdatingSettings] = useState(false);
   const [newMpesaNumber, setNewMpesaNumber] = useState('');
-  
+
   // New withdrawal method states
   const [withdrawMethod, setWithdrawMethod] = useState<WithdrawalMethod>('MPESA_B2C');
   const [paybillNumber, setPaybillNumber] = useState('');
@@ -163,13 +163,13 @@ export default function AuthorSupportDashboardPage() {
       }
 
       const walletData = await walletRes.json();
-      
+
       // Check if wallet exists
       if (!walletData.hasWallet || !walletData.wallet) {
         router.push('/author/support/setup');
         return;
       }
-      
+
       // Transform API response to match expected dashboard structure
       const transformedData: DashboardData = {
         authorProfileId: walletData.authorProfileId,
@@ -191,8 +191,8 @@ export default function AuthorSupportDashboardPage() {
         stats: {
           totalSupporters: walletData.wallet.stats?.uniqueSupporters || 0,
           thisMonthAmount: walletData.wallet.stats?.totalReceived || 0, // Could be refined with actual month filter
-          averageSupport: walletData.wallet.stats?.transactionsCount > 0 
-            ? (walletData.wallet.stats?.totalReceived || 0) / walletData.wallet.stats.transactionsCount 
+          averageSupport: walletData.wallet.stats?.transactionsCount > 0
+            ? (walletData.wallet.stats?.totalReceived || 0) / walletData.wallet.stats.transactionsCount
             : 0,
           topSupportedPost: null,
         },
@@ -209,7 +209,7 @@ export default function AuthorSupportDashboardPage() {
           blogPost: tx.blogPost,
         })),
       };
-      
+
       setData(transformedData);
 
       if (withdrawalsRes.ok) {
@@ -249,7 +249,7 @@ export default function AuthorSupportDashboardPage() {
 
   const handleWithdraw = async () => {
     const amount = parseFloat(withdrawAmount);
-    
+
     // Validate common fields
     if (!withdrawAmount || isNaN(amount)) {
       toast({
@@ -444,6 +444,9 @@ export default function AuthorSupportDashboardPage() {
         return <Badge className="bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"><Clock className="h-3 w-3 mr-1" />Pending</Badge>;
       case 'FAILED':
         return <Badge className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"><XCircle className="h-3 w-3 mr-1" />Failed</Badge>;
+      case 'REFUNDED':
+        // In-app refund: the amount was reversed out of this wallet.
+        return <Badge className="bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400"><RefreshCw className="h-3 w-3 mr-1" />Refunded</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -685,8 +688,8 @@ export default function AuthorSupportDashboardPage() {
                     Withdraw Funds
                   </CardTitle>
                   <CardDescription>
-                    {withdrawMethod === 'BANK' 
-                      ? 'Min: KES 100 | Max: KES 999,999' 
+                    {withdrawMethod === 'BANK'
+                      ? 'Min: KES 100 | Max: KES 999,999'
                       : 'Min: KES 200 | Daily limit: KES 50,000'
                     }
                   </CardDescription>
@@ -867,9 +870,9 @@ export default function AuthorSupportDashboardPage() {
                     ) : (
                       <>
                         <ArrowUpRight className="mr-2 h-4 w-4" />
-                        Withdraw to {withdrawMethod === 'MPESA_B2C' ? 'M-Pesa' : 
-                                      withdrawMethod === 'MPESA_B2B_PAYBILL' ? 'PayBill' : 
-                                      withdrawMethod === 'MPESA_B2B_TILL' ? 'Till' : 'Bank'}
+                        Withdraw to {withdrawMethod === 'MPESA_B2C' ? 'M-Pesa' :
+                          withdrawMethod === 'MPESA_B2B_PAYBILL' ? 'PayBill' :
+                            withdrawMethod === 'MPESA_B2B_TILL' ? 'Till' : 'Bank'}
                       </>
                     )}
                   </Button>
@@ -910,9 +913,9 @@ export default function AuthorSupportDashboardPage() {
                               </span>
                               <Badge variant="outline" className="text-xs">
                                 {w.method === 'MPESA_B2C' ? 'M-Pesa' :
-                                 w.method === 'MPESA_B2B_PAYBILL' ? 'PayBill' :
-                                 w.method === 'MPESA_B2B_TILL' ? 'Till' :
-                                 w.method === 'BANK' ? 'Bank' : w.method}
+                                  w.method === 'MPESA_B2B_PAYBILL' ? 'PayBill' :
+                                    w.method === 'MPESA_B2B_TILL' ? 'Till' :
+                                      w.method === 'BANK' ? 'Bank' : w.method}
                               </Badge>
                             </div>
                             <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">

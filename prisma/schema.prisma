@@ -1945,6 +1945,11 @@ model SupportTransaction {
   failedReason String? // User-friendly error message
   failedCode   String? // IntaSend error code for debugging
 
+  // In-app refund (ledger reversal - we do NOT call IntaSend's refund API)
+  refundedAt    DateTime?
+  refundReason  String?   @db.Text
+  refundedById  String? // User who approved the refund (admin or the author)
+
   // Blog post reference (if supporting from specific post)
   blogPostId String?
   blogPost   BlogPost? @relation("BlogPostSupport", fields: [blogPostId], references: [id], onDelete: SetNull)
@@ -1958,6 +1963,7 @@ model SupportTransaction {
   @@index([supporterId])
   @@index([intasendInvoiceId])
   @@index([createdAt])
+  @@index([refundedAt])
   @@map("support_transactions")
 }
 

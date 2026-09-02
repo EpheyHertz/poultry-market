@@ -15,6 +15,14 @@ const INTASEND_SECRET_KEY = process.env.INTASEND_API_KEY;
 const INTASEND_PUBLISHABLE_KEY = process.env.INTASEND_PUBLISHABLE_KEY;
 const IS_SANDBOX = process.env.INTASEND_SANDBOX === 'true';
 
+/**
+ * Whether IntaSend is running against production (true) or sandbox (false).
+ * The browser SDK needs this to pick the right hosted checkout origin, so it is
+ * surfaced from the server response instead of duplicating env parsing client-side.
+ */
+export const INTASEND_LIVE = !IS_SANDBOX;
+
+
 // Initialize IntaSend SDK
 const intasend = new IntaSend(
   INTASEND_PUBLISHABLE_KEY || '',
@@ -210,7 +218,7 @@ export interface PayoutApprovalResponse {
  */
 export function normalizePhoneNumber(phoneNumber: string): string {
   let normalized = phoneNumber.replace(/[\s-]/g, '');
-  
+
   if (normalized.startsWith('+254')) {
     return normalized.substring(1);
   } else if (normalized.startsWith('254')) {
@@ -220,7 +228,7 @@ export function normalizePhoneNumber(phoneNumber: string): string {
   } else if (normalized.startsWith('7') || normalized.startsWith('1')) {
     return '254' + normalized;
   }
-  
+
   return normalized;
 }
 
@@ -234,7 +242,7 @@ export function calculateFees(grossAmount: number): {
 } {
   const platformFee = Math.round((grossAmount * SUPPORT_CONFIG.PLATFORM_FEE_PERCENT / 100) * 100) / 100;
   const netAmount = Math.round((grossAmount - platformFee) * 100) / 100;
-  
+
   return {
     grossAmount,
     platformFee,
@@ -247,9 +255,9 @@ export function calculateFees(grossAmount: number): {
  */
 export function validateSupportAmount(amount: number): { valid: boolean; error?: string } {
   if (amount < SUPPORT_CONFIG.MIN_SUPPORT_AMOUNT) {
-    return { 
-      valid: false, 
-      error: `Minimum support amount is KES ${SUPPORT_CONFIG.MIN_SUPPORT_AMOUNT}` 
+    return {
+      valid: false,
+      error: `Minimum support amount is KES ${SUPPORT_CONFIG.MIN_SUPPORT_AMOUNT}`
     };
   }
   return { valid: true };
@@ -259,32 +267,32 @@ export function validateSupportAmount(amount: number): { valid: boolean; error?:
  * Validate withdrawal amount
  */
 export function validateWithdrawalAmount(
-  amount: number, 
+  amount: number,
   availableBalance: number,
   dailyWithdrawnAmount: number
 ): { valid: boolean; error?: string } {
   if (amount < SUPPORT_CONFIG.MIN_WITHDRAWAL_AMOUNT) {
-    return { 
-      valid: false, 
-      error: `Minimum withdrawal amount is KES ${SUPPORT_CONFIG.MIN_WITHDRAWAL_AMOUNT}` 
+    return {
+      valid: false,
+      error: `Minimum withdrawal amount is KES ${SUPPORT_CONFIG.MIN_WITHDRAWAL_AMOUNT}`
     };
   }
-  
+
   if (amount > availableBalance) {
-    return { 
-      valid: false, 
-      error: `Insufficient balance. Available: KES ${availableBalance.toFixed(2)}` 
+    return {
+      valid: false,
+      error: `Insufficient balance. Available: KES ${availableBalance.toFixed(2)}`
     };
   }
-  
+
   const remainingDailyLimit = SUPPORT_CONFIG.DAILY_WITHDRAWAL_LIMIT - dailyWithdrawnAmount;
   if (amount > remainingDailyLimit) {
-    return { 
-      valid: false, 
-      error: `Daily withdrawal limit exceeded. Remaining today: KES ${remainingDailyLimit.toFixed(2)}` 
+    return {
+      valid: false,
+      error: `Daily withdrawal limit exceeded. Remaining today: KES ${remainingDailyLimit.toFixed(2)}`
     };
   }
-  
+
   return { valid: true };
 }
 
@@ -292,39 +300,39 @@ export function validateWithdrawalAmount(
  * Validate bank withdrawal amount
  */
 export function validateBankWithdrawalAmount(
-  amount: number, 
+  amount: number,
   availableBalance: number,
   dailyWithdrawnAmount: number
 ): { valid: boolean; error?: string } {
   if (amount < SUPPORT_CONFIG.MIN_BANK_WITHDRAWAL) {
-    return { 
-      valid: false, 
-      error: `Minimum bank withdrawal is KES ${SUPPORT_CONFIG.MIN_BANK_WITHDRAWAL}` 
+    return {
+      valid: false,
+      error: `Minimum bank withdrawal is KES ${SUPPORT_CONFIG.MIN_BANK_WITHDRAWAL}`
     };
   }
 
   if (amount > SUPPORT_CONFIG.MAX_BANK_WITHDRAWAL) {
-    return { 
-      valid: false, 
-      error: `Maximum bank withdrawal is KES ${SUPPORT_CONFIG.MAX_BANK_WITHDRAWAL.toLocaleString()}` 
+    return {
+      valid: false,
+      error: `Maximum bank withdrawal is KES ${SUPPORT_CONFIG.MAX_BANK_WITHDRAWAL.toLocaleString()}`
     };
   }
-  
+
   if (amount > availableBalance) {
-    return { 
-      valid: false, 
-      error: `Insufficient balance. Available: KES ${availableBalance.toFixed(2)}` 
+    return {
+      valid: false,
+      error: `Insufficient balance. Available: KES ${availableBalance.toFixed(2)}`
     };
   }
-  
+
   const remainingDailyLimit = SUPPORT_CONFIG.DAILY_WITHDRAWAL_LIMIT - dailyWithdrawnAmount;
   if (amount > remainingDailyLimit) {
-    return { 
-      valid: false, 
-      error: `Daily withdrawal limit exceeded. Remaining today: KES ${remainingDailyLimit.toFixed(2)}` 
+    return {
+      valid: false,
+      error: `Daily withdrawal limit exceeded. Remaining today: KES ${remainingDailyLimit.toFixed(2)}`
     };
   }
-  
+
   return { valid: true };
 }
 
