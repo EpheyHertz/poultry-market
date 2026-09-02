@@ -125,6 +125,8 @@ export interface FundWalletCheckoutRequest {
   first_name: string;
   last_name: string;
   email: string;
+  /** Optional - prefills the M-Pesa field inside the IntaSend checkout. */
+  phone_number?: string;
   host: string;
   amount: number;
   currency: string;

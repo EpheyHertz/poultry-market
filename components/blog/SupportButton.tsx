@@ -14,9 +14,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import {
   Heart,
@@ -24,10 +22,6 @@ import {
   Star,
   Gift,
   Loader2,
-  Phone,
-  Mail,
-  User,
-  MessageSquare,
   CheckCircle,
   AlertCircle,
   CreditCard,
@@ -81,7 +75,6 @@ export function SupportButton({
   const [supporterEmail, setSupporterEmail] = useState('');
   const [supporterPhone, setSupporterPhone] = useState('');
   const [message, setMessage] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<'MPESA_STK' | 'CARD_CHECKOUT'>('MPESA_STK');
   const [paymentStatus, setPaymentStatus] = useState<'idle' | 'pending' | 'success' | 'failed'>('idle');
   const [transactionId, setTransactionId] = useState<string | null>(null);
 
@@ -191,24 +184,6 @@ export function SupportButton({
       return;
     }
 
-    if (paymentMethod === 'MPESA_STK' && !supporterPhone) {
-      toast({
-        title: 'Error',
-        description: 'Phone number is required for M-Pesa payment',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    if (paymentMethod === 'CARD_CHECKOUT' && !supporterEmail) {
-      toast({
-        title: 'Error',
-        description: 'Email is required for card payment',
-        variant: 'destructive',
-      });
-      return;
-    }
-
     setIsSubmitting(true);
     try {
       const response = await fetch(`/api/support/${authorId}`, {
@@ -220,7 +195,6 @@ export function SupportButton({
           email: supporterEmail || undefined,
           phoneNumber: supporterPhone || undefined,
           message: message || undefined,
-          paymentMethod,
           blogPostId,
         }),
       });
@@ -233,16 +207,11 @@ export function SupportButton({
 
       setTransactionId(data.transactionId);
 
-      if (paymentMethod === 'MPESA_STK') {
-        setPaymentStatus('pending');
-        toast({
-          title: 'Check Your Phone',
-          description: 'An M-Pesa prompt has been sent to your phone.',
-        });
-      } else if (data.checkout?.checkoutId && data.checkout?.signature) {
-        // IntaSend Payment Button (InlineJS SDK). The checkout was created
-        // server-side, so the amount, currency and destination wallet are
-        // already sealed and cannot be tampered with from the browser.
+      if (data.checkout?.checkoutId && data.checkout?.signature) {
+        // IntaSend Payment Button (InlineJS SDK). One inline checkout covers
+        // every method IntaSend offers (M-Pesa, card, bank). The checkout was
+        // created server-side, so the amount, currency and destination wallet
+        // are already sealed and cannot be tampered with from the browser.
         // Payment is still only confirmed by our webhook/polling - the
         // client-side COMPLETE event just moves the UI along.
         setPaymentStatus('pending');
@@ -394,24 +363,14 @@ export function SupportButton({
               className="text-center py-8"
             >
               <div className="w-16 h-16 rounded-full bg-gradient-to-br from-green-400 to-green-500 flex items-center justify-center mx-auto mb-4 animate-pulse">
-                {paymentMethod === 'MPESA_STK' ? (
-                  <Smartphone className="h-8 w-8 text-white" />
-                ) : (
-                  <CreditCard className="h-8 w-8 text-white" />
-                )}
+                <CreditCard className="h-8 w-8 text-white" />
               </div>
-              <h3 className="text-xl font-bold mb-2">
-                {paymentMethod === 'MPESA_STK' ? 'Check Your Phone' : 'Complete Your Payment'}
-              </h3>
+              <h3 className="text-xl font-bold mb-2">Complete Your Payment</h3>
               <p className="text-gray-600 dark:text-gray-400 mb-2">
-                {paymentMethod === 'MPESA_STK'
-                  ? `M-Pesa prompt sent to ${supporterPhone}`
-                  : 'Finish the payment in the secure IntaSend window'}
+                Finish the payment in the secure IntaSend window
               </p>
               <p className="text-sm text-gray-500 mb-6">
-                {paymentMethod === 'MPESA_STK'
-                  ? `Enter your PIN to complete ${formatCurrency(getFinalAmount())} payment`
-                  : `We'll confirm your ${formatCurrency(getFinalAmount())} support automatically`}
+                We&apos;ll confirm your {formatCurrency(getFinalAmount())} support automatically
               </p>
               <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -509,32 +468,16 @@ export function SupportButton({
                   }}
                 />
 
-                {/* Payment Method */}
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod('MPESA_STK')}
-                    className={`p-3 rounded-lg border transition-all flex items-center justify-center gap-2
-                      ${paymentMethod === 'MPESA_STK'
-                        ? 'border-green-500 bg-green-50 dark:bg-green-900/20'
-                        : 'border-gray-200 dark:border-gray-700'
-                      }`}
-                  >
+                {/* One inline checkout, every method IntaSend supports */}
+                <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3">
+                  <div className="flex items-center gap-2 mb-1">
                     <Smartphone className="h-4 w-4 text-green-600" />
-                    <span className="text-sm font-medium">M-Pesa</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod('CARD_CHECKOUT')}
-                    className={`p-3 rounded-lg border transition-all flex items-center justify-center gap-2
-                      ${paymentMethod === 'CARD_CHECKOUT'
-                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                        : 'border-gray-200 dark:border-gray-700'
-                      }`}
-                  >
                     <CreditCard className="h-4 w-4 text-blue-600" />
-                    <span className="text-sm font-medium">Card / Bank</span>
-                  </button>
+                    <span className="text-sm font-medium">M-Pesa, Card or Bank</span>
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    Pick your preferred method in the secure IntaSend window.
+                  </p>
                 </div>
 
                 {/* Supporter Details */}
@@ -545,25 +488,19 @@ export function SupportButton({
                     onChange={(e) => setSupporterName(e.target.value)}
                   />
 
-                  {paymentMethod === 'MPESA_STK' && (
-                    <Input
-                      type="tel"
-                      placeholder="M-Pesa number (e.g. 0712345678) *"
-                      required
-                      value={supporterPhone}
-                      onChange={(e) => setSupporterPhone(e.target.value)}
-                    />
-                  )}
+                  <Input
+                    type="tel"
+                    placeholder="Phone number (optional)"
+                    value={supporterPhone}
+                    onChange={(e) => setSupporterPhone(e.target.value)}
+                  />
 
-                  {paymentMethod === 'CARD_CHECKOUT' && (
-                    <Input
-                      type="email"
-                      placeholder="Email address *"
-                      required
-                      value={supporterEmail}
-                      onChange={(e) => setSupporterEmail(e.target.value)}
-                    />
-                  )}
+                  <Input
+                    type="email"
+                    placeholder="Email for your receipt (optional)"
+                    value={supporterEmail}
+                    onChange={(e) => setSupporterEmail(e.target.value)}
+                  />
 
                   <Textarea
                     placeholder="Leave a message (optional)"

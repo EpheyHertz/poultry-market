@@ -70,7 +70,6 @@ export default function SupportAuthorPage() {
   const [supporterEmail, setSupporterEmail] = useState('');
   const [supporterPhone, setSupporterPhone] = useState('');
   const [message, setMessage] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<'MPESA_STK' | 'CARD_CHECKOUT'>('MPESA_STK');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [transactionId, setTransactionId] = useState<string | null>(null);
   const [paymentStatus, setPaymentStatus] = useState<'idle' | 'pending' | 'success' | 'failed'>('idle');
@@ -205,24 +204,6 @@ export default function SupportAuthorPage() {
       return;
     }
 
-    if (paymentMethod === 'MPESA_STK' && !supporterPhone) {
-      toast({
-        title: 'Error',
-        description: 'Phone number is required for M-Pesa payment',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    if (paymentMethod === 'CARD_CHECKOUT' && !supporterEmail) {
-      toast({
-        title: 'Error',
-        description: 'Email is required for card payment',
-        variant: 'destructive',
-      });
-      return;
-    }
-
     setIsSubmitting(true);
     try {
       const response = await fetch(`/api/support/${authorId}`, {
@@ -234,7 +215,6 @@ export default function SupportAuthorPage() {
           email: supporterEmail || undefined,
           phoneNumber: supporterPhone || undefined,
           message: message || undefined,
-          paymentMethod,
         }),
       });
 
@@ -246,16 +226,11 @@ export default function SupportAuthorPage() {
 
       setTransactionId(data.transactionId);
 
-      if (paymentMethod === 'MPESA_STK') {
-        setPaymentStatus('pending');
-        toast({
-          title: 'Check Your Phone',
-          description: 'An M-Pesa prompt has been sent to your phone. Please enter your PIN to complete.',
-        });
-      } else if (data.checkout?.checkoutId && data.checkout?.signature) {
-        // IntaSend Payment Button (InlineJS SDK). The checkout was created
-        // server-side, so the amount, currency and destination wallet are
-        // already sealed and cannot be tampered with from the browser.
+      if (data.checkout?.checkoutId && data.checkout?.signature) {
+        // IntaSend Payment Button (InlineJS SDK). One inline checkout covers
+        // every method IntaSend offers (M-Pesa, card, bank). The checkout was
+        // created server-side, so the amount, currency and destination wallet
+        // are already sealed and cannot be tampered with from the browser.
         // Payment is only ever confirmed by our webhook/polling.
         setPaymentStatus('pending');
         try {
@@ -363,34 +338,23 @@ export default function SupportAuthorPage() {
     );
   }
 
-  // Pending state (M-Pesa STK Push or IntaSend checkout window)
+  // Pending state - supporter is inside the IntaSend inline checkout window
   if (paymentStatus === 'pending') {
-    const isStkPush = paymentMethod === 'MPESA_STK';
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-4">
         <Card className="max-w-md w-full text-center">
           <CardContent className="p-8">
             <div className="w-20 h-20 rounded-full bg-gradient-to-br from-green-400 to-green-500 flex items-center justify-center mx-auto mb-6 animate-pulse">
-              {isStkPush ? (
-                <Smartphone className="h-10 w-10 text-white" />
-              ) : (
-                <CreditCard className="h-10 w-10 text-white" />
-              )}
+              <CreditCard className="h-10 w-10 text-white" />
             </div>
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-              {isStkPush ? 'Check Your Phone' : 'Complete Your Payment'}
+              Complete Your Payment
             </h2>
             <p className="text-gray-600 dark:text-gray-400 mb-4">
-              {isStkPush ? (
-                <>An M-Pesa prompt has been sent to <span className="font-semibold">{supporterPhone}</span></>
-              ) : (
-                <>Finish the payment in the secure IntaSend window</>
-              )}
+              Finish the payment in the secure IntaSend window
             </p>
             <p className="text-sm text-gray-500 dark:text-gray-500 mb-6">
-              {isStkPush
-                ? `Enter your M-Pesa PIN to complete the payment of ${formatCurrency(getFinalAmount())}`
-                : `We'll confirm your ${formatCurrency(getFinalAmount())} support automatically once it goes through`}
+              We&apos;ll confirm your {formatCurrency(getFinalAmount())} support automatically once it goes through
             </p>
             <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -544,34 +508,18 @@ export default function SupportAuthorPage() {
                   />
                 </div>
 
-                {/* Payment Method */}
+                {/* One inline checkout, every method IntaSend supports */}
                 <div className="space-y-3">
                   <Label>Payment Method</Label>
-                  <div className="grid grid-cols-2 gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setPaymentMethod('MPESA_STK')}
-                      className={`p-4 rounded-lg border-2 transition-all flex items-center gap-3
-                        ${paymentMethod === 'MPESA_STK'
-                          ? 'border-green-500 bg-green-50 dark:bg-green-900/20'
-                          : 'border-gray-200 dark:border-gray-700 hover:border-green-300'
-                        }`}
-                    >
+                  <div className="rounded-lg border-2 border-gray-200 dark:border-gray-700 p-4">
+                    <div className="flex items-center gap-3 mb-1">
                       <Smartphone className="h-5 w-5 text-green-600" />
-                      <span className="font-medium">M-Pesa</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setPaymentMethod('CARD_CHECKOUT')}
-                      className={`p-4 rounded-lg border-2 transition-all flex items-center gap-3
-                        ${paymentMethod === 'CARD_CHECKOUT'
-                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                          : 'border-gray-200 dark:border-gray-700 hover:border-blue-300'
-                        }`}
-                    >
                       <CreditCard className="h-5 w-5 text-blue-600" />
-                      <span className="font-medium">Card / Bank</span>
-                    </button>
+                      <span className="font-medium">M-Pesa, Card or Bank</span>
+                    </div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      Choose your preferred method inside the secure IntaSend window.
+                    </p>
                   </div>
                 </div>
 
@@ -590,39 +538,33 @@ export default function SupportAuthorPage() {
                     />
                   </div>
 
-                  {paymentMethod === 'MPESA_STK' && (
-                    <div className="space-y-2">
-                      <Label htmlFor="phone" className="flex items-center gap-2">
-                        <Phone className="h-4 w-4" />
-                        M-Pesa Phone Number *
-                      </Label>
-                      <Input
-                        id="phone"
-                        type="tel"
-                        placeholder="e.g. 0712345678"
-                        required
-                        value={supporterPhone}
-                        onChange={(e) => setSupporterPhone(e.target.value)}
-                      />
-                    </div>
-                  )}
+                  <div className="space-y-2">
+                    <Label htmlFor="phone" className="flex items-center gap-2">
+                      <Phone className="h-4 w-4" />
+                      Phone Number (Optional)
+                    </Label>
+                    <Input
+                      id="phone"
+                      type="tel"
+                      placeholder="e.g. 0712345678"
+                      value={supporterPhone}
+                      onChange={(e) => setSupporterPhone(e.target.value)}
+                    />
+                  </div>
 
-                  {paymentMethod === 'CARD_CHECKOUT' && (
-                    <div className="space-y-2">
-                      <Label htmlFor="email" className="flex items-center gap-2">
-                        <Mail className="h-4 w-4" />
-                        Email Address *
-                      </Label>
-                      <Input
-                        id="email"
-                        type="email"
-                        placeholder="your@email.com"
-                        required
-                        value={supporterEmail}
-                        onChange={(e) => setSupporterEmail(e.target.value)}
-                      />
-                    </div>
-                  )}
+                  <div className="space-y-2">
+                    <Label htmlFor="email" className="flex items-center gap-2">
+                      <Mail className="h-4 w-4" />
+                      Email Address (Optional)
+                    </Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="your@email.com"
+                      value={supporterEmail}
+                      onChange={(e) => setSupporterEmail(e.target.value)}
+                    />
+                  </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="message" className="flex items-center gap-2">

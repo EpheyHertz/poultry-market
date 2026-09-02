@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import {
-  fundWalletMpesa,
   fundWalletCheckout,
   validateSupportAmount,
   calculateFees,
@@ -10,6 +9,17 @@ import {
   SUPPORT_CONFIG,
   INTASEND_LIVE,
 } from '@/lib/intasend-wallets';
+
+/**
+ * Every support payment goes through one IntaSend inline checkout. IntaSend's
+ * own modal then offers all the methods enabled on the account (M-Pesa, card,
+ * bank), so we no longer branch per method or run our own STK push.
+ */
+const SUPPORT_PAYMENT_METHOD = 'INTASEND_INLINE';
+
+/** IntaSend requires an email on the checkout; used only when none is given. */
+const FALLBACK_SUPPORTER_EMAIL = 'poultrymarket.admin@gmail.com';
+
 
 
 // Simple in-memory rate limiting (consider using Redis in production)
@@ -228,9 +238,8 @@ export async function POST(
 
     const {
       amount,
-      paymentMethod, // 'MPESA_STK' or 'CARD_CHECKOUT'
-      phoneNumber,   // Required for MPESA_STK
-      email,         // Required for checkout
+      phoneNumber,   // Optional - prefills the IntaSend checkout
+      email,         // Optional - prefills the IntaSend checkout / receipt
       name,
       message,
       isAnonymous = false,
@@ -260,32 +269,21 @@ export async function POST(
       );
     }
 
-    // Validate payment method
-    if (!['MPESA_STK', 'CARD_CHECKOUT'].includes(paymentMethod)) {
+    // Contact details are optional - IntaSend's inline checkout collects
+    // whatever the chosen payment method needs. We only reject values that were
+    // supplied but are clearly malformed.
+    if (sanitizedPhone && !validatePhoneNumber(sanitizedPhone)) {
       return NextResponse.json(
-        { error: 'Invalid payment method' },
+        { error: 'Please enter a valid Kenyan phone number' },
         { status: 400 }
       );
     }
 
-    // Validate phone for M-Pesa
-    if (paymentMethod === 'MPESA_STK') {
-      if (!sanitizedPhone || !validatePhoneNumber(sanitizedPhone)) {
-        return NextResponse.json(
-          { error: 'Valid Kenyan phone number is required for M-Pesa payment' },
-          { status: 400 }
-        );
-      }
-    }
-
-    // Validate email for card checkout
-    if (paymentMethod === 'CARD_CHECKOUT') {
-      if (!sanitizedEmail || !validateEmail(sanitizedEmail)) {
-        return NextResponse.json(
-          { error: 'Valid email is required for card payment' },
-          { status: 400 }
-        );
-      }
+    if (sanitizedEmail && !validateEmail(sanitizedEmail)) {
+      return NextResponse.json(
+        { error: 'Please enter a valid email address' },
+        { status: 400 }
+      );
     }
 
     // Validate authorId format (CUID)
@@ -345,7 +343,7 @@ export async function POST(
         platformFee: fees.platformFee,
         netAmount: fees.netAmount,
         currency: SUPPORT_CONFIG.CURRENCY,
-        paymentMethod,
+        paymentMethod: SUPPORT_PAYMENT_METHOD,
         message: sanitizedMessage || null,
         blogPostId: blogPostId || null,
         status: 'PENDING',
@@ -356,96 +354,49 @@ export async function POST(
     const host = process.env.NEXT_PUBLIC_APP_URL || 'https://poultrymarketkenya.com';
 
     try {
-      if (paymentMethod === 'MPESA_STK') {
-        // Phone already validated above
+      // One checkout for every supporter. IntaSend's inline modal then lets them
+      // pick M-Pesa, card or bank - we never touch their payment credentials.
+      const checkoutResponse = await fundWalletCheckout({
+        first_name: sanitizedName || 'Supporter',
+        last_name: '',
+        email: sanitizedEmail || FALLBACK_SUPPORTER_EMAIL,
+        phone_number: sanitizedPhone ? normalizePhoneNumber(sanitizedPhone) : undefined,
+        host,
+        amount: fees.grossAmount,
+        currency: SUPPORT_CONFIG.CURRENCY,
+        api_ref: apiRef,
+        redirect_url: `${host}/support/${authorId}/thank-you?tx=${transaction.id}`,
+        wallet_id: authorProfile.wallet.intasendWalletId,
+      });
 
-        // Initiate M-Pesa STK Push directly to author's wallet
-        const normalizedPhone = normalizePhoneNumber(sanitizedPhone);
-        const mpesaResponse = await fundWalletMpesa({
-          first_name: sanitizedName || 'Supporter',
-          last_name: '',
-          email: sanitizedEmail || 'poultrymarket.admin@gmail.com',
-          host,
+      await prisma.supportTransaction.update({
+        where: { id: transaction.id },
+        data: {
+          intasendCheckoutId: checkoutResponse.id,
+        },
+      });
+
+      return NextResponse.json({
+        success: true,
+        paymentMethod: SUPPORT_PAYMENT_METHOD,
+        transactionId: transaction.id,
+        // Consumed by the IntaSend Payment Button (InlineJS SDK). The amount,
+        // currency and destination wallet are already sealed into this
+        // checkout server-side, so the browser cannot alter them.
+        checkout: {
+          checkoutId: checkoutResponse.id,
+          signature: checkoutResponse.signature,
+          live: INTASEND_LIVE,
+        },
+        // Fallback for browsers where the SDK cannot load.
+        checkoutUrl: checkoutResponse.url,
+        transaction: {
+          id: transaction.id,
+          checkoutId: checkoutResponse.id,
           amount: fees.grossAmount,
-          phone_number: normalizedPhone,
-          api_ref: apiRef,
-          wallet_id: authorProfile.wallet.intasendWalletId,
-        });
-
-        // Update transaction with IntaSend invoice ID
-        await prisma.supportTransaction.update({
-          where: { id: transaction.id },
-          data: {
-            intasendInvoiceId: mpesaResponse.invoice.invoice_id,
-          },
-        });
-
-        return NextResponse.json({
-          success: true,
-          paymentMethod: 'MPESA_STK',
-          message: 'Please check your phone and enter your M-Pesa PIN to complete the payment.',
-          transactionId: transaction.id,
-          transaction: {
-            id: transaction.id,
-            invoiceId: mpesaResponse.invoice.invoice_id,
-            amount: fees.grossAmount,
-            status: 'PENDING',
-          },
-        });
-
-      } else if (paymentMethod === 'CARD_CHECKOUT') {
-        // Email already validated above
-
-        // Create checkout for card payment
-        const checkoutResponse = await fundWalletCheckout({
-          first_name: sanitizedName || 'Supporter',
-          last_name: '',
-          email: sanitizedEmail,
-          host,
-          amount: fees.grossAmount,
-          currency: SUPPORT_CONFIG.CURRENCY,
-          api_ref: apiRef,
-          redirect_url: `${host}/support/${authorId}/thank-you?tx=${transaction.id}`,
-          wallet_id: authorProfile.wallet.intasendWalletId,
-        });
-
-        // Update transaction with checkout ID
-        await prisma.supportTransaction.update({
-          where: { id: transaction.id },
-          data: {
-            intasendCheckoutId: checkoutResponse.id,
-          },
-        });
-
-        return NextResponse.json({
-          success: true,
-          paymentMethod: 'CARD_CHECKOUT',
-          transactionId: transaction.id,
-          // Consumed by the IntaSend Payment Button (InlineJS SDK). The amount,
-          // currency and destination wallet are already sealed into this
-          // checkout server-side, so the browser cannot alter them.
-          checkout: {
-            checkoutId: checkoutResponse.id,
-            signature: checkoutResponse.signature,
-            live: INTASEND_LIVE,
-          },
-          // Fallback for browsers where the SDK cannot load.
-          checkoutUrl: checkoutResponse.url,
-          transaction: {
-            id: transaction.id,
-            checkoutId: checkoutResponse.id,
-            amount: fees.grossAmount,
-            status: 'PENDING',
-          },
-        });
-
-
-      } else {
-        return NextResponse.json(
-          { error: 'Invalid payment method. Use MPESA_STK or CARD_CHECKOUT.' },
-          { status: 400 }
-        );
-      }
+          status: 'PENDING',
+        },
+      });
 
     } catch (paymentError) {
       // Update transaction as failed
