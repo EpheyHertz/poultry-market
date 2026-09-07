@@ -616,6 +616,17 @@
   }
 }
 
+/* =========================================================================
+   IntaSend InlineJS payment modal
+   The SDK appends its iframe modal (#INTASEND-WEBSDK-MODAL-4) to <body>.
+   Radix sets `pointer-events: none` on <body> while a dialog is open, which
+   would make that modal unclickable when it is opened from the Support dialog.
+   ========================================================================= */
+#INTASEND-WEBSDK-MODAL-4,
+#INTASEND-WEBSDK-MODAL-4 * {
+  pointer-events: auto !important;
+}
+
 /* Dark Mode Specific Overrides */
 @layer utilities {
   .dark .prose {

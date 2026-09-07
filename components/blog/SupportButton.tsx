@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect } from 'react';
 
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -28,9 +28,11 @@ import {
   Smartphone,
   Sparkles,
   ExternalLink,
+  ArrowLeft,
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/formatCurrency';
-import { openIntaSendCheckout } from '@/lib/intasend-checkout';
+import { IntaSendPayButton } from '@/components/blog/intasend-pay-button';
+import type { IntaSendPayButtonPayload } from '@/lib/intasend-checkout';
 
 interface SupportButtonProps {
   authorId: string;
@@ -39,6 +41,14 @@ interface SupportButtonProps {
   blogPostTitle?: string;
   variant?: 'default' | 'compact' | 'icon-only';
   className?: string;
+}
+
+/** Server-prepared intent: the pending transaction plus the pay button fields. */
+interface PayButtonIntent {
+  transactionId: string;
+  publicApiKey: string;
+  live: boolean;
+  fields: IntaSendPayButtonPayload;
 }
 
 const PRESET_AMOUNTS = [10, 20, 30, 50, 100, 200, 500, 1000];
@@ -75,24 +85,21 @@ export function SupportButton({
   const [supporterEmail, setSupporterEmail] = useState('');
   const [supporterPhone, setSupporterPhone] = useState('');
   const [message, setMessage] = useState('');
-  const [paymentStatus, setPaymentStatus] = useState<'idle' | 'pending' | 'success' | 'failed'>('idle');
-  const [transactionId, setTransactionId] = useState<string | null>(null);
+
+  /**
+   * form  -> collecting the amount and (optional) details
+   * ready -> the IntaSend Payment Button is mounted, waiting for the click
+   * success / failed -> outcome, confirmed by our webhook
+   */
+  const [stage, setStage] = useState<'form' | 'ready' | 'success' | 'failed'>('form');
+  const [intent, setIntent] = useState<PayButtonIntent | null>(null);
+  const [isWaiting, setIsWaiting] = useState(false);
+  const [sdkBlocked, setSdkBlocked] = useState(false);
 
   // Error state for better error display
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [errorAction, setErrorAction] = useState<string | null>(null);
   const [canRetry, setCanRetry] = useState(true);
-
-  // Teardown handle for the IntaSend popup so it never outlives this component.
-  const closeIntaSendRef = useRef<(() => void) | null>(null);
-  const closeIntaSend = useCallback(() => {
-    const close = closeIntaSendRef.current;
-    closeIntaSendRef.current = null;
-    close?.();
-  }, []);
-
-  useEffect(() => closeIntaSend, [closeIntaSend]);
-
 
   // Check if author has wallet
   useEffect(() => {
@@ -115,9 +122,12 @@ export function SupportButton({
     }
   }, [authorId]);
 
-  // Poll for payment status
+  // Poll our webhook status endpoint once the supporter is inside the IntaSend
+  // modal. The webhook - not the SDK event - is what actually confirms payment.
   useEffect(() => {
-    if (!transactionId || paymentStatus !== 'pending') return;
+    if (!intent?.transactionId || !isWaiting) return;
+
+    const transactionId = intent.transactionId;
 
     const pollInterval = setInterval(async () => {
       try {
@@ -125,39 +135,39 @@ export function SupportButton({
         const data = await response.json();
 
         if (data.status === 'COMPLETED') {
-          setPaymentStatus('success');
+          setStage('success');
+          setIsWaiting(false);
           setErrorMessage(null);
           setErrorAction(null);
-          clearInterval(pollInterval);
+          setIsOpen(true);
         } else if (data.status === 'FAILED' || data.status === 'CANCELLED') {
-          setPaymentStatus('failed');
-          // Capture user-friendly error message from API
+          setStage('failed');
+          setIsWaiting(false);
           setErrorMessage(data.failedReason || 'Payment could not be completed.');
           setErrorAction(data.actionRequired || 'Please try again.');
           setCanRetry(data.canRetry !== false);
-          clearInterval(pollInterval);
+          setIsOpen(true);
         }
       } catch (err) {
         console.error('Error polling status:', err);
       }
     }, 3000);
 
-    // Timeout after 2 minutes - likely user didn't complete payment
+    // Give up after 2 minutes - the supporter most likely abandoned the modal.
     const timeout = setTimeout(() => {
-      clearInterval(pollInterval);
-      if (paymentStatus === 'pending') {
-        setPaymentStatus('failed');
-        setErrorMessage('Payment request timed out.');
-        setErrorAction('The payment was not completed in time. Please try again.');
-        setCanRetry(true);
-      }
+      setStage('failed');
+      setIsWaiting(false);
+      setErrorMessage('Payment request timed out.');
+      setErrorAction('The payment was not completed in time. Please try again.');
+      setCanRetry(true);
+      setIsOpen(true);
     }, 120000);
 
     return () => {
       clearInterval(pollInterval);
       clearTimeout(timeout);
     };
-  }, [transactionId, paymentStatus]);
+  }, [intent?.transactionId, isWaiting]);
 
   // Don't render if author has no wallet or still loading
   if (hasWallet === null || hasWallet === false) {
@@ -171,11 +181,25 @@ export function SupportButton({
     return selectedAmount || 0;
   };
 
+  const buildRequestBody = (extra?: Record<string, unknown>) => ({
+    amount: getFinalAmount(),
+    name: supporterName || undefined,
+    email: supporterEmail || undefined,
+    phoneNumber: supporterPhone || undefined,
+    message: message || undefined,
+    blogPostId,
+    ...extra,
+  });
+
+  /**
+   * Step 1: our server records a PENDING transaction (amount, 5% fee, author
+   * wallet) and hands back the fields for the IntaSend Payment Button. Nothing
+   * is charged yet - the supporter still has to click the IntaSend button.
+   */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const amount = getFinalAmount();
-    if (amount < 10) {
+    if (getFinalAmount() < 10) {
       toast({
         title: 'Error',
         description: 'Minimum support amount is KES 10',
@@ -189,14 +213,7 @@ export function SupportButton({
       const response = await fetch(`/api/support/${authorId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          amount,
-          name: supporterName || undefined,
-          email: supporterEmail || undefined,
-          phoneNumber: supporterPhone || undefined,
-          message: message || undefined,
-          blogPostId,
-        }),
+        body: JSON.stringify(buildRequestBody()),
       });
 
       const data = await response.json();
@@ -205,48 +222,17 @@ export function SupportButton({
         throw new Error(data.error || 'Failed to initiate payment');
       }
 
-      setTransactionId(data.transactionId);
-
-      if (data.checkout?.checkoutId && data.checkout?.signature) {
-        // IntaSend Payment Button (InlineJS SDK). One inline checkout covers
-        // every method IntaSend offers (M-Pesa, card, bank). The checkout was
-        // created server-side, so the amount, currency and destination wallet
-        // are already sealed and cannot be tampered with from the browser.
-        // Payment is still only confirmed by our webhook/polling - the
-        // client-side COMPLETE event just moves the UI along.
-        setPaymentStatus('pending');
-        // Radix sets `pointer-events: none` on <body> while a dialog is open,
-        // which would leave the IntaSend iframe visible but unclickable. Close
-        // our dialog first; polling keeps running and reopens on the result.
-        setIsOpen(false);
-        try {
-          closeIntaSendRef.current = await openIntaSendCheckout({
-            checkoutId: data.checkout.checkoutId,
-            signature: data.checkout.signature,
-            live: data.checkout.live === true,
-            onComplete: () => {
-              closeIntaSend();
-              setIsOpen(true);
-            },
-            onFailed: () => {
-              closeIntaSend();
-              setIsOpen(true);
-            },
-          });
-        } catch {
-          setIsOpen(true);
-
-          // SDK blocked or failed to load - fall back to hosted checkout page.
-          if (data.checkoutUrl) {
-            window.location.href = data.checkoutUrl;
-          } else {
-            throw new Error('Unable to open the payment window. Please try again.');
-          }
-        }
-      } else if (data.checkoutUrl) {
-        window.location.href = data.checkoutUrl;
+      if (!data.payButton?.publicApiKey || !data.transactionId) {
+        throw new Error('Payment could not be prepared. Please try again.');
       }
 
+      setIntent({
+        transactionId: data.transactionId,
+        publicApiKey: data.payButton.publicApiKey,
+        live: data.payButton.live === true,
+        fields: data.payButton.fields || {},
+      });
+      setStage('ready');
     } catch (err) {
       toast({
         title: 'Error',
@@ -258,22 +244,59 @@ export function SupportButton({
     }
   };
 
+  /**
+   * Only used when the InlineJS SDK cannot load (blocked CDN, extension, etc.).
+   * The server then creates a hosted checkout and we hand the browser over to it.
+   */
+  const useHostedCheckout = async () => {
+    setIsSubmitting(true);
+    try {
+      const response = await fetch(`/api/support/${authorId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(buildRequestBody({ hostedFallback: true })),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.checkoutUrl) {
+        throw new Error(data.error || 'Unable to open the payment page.');
+      }
+      window.location.href = data.checkoutUrl;
+    } catch (err) {
+      toast({
+        title: 'Error',
+        description: err instanceof Error ? err.message : 'Unable to open the payment page.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const backToForm = () => {
+    setStage('form');
+    setIntent(null);
+    setIsWaiting(false);
+    setSdkBlocked(false);
+  };
+
   const handleReset = () => {
-    closeIntaSend();
-    setPaymentStatus('idle');
-    setTransactionId(null);
+    setStage('form');
+    setIntent(null);
+    setIsWaiting(false);
+    setSdkBlocked(false);
     setErrorMessage(null);
     setErrorAction(null);
     setCanRetry(true);
   };
 
   const handleClose = () => {
-    closeIntaSend();
     setIsOpen(false);
 
     setTimeout(() => {
-      setPaymentStatus('idle');
-      setTransactionId(null);
+      setStage('form');
+      setIntent(null);
+      setIsWaiting(false);
+      setSdkBlocked(false);
       setSelectedAmount(50);
       setCustomAmount('');
       setSupporterName('');
@@ -334,7 +357,7 @@ export function SupportButton({
       <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
         <AnimatePresence mode="wait">
           {/* Success State */}
-          {paymentStatus === 'success' && (
+          {stage === 'success' && (
             <motion.div
               key="success"
               initial={{ opacity: 0, scale: 0.95 }}
@@ -353,37 +376,94 @@ export function SupportButton({
             </motion.div>
           )}
 
-          {/* Pending State */}
-          {paymentStatus === 'pending' && (
+          {/* Ready State - the IntaSend Payment Button lives here */}
+          {stage === 'ready' && intent && (
             <motion.div
-              key="pending"
-              initial={{ opacity: 0, scale: 0.95 }}
+              key="ready"
+              initial={{ opacity: 0, scale: 0.98 }}
               animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="text-center py-8"
+              exit={{ opacity: 0, scale: 0.98 }}
             >
-              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-green-400 to-green-500 flex items-center justify-center mx-auto mb-4 animate-pulse">
-                <CreditCard className="h-8 w-8 text-white" />
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Heart className="h-5 w-5 text-pink-500" />
+                  Confirm your support
+                </DialogTitle>
+                <DialogDescription>
+                  {formatCurrency(getFinalAmount())} to {authorName}
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="mt-4 space-y-4">
+                <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Smartphone className="h-4 w-4 text-green-600" />
+                    <CreditCard className="h-4 w-4 text-blue-600" />
+                    <span className="text-sm font-medium">M-Pesa, Card or Bank</span>
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    Pick your preferred method in the secure IntaSend window.
+                  </p>
+                </div>
+
+                {/* The documented IntaSend Payment Button: data-* fields + InlineJS */}
+                <IntaSendPayButton
+                  publicApiKey={intent.publicApiKey}
+                  live={intent.live}
+                  payload={intent.fields}
+                  className="w-full inline-flex items-center justify-center rounded-md px-4 py-3 text-sm font-medium text-white bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 disabled:opacity-60 disabled:cursor-not-allowed"
+                  onOpen={() => setIsWaiting(true)}
+                  onInProgress={() => setIsWaiting(true)}
+                  onComplete={() => {
+                    // The webhook is authoritative; poll once more to confirm,
+                    // but move the UI forward immediately.
+                    setIsWaiting(false);
+                    setStage('success');
+                  }}
+                  onFailed={() => {
+                    setIsWaiting(false);
+                    setStage('failed');
+                    setErrorMessage('The payment was not completed.');
+                    setErrorAction('You can try again with a different method.');
+                    setCanRetry(true);
+                  }}
+                  onSdkError={() => setSdkBlocked(true)}
+                >
+                  <Heart className="mr-2 h-4 w-4" />
+                  Pay {formatCurrency(getFinalAmount())} with IntaSend
+                </IntaSendPayButton>
+
+                {isWaiting && (
+                  <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Waiting for confirmation...
+                  </div>
+                )}
+
+                {sdkBlocked && (
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-800 p-3 text-xs text-amber-800 dark:text-amber-200">
+                    <p className="mb-2">
+                      The IntaSend payment window could not load in this browser.
+                    </p>
+                    <Button size="sm" variant="outline" onClick={useHostedCheckout} disabled={isSubmitting}>
+                      {isSubmitting ? 'Opening...' : 'Open the payment page instead'}
+                    </Button>
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={backToForm}
+                  className="flex items-center gap-1 text-xs text-gray-500 hover:text-pink-500 transition-colors"
+                >
+                  <ArrowLeft className="h-3 w-3" /> Change amount
+                </button>
               </div>
-              <h3 className="text-xl font-bold mb-2">Complete Your Payment</h3>
-              <p className="text-gray-600 dark:text-gray-400 mb-2">
-                Finish the payment in the secure IntaSend window
-              </p>
-              <p className="text-sm text-gray-500 mb-6">
-                We&apos;ll confirm your {formatCurrency(getFinalAmount())} support automatically
-              </p>
-              <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Waiting for confirmation...
-              </div>
-              <Button variant="ghost" onClick={handleReset} className="mt-4">
-                Cancel
-              </Button>
             </motion.div>
           )}
 
           {/* Failed State - With detailed error messages */}
-          {paymentStatus === 'failed' && (
+          {stage === 'failed' && (
             <motion.div
               key="failed"
               initial={{ opacity: 0, scale: 0.95 }}
@@ -413,7 +493,7 @@ export function SupportButton({
           )}
 
           {/* Form State */}
-          {paymentStatus === 'idle' && (
+          {stage === 'form' && (
             <motion.div
               key="form"
               initial={{ opacity: 0 }}
@@ -520,12 +600,12 @@ export function SupportButton({
                   {isSubmitting ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Processing...
+                      Preparing...
                     </>
                   ) : (
                     <>
                       <Heart className="mr-2 h-4 w-4" />
-                      Support with {formatCurrency(getFinalAmount())}
+                      Continue with {formatCurrency(getFinalAmount())}
                     </>
                   )}
                 </Button>

@@ -11,11 +11,12 @@ import {
 } from '@/lib/intasend-wallets';
 
 /**
- * Every support payment goes through one IntaSend inline checkout. IntaSend's
- * own modal then offers all the methods enabled on the account (M-Pesa, card,
- * bank), so we no longer branch per method or run our own STK push.
+ * Every support payment goes through the IntaSend Payment Button (InlineJS SDK).
+ * IntaSend's own modal offers all the methods enabled on the account (M-Pesa,
+ * card, bank), so we never branch per method or run our own STK push.
  */
 const SUPPORT_PAYMENT_METHOD = 'INTASEND_INLINE';
+
 
 /** IntaSend requires an email on the checkout; used only when none is given. */
 const FALLBACK_SUPPORTER_EMAIL = 'poultrymarket.admin@gmail.com';
@@ -244,7 +245,11 @@ export async function POST(
       message,
       isAnonymous = false,
       blogPostId,    // Optional - if supporting from a specific post
+      // Set by the client only when the InlineJS SDK could not be loaded
+      // (blocked CDN, no JS). We then create a hosted checkout to redirect to.
+      hostedFallback = false,
     } = body;
+
 
     // Sanitize inputs
     const sanitizedName = sanitizeString(name, 100);
@@ -352,47 +357,80 @@ export async function POST(
 
     const apiRef = `support-${transaction.id}`;
     const host = process.env.NEXT_PUBLIC_APP_URL || 'https://poultrymarketkenya.com';
+    const redirectUrl = `${host}/support/${authorId}/thank-you?tx=${transaction.id}`;
 
     try {
-      // One checkout for every supporter. IntaSend's inline modal then lets them
-      // pick M-Pesa, card or bank - we never touch their payment credentials.
-      const checkoutResponse = await fundWalletCheckout({
-        first_name: sanitizedName || 'Supporter',
-        last_name: '',
-        email: sanitizedEmail || FALLBACK_SUPPORTER_EMAIL,
-        phone_number: sanitizedPhone ? normalizePhoneNumber(sanitizedPhone) : undefined,
-        host,
-        amount: fees.grossAmount,
-        currency: SUPPORT_CONFIG.CURRENCY,
-        api_ref: apiRef,
-        redirect_url: `${host}/support/${authorId}/thank-you?tx=${transaction.id}`,
-        wallet_id: authorProfile.wallet.intasendWalletId,
-      });
+      if (hostedFallback) {
+        // The browser told us the InlineJS SDK could not load (blocked CDN,
+        // extension, no JS). Create a hosted checkout server-side so we still
+        // have a payment path, and redirect the supporter to IntaSend.
+        const checkoutResponse = await fundWalletCheckout({
+          first_name: sanitizedName || 'Supporter',
+          last_name: '',
+          email: sanitizedEmail || FALLBACK_SUPPORTER_EMAIL,
+          phone_number: sanitizedPhone ? normalizePhoneNumber(sanitizedPhone) : undefined,
+          host,
+          amount: fees.grossAmount,
+          currency: SUPPORT_CONFIG.CURRENCY,
+          api_ref: apiRef,
+          redirect_url: redirectUrl,
+          wallet_id: authorProfile.wallet.intasendWalletId,
+        });
 
-      await prisma.supportTransaction.update({
-        where: { id: transaction.id },
-        data: {
-          intasendCheckoutId: checkoutResponse.id,
-        },
-      });
+        await prisma.supportTransaction.update({
+          where: { id: transaction.id },
+          data: { intasendCheckoutId: checkoutResponse.id },
+        });
 
+        return NextResponse.json({
+          success: true,
+          paymentMethod: SUPPORT_PAYMENT_METHOD,
+          transactionId: transaction.id,
+          checkoutUrl: checkoutResponse.url,
+          transaction: {
+            id: transaction.id,
+            amount: fees.grossAmount,
+            status: 'PENDING',
+          },
+        });
+      }
+
+      const publishableKey = process.env.INTASEND_PUBLISHABLE_KEY;
+      if (!publishableKey) {
+        throw new Error('IntaSend publishable key is not configured');
+      }
+
+      // Everything the IntaSend Payment Button needs as `data-*` attributes.
+      // `method` is intentionally omitted so IntaSend's modal offers every
+      // method on the account (M-Pesa, card, bank).
+      //
+      // These values are visible (and therefore editable) in the browser, which
+      // is fine: the PENDING transaction above is the source of truth, and the
+      // signed webhook refuses to credit anything whose paid value is below the
+      // amount we recorded here. `api_ref` ties the payment back to this row and
+      // `wallet_id` routes the funds into the author's own IntaSend wallet.
       return NextResponse.json({
         success: true,
         paymentMethod: SUPPORT_PAYMENT_METHOD,
         transactionId: transaction.id,
-        // Consumed by the IntaSend Payment Button (InlineJS SDK). The amount,
-        // currency and destination wallet are already sealed into this
-        // checkout server-side, so the browser cannot alter them.
-        checkout: {
-          checkoutId: checkoutResponse.id,
-          signature: checkoutResponse.signature,
+        payButton: {
+          publicApiKey: publishableKey,
           live: INTASEND_LIVE,
+          fields: {
+            amount: fees.grossAmount,
+            currency: SUPPORT_CONFIG.CURRENCY,
+            api_ref: apiRef,
+            wallet_id: authorProfile.wallet.intasendWalletId,
+            email: sanitizedEmail || FALLBACK_SUPPORTER_EMAIL,
+            phone_number: sanitizedPhone ? normalizePhoneNumber(sanitizedPhone) : undefined,
+            first_name: sanitizedName || 'Supporter',
+            country: 'KE',
+            comment: sanitizedMessage || `Support for ${authorProfile.displayName}`,
+            redirect_url: redirectUrl,
+          },
         },
-        // Fallback for browsers where the SDK cannot load.
-        checkoutUrl: checkoutResponse.url,
         transaction: {
           id: transaction.id,
-          checkoutId: checkoutResponse.id,
           amount: fees.grossAmount,
           status: 'PENDING',
         },
@@ -410,6 +448,7 @@ export async function POST(
 
       throw paymentError;
     }
+
 
   } catch (error) {
     console.error('Error initiating support payment:', error);

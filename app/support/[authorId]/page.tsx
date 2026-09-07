@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 import { useParams, useRouter } from 'next/navigation';
-import { motion, AnimatePresence } from 'framer-motion';
+
+import { motion } from 'framer-motion';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -26,11 +27,12 @@ import {
   AlertCircle,
   CreditCard,
   Smartphone,
-  ArrowRight,
+  ArrowLeft,
   Sparkles
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/formatCurrency';
-import { openIntaSendCheckout } from '@/lib/intasend-checkout';
+import { IntaSendPayButton } from '@/components/blog/intasend-pay-button';
+import type { IntaSendPayButtonPayload } from '@/lib/intasend-checkout';
 
 interface AuthorInfo {
   authorName: string;
@@ -38,6 +40,15 @@ interface AuthorInfo {
   authorImage?: string;
   supportersCount: number;
 }
+
+/** Server-prepared intent: the pending transaction plus the pay button fields. */
+interface PayButtonIntent {
+  transactionId: string;
+  publicApiKey: string;
+  live: boolean;
+  fields: IntaSendPayButtonPayload;
+}
+
 
 
 const PRESET_AMOUNTS = [10, 20, 30, 50, 100, 200, 500, 1000];
@@ -71,23 +82,23 @@ export default function SupportAuthorPage() {
   const [supporterPhone, setSupporterPhone] = useState('');
   const [message, setMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [transactionId, setTransactionId] = useState<string | null>(null);
-  const [paymentStatus, setPaymentStatus] = useState<'idle' | 'pending' | 'success' | 'failed'>('idle');
+
+  /**
+   * idle    -> collecting the amount and (optional) details
+   * ready   -> the IntaSend Payment Button is mounted, waiting for the click
+   * pending -> supporter is inside the IntaSend modal, we poll our webhook
+   * success / failed -> outcome
+   */
+  const [paymentStatus, setPaymentStatus] =
+    useState<'idle' | 'ready' | 'pending' | 'success' | 'failed'>('idle');
+  const [intent, setIntent] = useState<PayButtonIntent | null>(null);
+  const [sdkBlocked, setSdkBlocked] = useState(false);
 
   // Error state for better error display
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [paymentErrorAction, setPaymentErrorAction] = useState<string | null>(null);
   const [canRetry, setCanRetry] = useState(true);
 
-  // Teardown handle for the IntaSend popup so it never outlives this page.
-  const closeIntaSendRef = useRef<(() => void) | null>(null);
-  const closeIntaSend = useCallback(() => {
-    const close = closeIntaSendRef.current;
-    closeIntaSendRef.current = null;
-    close?.();
-  }, []);
-
-  useEffect(() => closeIntaSend, [closeIntaSend]);
 
 
   const fetchAuthorInfo = useCallback(async () => {
@@ -140,11 +151,14 @@ export default function SupportAuthorPage() {
     fetchAuthorInfo();
   }, [fetchAuthorInfo]);
 
-  // Poll for payment status
+  // Poll our webhook status endpoint while the supporter is inside the IntaSend
+  // modal. The signed webhook - not the SDK event - is what confirms a payment.
   useEffect(() => {
+    const transactionId = intent?.transactionId;
     if (!transactionId || paymentStatus !== 'pending') return;
 
     const pollInterval = setInterval(async () => {
+
       try {
         const response = await fetch(`/api/support/webhook?tx=${transactionId}`);
         const data = await response.json();
@@ -182,7 +196,7 @@ export default function SupportAuthorPage() {
       clearInterval(pollInterval);
       clearTimeout(timeout);
     };
-  }, [transactionId, paymentStatus]);
+  }, [intent?.transactionId, paymentStatus]);
 
   const getFinalAmount = () => {
     if (customAmount) {
@@ -191,6 +205,20 @@ export default function SupportAuthorPage() {
     return selectedAmount || 0;
   };
 
+  const buildRequestBody = (extra?: Record<string, unknown>) => ({
+    amount: getFinalAmount(),
+    name: supporterName || undefined,
+    email: supporterEmail || undefined,
+    phoneNumber: supporterPhone || undefined,
+    message: message || undefined,
+    ...extra,
+  });
+
+  /**
+   * Step 1: the server records a PENDING transaction (amount, 5% platform fee,
+   * destination wallet) and returns the fields for the IntaSend Payment Button.
+   * Nothing is charged until the supporter clicks that button.
+   */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -209,13 +237,7 @@ export default function SupportAuthorPage() {
       const response = await fetch(`/api/support/${authorId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          amount,
-          name: supporterName || undefined,
-          email: supporterEmail || undefined,
-          phoneNumber: supporterPhone || undefined,
-          message: message || undefined,
-        }),
+        body: JSON.stringify(buildRequestBody()),
       });
 
       const data = await response.json();
@@ -224,37 +246,17 @@ export default function SupportAuthorPage() {
         throw new Error(data.error || 'Failed to initiate payment');
       }
 
-      setTransactionId(data.transactionId);
-
-      if (data.checkout?.checkoutId && data.checkout?.signature) {
-        // IntaSend Payment Button (InlineJS SDK). One inline checkout covers
-        // every method IntaSend offers (M-Pesa, card, bank). The checkout was
-        // created server-side, so the amount, currency and destination wallet
-        // are already sealed and cannot be tampered with from the browser.
-        // Payment is only ever confirmed by our webhook/polling.
-        setPaymentStatus('pending');
-        try {
-          closeIntaSendRef.current = await openIntaSendCheckout({
-            checkoutId: data.checkout.checkoutId,
-            signature: data.checkout.signature,
-            live: data.checkout.live === true,
-            onComplete: closeIntaSend,
-            onFailed: closeIntaSend,
-          });
-        } catch {
-
-          // SDK blocked or failed to load - fall back to hosted checkout page.
-          if (data.checkoutUrl) {
-            window.location.href = data.checkoutUrl;
-          } else {
-            throw new Error('Unable to open the payment window. Please try again.');
-          }
-        }
-      } else if (data.checkoutUrl) {
-        // Fallback: redirect to hosted checkout
-        window.location.href = data.checkoutUrl;
+      if (!data.payButton?.publicApiKey || !data.transactionId) {
+        throw new Error('Payment could not be prepared. Please try again.');
       }
 
+      setIntent({
+        transactionId: data.transactionId,
+        publicApiKey: data.payButton.publicApiKey,
+        live: data.payButton.live === true,
+        fields: data.payButton.fields || {},
+      });
+      setPaymentStatus('ready');
     } catch (err) {
       toast({
         title: 'Error',
@@ -266,12 +268,39 @@ export default function SupportAuthorPage() {
     }
   };
 
-  const handleReset = () => {
-    closeIntaSend();
-    setPaymentStatus('idle');
-    setTransactionId(null);
-    setPaymentError(null);
+  /**
+   * Only used when the InlineJS bundle cannot load (blocked CDN, extension...).
+   * The server then creates a hosted checkout and we hand the browser over.
+   */
+  const useHostedCheckout = async () => {
+    setIsSubmitting(true);
+    try {
+      const response = await fetch(`/api/support/${authorId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(buildRequestBody({ hostedFallback: true })),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.checkoutUrl) {
+        throw new Error(data.error || 'Unable to open the payment page.');
+      }
+      window.location.href = data.checkoutUrl;
+    } catch (err) {
+      toast({
+        title: 'Error',
+        description: err instanceof Error ? err.message : 'Unable to open the payment page.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
+  const handleReset = () => {
+    setPaymentStatus('idle');
+    setIntent(null);
+    setSdkBlocked(false);
+    setPaymentError(null);
     setPaymentErrorAction(null);
     setCanRetry(true);
   };
@@ -334,6 +363,78 @@ export default function SupportAuthorPage() {
             </CardContent>
           </Card>
         </motion.div>
+      </div>
+    );
+  }
+
+  // Ready state - the documented IntaSend Payment Button is mounted here.
+  // Its data-* attributes come from the server-created pending transaction.
+  if (paymentStatus === 'ready' && intent) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-4">
+        <Card className="max-w-md w-full">
+          <CardHeader className="text-center">
+            <CardTitle className="flex items-center justify-center gap-2">
+              <Heart className="h-5 w-5 text-pink-500" />
+              Confirm your support
+            </CardTitle>
+            <CardDescription>
+              {formatCurrency(getFinalAmount())} to {authorInfo.authorName}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+              <div className="flex items-center gap-3 mb-1">
+                <Smartphone className="h-5 w-5 text-green-600" />
+                <CreditCard className="h-5 w-5 text-blue-600" />
+                <span className="font-medium">M-Pesa, Card or Bank</span>
+              </div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Pick your preferred method in the secure IntaSend window.
+              </p>
+            </div>
+
+            {/* The documented IntaSend Payment Button: data-* fields + InlineJS */}
+            <IntaSendPayButton
+              publicApiKey={intent.publicApiKey}
+              live={intent.live}
+              payload={intent.fields}
+              className="w-full inline-flex items-center justify-center rounded-md px-4 py-3 text-sm font-medium text-white bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 disabled:opacity-60 disabled:cursor-not-allowed"
+              onOpen={() => setPaymentStatus('pending')}
+              onInProgress={() => setPaymentStatus('pending')}
+              onComplete={() => setPaymentStatus('success')}
+              onFailed={() => {
+                setPaymentStatus('failed');
+                setPaymentError('The payment was not completed.');
+                setPaymentErrorAction('You can try again with a different method.');
+                setCanRetry(true);
+              }}
+              onSdkError={() => setSdkBlocked(true)}
+            >
+              <Heart className="mr-2 h-4 w-4" />
+              Pay {formatCurrency(getFinalAmount())} with IntaSend
+            </IntaSendPayButton>
+
+            {sdkBlocked && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-800 p-3 text-xs text-amber-800 dark:text-amber-200">
+                <p className="mb-2">
+                  The IntaSend payment window could not load in this browser.
+                </p>
+                <Button size="sm" variant="outline" onClick={useHostedCheckout} disabled={isSubmitting}>
+                  {isSubmitting ? 'Opening...' : 'Open the payment page instead'}
+                </Button>
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={handleReset}
+              className="flex items-center gap-1 text-xs text-gray-500 hover:text-pink-500 transition-colors"
+            >
+              <ArrowLeft className="h-3 w-3" /> Change amount
+            </button>
+          </CardContent>
+        </Card>
       </div>
     );
   }
