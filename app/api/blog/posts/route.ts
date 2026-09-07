@@ -2,8 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { getOrCreateAuthorProfile } from '@/lib/author';
+import { getBlogPosts } from '@/lib/blog/get-posts';
+import { BLOG_PAGE_SIZE } from '@/lib/blog/listing-config';
 import { z } from 'zod';
 import { BlogPostCategory } from '@prisma/client';
+
 
 // Create blog post schema
 const createBlogPostSchema = z.object({
@@ -46,144 +49,30 @@ function calculateReadingTime(content: string): number {
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '10');
-    const category = searchParams.get('category');
-    const tag = searchParams.get('tag');
-    const status = searchParams.get('status');
+    const parsedPage = parseInt(searchParams.get('page') || '1');
+    const parsedLimit = parseInt(searchParams.get('limit') || String(BLOG_PAGE_SIZE));
     const featured = searchParams.get('featured');
-    const search = searchParams.get('search');
-    const authorId = searchParams.get('authorId');
+    const status = searchParams.get('status');
 
-    const where: any = {};
-
-    // Build filter conditions
-    if (category) where.category = category;
-    if (status) {
-      // For public blog, include both PUBLISHED and APPROVED posts
-      if (status === 'PUBLISHED') {
-        where.status = { in: ['PUBLISHED', 'APPROVED'] };
-      } else {
-        where.status = status;
-      }
-    } else {
-      // Default to showing published and approved posts for public view
-      where.status = { in: ['PUBLISHED', 'APPROVED'] };
-    }
-    if (featured) where.featured = featured === 'true';
-    if (authorId) where.authorId = authorId;
-    
-    if (search) {
-      where.OR = [
-        { title: { contains: search, mode: 'insensitive' } },
-        { content: { contains: search, mode: 'insensitive' } },
-        { excerpt: { contains: search, mode: 'insensitive' } }
-      ];
-    }
-
-    if (tag) {
-      where.tags = {
-        some: {
-          tag: {
-            slug: tag
-          }
-        }
-      };
-    }
-
-    // Get total count for pagination
-    const totalPosts = await prisma.blogPost.count({ where });
-
-    // Fetch posts with pagination
-    const posts = await prisma.blogPost.findMany({
-      where,
-      include: {
-        author: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            avatar: true,
-            role: true,
-            _count: {
-              select: {
-                followers: true,
-                blogPosts: true
-              }
-            }
-          }
-        },
-        authorProfile: {
-          select: {
-            id: true,
-            displayName: true,
-            username: true,
-            avatarUrl: true,
-            bio: true,
-            isVerified: true
-          }
-        },
-        tags: {
-          include: {
-            tag: true
-          }
-        },
-        _count: {
-          select: {
-            comments: {
-              where: {
-                isApproved: true
-              }
-            },
-            likedBy: true // This matches the schema relationship name
-          }
-        }
-      },
-      orderBy: [
-        { featured: 'desc' },
-        { publishedAt: 'desc' },
-        { createdAt: 'desc' }
-      ],
-      skip: (page - 1) * limit,
-      take: limit,
+    // Delegate to the shared data layer so SSR (`/blog`) and client-side paging
+    // use exactly the same ordering. If they diverged, offset pagination would
+    // silently duplicate or skip posts between page 1 and page 2.
+    const result = await getBlogPosts({
+      page: Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1,
+      limit: Number.isFinite(parsedLimit) && parsedLimit > 0 ? Math.min(parsedLimit, 50) : BLOG_PAGE_SIZE,
+      category: searchParams.get('category') || undefined,
+      tag: searchParams.get('tag') || undefined,
+      search: searchParams.get('search') || undefined,
+      authorId: searchParams.get('authorId') || undefined,
+      sort: searchParams.get('sort'),
+      featured: featured ? featured === 'true' : undefined,
+      status: (status as any) || undefined,
     });
-// console.log("Posts:",posts)
-    const totalPages = Math.ceil(totalPosts / limit);
 
-    return NextResponse.json({
-      posts: posts.map(post => ({
-        ...post,
-        // Use AuthorProfile data if available, fallback to User data
-        author: {
-          ...post.author,
-          name: post.authorProfile?.displayName || post.author.name,
-          displayName: post.authorProfile?.displayName || post.author.name,
-          username: post.authorProfile?.username || null,
-          avatar: post.authorProfile?.avatarUrl || post.author.avatar,
-          avatarUrl: post.authorProfile?.avatarUrl || post.author.avatar,
-          bio: post.authorProfile?.bio || null,
-          isVerified: post.authorProfile?.isVerified || false,
-        },
-        authorUsername: post.authorProfile?.username || null,
-        authorDisplayName: post.authorProfile?.displayName || post.author.name,
-        tags: post.tags.map(t => t.tag),
-        commentCount: post._count.comments,
-        likeCount: post._count.likedBy, 
-        _count: {
-          comments: post._count.comments,
-          likes: post._count.likedBy 
-        }
-      })),
-      pagination: {
-        currentPage: page,
-        totalPages,
-        totalPosts,
-        hasNextPage: page < totalPages,
-        hasPrevPage: page > 1
-      }
-    });
+    return NextResponse.json(result);
 
   } catch (error) {
+
     console.error('Error fetching blog posts:', error);
     return NextResponse.json(
       { error: 'Failed to fetch blog posts' },

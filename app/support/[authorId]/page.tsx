@@ -27,6 +27,8 @@ import {
   AlertCircle,
   CreditCard,
   Smartphone,
+  Landmark,
+  Bitcoin,
   ArrowLeft,
   Sparkles
 } from 'lucide-react';
@@ -384,10 +386,14 @@ export default function SupportAuthorPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-4">
-              <div className="flex items-center gap-3 mb-1">
+              <div className="flex flex-wrap items-center gap-3 mb-1">
                 <Smartphone className="h-5 w-5 text-green-600" />
                 <CreditCard className="h-5 w-5 text-blue-600" />
-                <span className="font-medium">M-Pesa, Card or Bank</span>
+                <Landmark className="h-5 w-5 text-indigo-600" />
+                <Bitcoin className="h-5 w-5 text-amber-500" />
+                <span className="font-medium">
+                  M-Pesa, Card, Bank, PesaLink, Cash App or Crypto
+                </span>
               </div>
               <p className="text-xs text-gray-500 dark:text-gray-400">
                 Pick your preferred method in the secure IntaSend window.
@@ -613,10 +619,14 @@ export default function SupportAuthorPage() {
                 <div className="space-y-3">
                   <Label>Payment Method</Label>
                   <div className="rounded-lg border-2 border-gray-200 dark:border-gray-700 p-4">
-                    <div className="flex items-center gap-3 mb-1">
+                    <div className="flex flex-wrap items-center gap-3 mb-1">
                       <Smartphone className="h-5 w-5 text-green-600" />
                       <CreditCard className="h-5 w-5 text-blue-600" />
-                      <span className="font-medium">M-Pesa, Card or Bank</span>
+                      <Landmark className="h-5 w-5 text-indigo-600" />
+                      <Bitcoin className="h-5 w-5 text-amber-500" />
+                      <span className="font-medium">
+                        M-Pesa, Card, Bank, PesaLink, Cash App or Crypto
+                      </span>
                     </div>
                     <p className="text-xs text-gray-500 dark:text-gray-400">
                       Choose your preferred method inside the secure IntaSend window.

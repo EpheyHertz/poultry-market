@@ -26,6 +26,8 @@ import {
   AlertCircle,
   CreditCard,
   Smartphone,
+  Landmark,
+  Bitcoin,
   Sparkles,
   ExternalLink,
   ArrowLeft,
@@ -399,7 +401,11 @@ export function SupportButton({
                   <div className="flex items-center gap-2 mb-1">
                     <Smartphone className="h-4 w-4 text-green-600" />
                     <CreditCard className="h-4 w-4 text-blue-600" />
-                    <span className="text-sm font-medium">M-Pesa, Card or Bank</span>
+                    <Landmark className="h-4 w-4 text-indigo-600" />
+                    <Bitcoin className="h-4 w-4 text-amber-500" />
+                    <span className="text-sm font-medium">
+                      M-Pesa, Card, Bank, PesaLink, Cash App or Crypto
+                    </span>
                   </div>
                   <p className="text-xs text-gray-500">
                     Pick your preferred method in the secure IntaSend window.
@@ -553,7 +559,11 @@ export function SupportButton({
                   <div className="flex items-center gap-2 mb-1">
                     <Smartphone className="h-4 w-4 text-green-600" />
                     <CreditCard className="h-4 w-4 text-blue-600" />
-                    <span className="text-sm font-medium">M-Pesa, Card or Bank</span>
+                    <Landmark className="h-4 w-4 text-indigo-600" />
+                    <Bitcoin className="h-4 w-4 text-amber-500" />
+                    <span className="text-sm font-medium">
+                      M-Pesa, Card, Bank, PesaLink, Cash App or Crypto
+                    </span>
                   </div>
                   <p className="text-xs text-gray-500">
                     Pick your preferred method in the secure IntaSend window.
