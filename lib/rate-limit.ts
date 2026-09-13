@@ -89,17 +89,26 @@ export const RATE_LIMITS = {
   api: { maxRequests: 100, windowMs: 60 * 1000 },
   /** Auth: 5 attempts per 15 minutes */
   auth: { maxRequests: 5, windowMs: 15 * 60 * 1000 },
+  /** Newsletter subscribe: 6 attempts per 10 minutes per IP */
+  newsletterSubscribe: { maxRequests: 6, windowMs: 10 * 60 * 1000 },
+  /** Newsletter resend verification: 4 attempts per 10 minutes per IP */
+  newsletterResend: { maxRequests: 4, windowMs: 10 * 60 * 1000 },
+  /** Newsletter verify token: 20 attempts per 10 minutes per IP */
+  newsletterVerify: { maxRequests: 20, windowMs: 10 * 60 * 1000 },
+  /** Newsletter preference reads/writes: 30 per 10 minutes per IP */
+  newsletterPreferences: { maxRequests: 30, windowMs: 10 * 60 * 1000 },
 };
+
 
 /**
  * Get client identifier for rate limiting
  */
 export function getClientIdentifier(request: Request, userId?: string): string {
   if (userId) return `user:${userId}`;
-  
+
   const forwarded = request.headers.get('x-forwarded-for');
-  const ip = forwarded?.split(',')[0]?.trim() || 
-             request.headers.get('x-real-ip') || 
-             'unknown';
+  const ip = forwarded?.split(',')[0]?.trim() ||
+    request.headers.get('x-real-ip') ||
+    'unknown';
   return `ip:${ip}`;
 }

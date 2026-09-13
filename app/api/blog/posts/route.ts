@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { getOrCreateAuthorProfile } from '@/lib/author';
 import { getBlogPosts } from '@/lib/blog/get-posts';
 import { BLOG_PAGE_SIZE } from '@/lib/blog/listing-config';
+import { notifyOnPublish } from '@/lib/email/blog-notifications';
 import { z } from 'zod';
 import { BlogPostCategory } from '@prisma/client';
 
@@ -85,7 +86,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const user = await getCurrentUser();
-    
+
     if (!user) {
       return NextResponse.json(
         { error: 'Authentication required' },
@@ -121,7 +122,7 @@ export async function POST(request: NextRequest) {
     const tagConnections = await Promise.all(
       validatedData.tags.map(async (tagName) => {
         const tagSlug = generateSlug(tagName);
-        
+
         // Find or create tag
         const tag = await prisma.blogTag.upsert({
           where: { slug: tagSlug },
@@ -137,7 +138,7 @@ export async function POST(request: NextRequest) {
     );
 
     // Set publishedAt if status is PUBLISHED
-    const publishedAt = validatedData.status === 'PUBLISHED' 
+    const publishedAt = validatedData.status === 'PUBLISHED'
       ? validatedData.publishedAt ? new Date(validatedData.publishedAt) : new Date()
       : null;
 
@@ -175,6 +176,12 @@ export async function POST(request: NextRequest) {
         }
       }
     });
+
+    // If an admin/company published straight away, fan out the subscriber
+    // email asynchronously (never blocks or fails the create request).
+    if (blogPost.status === 'PUBLISHED') {
+      notifyOnPublish(blogPost.id);
+    }
 
     return NextResponse.json({
       ...blogPost,

@@ -15,9 +15,9 @@ import {
   FilterChips,
   type FilterChip,
   TrendingSidebar,
-  NewsletterCTA,
   EmptyState,
 } from '@/components/blog/sections';
+import NewsletterSubscribe from '@/components/blog/newsletter-subscribe';
 import { FeaturedCarousel } from '@/components/blog/featured-carousel';
 import AdSlot from '@/components/ads/ad-slot';
 import { BlogPagination } from '@/components/blog/pagination';
@@ -830,12 +830,9 @@ export default function BlogHome({
           {/* Ad: Blog Bottom */}
           <AdSlot name="blogBottom" className="py-2" />
 
-          <NewsletterCTA
-            onSubscribe={async (email) => {
-              console.log('Newsletter subscribe:', email);
-              // TODO: wire to the newsletter endpoint once available
-            }}
-          />
+          <div id="subscribe" className="scroll-mt-24">
+            <NewsletterSubscribe source="blog-home" />
+          </div>
         </div>
       </main>
     </div>

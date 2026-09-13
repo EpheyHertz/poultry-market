@@ -10,6 +10,7 @@ export { default as FollowButton } from './follow-button';
 export { default as SocialShare } from './social-share';
 export { default as RelatedPosts } from './related-posts';
 export { default as NewsletterSubscription } from './newsletter-subscription';
+export { default as NewsletterSubscribe } from './newsletter-subscribe';
 export { default as MarkdownContent } from './markdown-content';
 export { default as MarkdownExcerpt } from './markdown-excerpt';
 export { default as CommentLikeButton } from './comment-like-button';

@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { authenticateApiKey } from '@/lib/api-keys';
 import { createNotification } from '@/lib/notifications';
 import { getOrCreateAuthorProfile } from '@/lib/author';
+import { notifyOnPublish } from '@/lib/email/blog-notifications';
 import { BlogPostCategory, BlogPostStatus } from '@prisma/client';
 
 const submissionRateLimit = new Map<string, { count: number; resetTime: number }>();
@@ -105,7 +106,7 @@ function calculateReadingTime(content: string): number {
  */
 function generateTableOfContents(content: string): { id: string; text: string; level: number }[] {
   const toc: { id: string; text: string; level: number }[] = [];
-  
+
   // Match markdown headings (## Heading)
   const markdownHeadings = content.matchAll(/^(#{1,6})\s+(.+)$/gm);
   for (const match of markdownHeadings) {
@@ -117,7 +118,7 @@ function generateTableOfContents(content: string): { id: string; text: string; l
       .replace(/(^-|-$)/g, '');
     toc.push({ id, text, level });
   }
-  
+
   // Match HTML headings (<h1>Heading</h1>)
   const htmlHeadings = content.matchAll(/<h([1-6])[^>]*>([^<]+)<\/h\1>/gi);
   for (const match of htmlHeadings) {
@@ -129,7 +130,7 @@ function generateTableOfContents(content: string): { id: string; text: string; l
       .replace(/(^-|-$)/g, '');
     toc.push({ id, text, level });
   }
-  
+
   return toc;
 }
 
@@ -222,14 +223,14 @@ export async function POST(request: Request) {
 
     // Calculate precise reading time and word count
     const readingTime = calculateReadingTime(data.content);
-    
+
     // Calculate word count
     const textOnly = data.content
       .replace(/<[^>]*>/g, ' ')
       .replace(/```[\s\S]*?```/g, ' ')
       .replace(/`[^`]+`/g, ' ');
     const wordCount = textOnly.split(/\s+/).filter((word: string) => word.length > 0).length;
-    
+
     // Generate table of contents
     const tableOfContents = generateTableOfContents(data.content);
 
@@ -256,8 +257,8 @@ export async function POST(request: Request) {
         images: [],
         tags: tagConnections.length
           ? {
-              create: tagConnections,
-            }
+            create: tagConnections,
+          }
           : undefined,
       },
       include: {
@@ -288,6 +289,12 @@ export async function POST(request: Request) {
         totalPosts: { increment: 1 },
       },
     });
+
+    // Admins auto-publish through this endpoint. Fan out the subscriber
+    // "new article" email asynchronously (idempotent + fire-and-forget).
+    if (blogPost.status === 'PUBLISHED') {
+      notifyOnPublish(blogPost.id);
+    }
 
     if (status === 'PENDING_APPROVAL') {
       try {
@@ -322,10 +329,10 @@ export async function POST(request: Request) {
       tableOfContents: blogPost.tableOfContents,
       author: blogPost.author,
       authorProfile: blogPost.authorProfile,
-      authorUrl: blogPost.authorProfile 
-        ? `/author/${blogPost.authorProfile.username}` 
+      authorUrl: blogPost.authorProfile
+        ? `/author/${blogPost.authorProfile.username}`
         : null,
-      postUrl: blogPost.authorProfile 
+      postUrl: blogPost.authorProfile
         ? `/blog/${blogPost.authorProfile.username}/${blogPost.slug}`
         : `/blog/${blogPost.slug}`,
     }, {

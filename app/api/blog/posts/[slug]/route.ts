@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import { sendBlogSubmissionAcknowledgmentToAuthor, sendBlogSubmissionToAdmin } from '@/lib/email';
 import { RelatedPostsService } from '@/lib/search-v2/RelatedPostsService';
+import { notifyOnPublish } from '@/lib/email/blog-notifications';
 
 // Update blog post schema
 const updateBlogPostSchema = z.object({
@@ -68,7 +69,7 @@ export async function GET(
     // Get the slug from URL path
     const pathParts = request.nextUrl.pathname.split('/');
     const slug = pathParts[pathParts.length - 1] || ''; // Get the last part (slug)
-    
+
     const post = await prisma.blogPost.findUnique({
       where: { slug },
       include: {
@@ -220,7 +221,7 @@ export async function PUT(
 ) {
   try {
     const user = await getCurrentUser();
-    
+
     if (!user) {
       return NextResponse.json(
         { error: 'Authentication required' },
@@ -231,11 +232,11 @@ export async function PUT(
     // Get the slug from URL path
     const pathParts = request.nextUrl.pathname.split('/');
     const slug = pathParts[pathParts.length - 1] || ''; // Get the last part (slug)
-    
+
     // Find existing post with full details for email
     const existingPost = await prisma.blogPost.findUnique({
       where: { slug },
-      include: { 
+      include: {
         author: {
           select: {
             id: true,
@@ -277,9 +278,9 @@ export async function PUT(
     const previousStatus = existingPost.status;
 
     // Check if content has meaningfully changed (requires re-approval for published posts)
-    const contentChanged = validatedData.title !== existingPost.title || 
-                          validatedData.content !== existingPost.content ||
-                          validatedData.excerpt !== existingPost.excerpt;
+    const contentChanged = validatedData.title !== existingPost.title ||
+      validatedData.content !== existingPost.content ||
+      validatedData.excerpt !== existingPost.excerpt;
 
     // If the post is published/approved and content changed, mark for re-approval
     if ((previousStatus === 'PUBLISHED' || previousStatus === 'APPROVED') && contentChanged && !isAdmin) {
@@ -309,8 +310,8 @@ export async function PUT(
       let newSlug = baseSlug;
       let counter = 1;
 
-      while (await prisma.blogPost.findFirst({ 
-        where: { slug: newSlug, id: { not: existingPost.id } } 
+      while (await prisma.blogPost.findFirst({
+        where: { slug: newSlug, id: { not: existingPost.id } }
       })) {
         newSlug = `${baseSlug}-${counter}`;
         counter++;
@@ -345,7 +346,7 @@ export async function PUT(
       const tagConnections = await Promise.all(
         validatedData.tags.map(async (tagName) => {
           const tagSlug = generateSlug(tagName);
-          
+
           const tag = await prisma.blogTag.upsert({
             where: { slug: tagSlug },
             update: {},
@@ -393,6 +394,13 @@ export async function PUT(
       RelatedPostsService.invalidate();
     } catch (e) {
       console.error('Failed to invalidate related-posts cache:', e);
+    }
+
+    // If this update transitioned the post to PUBLISHED, fan out the subscriber
+    // "new article" email asynchronously. Idempotent (unique campaign per post)
+    // and fire-and-forget so the update never waits on / fails because of email.
+    if (previousStatus !== 'PUBLISHED' && updatedPost.status === 'PUBLISHED') {
+      notifyOnPublish(updatedPost.id);
     }
 
     // Send email notifications if re-approval is required
@@ -466,7 +474,7 @@ export async function DELETE(
 ) {
   try {
     const user = await getCurrentUser();
-    
+
     if (!user) {
       return NextResponse.json(
         { error: 'Authentication required' },
@@ -477,13 +485,13 @@ export async function DELETE(
     // Get the slug from URL path
     const pathParts = request.nextUrl.pathname.split('/');
     const slug = pathParts[pathParts.length - 1] || ''; // Get the last part (slug)
-    
+
     // Find existing post
     const existingPost = await prisma.blogPost.findUnique({
       where: { slug },
-      select: { 
-        id: true, 
-        authorId: true 
+      select: {
+        id: true,
+        authorId: true
       }
     });
 

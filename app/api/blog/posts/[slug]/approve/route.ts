@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { sendBlogStatusUpdateToAdmin, sendBlogStatusUpdateToAuthor } from '@/lib/email';
+import { notifyOnPublish } from '@/lib/email/blog-notifications';
 import { submitPathToIndexNow } from '@/lib/indexnow';
 import { RelatedPostsService } from '@/lib/search-v2/RelatedPostsService';
 import { z } from 'zod';
@@ -22,9 +23,9 @@ export async function PATCH(
     // Get the slug from URL path
     const pathParts = request.nextUrl.pathname.split('/');
     const slug = pathParts[pathParts.length - 2] || ''; // Get slug (second to last part)
-    
+
     const user = await getCurrentUser();
-    
+
     if (!user) {
       return NextResponse.json(
         { error: 'Authentication required' },
@@ -90,7 +91,7 @@ export async function PATCH(
       updateData.rejectedAt = null;
       updateData.rejectionReason = null;
       updateData.featured = featured;
-      
+
       if (publishImmediately) {
         updateData.publishedAt = new Date();
       }
@@ -114,7 +115,7 @@ export async function PATCH(
       updateData.rejectedAt = null;
       updateData.rejectionReason = null;
       updateData.featured = featured;
-      
+
       if (publishImmediately) {
         updateData.publishedAt = new Date();
       }
@@ -216,6 +217,11 @@ export async function PATCH(
         console.error('Failed to notify IndexNow about published blog:', indexNowError);
         // Don't fail the approval flow if IndexNow fails
       }
+
+      // Fan out the "new article" email to matching subscribers. This is
+      // fire-and-forget: the campaign is queued and drained asynchronously so
+      // publishing never waits on (or fails because of) email delivery.
+      notifyOnPublish(updatedPost.id);
     }
 
     const actionMessages: Record<string, string> = {
@@ -246,7 +252,7 @@ export async function PATCH(
 
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { 
+        {
           error: 'Validation failed',
           details: error.errors.map(err => ({
             field: err.path.join('.'),

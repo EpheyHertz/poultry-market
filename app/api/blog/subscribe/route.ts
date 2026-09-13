@@ -1,271 +1,118 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { checkRateLimit, getClientIdentifier, RATE_LIMITS } from '@/lib/rate-limit';
+import { subscribe, type SubscribeState } from '@/lib/email/subscribers';
+
+/**
+ * POST /api/blog/subscribe
+ *
+ * Double opt-in subscribe. Collects name + email + tickable topics + sending
+ * frequency, then hands off to the `subscribe()` state machine which:
+ *   - normalises the email and rejects obvious garbage
+ *   - creates (or reuses) a PENDING subscriber
+ *   - sends a hashed, single-use, expiring verification link
+ *   - enforces a resend cooldown and a hard attempt cap
+ *
+ * The response always carries a `state` + human `message`, so the UI never has
+ * to surface a raw status code like "409".
+ */
 
 const subscribeSchema = z.object({
-  email: z.string().email('Valid email is required'),
-  name: z.string().min(1).max(100).optional(),
-  weeklyDigest: z.boolean().default(true),
-  newPostAlerts: z.boolean().default(true),
-  categoryUpdates: z.array(z.string()).optional(),
+  email: z.string().min(3).max(254),
+  name: z.string().max(100).optional().nullable(),
+  topics: z.array(z.string()).max(20).optional(),
+  allTopics: z.boolean().optional(),
+  frequency: z.string().optional(),
+  source: z.string().max(60).optional(),
+  // Honeypot: real users never fill this hidden field.
+  company: z.string().optional(),
 });
 
-const updateSubscriptionSchema = z.object({
-  name: z.string().min(1).max(100).optional(),
-  weeklyDigest: z.boolean().optional(),
-  newPostAlerts: z.boolean().optional(),
-  categoryUpdates: z.array(z.string()).optional(),
-  isActive: z.boolean().optional(),
-});
-
-// GET - Get subscription status (for logged-in users or by email)
-export async function GET(request: NextRequest) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const email = searchParams.get('email');
-    
-    if (!email) {
-      return NextResponse.json(
-        { error: 'Email parameter is required' },
-        { status: 400 }
-      );
-    }
-
-    const subscription = await prisma.blogSubscriber.findUnique({
-      where: { email },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        isActive: true,
-        weeklyDigest: true,
-        newPostAlerts: true,
-        categoryUpdates: true,
-        createdAt: true
-      }
-    });
-
-    if (!subscription) {
-      return NextResponse.json(
-        { subscribed: false }
-      );
-    }
-
-    return NextResponse.json({
-      subscribed: true,
-      subscription: {
-        ...subscription,
-        categoryUpdates: subscription.categoryUpdates 
-          ? JSON.parse(subscription.categoryUpdates) 
-          : []
-      }
-    });
-
-  } catch (error) {
-    console.error('Error fetching subscription:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch subscription' },
-      { status: 500 }
-    );
+/** Maps a subscribe state to the most appropriate HTTP status code. */
+function statusForState(state: SubscribeState): number {
+  switch (state) {
+    case 'verification_sent':
+    case 'verification_resent':
+    case 'already_active':
+      return 200;
+    case 'invalid_email':
+      return 400;
+    case 'cooldown':
+    case 'too_many_attempts':
+      return 429;
+    case 'send_failed':
+      return 502;
+    default:
+      return 500;
   }
 }
 
-// POST - Subscribe to blog newsletter
 export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json();
-    const validatedData = subscribeSchema.parse(body);
-
-    // Check if already subscribed
-    const existingSubscription = await prisma.blogSubscriber.findUnique({
-      where: { email: validatedData.email }
-    });
-
-    if (existingSubscription) {
-      if (existingSubscription.isActive) {
-        return NextResponse.json(
-          { error: 'Email is already subscribed' },
-          { status: 409 }
-        );
-      } else {
-        // Reactivate existing subscription
-        const updatedSubscription = await prisma.blogSubscriber.update({
-          where: { email: validatedData.email },
-          data: {
-            name: validatedData.name || existingSubscription.name,
-            isActive: true,
-            weeklyDigest: validatedData.weeklyDigest,
-            newPostAlerts: validatedData.newPostAlerts,
-            categoryUpdates: validatedData.categoryUpdates 
-              ? JSON.stringify(validatedData.categoryUpdates)
-              : null
-          }
-        });
-
-        return NextResponse.json({
-          message: 'Successfully resubscribed to blog newsletter',
-          subscription: {
-            ...updatedSubscription,
-            categoryUpdates: updatedSubscription.categoryUpdates
-              ? JSON.parse(updatedSubscription.categoryUpdates)
-              : []
-          }
-        });
-      }
-    }
-
-    // Create new subscription
-    const subscription = await prisma.blogSubscriber.create({
-      data: {
-        email: validatedData.email,
-        name: validatedData.name,
-        weeklyDigest: validatedData.weeklyDigest,
-        newPostAlerts: validatedData.newPostAlerts,
-        categoryUpdates: validatedData.categoryUpdates 
-          ? JSON.stringify(validatedData.categoryUpdates)
-          : null
-      }
-    });
-
-    return NextResponse.json({
-      message: 'Successfully subscribed to blog newsletter',
-      subscription: {
-        ...subscription,
-        categoryUpdates: subscription.categoryUpdates
-          ? JSON.parse(subscription.categoryUpdates)
-          : []
-      }
-    });
-
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: 'Validation failed', details: error.errors },
-        { status: 400 }
-      );
-    }
-
-    console.error('Error creating subscription:', error);
+  // Per-IP throttle in front of the per-address cooldown inside subscribe().
+  const identifier = getClientIdentifier(request);
+  const limit = checkRateLimit(`newsletter:subscribe:${identifier}`, RATE_LIMITS.newsletterSubscribe);
+  if (!limit.allowed) {
     return NextResponse.json(
-      { error: 'Failed to subscribe' },
-      { status: 500 }
+      {
+        ok: false,
+        state: 'cooldown',
+        message: 'You are trying a little too often. Please wait a moment and try again.',
+        retryAfterSeconds: limit.retryAfter,
+      },
+      { status: 429, headers: { 'Retry-After': String(limit.retryAfter ?? 60) } }
     );
   }
-}
 
-// PUT - Update subscription preferences
-export async function PUT(request: NextRequest) {
+  let body: unknown;
   try {
-    const { searchParams } = new URL(request.url);
-    const email = searchParams.get('email');
-    
-    if (!email) {
-      return NextResponse.json(
-        { error: 'Email parameter is required' },
-        { status: 400 }
-      );
-    }
-
-    const body = await request.json();
-    const validatedData = updateSubscriptionSchema.parse(body);
-
-    // Check if subscription exists
-    const existingSubscription = await prisma.blogSubscriber.findUnique({
-      where: { email }
-    });
-
-    if (!existingSubscription) {
-      return NextResponse.json(
-        { error: 'Subscription not found' },
-        { status: 404 }
-      );
-    }
-
-    let updateData: any = {};
-    
-    if (validatedData.name !== undefined) updateData.name = validatedData.name;
-    if (validatedData.weeklyDigest !== undefined) updateData.weeklyDigest = validatedData.weeklyDigest;
-    if (validatedData.newPostAlerts !== undefined) updateData.newPostAlerts = validatedData.newPostAlerts;
-    if (validatedData.isActive !== undefined) updateData.isActive = validatedData.isActive;
-    
-    if (validatedData.categoryUpdates !== undefined) {
-      updateData.categoryUpdates = validatedData.categoryUpdates.length > 0
-        ? JSON.stringify(validatedData.categoryUpdates)
-        : null;
-    }
-
-    const updatedSubscription = await prisma.blogSubscriber.update({
-      where: { email },
-      data: updateData
-    });
-
-    return NextResponse.json({
-      message: 'Subscription updated successfully',
-      subscription: {
-        ...updatedSubscription,
-        categoryUpdates: updatedSubscription.categoryUpdates
-          ? JSON.parse(updatedSubscription.categoryUpdates)
-          : []
-      }
-    });
-
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: 'Validation failed', details: error.errors },
-        { status: 400 }
-      );
-    }
-
-    console.error('Error updating subscription:', error);
+    body = await request.json();
+  } catch {
     return NextResponse.json(
-      { error: 'Failed to update subscription' },
-      { status: 500 }
+      { ok: false, state: 'error', message: 'We could not read your request. Please try again.' },
+      { status: 400 }
     );
   }
-}
 
-// DELETE - Unsubscribe from newsletter
-export async function DELETE(request: NextRequest) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const email = searchParams.get('email');
-    
-    if (!email) {
-      return NextResponse.json(
-        { error: 'Email parameter is required' },
-        { status: 400 }
-      );
-    }
-
-    // Check if subscription exists
-    const existingSubscription = await prisma.blogSubscriber.findUnique({
-      where: { email }
-    });
-
-    if (!existingSubscription) {
-      return NextResponse.json(
-        { error: 'Subscription not found' },
-        { status: 404 }
-      );
-    }
-
-    // Soft delete - just deactivate
-    await prisma.blogSubscriber.update({
-      where: { email },
-      data: { isActive: false }
-    });
-
-    return NextResponse.json({
-      message: 'Successfully unsubscribed from blog newsletter'
-    });
-
-  } catch (error) {
-    console.error('Error unsubscribing:', error);
+  const parsed = subscribeSchema.safeParse(body);
+  if (!parsed.success) {
     return NextResponse.json(
-      { error: 'Failed to unsubscribe' },
-      { status: 500 }
+      {
+        ok: false,
+        state: 'invalid_email',
+        message: 'Please check the details you entered and try again.',
+      },
+      { status: 400 }
     );
   }
+
+  // Silently accept the honeypot so bots think they succeeded.
+  if (parsed.data.company && parsed.data.company.trim().length > 0) {
+    return NextResponse.json(
+      {
+        ok: true,
+        state: 'verification_sent',
+        message: 'Check your inbox for the confirmation link.',
+      },
+      { status: 200 }
+    );
+  }
+
+  const result = await subscribe({
+    email: parsed.data.email,
+    name: parsed.data.name ?? undefined,
+    topics: parsed.data.topics,
+    allTopics: parsed.data.allTopics,
+    frequency: parsed.data.frequency,
+    source: parsed.data.source ?? 'blog',
+    ip: identifier,
+    userAgent: request.headers.get('user-agent'),
+  });
+
+  const status = statusForState(result.state);
+  const headers: Record<string, string> = {};
+  if (result.retryAfterSeconds && (status === 429)) {
+    headers['Retry-After'] = String(result.retryAfterSeconds);
+  }
+
+  return NextResponse.json(result, { status, headers });
 }

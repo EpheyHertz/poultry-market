@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { notifyOnPublish } from '@/lib/email/blog-notifications';
 
 export async function POST(request: NextRequest) {
   try {
     const user = await getCurrentUser();
-    
+
     if (!user) {
       return NextResponse.json(
         { error: 'Authentication required' },
@@ -32,45 +33,55 @@ export async function POST(request: NextRequest) {
 
     let updateData: any = {};
     let message = '';
+    let publishNotifyIds: string[] = [];
 
     switch (action) {
       case 'publish':
-        updateData = { 
+        updateData = {
           status: 'PUBLISHED',
           publishedAt: new Date()
         };
         message = `${postIds.length} posts published successfully`;
+        // Capture only the posts that are genuinely transitioning INTO
+        // published so we email subscribers once per newly-live article.
+        {
+          const transitioning = await prisma.blogPost.findMany({
+            where: { id: { in: postIds }, status: { not: 'PUBLISHED' } },
+            select: { id: true },
+          });
+          publishNotifyIds = transitioning.map((p) => p.id);
+        }
         break;
-        
+
       case 'draft':
-        updateData = { 
+        updateData = {
           status: 'DRAFT',
           publishedAt: null
         };
         message = `${postIds.length} posts moved to draft`;
         break;
-        
+
       case 'archive':
-        updateData = { 
+        updateData = {
           status: 'ARCHIVED'
         };
         message = `${postIds.length} posts archived`;
         break;
-        
+
       case 'feature':
-        updateData = { 
+        updateData = {
           featured: true
         };
         message = `${postIds.length} posts marked as featured`;
         break;
-        
+
       case 'unfeature':
-        updateData = { 
+        updateData = {
           featured: false
         };
         message = `${postIds.length} posts unmarked as featured`;
         break;
-        
+
       case 'delete':
         await prisma.blogPost.deleteMany({
           where: {
@@ -81,7 +92,7 @@ export async function POST(request: NextRequest) {
           success: true,
           message: `${postIds.length} posts deleted successfully`
         });
-        
+
       default:
         return NextResponse.json(
           { error: 'Invalid action' },
@@ -96,6 +107,13 @@ export async function POST(request: NextRequest) {
       },
       data: updateData
     });
+
+    // Fan out the subscriber "new article" email for posts that just went
+    // live. Fire-and-forget + idempotent so the bulk response never waits on
+    // (or fails because of) email delivery.
+    for (const postId of publishNotifyIds) {
+      notifyOnPublish(postId);
+    }
 
     return NextResponse.json({
       success: true,

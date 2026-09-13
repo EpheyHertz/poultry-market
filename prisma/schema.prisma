@@ -1744,22 +1744,190 @@ model BlogComment {
   @@map("blog_comments")
 }
 
+enum SubscriberStatus {
+  PENDING // Signed up, awaiting email verification
+  ACTIVE // Verified and receiving emails
+  UNSUBSCRIBED // Opted out (history preserved)
+  BOUNCED // Suppressed after hard bounces
+}
+
+enum SubscriberFrequency {
+  EVERY_POST // Every matching published article
+  WEEKLY_DIGEST // One weekly roundup
+  IMPORTANT_ONLY // Only major platform updates
+}
+
+enum EmailCampaignType {
+  BLOG_NOTIFICATION
+  WEEKLY_DIGEST
+  NEWSLETTER
+  ANNOUNCEMENT
+  USER_BROADCAST
+}
+
+enum EmailCampaignStatus {
+  DRAFT
+  QUEUED
+  SENDING
+  SENT
+  PARTIALLY_FAILED
+  FAILED
+  CANCELLED
+}
+
+enum EmailDeliveryStatus {
+  PENDING
+  SENDING
+  SENT
+  FAILED
+  SKIPPED
+}
+
 model BlogSubscriber {
   id       String  @id @default(cuid())
-  email    String  @unique
+  email    String  @unique // Always stored trimmed + lowercased
   name     String?
   isActive Boolean @default(true)
 
-  // Subscription preferences
+  // Subscription preferences (legacy columns retained for compatibility)
   weeklyDigest    Boolean @default(true)
   newPostAlerts   Boolean @default(true)
-  categoryUpdates String? // JSON array of subscribed categories
+  categoryUpdates String? // JSON array of subscribed categories (legacy)
+
+  // Lifecycle
+  status SubscriberStatus @default(PENDING)
+
+  // Double opt-in verification (tokens are stored hashed, never in raw form)
+  verificationTokenHash String?   @unique
+  verificationSentAt    DateTime?
+  verificationExpiresAt DateTime?
+  verificationCount     Int       @default(0)
+  verifiedAt            DateTime?
+
+  // Long-lived token powering "manage preferences" / "unsubscribe" links
+  manageTokenHash String? @unique
+
+  // Topic preferences (reuses the existing blog taxonomy)
+  topics    BlogPostCategory[]  @default([])
+  allTopics Boolean             @default(true)
+  frequency SubscriberFrequency @default(EVERY_POST)
+
+  // Audit / engagement
+  unsubscribedAt  DateTime?
+  resubscribedAt  DateTime?
+  source          String? // blog_page | footer | article | admin | import
+  lastEmailSentAt DateTime?
+  emailsSent      Int       @default(0)
+  bounceCount     Int       @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  events     SubscriberEvent[]
+  deliveries EmailDelivery[]
+
+  @@index([status])
+  @@index([status, allTopics])
+  @@index([verifiedAt])
   @@map("blog_subscribers")
 }
+
+model SubscriberEvent {
+  id           String         @id @default(cuid())
+  subscriberId String
+  subscriber   BlogSubscriber @relation(fields: [subscriberId], references: [id], onDelete: Cascade)
+
+  type      String // SUBSCRIBED | VERIFICATION_SENT | VERIFIED | PREFERENCES_UPDATED | UNSUBSCRIBED | RESUBSCRIBED | ADMIN_ACTION
+  actorType String  @default("subscriber") // subscriber | admin | system
+  actorId   String?
+  metadata  Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([subscriberId, createdAt])
+  @@index([type, createdAt])
+  @@map("subscriber_events")
+}
+
+model EmailCampaign {
+  id     String              @id @default(cuid())
+  type   EmailCampaignType
+  status EmailCampaignStatus @default(DRAFT)
+
+  subject     String
+  previewText String?
+  content     String  @db.Text
+  ctaLabel    String?
+  ctaUrl      String?
+  imageUrl    String?
+
+  // Audience definition (kind + topics + explicit ids), stored for auditability
+  audience Json
+  topics   BlogPostCategory[] @default([])
+
+  // Set when the campaign was generated from a published article
+  blogPostId String?
+
+  senderAccount String @default("blog")
+  senderName    String?
+
+  totalRecipients Int @default(0)
+  sentCount       Int @default(0)
+  failedCount     Int @default(0)
+
+  createdById String?
+  queuedAt    DateTime?
+  startedAt   DateTime?
+  completedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  deliveries EmailDelivery[]
+
+  @@unique([blogPostId, type]) // Guarantees one automatic notification per article
+  @@index([status, createdAt])
+  @@index([type, createdAt])
+  @@map("email_campaigns")
+}
+
+model EmailDelivery {
+  id         String        @id @default(cuid())
+  campaignId String
+  campaign   EmailCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  subscriberId String?
+  subscriber   BlogSubscriber? @relation(fields: [subscriberId], references: [id], onDelete: SetNull)
+  userId       String?
+  email        String
+  recipientName String?
+
+  status            EmailDeliveryStatus @default(PENDING)
+  attempts          Int                 @default(0)
+  providerMessageId String?
+  error             String?
+  sentAt            DateTime?
+  lastAttemptAt     DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([campaignId, email]) // Hard guarantee against duplicate sends
+  @@index([status, createdAt])
+  @@index([campaignId, status])
+  @@index([subscriberId])
+  @@map("email_deliveries")
+}
+
+model EmailSetting {
+  key         String   @id
+  value       Json
+  updatedById String?
+  updatedAt   DateTime @updatedAt
+
+  @@map("email_settings")
+}
+
 
 // Social Interaction Models
 model BlogPostLike {
