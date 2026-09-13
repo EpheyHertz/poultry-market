@@ -28,7 +28,7 @@ export function NewsletterShell({
                         <span className="text-lg font-bold">Poultry Market</span>
                     </Link>
                 </div>
-                <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-xl sm:p-8 dark:border-slate-800 dark:bg-slate-900">
+                <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-xl sm:p-8 text-gray-900 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100">
                     {children}
                 </div>
                 <p className="mt-6 text-center text-xs text-gray-400 dark:text-slate-600">

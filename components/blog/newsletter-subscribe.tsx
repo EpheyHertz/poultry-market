@@ -281,7 +281,7 @@ export default function NewsletterSubscribe({ className, source = 'blog' }: News
                 </div>
 
                 {/* Card */}
-                <div className="rounded-2xl bg-white p-5 shadow-2xl sm:p-6 dark:bg-slate-900">
+                <div className="rounded-2xl bg-white p-5 shadow-2xl text-gray-900 sm:p-6 dark:bg-slate-900 dark:text-slate-100">
                     <AnimatePresence mode="wait">
                         {screen.kind === 'form' && (
                             <motion.form
@@ -318,7 +318,7 @@ export default function NewsletterSubscribe({ className, source = 'blog' }: News
                                         onChange={(e) => setName(e.target.value)}
                                         placeholder="Jane Wanjiku"
                                         maxLength={100}
-                                        className="bg-white dark:bg-slate-950"
+                                        className="bg-white text-gray-900 placeholder:text-gray-400 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500"
                                     />
                                 </div>
 
@@ -339,7 +339,7 @@ export default function NewsletterSubscribe({ className, source = 'blog' }: News
                                         aria-invalid={emailError ? true : undefined}
                                         aria-describedby={emailError ? 'nl-email-error' : undefined}
                                         className={cn(
-                                            'bg-white dark:bg-slate-950',
+                                            'bg-white text-gray-900 placeholder:text-gray-400 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500',
                                             emailError && 'border-red-400 focus-visible:ring-red-400'
                                         )}
                                     />

@@ -134,7 +134,7 @@ export default function NewsletterSubscription({
   const textColorClass = variant === 'footer' || variant === 'default' ? 'text-white' : 'text-gray-700';
   const inputClass = variant === 'footer' || variant === 'default' 
     ? 'bg-white/10 border-white/20 text-white placeholder:text-white/70'
-    : 'bg-white border-gray-200';
+    : 'bg-white border-gray-200 text-gray-900 placeholder:text-gray-400';
 
   return (
     <Card className={`${getVariantClasses()} ${className}`}>
