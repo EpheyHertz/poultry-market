@@ -12,8 +12,8 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { useState } from 'react';
-import { CalendarDays, ChevronRight, Clock, Eye, History, ImageOff, ShieldCheck } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { CalendarDays, ChevronRight, Clock, Eye, History, ImageOff, Maximize2, ShieldCheck, X } from 'lucide-react';
 
 import LikeButton from '@/components/blog/like-button';
 import { cn } from '@/lib/utils';
@@ -64,6 +64,25 @@ function AuthorAvatar({ name, avatarUrl }: { name: string; avatarUrl: string | n
 
 function FeaturedImage({ src, alt }: { src: string; alt: string }) {
     const [failed, setFailed] = useState(false);
+    const [open, setOpen] = useState(false);
+
+    const close = useCallback(() => setOpen(false), []);
+
+    // Escape closes the lightbox; lock body scroll while it is open so the
+    // page behind never scrolls on touch devices (§11, §23).
+    useEffect(() => {
+        if (!open) return;
+        const onKey = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') close();
+        };
+        document.addEventListener('keydown', onKey);
+        const previousOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        return () => {
+            document.removeEventListener('keydown', onKey);
+            document.body.style.overflow = previousOverflow;
+        };
+    }, [open, close]);
 
     if (failed) {
         return (
@@ -74,17 +93,62 @@ function FeaturedImage({ src, alt }: { src: string; alt: string }) {
     }
 
     return (
-        <div className="relative aspect-[16/9] w-full overflow-hidden rounded-2xl bg-gray-100 shadow-sm ring-1 ring-black/5 dark:bg-gray-800 dark:ring-white/10">
-            <Image
-                src={src}
-                alt={alt}
-                fill
-                priority
-                sizes="(max-width: 768px) 100vw, (max-width: 1280px) 90vw, 1100px"
-                className="object-cover"
-                onError={() => setFailed(true)}
-            />
-        </div>
+        <>
+            <button
+                type="button"
+                onClick={() => setOpen(true)}
+                aria-label="View featured image full size"
+                className="group relative block aspect-[16/9] w-full cursor-zoom-in overflow-hidden rounded-2xl bg-gray-100 shadow-sm ring-1 ring-black/5 transition-shadow hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:bg-gray-800 dark:ring-white/10 dark:focus-visible:ring-offset-gray-950"
+            >
+                <Image
+                    src={src}
+                    alt={alt}
+                    fill
+                    priority
+                    sizes="(max-width: 768px) 100vw, (max-width: 1280px) 90vw, 1100px"
+                    className="object-cover transition-transform duration-500 group-hover:scale-[1.02]"
+                    onError={() => setFailed(true)}
+                />
+                {/* Expand affordance — visible on touch, reinforced on hover (§11). */}
+                <span className="pointer-events-none absolute bottom-3 right-3 flex items-center gap-1.5 rounded-full bg-black/60 px-3 py-1.5 text-[11px] font-medium text-white opacity-90 backdrop-blur-sm transition-opacity group-hover:opacity-100">
+                    <Maximize2 className="h-3.5 w-3.5" aria-hidden="true" />
+                    View full size
+                </span>
+            </button>
+
+            {open ? (
+                <div
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label="Full size featured image"
+                    className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-4 backdrop-blur-sm sm:p-8"
+                    onClick={close}
+                >
+                    <button
+                        type="button"
+                        onClick={close}
+                        aria-label="Close full size image"
+                        className="absolute right-4 top-4 rounded-full bg-white/10 p-2 text-white transition-colors hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 sm:right-6 sm:top-6"
+                    >
+                        <X className="h-5 w-5" aria-hidden="true" />
+                    </button>
+                    {/* Plain img so the lightbox can show the original at its natural
+                        resolution rather than a next/image optimised variant. */}
+                    <div
+                        className="relative max-h-full w-full max-w-6xl"
+                        onClick={(event) => event.stopPropagation()}
+                    >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                            src={src}
+                            alt={alt}
+                            className="mx-auto max-h-[85vh] w-auto max-w-full rounded-lg object-contain shadow-2xl"
+                        />
+                        <p className="mt-3 text-center text-sm text-white/80">{alt}</p>
+                    </div>
+                </div>
+            ) : null}
+        </>
     );
 }
 

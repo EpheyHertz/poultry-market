@@ -733,6 +733,149 @@ export async function cancelCampaign(campaignId: string): Promise<EmailCampaign>
     });
 }
 
+/**
+ * Admin action: retry a single recipient delivery in a campaign.
+ * Immediately attempts to deliver the campaign email to that recipient,
+ * updates the delivery status, and reconciles the overall campaign counters.
+ */
+export async function retryDelivery(deliveryId: string): Promise<{
+    success: boolean;
+    error?: string;
+    delivery?: any;
+}> {
+    const delivery = await prisma.emailDelivery.findUnique({
+        where: { id: deliveryId },
+        include: {
+            campaign: true,
+            subscriber: { select: { id: true, status: true } },
+        },
+    });
+
+    if (!delivery) {
+        return { success: false, error: 'Delivery record not found.' };
+    }
+    if (!delivery.campaign) {
+        return { success: false, error: 'Associated campaign not found.' };
+    }
+
+    // If recipient is a subscriber and is no longer active, skip
+    if (delivery.subscriber && delivery.subscriber.status !== 'ACTIVE') {
+        const updated = await prisma.emailDelivery.update({
+            where: { id: delivery.id },
+            data: { status: 'SKIPPED', error: 'Recipient is no longer an active subscriber' },
+        });
+        return {
+            success: false,
+            error: 'Recipient is no longer an active subscriber.',
+            delivery: updated,
+        };
+    }
+
+    // Set delivery to SENDING
+    await prisma.emailDelivery.update({
+        where: { id: delivery.id },
+        data: {
+            status: 'SENDING',
+            attempts: { increment: 1 },
+            lastAttemptAt: new Date(),
+            error: null,
+        },
+    });
+
+    try {
+        const context = await buildRenderContext(delivery.campaign);
+        const { rendered, unsubscribeUrl } = renderForRecipient(delivery.campaign, context, {
+            email: delivery.email,
+            name: delivery.recipientName,
+            subscriberId: delivery.subscriberId,
+        });
+
+        const result = await sendMail({
+            to: delivery.email,
+            subject: delivery.campaign.subject || rendered.subject,
+            html: rendered.html,
+            text: rendered.text,
+            account: isMailerAccount(delivery.campaign.senderAccount) ? delivery.campaign.senderAccount : 'blog',
+            senderName: delivery.campaign.senderName ?? undefined,
+            unsubscribeUrl: unsubscribeUrl ?? undefined,
+        });
+
+        let updatedDelivery;
+        if (result.success) {
+            updatedDelivery = await prisma.emailDelivery.update({
+                where: { id: delivery.id },
+                data: {
+                    status: 'SENT',
+                    sentAt: new Date(),
+                    providerMessageId: result.messageId,
+                    error: null,
+                },
+            });
+
+            if (delivery.subscriberId) {
+                await prisma.blogSubscriber.update({
+                    where: { id: delivery.subscriberId },
+                    data: { lastEmailSentAt: new Date(), emailsSent: { increment: 1 } },
+                });
+            }
+        } else {
+            updatedDelivery = await prisma.emailDelivery.update({
+                where: { id: delivery.id },
+                data: { status: 'FAILED', error: result.error.slice(0, 500) },
+            });
+
+            if (
+                delivery.subscriberId &&
+                !result.retryable &&
+                /invalid|does not exist|unknown|not found|bounce/i.test(result.error)
+            ) {
+                await markBounced(delivery.email, result.error.slice(0, 200));
+            }
+        }
+
+        // Reconcile campaign totals
+        const [sentCount, failedCount, remaining] = await Promise.all([
+            prisma.emailDelivery.count({ where: { campaignId: delivery.campaignId, status: 'SENT' } }),
+            prisma.emailDelivery.count({ where: { campaignId: delivery.campaignId, status: 'FAILED' } }),
+            prisma.emailDelivery.count({ where: pendingWhere(delivery.campaignId) }),
+        ]);
+
+        let newStatus = delivery.campaign.status;
+        if (remaining === 0) {
+            if (failedCount === 0) newStatus = 'SENT';
+            else if (sentCount === 0) newStatus = 'FAILED';
+            else newStatus = 'PARTIALLY_FAILED';
+        }
+
+        await prisma.emailCampaign.update({
+            where: { id: delivery.campaignId },
+            data: {
+                sentCount,
+                failedCount,
+                status: newStatus,
+                completedAt: remaining === 0 ? (delivery.campaign.completedAt || new Date()) : null,
+            },
+        });
+
+        return {
+            success: result.success,
+            error: result.success ? undefined : result.error,
+            delivery: updatedDelivery,
+        };
+    } catch (err: any) {
+        const errorMsg = err?.message || 'Failed to retry delivery';
+        const updatedDelivery = await prisma.emailDelivery.update({
+            where: { id: delivery.id },
+            data: { status: 'FAILED', error: errorMsg.slice(0, 500) },
+        });
+        return {
+            success: false,
+            error: errorMsg,
+            delivery: updatedDelivery,
+        };
+    }
+}
+
 /* ------------------------------------------------------------------ */
 /* Stats + test sends                                                  */
 /* ------------------------------------------------------------------ */

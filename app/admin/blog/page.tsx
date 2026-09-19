@@ -81,7 +81,8 @@ import {
   Target,
   ChevronLeft,
   ChevronRight,
-  Loader2
+  Loader2,
+  Mail
 } from 'lucide-react';
 
 interface BlogPost {
@@ -383,7 +384,7 @@ export default function AdminBlogPage() {
   const getStatusDisplay = (status: string) => {
     const statusInfo = STATUS_CONFIG[status as keyof typeof STATUS_CONFIG];
     if (!statusInfo) return null;
-    
+
     const Icon = statusInfo.icon;
     return (
       <Badge className={statusInfo.color}>
@@ -413,8 +414,13 @@ export default function AdminBlogPage() {
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Blog Management</h1>
             <p className="text-gray-600 mt-1">Manage your blog posts, categories, and content</p>
           </div>
-          
+
           <div className="flex flex-col space-y-2 sm:flex-row sm:space-y-0 sm:space-x-3">
+            <Button onClick={() => router.push('/admin/blog/email')} variant="outline" size="sm">
+              <Mail className="h-4 w-4 mr-2" />
+              <span className="hidden sm:inline">Subscribers & Emails</span>
+              <span className="sm:hidden">Emails</span>
+            </Button>
             <Button onClick={() => router.push('/admin/blog/comments')} variant="outline" size="sm">
               <MessageSquare className="h-4 w-4 mr-2" />
               <span className="hidden sm:inline">Moderate Comments</span>
@@ -433,30 +439,30 @@ export default function AdminBlogPage() {
           </div>
         </div>
 
-          {/* Quick navigation */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-            {QUICK_ACTIONS.map((action) => {
-              const Icon = action.icon;
-              return (
-                <Card key={action.title} className={`bg-gradient-to-br ${action.cardClass}`}>
-                  <CardContent className="p-4 flex flex-col h-full justify-between">
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <p className="font-semibold text-gray-900">{action.title}</p>
-                        <p className="text-sm text-gray-600 mt-1">{action.description}</p>
-                      </div>
-                      <div className={`p-3 rounded-full ${action.iconClass}`}>
-                        <Icon className="h-5 w-5" />
-                      </div>
+        {/* Quick navigation */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+          {QUICK_ACTIONS.map((action) => {
+            const Icon = action.icon;
+            return (
+              <Card key={action.title} className={`bg-gradient-to-br ${action.cardClass}`}>
+                <CardContent className="p-4 flex flex-col h-full justify-between">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="font-semibold text-gray-900">{action.title}</p>
+                      <p className="text-sm text-gray-600 mt-1">{action.description}</p>
                     </div>
-                    <Button asChild variant="secondary" className="mt-4 bg-white/70 text-gray-900 hover:bg-white">
-                      <Link href={action.href}>{action.buttonLabel}</Link>
-                    </Button>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
+                    <div className={`p-3 rounded-full ${action.iconClass}`}>
+                      <Icon className="h-5 w-5" />
+                    </div>
+                  </div>
+                  <Button asChild variant="secondary" className="mt-4 bg-white/70 text-gray-900 hover:bg-white">
+                    <Link href={action.href}>{action.buttonLabel}</Link>
+                  </Button>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -634,7 +640,7 @@ export default function AdminBlogPage() {
                         className="pl-10"
                       />
                     </div>
-                    
+
                     <Select
                       value={statusFilter}
                       onValueChange={(value) => {
@@ -770,8 +776,8 @@ export default function AdminBlogPage() {
                 </CardContent>
               </Card>
             ) : (
-              <div className={viewMode === 'grid' 
-                ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" 
+              <div className={viewMode === 'grid'
+                ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
                 : "space-y-4"
               }>
                 {posts.map((post, index) => (
@@ -863,7 +869,7 @@ export default function AdminBlogPage() {
                               <h3 className="font-semibold text-lg line-clamp-2 group-hover:text-emerald-600 transition-colors">
                                 {post.title}
                               </h3>
-                              
+
                               {post.excerpt && (
                                 <p className="text-gray-600 text-sm line-clamp-2">{post.excerpt}</p>
                               )}
@@ -971,7 +977,7 @@ export default function AdminBlogPage() {
                         <ChevronLeft className="h-4 w-4" />
                         Previous
                       </Button>
-                      
+
                       <div className="flex items-center space-x-1">
                         {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
                           const page = i + 1;
@@ -988,7 +994,7 @@ export default function AdminBlogPage() {
                           );
                         })}
                       </div>
-                      
+
                       <Button
                         variant="outline"
                         size="sm"
