@@ -252,6 +252,14 @@ export async function queueCampaign(campaignId: string): Promise<{ campaign: Ema
         },
     });
 
+    // Fire an immediate background process pass so sends begin right away
+    // rather than waiting indefinitely for an external cron drain!
+    if (total > 0) {
+        processCampaign(campaign.id, { timeBudgetMs: 25_000 }).catch((err) => {
+            console.error('[email:campaigns] initial background send error:', err);
+        });
+    }
+
     return { campaign: updated, total };
 }
 
@@ -349,12 +357,33 @@ async function buildRenderContext(campaign: EmailCampaign): Promise<RenderContex
         }
     }
 
-    if (campaign.type === 'WEEKLY_DIGEST' && audience.postIds?.length) {
-        const posts = await prisma.blogPost.findMany({
-            where: { id: { in: audience.postIds } },
-            orderBy: { publishedAt: 'desc' },
-            select: POST_SELECT,
-        });
+    if (campaign.type === 'WEEKLY_DIGEST') {
+        let posts: PostForEmail[] = [];
+        if (audience.postIds?.length) {
+            posts = await prisma.blogPost.findMany({
+                where: { id: { in: audience.postIds } },
+                orderBy: { publishedAt: 'desc' },
+                select: POST_SELECT,
+            });
+        }
+        if (!posts.length) {
+            const sevenDaysAgo = new Date();
+            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+            posts = await prisma.blogPost.findMany({
+                where: { status: 'PUBLISHED', publishedAt: { gte: sevenDaysAgo } },
+                orderBy: { publishedAt: 'desc' },
+                take: 4,
+                select: POST_SELECT,
+            });
+            if (!posts.length) {
+                posts = await prisma.blogPost.findMany({
+                    where: { status: 'PUBLISHED' },
+                    orderBy: { publishedAt: 'desc' },
+                    take: 4,
+                    select: POST_SELECT,
+                });
+            }
+        }
         context.digestArticles = posts.map(postToEmailArticle);
     }
 
@@ -367,8 +396,8 @@ function renderForRecipient(
     recipient: { email: string; name: string | null; subscriberId: string | null }
 ): { rendered: RenderedEmail; unsubscribeUrl: string | null } {
     const links = recipient.subscriberId ? subscriberLinks(recipient.subscriberId) : null;
-    const manageUrl = links?.manageUrl ?? null;
-    const unsubscribeUrl = links?.unsubscribeUrl ?? null;
+    const manageUrl = links?.manageUrl ?? absoluteUrl('/newsletter/preferences');
+    const unsubscribeUrl = links?.unsubscribeUrl ?? absoluteUrl('/newsletter/preferences?action=unsubscribe');
 
     if (campaign.type === 'BLOG_NOTIFICATION' && context.article && manageUrl && unsubscribeUrl) {
         return {
@@ -703,13 +732,13 @@ export async function drainPendingCampaigns(
     return { campaigns: results, drained: results.length };
 }
 
-/** Admin action: reset failures and run the campaign again. */
+/** Admin action: reset failures or cancelled state and run the campaign again. */
 export async function retryCampaign(
     campaignId: string,
     options: { timeBudgetMs?: number } = {}
 ): Promise<ProcessResult> {
     await prisma.emailDelivery.updateMany({
-        where: { campaignId, status: { in: ['FAILED', 'SKIPPED'] } },
+        where: { campaignId, status: { in: ['FAILED', 'SKIPPED', 'PENDING'] } },
         data: { status: 'PENDING', attempts: 0, error: null },
     });
 
@@ -720,6 +749,8 @@ export async function retryCampaign(
 
     return processCampaign(campaignId, options);
 }
+
+export const restartCampaign = retryCampaign;
 
 export async function cancelCampaign(campaignId: string): Promise<EmailCampaign> {
     await prisma.emailDelivery.updateMany({

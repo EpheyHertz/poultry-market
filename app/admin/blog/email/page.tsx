@@ -40,10 +40,14 @@ import {
     Download,
     ChevronLeft,
     ChevronRight,
-    ExternalLink,
-    AlertTriangle,
     RotateCcw,
     SendHorizonal,
+    Sparkles,
+    Calendar,
+    Zap,
+    HelpCircle,
+    Copy,
+    Check,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -161,8 +165,13 @@ interface DeliveryRow {
     canRetry: boolean;
 }
 
+interface WeeklyDigestPreview {
+    articles: { id: string; title: string; slug: string; category: string; publishedAt: string | null }[];
+    estimatedAudience: { verifiedUsers: number; activeSubscribers: number };
+}
+
 /* ------------------------------------------------------------------ */
-/* Components                                                         */
+/* Presentational Helpers                                             */
 /* ------------------------------------------------------------------ */
 
 function StatCard({
@@ -208,7 +217,7 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 /* ------------------------------------------------------------------ */
-/* Page                                                               */
+/* Main Page                                                          */
 /* ------------------------------------------------------------------ */
 
 export default function AdminBlogEmailPage() {
@@ -239,6 +248,16 @@ export default function AdminBlogEmailPage() {
     const [newSubAutoActivate, setNewSubAutoActivate] = useState(true);
     const [addingSub, setAddingSub] = useState(false);
 
+    // Direct personal send modal
+    const [showDirectSendModal, setShowDirectSendModal] = useState(false);
+    const [directTo, setDirectTo] = useState('');
+    const [directName, setDirectName] = useState('');
+    const [directSubject, setDirectSubject] = useState('');
+    const [directContent, setDirectContent] = useState('');
+    const [directCtaLabel, setDirectCtaLabel] = useState('');
+    const [directCtaUrl, setDirectCtaUrl] = useState('');
+    const [sendingDirect, setSendingDirect] = useState(false);
+
     // Compose
     const [cType, setCType] = useState('NEWSLETTER');
     const [cSubject, setCSubject] = useState('');
@@ -268,6 +287,14 @@ export default function AdminBlogEmailPage() {
     const [delivStatus, setDelivStatus] = useState('all');
     const [retryingDeliveryId, setRetryingDeliveryId] = useState<string | null>(null);
     const [retryingCampaignId, setRetryingCampaignId] = useState<string | null>(null);
+
+    // Weekly Digest & Cron Hub
+    const [weeklyPreview, setWeeklyPreview] = useState<WeeklyDigestPreview | null>(null);
+    const [weeklyLoading, setWeeklyLoading] = useState(false);
+    const [weeklyAudience, setWeeklyAudience] = useState<'verified_users' | 'subscribers'>('verified_users');
+    const [weeklyCustomSubject, setWeeklyCustomSubject] = useState('');
+    const [dispatchingWeekly, setDispatchingWeekly] = useState(false);
+    const [drainingQueue, setDrainingQueue] = useState(false);
 
     // Settings
     const [settings, setSettings] = useState<EmailSettings | null>(null);
@@ -354,6 +381,21 @@ export default function AdminBlogEmailPage() {
         }
     }, []);
 
+    const loadWeeklyPreview = useCallback(async () => {
+        setWeeklyLoading(true);
+        try {
+            const res = await fetch('/api/admin/blog/email/weekly-digest');
+            if (res.ok) {
+                const data = await res.json();
+                setWeeklyPreview(data);
+            }
+        } catch {
+            toast.error('Failed to load weekly digest preview');
+        } finally {
+            setWeeklyLoading(false);
+        }
+    }, []);
+
     const loadSettings = useCallback(async () => {
         try {
             const res = await fetch('/api/admin/blog/email/settings');
@@ -362,11 +404,11 @@ export default function AdminBlogEmailPage() {
                 setSettings(data.settings);
             }
         } catch {
-            // Ignore failure, fallback to overview data
+            // Ignore fallback
         }
     }, []);
 
-    // Initial loads
+    // Initial and tab-driven triggers
     useEffect(() => {
         if (user) loadOverview();
     }, [user, loadOverview]);
@@ -378,6 +420,10 @@ export default function AdminBlogEmailPage() {
     useEffect(() => {
         if (user && tab === 'history') loadCampaigns();
     }, [user, tab, loadCampaigns]);
+
+    useEffect(() => {
+        if (user && tab === 'weekly') loadWeeklyPreview();
+    }, [user, tab, loadWeeklyPreview]);
 
     useEffect(() => {
         if (user && tab === 'settings') loadSettings();
@@ -405,7 +451,7 @@ export default function AdminBlogEmailPage() {
     };
 
     const deleteSubscriber = async (id: string) => {
-        if (!confirm('Permanently delete this subscriber? Unsubscribing is usually recommended to maintain suppression lists.')) return;
+        if (!confirm('Permanently delete this subscriber? Unsubscribing is usually recommended.')) return;
         try {
             const res = await fetch(`/api/admin/blog/email/subscribers/${id}`, { method: 'DELETE' });
             const data = await res.json();
@@ -463,32 +509,47 @@ export default function AdminBlogEmailPage() {
         }
     };
 
-    const exportSubscribersCsv = () => {
-        if (!subscribers.length) {
-            toast.error('No subscribers available to export');
+    // Direct Send Handler
+    const handleSendDirect = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!directTo.trim() || !directSubject.trim() || !directContent.trim()) {
+            toast.error('Recipient, Subject, and Content are required.');
             return;
         }
-        const headers = ['Email', 'Name', 'Status', 'Frequency', 'AllTopics', 'EmailsSent', 'BounceCount', 'JoinedAt'];
-        const rows = subscribers.map((s) => [
-            s.email,
-            `"${(s.name || '').replace(/"/g, '""')}"`,
-            s.status,
-            s.frequency,
-            s.allTopics ? 'YES' : 'NO',
-            s.emailsSent,
-            s.bounceCount,
-            new Date(s.createdAt).toISOString(),
-        ]);
 
-        const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
-        const encodedUri = encodeURI(csvContent);
-        const link = document.createElement('a');
-        link.setAttribute('href', encodedUri);
-        link.setAttribute('download', `blog_subscribers_${new Date().toISOString().slice(0, 10)}.csv`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        toast.success('Subscriber CSV exported');
+        setSendingDirect(true);
+        try {
+            const res = await fetch('/api/admin/blog/email/send-direct', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    to: directTo.trim(),
+                    name: directName.trim() || undefined,
+                    subject: directSubject.trim(),
+                    content: directContent.trim(),
+                    ctaLabel: directCtaLabel.trim() || undefined,
+                    ctaUrl: directCtaUrl.trim() || undefined,
+                }),
+            });
+            const data = await res.json();
+            if (res.ok) {
+                toast.success(data.message || `Email sent to ${directTo}`);
+                setShowDirectSendModal(false);
+                setDirectTo('');
+                setDirectName('');
+                setDirectSubject('');
+                setDirectContent('');
+                setDirectCtaLabel('');
+                setDirectCtaUrl('');
+                loadOverview();
+            } else {
+                toast.error(data.error || 'Failed to send direct email');
+            }
+        } catch {
+            toast.error('Error sending direct email');
+        } finally {
+            setSendingDirect(false);
+        }
     };
 
     // Campaign Deliveries Inspector & Single User Retry
@@ -531,16 +592,13 @@ export default function AdminBlogEmailPage() {
             const data = await res.json();
             if (res.ok) {
                 toast.success(data.message || `Retried successfully for ${email}`);
-                // Update local delivery row
                 setDeliveries((prev) =>
                     prev.map((d) => (d.id === deliveryId ? { ...d, status: 'SENT', error: null, attempts: d.attempts + 1 } : d))
                 );
-                // Refresh overview & campaigns list
                 loadOverview();
                 loadCampaigns();
             } else {
                 toast.error(data.error || `Retry failed for ${email}`);
-                // Update local error message
                 setDeliveries((prev) =>
                     prev.map((d) => (d.id === deliveryId ? { ...d, error: data.error || 'Retry attempt failed', attempts: d.attempts + 1 } : d))
                 );
@@ -552,9 +610,9 @@ export default function AdminBlogEmailPage() {
         }
     };
 
-    // Campaign Actions (Retry all / Cancel)
+    // Campaign Actions (Retry / Restart / Cancel)
     const campaignAction = async (id: string, action: string) => {
-        if (action === 'retry') setRetryingCampaignId(id);
+        if (action === 'retry' || action === 'restart') setRetryingCampaignId(id);
         try {
             const res = await fetch(`/api/admin/blog/email/campaigns/${id}`, {
                 method: 'POST',
@@ -563,7 +621,7 @@ export default function AdminBlogEmailPage() {
             });
             const data = await res.json();
             if (res.ok) {
-                toast.success(data.message || `Campaign ${action} triggered`);
+                toast.success(data.message || `Campaign ${action} completed`);
                 loadCampaigns();
                 loadOverview();
                 if (selectedCampaign && selectedCampaign.id === id) {
@@ -576,6 +634,62 @@ export default function AdminBlogEmailPage() {
             toast.error('Campaign action failed');
         } finally {
             setRetryingCampaignId(null);
+        }
+    };
+
+    // Weekly Digest Broadcast
+    const handleBroadcastWeekly = async () => {
+        const count = weeklyAudience === 'verified_users'
+            ? weeklyPreview?.estimatedAudience?.verifiedUsers
+            : weeklyPreview?.estimatedAudience?.activeSubscribers;
+
+        if (!confirm(`Queue and broadcast the weekly digest to ${count ?? ''} ${weeklyAudience === 'verified_users' ? 'verified platform users' : 'newsletter subscribers'}? Sends will start immediately.`)) {
+            return;
+        }
+
+        setDispatchingWeekly(true);
+        try {
+            const res = await fetch('/api/admin/blog/email/weekly-digest', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    audience: weeklyAudience,
+                    customSubject: weeklyCustomSubject.trim() || undefined,
+                }),
+            });
+            const data = await res.json();
+            if (res.ok) {
+                toast.success(data.message || 'Weekly digest broadcast queued successfully!');
+                loadOverview();
+                setTab('history');
+                loadCampaigns();
+            } else {
+                toast.error(data.error || 'Failed to dispatch weekly digest');
+            }
+        } catch {
+            toast.error('Error broadcasting weekly digest');
+        } finally {
+            setDispatchingWeekly(false);
+        }
+    };
+
+    // Drain Queue Manual Flush
+    const handleDrainQueue = async () => {
+        setDrainingQueue(true);
+        try {
+            const res = await fetch('/api/cron/email/drain?timeBudgetMs=40000');
+            const data = await res.json();
+            if (res.ok) {
+                toast.success(`Queue drain executed: ${data.sent || 0} sent, ${data.failed || 0} failed, ${data.remaining || 0} remaining.`);
+                loadOverview();
+                loadCampaigns();
+            } else {
+                toast.error(data.error || 'Queue drain failed');
+            }
+        } catch {
+            toast.error('Network error executing queue drain');
+        } finally {
+            setDrainingQueue(false);
         }
     };
 
@@ -650,7 +764,7 @@ export default function AdminBlogEmailPage() {
             toast.error('Subject and content are required');
             return;
         }
-        if (!confirm('Are you sure you want to queue this campaign to all matching subscribers?')) return;
+        if (!confirm('Queue this campaign to matching subscribers? Sending will start immediately in the background.')) return;
         setSending(true);
         try {
             const res = await fetch('/api/admin/blog/email/campaigns', {
@@ -660,7 +774,7 @@ export default function AdminBlogEmailPage() {
             });
             const data = await res.json();
             if (res.ok) {
-                toast.success(data.message || 'Campaign successfully queued');
+                toast.success(data.message || 'Campaign queued and sending in background!');
                 setCSubject('');
                 setCPreviewText('');
                 setCContent('');
@@ -739,30 +853,41 @@ export default function AdminBlogEmailPage() {
                                 Blog Email &amp; Newsletter
                             </h1>
                             <p className="text-slate-600 dark:text-slate-400 mt-1 text-sm sm:text-base">
-                                Broadcast campaigns, manage subscribers, monitor deliveries, and retry failed recipients.
+                                Broadcast newsletters, manage subscriber lists, inspect deliveries, and retry failed recipients.
                             </p>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                             <Button
                                 onClick={() => {
                                     loadOverview();
                                     if (tab === 'subscribers') loadSubscribers();
                                     if (tab === 'history') loadCampaigns();
-                                    toast.success('Refreshed data');
+                                    if (tab === 'weekly') loadWeeklyPreview();
+                                    toast.success('Refreshed live data');
                                 }}
                                 variant="outline"
                                 size="sm"
-                                className="border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 shadow-sm"
+                                className="border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 shadow-sm"
                             >
-                                <RefreshCw className="h-4 w-4 mr-2" />
+                                <RefreshCw className="h-4 w-4 mr-1.5" />
                                 Refresh
+                            </Button>
+                            <Button
+                                onClick={() => setShowDirectSendModal(true)}
+                                size="sm"
+                                variant="outline"
+                                className="border-indigo-300 dark:border-indigo-800 text-indigo-700 dark:text-indigo-400 bg-white dark:bg-slate-900 shadow-sm"
+                                title="Send a one-off email directly to any email address"
+                            >
+                                <SendHorizonal className="h-4 w-4 mr-1.5" />
+                                Direct Send
                             </Button>
                             <Button
                                 onClick={() => setShowAddSubModal(true)}
                                 size="sm"
                                 className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
                             >
-                                <UserPlus className="h-4 w-4 mr-2" />
+                                <UserPlus className="h-4 w-4 mr-1.5" />
                                 Add Subscriber
                             </Button>
                         </div>
@@ -813,6 +938,12 @@ export default function AdminBlogEmailPage() {
                                 className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium"
                             >
                                 Campaigns &amp; History
+                            </TabsTrigger>
+                            <TabsTrigger
+                                value="weekly"
+                                className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium"
+                            >
+                                Weekly &amp; Crons
                             </TabsTrigger>
                             <TabsTrigger
                                 value="settings"
@@ -1029,14 +1160,6 @@ export default function AdminBlogEmailPage() {
                                             >
                                                 <Search className="h-4 w-4 mr-1.5" /> Filter
                                             </Button>
-                                            <Button
-                                                onClick={exportSubscribersCsv}
-                                                variant="outline"
-                                                className="border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300"
-                                                title="Export to CSV"
-                                            >
-                                                <Download className="h-4 w-4" />
-                                            </Button>
                                         </div>
                                     </div>
                                 </CardHeader>
@@ -1093,6 +1216,22 @@ export default function AdminBlogEmailPage() {
                                                     </div>
 
                                                     <div className="flex items-center gap-1.5 flex-shrink-0 self-end sm:self-center">
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            onClick={() => {
+                                                                setDirectTo(s.email);
+                                                                setDirectName(s.name || '');
+                                                                setDirectSubject(`Important update for ${s.name || 'you'}`);
+                                                                setShowDirectSendModal(true);
+                                                            }}
+                                                            className="h-8 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200"
+                                                            title="Direct email send to this subscriber"
+                                                        >
+                                                            <Send className="h-3.5 w-3.5 mr-1 text-indigo-500" />
+                                                            Send Direct
+                                                        </Button>
+
                                                         {s.status === 'PENDING' && (
                                                             <Button
                                                                 size="sm"
@@ -1198,7 +1337,7 @@ export default function AdminBlogEmailPage() {
                                         Compose Broadcast Campaign
                                     </CardTitle>
                                     <CardDescription className="text-slate-500 dark:text-slate-400 text-sm">
-                                        Send targeted newsletters or blog announcements to subscribers. You can preview in real-time and send a test before broadcasting.
+                                        Send targeted newsletters or blog announcements to subscribers. Sends begin immediately in the background upon queuing.
                                     </CardDescription>
                                 </CardHeader>
                                 <CardContent className="p-4 sm:p-6 space-y-5">
@@ -1397,7 +1536,7 @@ export default function AdminBlogEmailPage() {
                                             Campaign Broadcast History
                                         </CardTitle>
                                         <CardDescription className="text-slate-500 dark:text-slate-400 text-xs mt-0.5">
-                                            Inspect recipient deliveries, see individual error reasons, and retry for any user.
+                                            Inspect recipient deliveries, restart cancelled campaigns, and retry any failed recipient.
                                         </CardDescription>
                                     </div>
                                     <Button
@@ -1421,7 +1560,8 @@ export default function AdminBlogEmailPage() {
                                     ) : (
                                         <div className="space-y-2.5">
                                             {campaigns.map((c) => {
-                                                const canRetry = c.status === 'PARTIALLY_FAILED' || c.status === 'FAILED';
+                                                const isCancelled = c.status === 'CANCELLED';
+                                                const canRetry = c.status === 'PARTIALLY_FAILED' || c.status === 'FAILED' || isCancelled;
                                                 const canCancel = c.status === 'QUEUED' || c.status === 'SENDING';
                                                 return (
                                                     <div
@@ -1463,7 +1603,25 @@ export default function AdminBlogEmailPage() {
                                                                 Inspect Recipients
                                                             </Button>
 
-                                                            {canRetry && (
+                                                            {isCancelled && (
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="outline"
+                                                                    disabled={retryingCampaignId === c.id}
+                                                                    onClick={() => campaignAction(c.id, 'restart')}
+                                                                    className="h-8 border-indigo-300 text-indigo-700 dark:text-indigo-400 dark:border-indigo-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 font-medium"
+                                                                    title="Restart cancelled campaign"
+                                                                >
+                                                                    {retryingCampaignId === c.id ? (
+                                                                        <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                                                                    ) : (
+                                                                        <RotateCcw className="h-3.5 w-3.5 mr-1.5 text-indigo-600" />
+                                                                    )}
+                                                                    Restart Campaign
+                                                                </Button>
+                                                            )}
+
+                                                            {!isCancelled && canRetry && (
                                                                 <Button
                                                                     size="sm"
                                                                     variant="outline"
@@ -1475,7 +1633,7 @@ export default function AdminBlogEmailPage() {
                                                                     {retryingCampaignId === c.id ? (
                                                                         <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
                                                                     ) : (
-                                                                        <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
+                                                                        <RotateCcw className="h-3.5 w-3.5 mr-1.5 text-amber-600" />
                                                                     )}
                                                                     Retry Failed
                                                                 </Button>
@@ -1498,6 +1656,226 @@ export default function AdminBlogEmailPage() {
                                             })}
                                         </div>
                                     )}
+                                </CardContent>
+                            </Card>
+                        </TabsContent>
+
+                        {/* ========================================================= */}
+                        {/* TAB: WEEKLY & CRONS                                       */}
+                        {/* ========================================================= */}
+                        <TabsContent value="weekly" className="space-y-6">
+                            {/* Card 1: Weekly Digest Broadcast */}
+                            <Card className="bg-white dark:bg-slate-900/70 border-slate-200/80 dark:border-slate-800 shadow-sm">
+                                <CardHeader className="pb-3 border-b border-slate-100 dark:border-slate-800">
+                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                        <div>
+                                            <CardTitle className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                                                <Sparkles className="h-5 w-5 text-amber-500" />
+                                                Weekly Digest &amp; Top Picks Broadcast
+                                            </CardTitle>
+                                            <CardDescription className="text-slate-500 dark:text-slate-400 text-xs mt-1">
+                                                Broadcast this week&apos;s curated poultry farming articles and market insights directly to verified platform users or newsletter subscribers.
+                                            </CardDescription>
+                                        </div>
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={loadWeeklyPreview}
+                                            className="border-slate-300 dark:border-slate-700 self-start sm:self-auto"
+                                        >
+                                            <RefreshCw className="h-3.5 w-3.5 mr-1" /> Check Articles
+                                        </Button>
+                                    </div>
+                                </CardHeader>
+                                <CardContent className="p-4 sm:p-6 space-y-5">
+                                    {weeklyLoading ? (
+                                        <div className="flex justify-center py-12">
+                                            <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
+                                        </div>
+                                    ) : (
+                                        <>
+                                            {/* Audience Selection */}
+                                            <div className="space-y-2">
+                                                <Label className="text-slate-700 dark:text-slate-300 text-sm font-semibold">
+                                                    Target Audience
+                                                </Label>
+                                                <div className="grid sm:grid-cols-2 gap-3">
+                                                    <div
+                                                        onClick={() => setWeeklyAudience('verified_users')}
+                                                        className={cn(
+                                                            'p-3.5 rounded-xl border cursor-pointer transition-all',
+                                                            weeklyAudience === 'verified_users'
+                                                                ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20 ring-1 ring-emerald-500'
+                                                                : 'border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 hover:border-slate-300'
+                                                        )}
+                                                    >
+                                                        <div className="flex items-center justify-between">
+                                                            <p className="text-sm font-bold text-slate-900 dark:text-white">
+                                                                All Verified Platform Users
+                                                            </p>
+                                                            <Badge className="bg-emerald-600 text-white text-[10px]">
+                                                                {weeklyPreview?.estimatedAudience?.verifiedUsers ?? 0} Users
+                                                            </Badge>
+                                                        </div>
+                                                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                                                            Broadcast to customers, sellers, companies, and stakeholders with verified accounts.
+                                                        </p>
+                                                    </div>
+
+                                                    <div
+                                                        onClick={() => setWeeklyAudience('subscribers')}
+                                                        className={cn(
+                                                            'p-3.5 rounded-xl border cursor-pointer transition-all',
+                                                            weeklyAudience === 'subscribers'
+                                                                ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20 ring-1 ring-emerald-500'
+                                                                : 'border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 hover:border-slate-300'
+                                                        )}
+                                                    >
+                                                        <div className="flex items-center justify-between">
+                                                            <p className="text-sm font-bold text-slate-900 dark:text-white">
+                                                                Newsletter Subscribers
+                                                            </p>
+                                                            <Badge className="bg-sky-600 text-white text-[10px]">
+                                                                {weeklyPreview?.estimatedAudience?.activeSubscribers ?? 0} Active
+                                                            </Badge>
+                                                        </div>
+                                                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                                                            Broadcast to opted-in blog subscribers following the weekly digest cadence.
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Articles Preview */}
+                                            <div className="space-y-2">
+                                                <Label className="text-slate-700 dark:text-slate-300 text-sm font-semibold">
+                                                    Articles Included This Week ({weeklyPreview?.articles?.length ?? 0})
+                                                </Label>
+                                                {!weeklyPreview?.articles?.length ? (
+                                                    <p className="text-xs text-amber-600 dark:text-amber-400">
+                                                        No published articles found in the database. Publish an article first.
+                                                    </p>
+                                                ) : (
+                                                    <div className="grid sm:grid-cols-2 gap-2.5">
+                                                        {weeklyPreview.articles.map((art) => (
+                                                            <div
+                                                                key={art.id}
+                                                                className="p-3 bg-slate-50/80 dark:bg-slate-900/40 rounded-lg border border-slate-200/70 dark:border-slate-800"
+                                                            >
+                                                                <p className="text-xs font-semibold text-slate-900 dark:text-white line-clamp-1">
+                                                                    {art.title}
+                                                                </p>
+                                                                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                                                                    {art.category.replace(/_/g, ' ')} ·{' '}
+                                                                    {art.publishedAt
+                                                                        ? new Date(art.publishedAt).toLocaleDateString()
+                                                                        : 'Recent'}
+                                                                </p>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* Custom Subject Override */}
+                                            <div className="space-y-2">
+                                                <Label className="text-slate-700 dark:text-slate-300 text-sm font-semibold">
+                                                    Subject Override (Optional)
+                                                </Label>
+                                                <Input
+                                                    value={weeklyCustomSubject}
+                                                    onChange={(e) => setWeeklyCustomSubject(e.target.value)}
+                                                    placeholder="Default: Weekly Poultry Market Picks: [N] Top Articles This Week"
+                                                    className="bg-slate-50/50 dark:bg-slate-900 border-slate-300 dark:border-slate-700"
+                                                />
+                                            </div>
+
+                                            {/* Trigger Broadcast Button */}
+                                            <div className="pt-2">
+                                                <Button
+                                                    onClick={handleBroadcastWeekly}
+                                                    disabled={dispatchingWeekly || !weeklyPreview?.articles?.length}
+                                                    className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-medium shadow-md shadow-emerald-600/20"
+                                                >
+                                                    {dispatchingWeekly ? (
+                                                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                                    ) : (
+                                                        <Send className="h-4 w-4 mr-2" />
+                                                    )}
+                                                    Broadcast Weekly Digest Now
+                                                </Button>
+                                            </div>
+                                        </>
+                                    )}
+                                </CardContent>
+                            </Card>
+
+                            {/* Card 2: Queue Drain & Instant Flush */}
+                            <Card className="bg-white dark:bg-slate-900/70 border-slate-200/80 dark:border-slate-800 shadow-sm">
+                                <CardHeader className="pb-3 border-b border-slate-100 dark:border-slate-800">
+                                    <CardTitle className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                                        <Zap className="h-5 w-5 text-indigo-500" />
+                                        Email Queue Drain &amp; Immediate Worker Flush
+                                    </CardTitle>
+                                    <CardDescription className="text-slate-500 dark:text-slate-400 text-xs mt-0.5">
+                                        The email engine drains in small safe batches to respect Resend rate limits. Trigger an immediate worker pass to flush all queued deliveries right now.
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent className="p-4 sm:p-6 space-y-4">
+                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-slate-50/80 dark:bg-slate-900/40 rounded-xl border border-slate-200/60 dark:border-slate-800/60">
+                                        <div>
+                                            <p className="text-sm font-semibold text-slate-900 dark:text-white">
+                                                Run Queue Drain Worker
+                                            </p>
+                                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                                                Claims up to 50 queued deliveries across pending campaigns and sends them immediately.
+                                            </p>
+                                        </div>
+                                        <Button
+                                            onClick={handleDrainQueue}
+                                            disabled={drainingQueue}
+                                            variant="outline"
+                                            className="border-indigo-300 dark:border-indigo-800 text-indigo-700 dark:text-indigo-400 bg-white dark:bg-slate-900"
+                                        >
+                                            {drainingQueue ? (
+                                                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                            ) : (
+                                                <RotateCcw className="h-4 w-4 mr-2" />
+                                            )}
+                                            Flush Queue Now
+                                        </Button>
+                                    </div>
+                                </CardContent>
+                            </Card>
+
+                            {/* Card 3: Cron Setup & Architecture Guide */}
+                            <Card className="bg-white dark:bg-slate-900/70 border-slate-200/80 dark:border-slate-800 shadow-sm">
+                                <CardHeader className="pb-3 border-b border-slate-100 dark:border-slate-800">
+                                    <CardTitle className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                                        <HelpCircle className="h-5 w-5 text-slate-500" />
+                                        How The Cron Jobs &amp; Scheduled Tasks Work
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="p-4 sm:p-6 space-y-3 text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                                    <p>
+                                        Next.js runs as serverless request handlers, meaning it does not run persistent clock ticks in the background on its own. Instead, scheduled jobs are triggered through lightweight HTTP endpoints:
+                                    </p>
+                                    <div className="space-y-2 pt-1 font-mono text-[11px]">
+                                        <div className="p-2.5 bg-slate-100 dark:bg-slate-950 rounded border border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                                            <span>GET /api/cron/email/drain</span>
+                                            <Badge variant="outline" className="text-[10px]">Every 1 min (Vercel Cron)</Badge>
+                                        </div>
+                                        <div className="p-2.5 bg-slate-100 dark:bg-slate-950 rounded border border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                                            <span>GET /api/cron/email/weekly-digest</span>
+                                            <Badge variant="outline" className="text-[10px]">Every Mon 9am (Vercel Cron)</Badge>
+                                        </div>
+                                    </div>
+                                    <p className="pt-2">
+                                        <strong>Automatic Vercel Scheduling:</strong> These cron routes are now registered in <code className="bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded">vercel.json</code>. When deployed to Vercel, Vercel Cron triggers them automatically with an authenticated Bearer token.
+                                    </p>
+                                    <p>
+                                        <strong>Immediate Send on Action:</strong> Whenever you queue a campaign or broadcast weekly picks, the system also immediately fires a background send worker pass so emails start delivering without waiting for the next cron tick!
+                                    </p>
                                 </CardContent>
                             </Card>
                         </TabsContent>
@@ -1678,6 +2056,23 @@ export default function AdminBlogEmailPage() {
                             >
                                 <RefreshCw className="h-3.5 w-3.5" />
                             </Button>
+
+                            {selectedCampaign?.status === 'CANCELLED' && (
+                                <Button
+                                    size="sm"
+                                    onClick={() => campaignAction(selectedCampaign.id, 'restart')}
+                                    disabled={retryingCampaignId === selectedCampaign.id}
+                                    className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs"
+                                >
+                                    {retryingCampaignId === selectedCampaign.id ? (
+                                        <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
+                                    ) : (
+                                        <RotateCcw className="h-3.5 w-3.5 mr-1" />
+                                    )}
+                                    Restart Campaign
+                                </Button>
+                            )}
+
                             {selectedCampaign && (selectedCampaign.status === 'PARTIALLY_FAILED' || selectedCampaign.status === 'FAILED') && (
                                 <Button
                                     size="sm"
@@ -1777,6 +2172,122 @@ export default function AdminBlogEmailPage() {
                             Close
                         </Button>
                     </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* ========================================================= */}
+            {/* MODAL: DIRECT PERSONAL SEND ("TRIGGER SEND")              */}
+            {/* ========================================================= */}
+            <Dialog open={showDirectSendModal} onOpenChange={setShowDirectSendModal}>
+                <DialogContent className="max-w-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 p-6 shadow-2xl">
+                    <DialogHeader>
+                        <DialogTitle className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                            <SendHorizonal className="h-5 w-5 text-indigo-600" />
+                            Direct Personal Email Send
+                        </DialogTitle>
+                        <DialogDescription className="text-slate-500 dark:text-slate-400 text-xs">
+                            Trigger an immediate one-off email send to a specific person or subscriber.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={handleSendDirect} className="space-y-4 pt-2">
+                        <div className="grid sm:grid-cols-2 gap-3">
+                            <div className="space-y-1.5">
+                                <Label className="text-slate-700 dark:text-slate-300 text-xs font-semibold">
+                                    Recipient Email *
+                                </Label>
+                                <Input
+                                    type="email"
+                                    required
+                                    value={directTo}
+                                    onChange={(e) => setDirectTo(e.target.value)}
+                                    placeholder="user@example.com"
+                                    className="bg-slate-50/50 dark:bg-slate-900 border-slate-300 dark:border-slate-700 text-sm"
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label className="text-slate-700 dark:text-slate-300 text-xs font-semibold">
+                                    Recipient Name (Optional)
+                                </Label>
+                                <Input
+                                    value={directName}
+                                    onChange={(e) => setDirectName(e.target.value)}
+                                    placeholder="Wanjiku"
+                                    className="bg-slate-50/50 dark:bg-slate-900 border-slate-300 dark:border-slate-700 text-sm"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <Label className="text-slate-700 dark:text-slate-300 text-xs font-semibold">
+                                Subject *
+                            </Label>
+                            <Input
+                                required
+                                value={directSubject}
+                                onChange={(e) => setDirectSubject(e.target.value)}
+                                placeholder="Subject line"
+                                className="bg-slate-50/50 dark:bg-slate-900 border-slate-300 dark:border-slate-700 text-sm"
+                            />
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <Label className="text-slate-700 dark:text-slate-300 text-xs font-semibold">
+                                Message Body *
+                            </Label>
+                            <Textarea
+                                required
+                                rows={5}
+                                value={directContent}
+                                onChange={(e) => setDirectContent(e.target.value)}
+                                placeholder="Enter message. Double line breaks create paragraphs."
+                                className="bg-slate-50/50 dark:bg-slate-900 border-slate-300 dark:border-slate-700 text-sm resize-y"
+                            />
+                        </div>
+
+                        <div className="grid sm:grid-cols-2 gap-3">
+                            <div className="space-y-1.5">
+                                <Label className="text-slate-700 dark:text-slate-300 text-xs font-semibold">
+                                    Button Label (Optional)
+                                </Label>
+                                <Input
+                                    value={directCtaLabel}
+                                    onChange={(e) => setDirectCtaLabel(e.target.value)}
+                                    placeholder="Visit Blog"
+                                    className="bg-slate-50/50 dark:bg-slate-900 border-slate-300 dark:border-slate-700 text-sm"
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label className="text-slate-700 dark:text-slate-300 text-xs font-semibold">
+                                    Button URL (Optional)
+                                </Label>
+                                <Input
+                                    value={directCtaUrl}
+                                    onChange={(e) => setDirectCtaUrl(e.target.value)}
+                                    placeholder="/blog or https://..."
+                                    className="bg-slate-50/50 dark:bg-slate-900 border-slate-300 dark:border-slate-700 text-sm"
+                                />
+                            </div>
+                        </div>
+
+                        <DialogFooter className="pt-2">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setShowDirectSendModal(false)}
+                                className="border-slate-300 dark:border-slate-700"
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                type="submit"
+                                disabled={sendingDirect}
+                                className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                            >
+                                {sendingDirect ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : null}
+                                Send Email Now
+                            </Button>
+                        </DialogFooter>
+                    </form>
                 </DialogContent>
             </Dialog>
 

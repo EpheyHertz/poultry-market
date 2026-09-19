@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
         const body = await request.json().catch(() => ({}));
         const action = String(body.action || '');
 
-        if (action === 'retry') {
+        if (action === 'retry' || action === 'restart') {
             const result = await retryCampaign(id, { timeBudgetMs: 20_000 });
             return NextResponse.json({
                 success: true,
@@ -112,8 +112,8 @@ export async function POST(request: NextRequest) {
                 result,
                 message:
                     result.remaining > 0
-                        ? `Retrying — ${result.sent} sent this run, ${result.remaining} still queued for the background worker.`
-                        : `Retry complete — ${result.sent} sent, ${result.failed} failed.`,
+                        ? `Campaign ${action === 'restart' ? 'restarted' : 'retrying'} — ${result.sent} sent immediately, ${result.remaining} still queued in background.`
+                        : `Campaign complete — ${result.sent} sent, ${result.failed} failed.`,
             });
         }
 
