@@ -51,4 +51,4 @@ export const prisma = new Proxy({} as PrismaClient, {
     return client[prop as keyof PrismaClient]
   },
 })
-
+//good one
