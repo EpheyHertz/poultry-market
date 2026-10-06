@@ -1,44 +1,31 @@
 /**
- * SearchService — Blog Search & Hybrid Semantic Search
+ * SearchService — Blog Search & Hybrid Lexical Search
  *
- * Clean-architecture service layer for blog search operations.
- * All search logic lives here; route handlers only orchestrate.
+ * PostgreSQL/Prisma only.
  *
- * The "semantic" search uses a three-tier hybrid approach:
- *   1. PostgreSQL Full-Text Search (tsvector/tsquery), tried AND-first for
- *      precision and falling back to OR for recall.
- *   2. Prisma keyword `contains` search — exact substring matching that FTS
- *      stemming can sometimes miss.
- *   3. Trigram similarity fallback (pg_trgm) — only engaged when tiers 1 and
- *      2 both come back empty, so typos / unusual phrasing still surface
- *      something instead of a hard zero.
- * All three are merged with Reciprocal Rank Fusion (RRF).
+ * Search strategy:
  *
- * No external embedding APIs required. Runs entirely in Postgres.
+ *  1. Exact phrase search
+ *  2. All-term search
+ *  3. Any-term search
+ *  4. Title + tag search
+ *  5. Category search
+ *  6. PostgreSQL Full-Text Search (optional enhancement)
+ *  7. PostgreSQL trigram fuzzy search
+ *  8. Published-post fallback
  *
- * ─────────────────────────────────────────────────────────────────────────
- * ⚠️  IMPORTANT — VERIFY YOUR RAW SQL TABLE NAMES BEFORE RELYING ON THIS
- * ─────────────────────────────────────────────────────────────────────────
- * FTS_SQL and the trigram query below assume your Postgres tables are:
- *   blog_posts, blog_post_tags, blog_tags, author_profiles, users
- * with columns "authorProfileId", "authorId", "tagId", "postId".
+ * No embeddings.
+ * No external AI search API.
  *
- * These are only correct if your schema.prisma sets @@map(...) to these
- * snake_case names. If it doesn't, Prisma's default table name is the
- * PascalCase model name (e.g. "BlogPost", not blog_posts), and every raw
- * query below will throw `relation "blog_posts" does not exist`.
+ * The Prisma search path is the authoritative path because it uses the
+ * actual Prisma schema rather than assuming physical PostgreSQL table names.
  *
- * That error used to be swallowed silently and returned as an empty
- * array — which is very likely why you were seeing 0 results on every
- * query. It is no longer swallowed silently: it's logged with the real
- * Postgres error code, and you can also call `diagnoseSearchHealth()`
- * (or run scripts/diagnose-search.ts) to confirm your actual table names
- * and whether you have any PUBLISHED posts at all.
- * ─────────────────────────────────────────────────────────────────────────
+ * Raw SQL is used only for optional FTS/trigram enhancements.
  */
 
 import { prisma } from '@/lib/prisma';
 import { SITE_URL } from '@/lib/seo';
+
 import type {
   BlogSearchResult,
   SearchBlogsParams,
@@ -53,45 +40,92 @@ import type {
 const DEFAULT_LIMIT = 10;
 const MAX_LIMIT = 20;
 
-/** RRF constant — standard value from the original paper. */
 const RRF_K = 60;
 
-/** Number of candidates each sub-search retrieves before fusion. */
-const FTS_CANDIDATE_LIMIT = 30;
-const KEYWORD_CANDIDATE_LIMIT = 30;
-const TRIGRAM_CANDIDATE_LIMIT = 15;
+const FTS_CANDIDATE_LIMIT = 40;
+const TRIGRAM_CANDIDATE_LIMIT = 30;
 
-/** Minimum trigram similarity (0–1) to count as a fallback match. */
-const TRIGRAM_SIMILARITY_THRESHOLD = 0.15;
+const TRIGRAM_SIMILARITY_THRESHOLD = 0.12;
 
-/** Terms shorter than this (after cleaning) are dropped as noise. */
 const MIN_TERM_LENGTH = 2;
 
 /**
- * Common English filler words that add OR-noise to tsquery/contains
- * matching without adding search signal. Deliberately conservative —
- * only words that are never meaningful as standalone search terms.
+ * Conservative stopword list.
+ *
+ * We remove words that usually carry little search meaning, but deliberately
+ * keep domain words such as "can", "do", "does", "feed", "farm", etc.
  */
 const STOPWORDS = new Set([
-  'a', 'an', 'and', 'are', 'as', 'at', 'be', 'but', 'by', 'for', 'from',
-  'has', 'have', 'how', 'if', 'in', 'into', 'is', 'it', 'its', 'of', 'on',
-  'or', 'our', 'she', 'that', 'the', 'their', 'then', 'there', 'these',
-  'they', 'this', 'to', 'was', 'we', 'what', 'when', 'where', 'which',
-  'who', 'why', 'will', 'with', 'you', 'your',
+  'a',
+  'an',
+  'and',
+  'are',
+  'as',
+  'at',
+  'be',
+  'but',
+  'by',
+  'for',
+  'from',
+  'has',
+  'have',
+  'how',
+  'if',
+  'in',
+  'into',
+  'is',
+  'it',
+  'its',
+  'of',
+  'on',
+  'or',
+  'our',
+  'she',
+  'that',
+  'the',
+  'their',
+  'then',
+  'there',
+  'these',
+  'they',
+  'this',
+  'to',
+  'was',
+  'we',
+  'what',
+  'when',
+  'where',
+  'which',
+  'who',
+  'why',
+  'will',
+  'with',
+  'you',
+  'your',
 ]);
 
 // ---------------------------------------------------------------------------
-// Shared helpers
+// Helpers
 // ---------------------------------------------------------------------------
 
 function clampLimit(limit?: number): number {
-  if (limit === undefined || limit === null || !Number.isFinite(limit)) {
+  if (
+    limit === undefined ||
+    limit === null ||
+    !Number.isFinite(limit)
+  ) {
     return DEFAULT_LIMIT;
   }
-  return Math.min(Math.max(1, Math.floor(limit)), MAX_LIMIT);
+
+  return Math.min(
+    Math.max(1, Math.floor(limit)),
+    MAX_LIMIT,
+  );
 }
 
-/** Build the public-facing URL for a blog post. */
+/**
+ * Build the public URL for a blog post.
+ */
 function buildPostUrl(
   slug: string,
   authorUsername: string | null,
@@ -99,47 +133,96 @@ function buildPostUrl(
 ): string {
   const authorPath =
     authorUsername ||
-    (authorName ? authorName.replace(/\s+/g, '-').toLowerCase() : 'author');
+    (authorName
+      ? authorName.replace(/\s+/g, '-').toLowerCase()
+      : 'author');
+
   return `${SITE_URL}/blog/${authorPath}/${slug}`;
 }
 
 /**
- * Clean a raw query into significant search tokens: lowercase, strip
- * punctuation, drop stopwords and very short fragments. Shared by FTS,
- * keyword search, and category matching so all three agree on what
- * counts as a "real" term.
+ * Normalize and tokenize a search query.
+ *
+ * Unicode-aware so we do not unnecessarily destroy non-English terms.
  */
 function tokenize(query: string): string[] {
-  return query
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, ' ')
-    .split(/\s+/)
-    .filter((t) => t.length >= MIN_TERM_LENGTH && !STOPWORDS.has(t));
+  return Array.from(
+    new Set(
+      query
+        .normalize('NFKC')
+        .toLowerCase()
+        .replace(/[^\p{L}\p{N}\s-]/gu, ' ')
+        .replace(/[-]+/g, ' ')
+        .split(/\s+/)
+        .map((term) => term.trim())
+        .filter(
+          (term) =>
+            term.length >= MIN_TERM_LENGTH &&
+            !STOPWORDS.has(term),
+        ),
+    ),
+  );
 }
 
 /**
- * Build a tsquery string from pre-tokenized terms.
- * Every term is prefix-matched (:*) — more forgiving of plurals/typos
- * than matching only the last term, which is what comprehensive search
- * UX (typeahead-style) generally expects.
+ * Escape a term before putting it into a PostgreSQL tsquery.
  */
-function buildTsQueryFromTerms(terms: string[], mode: 'and' | 'or'): string {
-  if (terms.length === 0) return '';
-  const sep = mode === 'and' ? ' & ' : ' | ';
-  return terms.map((t) => `${t}:*`).join(sep);
+function escapeTsQueryTerm(term: string): string {
+  return term
+    .replace(/\\/g, '')
+    .replace(/[':!*&|()]/g, '');
 }
 
-/** Safely pull a message/error-code out of an unknown thrown value. */
-function describeError(err: unknown): { message: string; code?: string } {
-  if (err && typeof err === 'object') {
-    const e = err as { message?: string; code?: string };
-    return { message: e.message ?? String(err), code: e.code };
+/**
+ * Build PostgreSQL tsquery.
+ */
+function buildTsQueryFromTerms(
+  terms: string[],
+  mode: 'and' | 'or',
+): string {
+  const safeTerms = terms
+    .map(escapeTsQueryTerm)
+    .filter(Boolean);
+
+  if (safeTerms.length === 0) {
+    return '';
   }
-  return { message: String(err) };
+
+  const separator = mode === 'and' ? ' & ' : ' | ';
+
+  return safeTerms
+    .map((term) => `${term}:*`)
+    .join(separator);
+}
+
+/**
+ * Safely describe unknown errors.
+ */
+function describeError(
+  error: unknown,
+): {
+  message: string;
+  code?: string;
+} {
+  if (error && typeof error === 'object') {
+    const e = error as {
+      message?: string;
+      code?: string;
+    };
+
+    return {
+      message: e.message ?? String(error),
+      code: e.code,
+    };
+  }
+
+  return {
+    message: String(error),
+  };
 }
 
 // ---------------------------------------------------------------------------
-// Prisma select shapes
+// Prisma select
 // ---------------------------------------------------------------------------
 
 const searchSelect = {
@@ -147,16 +230,60 @@ const searchSelect = {
   title: true,
   slug: true,
   excerpt: true,
+  content: true,
   category: true,
   publishedAt: true,
-  authorProfile: { select: { username: true } },
-  author: { select: { name: true } },
-  tags: { select: { tag: { select: { name: true } } } },
+
+  authorProfile: {
+    select: {
+      username: true,
+    },
+  },
+
+  author: {
+    select: {
+      name: true,
+    },
+  },
+
+  tags: {
+    select: {
+      tag: {
+        select: {
+          name: true,
+        },
+      },
+    },
+  },
 } as const;
 
 // ---------------------------------------------------------------------------
-// Raw SQL (shared between AND / OR full-text queries)
+// Internal types
 // ---------------------------------------------------------------------------
+
+type SearchPost = {
+  id: string;
+  title: string;
+  slug: string;
+  excerpt: string | null;
+  content: string;
+  category: string;
+  publishedAt: Date | null;
+
+  authorProfile: {
+    username: string | null;
+  } | null;
+
+  author: {
+    name: string | null;
+  } | null;
+
+  tags: Array<{
+    tag: {
+      name: string;
+    };
+  }>;
+};
 
 interface RawFtsRow {
   id: string;
@@ -168,58 +295,138 @@ interface RawFtsRow {
   author_name: string | null;
 }
 
+interface RawTrigramRow extends RawFtsRow {
+  sim: number;
+}
+
+// ---------------------------------------------------------------------------
+// Raw FTS SQL
+//
+// IMPORTANT:
+//
+// This is intentionally an enhancement only.
+//
+// If your physical table names differ, this search tier will fail safely
+// without breaking the Prisma search tiers.
+//
+// The Prisma searches remain the primary retrieval mechanism.
+// ---------------------------------------------------------------------------
+
 const FTS_SQL = `
   SELECT
     bp.id,
     bp.title,
     bp.slug,
     bp.excerpt,
+
     ts_rank_cd(
-      setweight(to_tsvector('english', coalesce(bp.title, '')), 'A') ||
-      setweight(to_tsvector('english', coalesce(
-        (SELECT string_agg(bt.name, ' ')
-         FROM blog_post_tags bpt
-         JOIN blog_tags bt ON bt.id = bpt."tagId"
-         WHERE bpt."postId" = bp.id), ''
-      )), 'B') ||
-      setweight(to_tsvector('english', coalesce(bp.excerpt, '')), 'C') ||
-      setweight(to_tsvector('english', coalesce(bp.content, '')), 'D'),
+      setweight(
+        to_tsvector(
+          'english',
+          coalesce(bp.title, '')
+        ),
+        'A'
+      )
+      ||
+      setweight(
+        to_tsvector(
+          'english',
+          coalesce(
+            (
+              SELECT string_agg(bt.name, ' ')
+              FROM blog_post_tags bpt
+              JOIN blog_tags bt
+                ON bt.id = bpt."tagId"
+              WHERE bpt."postId" = bp.id
+            ),
+            ''
+          )
+        ),
+        'B'
+      )
+      ||
+      setweight(
+        to_tsvector(
+          'english',
+          coalesce(bp.excerpt, '')
+        ),
+        'C'
+      )
+      ||
+      setweight(
+        to_tsvector(
+          'english',
+          coalesce(bp.content, '')
+        ),
+        'D'
+      ),
       to_tsquery('english', $1)
     ) AS rank,
+
     ap.username AS author_username,
     u.name AS author_name
+
   FROM blog_posts bp
-  LEFT JOIN author_profiles ap ON ap.id = bp."authorProfileId"
-  LEFT JOIN users u ON u.id = bp."authorId"
+
+  LEFT JOIN author_profiles ap
+    ON ap.id = bp."authorProfileId"
+
+  LEFT JOIN users u
+    ON u.id = bp."authorId"
+
   WHERE bp.status = 'PUBLISHED'
+
     AND (
-      setweight(to_tsvector('english', coalesce(bp.title, '')), 'A') ||
-      setweight(to_tsvector('english', coalesce(
-        (SELECT string_agg(bt.name, ' ')
-         FROM blog_post_tags bpt
-         JOIN blog_tags bt ON bt.id = bpt."tagId"
-         WHERE bpt."postId" = bp.id), ''
-      )), 'B') ||
-      setweight(to_tsvector('english', coalesce(bp.excerpt, '')), 'C') ||
-      setweight(to_tsvector('english', coalesce(bp.content, '')), 'D')
-    ) @@ to_tsquery('english', $1)
+      setweight(
+        to_tsvector(
+          'english',
+          coalesce(bp.title, '')
+        ),
+        'A'
+      )
+      ||
+      setweight(
+        to_tsvector(
+          'english',
+          coalesce(
+            (
+              SELECT string_agg(bt.name, ' ')
+              FROM blog_post_tags bpt
+              JOIN blog_tags bt
+                ON bt.id = bpt."tagId"
+              WHERE bpt."postId" = bp.id
+            ),
+            ''
+          )
+        ),
+        'B'
+      )
+      ||
+      setweight(
+        to_tsvector(
+          'english',
+          coalesce(bp.excerpt, '')
+        ),
+        'C'
+      )
+      ||
+      setweight(
+        to_tsvector(
+          'english',
+          coalesce(bp.content, '')
+        ),
+        'D'
+      )
+    )
+    @@ to_tsquery('english', $1)
+
   ORDER BY rank DESC
+
   LIMIT $2
 `;
 
-function mapFtsRow(r: RawFtsRow): SemanticSearchResult {
-  return {
-    id: r.id,
-    title: r.title,
-    slug: r.slug,
-    excerpt: r.excerpt,
-    url: buildPostUrl(r.slug, r.author_username, r.author_name),
-    score: Math.round(Number(r.rank) * 1000) / 1000,
-  };
-}
-
 // ---------------------------------------------------------------------------
-// Diagnostics types
+// Diagnostics
 // ---------------------------------------------------------------------------
 
 export interface SearchProbeResult {
@@ -230,368 +437,1202 @@ export interface SearchProbeResult {
 
 export interface SearchDiagnosticsReport {
   timestamp: string;
+
   totalPosts: number;
+
   postsByStatus: Record<string, number>;
+
   samplePublishedTitles: string[];
-  /** Does the raw `blog_posts` table used by fullTextSearch() actually exist? */
+
   rawTableProbe: SearchProbeResult;
-  /** Does the ordinary Prisma client path (used by keyword search) work? */
+
   prismaClientProbe: SearchProbeResult;
-  /** Is the pg_trgm extension installed (needed for the fallback tier)? */
+
   trigramExtensionProbe: SearchProbeResult;
+
+  searchTests?: Array<{
+    query: string;
+    results: number;
+  }>;
 }
 
 // ---------------------------------------------------------------------------
-// Service
+// SearchService
 // ---------------------------------------------------------------------------
 
 export class SearchService {
-  /**
-   * Keyword search across published blogs (simple, UI-facing).
-   *
-   * Searches title, excerpt, tags, and content using case-insensitive
-   * `contains`. Category is matched when the query overlaps a category
-   * name's own words. Never returns draft / unpublished articles.
-   */
-  async searchBlogs(params: SearchBlogsParams): Promise<BlogSearchResult[]> {
+  // =========================================================================
+  // PUBLIC: Normal blog search
+  // =========================================================================
+
+  async searchBlogs(
+    params: SearchBlogsParams,
+  ): Promise<BlogSearchResult[]> {
     const limit = clampLimit(params.limit);
-    const query = params.query.trim();
-    const terms = tokenize(query);
 
-    const orConditions: Record<string, unknown>[] = [
-      { title: { contains: query, mode: 'insensitive' } },
-      { excerpt: { contains: query, mode: 'insensitive' } },
-      { content: { contains: query, mode: 'insensitive' } },
-      {
-        tags: {
-          some: {
-            tag: { name: { contains: query, mode: 'insensitive' } },
-          },
-        },
-      },
-    ];
+    const rawQuery = params.query?.trim();
 
-    const categoryMatch = this.matchCategory(terms, query);
-    if (categoryMatch) {
-      orConditions.push({ category: categoryMatch });
+    if (!rawQuery) {
+      return [];
     }
 
-    const posts = await prisma.blogPost.findMany({
-      where: { status: 'PUBLISHED', OR: orConditions },
-      select: searchSelect,
-      take: limit,
-      orderBy: { publishedAt: 'desc' },
-    });
+    const terms = tokenize(rawQuery);
 
-    return posts.map((post) => ({
-      id: post.id,
-      title: post.title,
-      slug: post.slug,
-      excerpt: post.excerpt,
-      category: post.category,
-      tags: post.tags.map((t) => t.tag.name),
-      publishedAt: post.publishedAt ? post.publishedAt.toISOString() : null,
-      url: buildPostUrl(
-        post.slug,
-        post.authorProfile?.username ?? null,
-        post.author?.name ?? null,
-      ),
-    }));
+    try {
+      /**
+       * Exact phrase first.
+       *
+       * This is intentionally kept because it produces the most intuitive
+       * result for searches such as:
+       *
+       * "sick chicks"
+       * "egg shell defects"
+       * "poultry feeding"
+       */
+      const exactPosts = await prisma.blogPost.findMany({
+        where: {
+          status: 'PUBLISHED',
+
+          OR: [
+            {
+              title: {
+                contains: rawQuery,
+                mode: 'insensitive',
+              },
+            },
+
+            {
+              excerpt: {
+                contains: rawQuery,
+                mode: 'insensitive',
+              },
+            },
+
+            {
+              content: {
+                contains: rawQuery,
+                mode: 'insensitive',
+              },
+            },
+
+            {
+              tags: {
+                some: {
+                  tag: {
+                    name: {
+                      contains: rawQuery,
+                      mode: 'insensitive',
+                    },
+                  },
+                },
+              },
+            },
+          ],
+        },
+
+        select: searchSelect,
+
+        take: limit,
+
+        orderBy: {
+          publishedAt: 'desc',
+        },
+      });
+
+      if (exactPosts.length > 0) {
+        return exactPosts.map((post) =>
+          this.toBlogSearchResult(post),
+        );
+      }
+
+      /**
+       * If exact phrase search did not work, use individual terms.
+       */
+      if (terms.length > 0) {
+        const posts = await prisma.blogPost.findMany({
+          where: {
+            status: 'PUBLISHED',
+
+            OR: terms.flatMap((term) => [
+              {
+                title: {
+                  contains: term,
+                  mode: 'insensitive' as const,
+                },
+              },
+
+              {
+                excerpt: {
+                  contains: term,
+                  mode: 'insensitive' as const,
+                },
+              },
+
+              {
+                content: {
+                  contains: term,
+                  mode: 'insensitive' as const,
+                },
+              },
+
+              {
+                tags: {
+                  some: {
+                    tag: {
+                      name: {
+                        contains: term,
+                        mode: 'insensitive' as const,
+                      },
+                    },
+                  },
+                },
+              },
+            ]),
+          },
+
+          select: searchSelect,
+
+          take: limit,
+
+          orderBy: {
+            publishedAt: 'desc',
+          },
+        });
+
+        return posts.map((post) =>
+          this.toBlogSearchResult(post),
+        );
+      }
+
+      return [];
+    } catch (error) {
+      this.logSearchError('blog search', error);
+      return [];
+    }
   }
 
-  /**
-   * Hybrid semantic search for AI agents.
-   *
-   * Tier 1: Postgres FTS, AND-first (precision) then OR fallback (recall).
-   * Tier 2: Prisma keyword `contains` (catches exact substrings FTS misses).
-   * Tier 3: Trigram similarity — engaged only if tiers 1 & 2 are both empty.
-   *
-   * Results are merged with Reciprocal Rank Fusion (RRF).
-   */
+  // =========================================================================
+  // PUBLIC: Semantic / AI retrieval
+  // =========================================================================
+
   async semanticSearch(
     params: SemanticSearchParams,
   ): Promise<SemanticSearchResult[]> {
     const limit = clampLimit(params.limit);
-    const query = params.query.trim();
-    if (!query) return [];
 
-    const terms = tokenize(query);
-    if (terms.length === 0) {
-      console.warn(
-        `[SearchService] query "${query}" had no indexable terms after ` +
-        `stopword/length filtering — only category matching can apply.`,
-      );
+    const rawQuery = params.query?.trim();
+
+    if (!rawQuery) {
+      return [];
     }
 
-    const [ftsResults, keywordResults] = await Promise.all([
-      this.fullTextSearch(terms, FTS_CANDIDATE_LIMIT),
-      this.keywordContainsSearch(query, terms, KEYWORD_CANDIDATE_LIMIT),
+    const terms = tokenize(rawQuery);
+
+    console.info(
+      `[SearchService] Starting search ` +
+        `query="${rawQuery}" ` +
+        `terms=[${terms.join(', ')}]`,
+    );
+
+    /**
+     * We deliberately run multiple retrieval strategies.
+     *
+     * One strategy failing must never turn the entire request into zero
+     * results.
+     */
+    const [
+      exactResults,
+      allTermsResults,
+      anyTermsResults,
+      titleTagResults,
+      categoryResults,
+      ftsResults,
+    ] = await Promise.all([
+      this.searchExactPhrase(
+        rawQuery,
+        Math.max(limit * 3, 10),
+      ),
+
+      this.searchAllTerms(
+        terms,
+        Math.max(limit * 3, 10),
+      ),
+
+      this.searchAnyTerm(
+        terms,
+        Math.max(limit * 4, 15),
+      ),
+
+      this.searchTitleAndTags(
+        terms,
+        Math.max(limit * 3, 10),
+      ),
+
+      this.searchCategory(
+        terms,
+        rawQuery,
+        Math.max(limit * 2, 10),
+      ),
+
+      this.fullTextSearch(
+        terms,
+        FTS_CANDIDATE_LIMIT,
+      ),
     ]);
 
     console.info(
-      `[SearchService] query="${query}" terms=[${terms.join(', ')}] ` +
-      `fts=${ftsResults.length} keyword=${keywordResults.length}`,
+      `[SearchService] Retrieval results ` +
+        `exact=${exactResults.length} ` +
+        `allTerms=${allTermsResults.length} ` +
+        `anyTerms=${anyTermsResults.length} ` +
+        `titleTags=${titleTagResults.length} ` +
+        `category=${categoryResults.length} ` +
+        `fts=${ftsResults.length}`,
     );
 
-    let resultLists: SemanticSearchResult[][] = [ftsResults, keywordResults];
+    /**
+     * Fuzzy search is intentionally attempted whenever the normal retrieval
+     * is weak.
+     *
+     * The old implementation only ran this when EVERYTHING was zero.
+     *
+     * That was too restrictive.
+     */
+    let fuzzyResults: SemanticSearchResult[] = [];
 
-    if (ftsResults.length === 0 && keywordResults.length === 0) {
-      const trigramResults = await this.trigramFallbackSearch(
-        query,
-        TRIGRAM_CANDIDATE_LIMIT,
+    const strongestNormalResultCount = Math.max(
+      exactResults.length,
+      allTermsResults.length,
+      titleTagResults.length,
+    );
+
+    if (
+      strongestNormalResultCount < Math.min(limit, 5) ||
+      anyTermsResults.length === 0
+    ) {
+      fuzzyResults = await this.trigramFallbackSearch(
+        rawQuery,
+        Math.max(TRIGRAM_CANDIDATE_LIMIT, limit * 2),
       );
-      console.info(
-        `[SearchService] fts + keyword both empty for "${query}", ` +
-        `trigram fallback returned ${trigramResults.length}`,
-      );
-      resultLists = [trigramResults];
     }
 
-    const fused = this.reciprocalRankFusion(resultLists);
+    console.info(
+      `[SearchService] Fuzzy results=${fuzzyResults.length}`,
+    );
+
+    const resultLists = [
+      exactResults,
+      allTermsResults,
+      anyTermsResults,
+      titleTagResults,
+      categoryResults,
+      ftsResults,
+      fuzzyResults,
+    ].filter((list) => list.length > 0);
+
+    /**
+     * If we have no specialized matches, do NOT immediately return [].
+     *
+     * If there are published articles, return useful candidates instead.
+     */
+    if (resultLists.length === 0) {
+      console.warn(
+        `[SearchService] All search strategies returned zero ` +
+          `for query="${rawQuery}". Running published fallback.`,
+      );
+
+      return this.publishedPostsFallback(limit);
+    }
+
+    /**
+     * RRF merges the different retrieval lists.
+     */
+    let fused = this.reciprocalRankFusion(resultLists);
+
+    /**
+     * Apply an additional relevance pass.
+     *
+     * RRF tells us how consistently a document appeared across retrieval
+     * methods. This second pass gives more importance to direct textual
+     * relevance.
+     */
+    fused = await this.applyRelevanceRanking(
+      fused,
+      rawQuery,
+      terms,
+    );
+
+    /**
+     * Safety fallback.
+     *
+     * If something unusual happened and fusion produced nothing, return
+     * published content instead of a hard zero.
+     */
+    if (fused.length === 0) {
+      return this.publishedPostsFallback(limit);
+    }
+
     return fused.slice(0, limit);
   }
 
-  // -------------------------------------------------------------------------
-  // Tier 1: PostgreSQL Full-Text Search
-  // -------------------------------------------------------------------------
+  // =========================================================================
+  // EXACT PHRASE
+  // =========================================================================
 
-  /**
-   * AND-first, OR-fallback full-text search using Postgres tsvector/tsquery.
-   * Both variants run in parallel; if AND yields matches they're preferred
-   * (higher precision), otherwise OR results are used (higher recall).
-   * Never throws — logs a detailed, non-silent diagnostic on failure.
-   */
-  private async fullTextSearch(
-    terms: string[],
+  private async searchExactPhrase(
+    query: string,
     limit: number,
   ): Promise<SemanticSearchResult[]> {
-    if (terms.length === 0) return [];
-
-    const andQuery = buildTsQueryFromTerms(terms, 'and');
-    const orQuery = buildTsQueryFromTerms(terms, 'or');
-
-    const run = (tsQuery: string) =>
-      prisma.$queryRawUnsafe<RawFtsRow[]>(FTS_SQL, tsQuery, limit);
-
-    const [andSettled, orSettled] = await Promise.allSettled([
-      run(andQuery),
-      run(orQuery),
-    ]);
-
-    if (andSettled.status === 'rejected') {
-      const { message, code } = describeError(andSettled.reason);
-      console.error(
-        `[SearchService] FTS (AND) query failed (code=${code ?? 'n/a'}): ${message}. ` +
-        `This usually means the raw-SQL table/column names in FTS_SQL don't match ` +
-        `your actual Postgres schema. Call diagnoseSearchHealth() to confirm.`,
-      );
-    }
-    if (orSettled.status === 'rejected') {
-      const { message, code } = describeError(orSettled.reason);
-      console.error(
-        `[SearchService] FTS (OR) query failed (code=${code ?? 'n/a'}): ${message}`,
-      );
-    }
-
-    const andResults =
-      andSettled.status === 'fulfilled' ? andSettled.value.map(mapFtsRow) : [];
-    if (andResults.length > 0) return andResults;
-
-    return orSettled.status === 'fulfilled'
-      ? orSettled.value.map(mapFtsRow)
-      : [];
-  }
-
-  // -------------------------------------------------------------------------
-  // Tier 2: Keyword contains search (broadened)
-  // -------------------------------------------------------------------------
-
-  /**
-   * Simple keyword search using Prisma `contains` across individual terms.
-   * Catches exact substrings that FTS stemming might alter.
-   * Never throws — logs a detailed diagnostic on failure instead of
-   * silently returning an empty array.
-   */
-  private async keywordContainsSearch(
-    rawQuery: string,
-    terms: string[],
-    limit: number,
-  ): Promise<SemanticSearchResult[]> {
-    if (terms.length === 0) return [];
-
-    const orConditions: Record<string, unknown>[] = [];
-    for (const term of terms) {
-      orConditions.push(
-        { title: { contains: term, mode: 'insensitive' } },
-        { excerpt: { contains: term, mode: 'insensitive' } },
-        { content: { contains: term, mode: 'insensitive' } },
-        {
-          tags: {
-            some: { tag: { name: { contains: term, mode: 'insensitive' } } },
-          },
-        },
-      );
-    }
-
-    const categoryMatch = this.matchCategory(terms, rawQuery);
-    if (categoryMatch) {
-      orConditions.push({ category: categoryMatch });
+    if (!query) {
+      return [];
     }
 
     try {
       const posts = await prisma.blogPost.findMany({
-        where: { status: 'PUBLISHED', OR: orConditions },
-        select: {
-          id: true,
-          title: true,
-          slug: true,
-          excerpt: true,
-          authorProfile: { select: { username: true } },
-          author: { select: { name: true } },
+        where: {
+          status: 'PUBLISHED',
+
+          OR: [
+            {
+              title: {
+                contains: query,
+                mode: 'insensitive',
+              },
+            },
+
+            {
+              excerpt: {
+                contains: query,
+                mode: 'insensitive',
+              },
+            },
+
+            {
+              content: {
+                contains: query,
+                mode: 'insensitive',
+              },
+            },
+
+            {
+              tags: {
+                some: {
+                  tag: {
+                    name: {
+                      contains: query,
+                      mode: 'insensitive',
+                    },
+                  },
+                },
+              },
+            },
+          ],
         },
+
+        select: searchSelect,
+
         take: limit,
-        orderBy: { publishedAt: 'desc' },
+
+        orderBy: {
+          publishedAt: 'desc',
+        },
       });
 
-      return posts.map((post) => ({
-        id: post.id,
-        title: post.title,
-        slug: post.slug,
-        excerpt: post.excerpt,
-        url: buildPostUrl(
-          post.slug,
-          post.authorProfile?.username ?? null,
-          post.author?.name ?? null,
-        ),
-        score: 0, // replaced by RRF
-      }));
-    } catch (err) {
-      const { message, code } = describeError(err);
-      console.error(
-        `[SearchService] Keyword search failed (code=${code ?? 'n/a'}): ${message}`,
+      return posts.map((post) =>
+        this.toSemanticResult(post),
       );
+    } catch (error) {
+      this.logSearchError(
+        'exact phrase search',
+        error,
+      );
+
       return [];
     }
   }
 
-  // -------------------------------------------------------------------------
-  // Tier 3: Trigram fuzzy fallback (only used if tiers 1 & 2 return nothing)
-  // -------------------------------------------------------------------------
+  // =========================================================================
+  // ALL TERMS
+  // =========================================================================
 
-  /**
-   * Fuzzy fallback using pg_trgm similarity(). Only engaged when both FTS
-   * and keyword search come back empty, so it never displaces higher-
-   * confidence matches — it exists purely so a typo or unusual phrasing
-   * doesn't produce a hard zero.
-   *
-   * Requires the extension once per database:
-   *   CREATE EXTENSION IF NOT EXISTS pg_trgm;
-   * If it isn't installed, this fails closed (returns []) and logs a
-   * clear, actionable message rather than throwing.
-   */
+  private async searchAllTerms(
+    terms: string[],
+    limit: number,
+  ): Promise<SemanticSearchResult[]> {
+    if (terms.length === 0) {
+      return [];
+    }
+
+    try {
+      const posts = await prisma.blogPost.findMany({
+        where: {
+          status: 'PUBLISHED',
+
+          AND: terms.map((term) => ({
+            OR: [
+              {
+                title: {
+                  contains: term,
+                  mode: 'insensitive' as const,
+                },
+              },
+
+              {
+                excerpt: {
+                  contains: term,
+                  mode: 'insensitive' as const,
+                },
+              },
+
+              {
+                content: {
+                  contains: term,
+                  mode: 'insensitive' as const,
+                },
+              },
+
+              {
+                tags: {
+                  some: {
+                    tag: {
+                      name: {
+                        contains: term,
+                        mode: 'insensitive' as const,
+                      },
+                    },
+                  },
+                },
+              },
+            ],
+          })),
+        },
+
+        select: searchSelect,
+
+        take: limit,
+
+        orderBy: {
+          publishedAt: 'desc',
+        },
+      });
+
+      return posts.map((post) =>
+        this.toSemanticResult(post),
+      );
+    } catch (error) {
+      this.logSearchError(
+        'all-terms search',
+        error,
+      );
+
+      return [];
+    }
+  }
+
+  // =========================================================================
+  // ANY TERM
+  // =========================================================================
+
+  private async searchAnyTerm(
+    terms: string[],
+    limit: number,
+  ): Promise<SemanticSearchResult[]> {
+    if (terms.length === 0) {
+      return [];
+    }
+
+    try {
+      const OR = terms.flatMap((term) => [
+        {
+          title: {
+            contains: term,
+            mode: 'insensitive' as const,
+          },
+        },
+
+        {
+          excerpt: {
+            contains: term,
+            mode: 'insensitive' as const,
+          },
+        },
+
+        {
+          content: {
+            contains: term,
+            mode: 'insensitive' as const,
+          },
+        },
+
+        {
+          tags: {
+            some: {
+              tag: {
+                name: {
+                  contains: term,
+                  mode: 'insensitive' as const,
+                },
+              },
+            },
+          },
+        },
+      ]);
+
+      const posts = await prisma.blogPost.findMany({
+        where: {
+          status: 'PUBLISHED',
+          OR,
+        },
+
+        select: searchSelect,
+
+        take: limit,
+
+        orderBy: {
+          publishedAt: 'desc',
+        },
+      });
+
+      return posts.map((post) =>
+        this.toSemanticResult(post),
+      );
+    } catch (error) {
+      this.logSearchError(
+        'any-term search',
+        error,
+      );
+
+      return [];
+    }
+  }
+
+  // =========================================================================
+  // TITLE + TAG SEARCH
+  // =========================================================================
+
+  private async searchTitleAndTags(
+    terms: string[],
+    limit: number,
+  ): Promise<SemanticSearchResult[]> {
+    if (terms.length === 0) {
+      return [];
+    }
+
+    try {
+      const posts = await prisma.blogPost.findMany({
+        where: {
+          status: 'PUBLISHED',
+
+          OR: terms.flatMap((term) => [
+            {
+              title: {
+                contains: term,
+                mode: 'insensitive' as const,
+              },
+            },
+
+            {
+              tags: {
+                some: {
+                  tag: {
+                    name: {
+                      contains: term,
+                      mode: 'insensitive' as const,
+                    },
+                  },
+                },
+              },
+            },
+          ]),
+        },
+
+        select: searchSelect,
+
+        take: limit,
+
+        orderBy: {
+          publishedAt: 'desc',
+        },
+      });
+
+      return posts.map((post) =>
+        this.toSemanticResult(post),
+      );
+    } catch (error) {
+      this.logSearchError(
+        'title/tag search',
+        error,
+      );
+
+      return [];
+    }
+  }
+
+  // =========================================================================
+  // CATEGORY
+  // =========================================================================
+
+  private async searchCategory(
+    terms: string[],
+    rawQuery: string,
+    limit: number,
+  ): Promise<SemanticSearchResult[]> {
+    const category = this.matchCategory(
+      terms,
+      rawQuery,
+    );
+
+    if (!category) {
+      return [];
+    }
+
+    try {
+      const posts = await prisma.blogPost.findMany({
+        where: {
+          status: 'PUBLISHED',
+
+          category: category as any,
+        },
+
+        select: searchSelect,
+
+        take: limit,
+
+        orderBy: {
+          publishedAt: 'desc',
+        },
+      });
+
+      return posts.map((post) =>
+        this.toSemanticResult(post),
+      );
+    } catch (error) {
+      this.logSearchError(
+        'category search',
+        error,
+      );
+
+      return [];
+    }
+  }
+
+  // =========================================================================
+  // FULL TEXT SEARCH
+  // =========================================================================
+
+  private async fullTextSearch(
+    terms: string[],
+    limit: number,
+  ): Promise<SemanticSearchResult[]> {
+    if (terms.length === 0) {
+      return [];
+    }
+
+    const andQuery = buildTsQueryFromTerms(
+      terms,
+      'and',
+    );
+
+    const orQuery = buildTsQueryFromTerms(
+      terms,
+      'or',
+    );
+
+    if (!andQuery && !orQuery) {
+      return [];
+    }
+
+    const run = async (
+      tsQuery: string,
+    ): Promise<RawFtsRow[]> => {
+      if (!tsQuery) {
+        return [];
+      }
+
+      return prisma.$queryRawUnsafe<RawFtsRow[]>(
+        FTS_SQL,
+        tsQuery,
+        limit,
+      );
+    };
+
+    const [andSettled, orSettled] =
+      await Promise.allSettled([
+        run(andQuery),
+        run(orQuery),
+      ]);
+
+    if (andSettled.status === 'rejected') {
+      this.logSearchError(
+        'PostgreSQL FTS AND',
+        andSettled.reason,
+      );
+    }
+
+    if (orSettled.status === 'rejected') {
+      this.logSearchError(
+        'PostgreSQL FTS OR',
+        orSettled.reason,
+      );
+    }
+
+    const andResults =
+      andSettled.status === 'fulfilled'
+        ? andSettled.value.map(
+            (row) => this.mapFtsRow(row),
+          )
+        : [];
+
+    if (andResults.length > 0) {
+      return andResults;
+    }
+
+    return orSettled.status === 'fulfilled'
+      ? orSettled.value.map(
+          (row) => this.mapFtsRow(row),
+        )
+      : [];
+  }
+
+  // =========================================================================
+  // TRIGRAM FUZZY SEARCH
+  // =========================================================================
+
   private async trigramFallbackSearch(
     query: string,
     limit: number,
   ): Promise<SemanticSearchResult[]> {
-    if (!query) return [];
+    if (!query) {
+      return [];
+    }
 
     try {
-      const results = await prisma.$queryRawUnsafe<
-        (RawFtsRow & { sim: number })[]
-      >(
-        `SELECT
-           bp.id, bp.title, bp.slug, bp.excerpt,
-           GREATEST(
-             similarity(bp.title, $1),
-             similarity(coalesce(bp.excerpt, ''), $1)
-           ) AS sim,
-           ap.username AS author_username,
-           u.name AS author_name
-         FROM blog_posts bp
-         LEFT JOIN author_profiles ap ON ap.id = bp."authorProfileId"
-         LEFT JOIN users u ON u.id = bp."authorId"
-         WHERE bp.status = 'PUBLISHED'
-           AND (
-             similarity(bp.title, $1) > $2
-             OR similarity(coalesce(bp.excerpt, ''), $1) > $2
-           )
-         ORDER BY sim DESC
-         LIMIT $3`,
-        query,
-        TRIGRAM_SIMILARITY_THRESHOLD,
-        limit,
+      /**
+       * We intentionally search:
+       *
+       * title
+       * excerpt
+       * content
+       *
+       * rather than title/excerpt only.
+       *
+       * This gives much better recovery for unusual queries.
+       */
+      const results =
+        await prisma.$queryRawUnsafe<RawTrigramRow[]>(
+          `
+          SELECT
+            bp.id,
+            bp.title,
+            bp.slug,
+            bp.excerpt,
+
+            GREATEST(
+              similarity(
+                coalesce(bp.title, ''),
+                $1
+              ),
+
+              similarity(
+                coalesce(bp.excerpt, ''),
+                $1
+              ),
+
+              similarity(
+                coalesce(bp.content, ''),
+                $1
+              )
+            ) AS sim,
+
+            ap.username AS author_username,
+            u.name AS author_name
+
+          FROM blog_posts bp
+
+          LEFT JOIN author_profiles ap
+            ON ap.id = bp."authorProfileId"
+
+          LEFT JOIN users u
+            ON u.id = bp."authorId"
+
+          WHERE bp.status = 'PUBLISHED'
+
+            AND (
+              similarity(
+                coalesce(bp.title, ''),
+                $1
+              ) > $2
+
+              OR similarity(
+                coalesce(bp.excerpt, ''),
+                $1
+              ) > $2
+
+              OR similarity(
+                coalesce(bp.content, ''),
+                $1
+              ) > $2
+            )
+
+          ORDER BY sim DESC
+
+          LIMIT $3
+          `,
+          query,
+          TRIGRAM_SIMILARITY_THRESHOLD,
+          limit,
+        );
+
+      return results.map((row) => ({
+        id: row.id,
+
+        title: row.title,
+
+        slug: row.slug,
+
+        excerpt: row.excerpt,
+
+        url: buildPostUrl(
+          row.slug,
+          row.author_username,
+          row.author_name,
+        ),
+
+        score:
+          Math.round(
+            Number(row.sim) * 1000,
+          ) / 1000,
+      }));
+    } catch (error) {
+      /**
+       * pg_trgm may not be installed.
+       *
+       * That must NEVER break search.
+       */
+      this.logSearchError(
+        'trigram fuzzy search',
+        error,
       );
 
-      return results.map((r) => ({
-        id: r.id,
-        title: r.title,
-        slug: r.slug,
-        excerpt: r.excerpt,
-        url: buildPostUrl(r.slug, r.author_username, r.author_name),
-        score: Math.round(Number(r.sim) * 1000) / 1000,
-      }));
-    } catch (err) {
-      const { message, code } = describeError(err);
-      console.error(
-        `[SearchService] Trigram fallback unavailable (code=${code ?? 'n/a'}): ` +
-        `${message}. If this is the first time you're seeing this, run ` +
-        `"CREATE EXTENSION IF NOT EXISTS pg_trgm;" on your database.`,
-      );
       return [];
     }
   }
 
-  // -------------------------------------------------------------------------
-  // Reciprocal Rank Fusion
-  // -------------------------------------------------------------------------
+  // =========================================================================
+  // RELEVANCE RANKING
+  // =========================================================================
 
-  /**
-   * Merge any number of ranked result lists using Reciprocal Rank Fusion.
-   * RRF score for a document = Σ 1 / (k + rank_i) across all lists that
-   * contain it, k = 60 (standard constant from the RRF paper).
-   */
+  private async applyRelevanceRanking(
+    results: SemanticSearchResult[],
+    query: string,
+    terms: string[],
+  ): Promise<SemanticSearchResult[]> {
+    if (results.length === 0) {
+      return [];
+    }
+
+    /**
+     * We need the original post text to calculate stronger relevance.
+     *
+     * Fetch only the candidate IDs.
+     */
+    const ids = results.map(
+      (result) => result.id,
+    );
+
+    try {
+      const posts = await prisma.blogPost.findMany({
+        where: {
+          id: {
+            in: ids,
+          },
+
+          status: 'PUBLISHED',
+        },
+
+        select: {
+          id: true,
+          title: true,
+          excerpt: true,
+          content: true,
+          category: true,
+
+          tags: {
+            select: {
+              tag: {
+                select: {
+                  name: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      const postMap = new Map(
+        posts.map((post) => [
+          post.id,
+          post,
+        ]),
+      );
+
+      const normalizedQuery =
+        query.toLowerCase();
+
+      const normalizedTerms =
+        terms.map((term) =>
+          term.toLowerCase(),
+        );
+
+      const ranked = results.map(
+        (result, index) => {
+          const post = postMap.get(
+            result.id,
+          );
+
+          if (!post) {
+            return {
+              result,
+              score:
+                result.score +
+                1 / (index + 1),
+            };
+          }
+
+          const title =
+            post.title.toLowerCase();
+
+          const excerpt =
+            (post.excerpt ?? '').toLowerCase();
+
+          const content =
+            post.content.toLowerCase();
+
+          const category =
+            post.category.toLowerCase();
+
+          const tags = post.tags
+            .map((item) =>
+              item.tag.name.toLowerCase(),
+            )
+            .join(' ');
+
+          let score = result.score;
+
+          /**
+           * Exact phrase in title is extremely strong.
+           */
+          if (title.includes(normalizedQuery)) {
+            score += 100;
+          }
+
+          /**
+           * Exact phrase in tags.
+           */
+          if (tags.includes(normalizedQuery)) {
+            score += 70;
+          }
+
+          /**
+           * Exact phrase in excerpt.
+           */
+          if (excerpt.includes(normalizedQuery)) {
+            score += 45;
+          }
+
+          /**
+           * Individual term matches.
+           */
+          for (const term of normalizedTerms) {
+            if (title.includes(term)) {
+              score += 20;
+            }
+
+            if (tags.includes(term)) {
+              score += 15;
+            }
+
+            if (excerpt.includes(term)) {
+              score += 8;
+            }
+
+            if (category.includes(term)) {
+              score += 10;
+            }
+
+            if (content.includes(term)) {
+              score += 3;
+            }
+          }
+
+          return {
+            result,
+            score,
+          };
+        },
+      );
+
+      ranked.sort(
+        (a, b) =>
+          b.score - a.score,
+      );
+
+      const maxScore =
+        ranked.length > 0
+          ? ranked[0].score
+          : 1;
+
+      return ranked.map(
+        ({ result, score }) => ({
+          ...result,
+
+          score:
+            Math.round(
+              (score / maxScore) * 1000,
+            ) / 1000,
+        }),
+      );
+    } catch (error) {
+      /**
+       * Ranking is an enhancement.
+       *
+       * If ranking fails, return the already retrieved results.
+       */
+      this.logSearchError(
+        'relevance ranking',
+        error,
+      );
+
+      return results;
+    }
+  }
+
+  // =========================================================================
+  // RRF
+  // =========================================================================
+
   private reciprocalRankFusion(
     resultLists: SemanticSearchResult[][],
   ): SemanticSearchResult[] {
     const scoreMap = new Map<
       string,
-      { result: SemanticSearchResult; rrfScore: number }
+      {
+        result: SemanticSearchResult;
+        rrfScore: number;
+      }
     >();
 
     for (const list of resultLists) {
-      list.forEach((result, index) => {
-        const rrfScore = 1 / (RRF_K + index + 1);
-        const existing = scoreMap.get(result.id);
-        if (existing) {
-          existing.rrfScore += rrfScore;
-        } else {
-          scoreMap.set(result.id, { result, rrfScore });
-        }
-      });
+      list.forEach(
+        (result, index) => {
+          const rrfScore =
+            1 /
+            (RRF_K + index + 1);
+
+          const existing =
+            scoreMap.get(result.id);
+
+          if (existing) {
+            existing.rrfScore +=
+              rrfScore;
+          } else {
+            scoreMap.set(
+              result.id,
+              {
+                result,
+                rrfScore,
+              },
+            );
+          }
+        },
+      );
     }
 
-    const sorted = Array.from(scoreMap.values()).sort(
-      (a, b) => b.rrfScore - a.rrfScore,
-    );
-    const maxScore = sorted.length > 0 ? sorted[0].rrfScore : 1;
+    const sorted =
+      Array.from(
+        scoreMap.values(),
+      ).sort(
+        (a, b) =>
+          b.rrfScore -
+          a.rrfScore,
+      );
 
-    return sorted.map(({ result, rrfScore }) => ({
-      ...result,
-      score: Math.round((rrfScore / maxScore) * 1000) / 1000,
-    }));
+    const maxScore =
+      sorted.length > 0
+        ? sorted[0].rrfScore
+        : 1;
+
+    return sorted.map(
+      ({
+        result,
+        rrfScore,
+      }) => ({
+        ...result,
+
+        score:
+          Math.round(
+            (rrfScore /
+              maxScore) *
+              1000,
+          ) / 1000,
+      }),
+    );
   }
 
-  // -------------------------------------------------------------------------
-  // Category matching
-  // -------------------------------------------------------------------------
+  // =========================================================================
+  // PUBLISHED FALLBACK
+  // =========================================================================
 
-  /**
-   * Match query terms to a BlogPostCategory enum value by token overlap
-   * (e.g. terms containing "market" match MARKET_TRENDS), falling back to
-   * an exact normalised match. More forgiving than substring containment,
-   * which rarely fires for real multi-word queries.
-   */
-  private matchCategory(terms: string[], rawQuery: string): string | null {
+  private async publishedPostsFallback(
+    limit: number,
+  ): Promise<SemanticSearchResult[]> {
+    try {
+      const posts =
+        await prisma.blogPost.findMany({
+          where: {
+            status: 'PUBLISHED',
+          },
+
+          select: searchSelect,
+
+          take: limit,
+
+          orderBy: {
+            publishedAt: 'desc',
+          },
+        });
+
+      return posts.map(
+        (post, index) => ({
+          ...this.toSemanticResult(
+            post,
+          ),
+
+          score:
+            Math.round(
+              (1 / (index + 1)) *
+                1000,
+            ) / 1000,
+        }),
+      );
+    } catch (error) {
+      this.logSearchError(
+        'published-post fallback',
+        error,
+      );
+
+      return [];
+    }
+  }
+
+  // =========================================================================
+  // CATEGORY MATCHING
+  // =========================================================================
+
+  private matchCategory(
+    terms: string[],
+    rawQuery: string,
+  ): string | null {
     const categories = [
       'FARMING_TIPS',
       'POULTRY_HEALTH',
@@ -605,86 +1646,355 @@ export class SearchService {
       'ADVANCED_TECHNIQUES',
     ];
 
-    const normalizedFull = rawQuery.toUpperCase().replace(/[\s-]+/g, '_');
-    const exact = categories.find((c) => c === normalizedFull);
-    if (exact) return exact;
+    const normalizedFull =
+      rawQuery
+        .toUpperCase()
+        .replace(/[\s-]+/g, '_');
 
-    const termSet = new Set(terms);
-    let best: { category: string; overlap: number } | null = null;
+    const exact =
+      categories.find(
+        (category) =>
+          category ===
+          normalizedFull,
+      );
+
+    if (exact) {
+      return exact;
+    }
+
+    const termSet =
+      new Set(terms);
+
+    let best:
+      | {
+          category: string;
+          overlap: number;
+        }
+      | null = null;
+
     for (const category of categories) {
-      const words = category.toLowerCase().split('_');
-      const overlap = words.filter((w) => termSet.has(w)).length;
-      if (overlap > 0 && (!best || overlap > best.overlap)) {
-        best = { category, overlap };
+      const words =
+        category
+          .toLowerCase()
+          .split('_');
+
+      let overlap = 0;
+
+      for (const word of words) {
+        if (termSet.has(word)) {
+          overlap++;
+        }
+      }
+
+      if (
+        overlap > 0 &&
+        (!best ||
+          overlap >
+            best.overlap)
+      ) {
+        best = {
+          category,
+          overlap,
+        };
       }
     }
-    return best?.category ?? null;
+
+    return (
+      best?.category ??
+      null
+    );
   }
 
-  // -------------------------------------------------------------------------
-  // Diagnostics
-  // -------------------------------------------------------------------------
+  // =========================================================================
+  // RESULT CONVERTERS
+  // =========================================================================
 
-  /**
-   * One-call health check for "why am I getting zero results". Reports:
-   *  - how many posts exist and their status breakdown (catches "no
-   *    PUBLISHED posts" as a data issue rather than a code bug)
-   *  - whether the raw `blog_posts` table used by fullTextSearch() exists
-   *  - whether the ordinary Prisma client path works
-   *  - whether pg_trgm is installed for the fallback tier
-   *
-   * Safe to wire into an admin/debug API route, or run via
-   * scripts/diagnose-search.ts from the command line.
-   */
-  async diagnoseSearchHealth(): Promise<SearchDiagnosticsReport> {
-    const [totalPosts, byStatusRaw, samples] = await Promise.all([
-      prisma.blogPost.count(),
-      prisma.blogPost.groupBy({ by: ['status'], _count: { _all: true } }),
-      prisma.blogPost.findMany({
-        where: { status: 'PUBLISHED' },
-        select: { title: true },
-        take: 5,
-      }),
-    ]);
-
-    const postsByStatus: Record<string, number> = {};
-    for (const row of byStatusRaw as unknown as {
-      status: string;
-      _count: { _all: number };
-    }[]) {
-      postsByStatus[row.status] = row._count._all;
-    }
-
-    const [rawTableProbe, prismaClientProbe, trigramExtensionProbe] =
-      await Promise.all([
-        this.probe(() => prisma.$queryRawUnsafe(`SELECT 1 FROM blog_posts LIMIT 1`)),
-        this.probe(() => prisma.blogPost.findFirst()),
-        this.probe(() =>
-          prisma.$queryRawUnsafe(`SELECT similarity('a', 'a')`),
-        ),
-      ]);
-
+  private toSemanticResult(
+    post: SearchPost,
+  ): SemanticSearchResult {
     return {
-      timestamp: new Date().toISOString(),
-      totalPosts,
-      postsByStatus,
-      samplePublishedTitles: samples.map((s) => s.title),
-      rawTableProbe,
-      prismaClientProbe,
-      trigramExtensionProbe,
+      id: post.id,
+
+      title: post.title,
+
+      slug: post.slug,
+
+      excerpt: post.excerpt,
+
+      url: buildPostUrl(
+        post.slug,
+        post.authorProfile
+          ?.username ?? null,
+        post.author?.name ??
+          null,
+      ),
+
+      score: 0,
     };
   }
 
-  private async probe(fn: () => Promise<unknown>): Promise<SearchProbeResult> {
+  private toBlogSearchResult(
+    post: SearchPost,
+  ): BlogSearchResult {
+    return {
+      id: post.id,
+
+      title: post.title,
+
+      slug: post.slug,
+
+      excerpt: post.excerpt,
+
+      category: post.category,
+
+      tags: post.tags.map(
+        (item) =>
+          item.tag.name,
+      ),
+
+      publishedAt:
+        post.publishedAt
+          ? post.publishedAt.toISOString()
+          : null,
+
+      url: buildPostUrl(
+        post.slug,
+        post.authorProfile
+          ?.username ?? null,
+        post.author?.name ??
+          null,
+      ),
+    };
+  }
+
+  private mapFtsRow(
+    row: RawFtsRow,
+  ): SemanticSearchResult {
+    return {
+      id: row.id,
+
+      title: row.title,
+
+      slug: row.slug,
+
+      excerpt: row.excerpt,
+
+      url: buildPostUrl(
+        row.slug,
+        row.author_username,
+        row.author_name,
+      ),
+
+      score:
+        Math.round(
+          Number(row.rank) *
+            1000,
+        ) / 1000,
+    };
+  }
+
+  // =========================================================================
+  // ERROR LOGGING
+  // =========================================================================
+
+  private logSearchError(
+    strategy: string,
+    error: unknown,
+  ): void {
+    const {
+      message,
+      code,
+    } = describeError(error);
+
+    console.error(
+      `[SearchService] ${strategy} failed ` +
+        `(code=${code ?? 'n/a'}): ${message}`,
+    );
+  }
+
+  // =========================================================================
+  // DIAGNOSTICS
+  // =========================================================================
+
+  async diagnoseSearchHealth(): Promise<SearchDiagnosticsReport> {
+    try {
+      const [
+        totalPosts,
+        byStatusRaw,
+        samples,
+      ] = await Promise.all([
+        prisma.blogPost.count(),
+
+        prisma.blogPost.groupBy({
+          by: ['status'],
+          _count: {
+            _all: true,
+          },
+        }),
+
+        prisma.blogPost.findMany({
+          where: {
+            status: 'PUBLISHED',
+          },
+
+          select: {
+            title: true,
+          },
+
+          take: 5,
+
+          orderBy: {
+            publishedAt: 'desc',
+          },
+        }),
+      ]);
+
+      const postsByStatus:
+        Record<string, number> =
+        {};
+
+      for (
+        const row of
+          byStatusRaw as unknown as Array<{
+            status: string;
+            _count: {
+              _all: number;
+            };
+          }>
+      ) {
+        postsByStatus[
+          row.status
+        ] =
+          row._count._all;
+      }
+
+      const [
+        rawTableProbe,
+        prismaClientProbe,
+        trigramExtensionProbe,
+      ] = await Promise.all([
+        this.probe(() =>
+          prisma.$queryRawUnsafe(
+            `SELECT 1 FROM blog_posts LIMIT 1`,
+          ),
+        ),
+
+        this.probe(() =>
+          prisma.blogPost.findFirst(),
+        ),
+
+        this.probe(() =>
+          prisma.$queryRawUnsafe(
+            `SELECT similarity('a', 'a')`,
+          ),
+        ),
+      ]);
+
+      /**
+       * These tests use the SAME public search implementation that the API
+       * uses. This makes the diagnostic considerably more useful.
+       */
+      const testQueries = [
+        'poultry',
+        'chicken',
+        'egg',
+        'feeding',
+        'health',
+        'sick chicks',
+      ];
+
+      const searchTests =
+        await Promise.all(
+          testQueries.map(
+            async (query) => {
+              try {
+                const results =
+                  await this.semanticSearch(
+                    {
+                      query,
+                      limit: 5,
+                    },
+                  );
+
+                return {
+                  query,
+                  results:
+                    results.length,
+                };
+              } catch {
+                return {
+                  query,
+                  results: 0,
+                };
+              }
+            },
+          ),
+        );
+
+      return {
+        timestamp:
+          new Date().toISOString(),
+
+        totalPosts,
+
+        postsByStatus,
+
+        samplePublishedTitles:
+          samples.map(
+            (sample) =>
+              sample.title,
+          ),
+
+        rawTableProbe,
+
+        prismaClientProbe,
+
+        trigramExtensionProbe,
+
+        searchTests,
+      };
+    } catch (error) {
+      const {
+        message,
+        code,
+      } = describeError(error);
+
+      console.error(
+        `[SearchService] Search diagnostics failed ` +
+          `(code=${code ?? 'n/a'}): ${message}`,
+      );
+
+      throw error;
+    }
+  }
+
+  private async probe(
+    fn: () => Promise<unknown>,
+  ): Promise<SearchProbeResult> {
     try {
       await fn();
-      return { ok: true };
-    } catch (err) {
-      const { message, code } = describeError(err);
-      return { ok: false, error: message, errorCode: code };
+
+      return {
+        ok: true,
+      };
+    } catch (error) {
+      const {
+        message,
+        code,
+      } = describeError(error);
+
+      return {
+        ok: false,
+        error: message,
+        errorCode: code,
+      };
     }
   }
 }
 
-/** Singleton instance for reuse across route handlers. */
-export const searchService = new SearchService();
+// ---------------------------------------------------------------------------
+// Singleton
+// ---------------------------------------------------------------------------
+
+export const searchService =
+  new SearchService();
