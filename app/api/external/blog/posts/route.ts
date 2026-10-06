@@ -6,6 +6,8 @@ import { createNotification } from '@/lib/notifications';
 import { getOrCreateAuthorProfile } from '@/lib/author';
 import { notifyOnPublish } from '@/lib/email/blog-notifications';
 import { BlogPostCategory, BlogPostStatus } from '@prisma/client';
+import { invalidatePublicBlogCaches } from '@/lib/blog/cache';
+import { RelatedPostsService } from '@/lib/search-v2/RelatedPostsService';
 
 const submissionRateLimit = new Map<string, { count: number; resetTime: number }>();
 const SUBMISSION_RATE_LIMIT_MAX = 9;
@@ -281,6 +283,11 @@ export async function POST(request: Request) {
         },
       },
     });
+
+    if (blogPost.status === 'PUBLISHED') {
+      invalidatePublicBlogCaches([blogPost.slug]);
+      RelatedPostsService.invalidate();
+    }
 
     // Update AuthorProfile stats
     await prisma.authorProfile.update({

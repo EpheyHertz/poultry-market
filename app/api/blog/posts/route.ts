@@ -7,6 +7,8 @@ import { BLOG_PAGE_SIZE } from '@/lib/blog/listing-config';
 import { notifyOnPublish } from '@/lib/email/blog-notifications';
 import { z } from 'zod';
 import { BlogPostCategory } from '@prisma/client';
+import { invalidatePublicBlogCaches } from '@/lib/blog/cache';
+import { RelatedPostsService } from '@/lib/search-v2/RelatedPostsService';
 
 
 // Create blog post schema
@@ -180,6 +182,8 @@ export async function POST(request: NextRequest) {
     // If an admin/company published straight away, fan out the subscriber
     // email asynchronously (never blocks or fails the create request).
     if (blogPost.status === 'PUBLISHED') {
+      invalidatePublicBlogCaches([blogPost.slug]);
+      RelatedPostsService.invalidate();
       notifyOnPublish(blogPost.id);
     }
 

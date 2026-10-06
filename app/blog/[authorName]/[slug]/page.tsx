@@ -14,6 +14,7 @@
  */
 
 import { Metadata } from 'next';
+import { unstable_cache } from 'next/cache';
 import { notFound, redirect } from 'next/navigation';
 import { cache } from 'react';
 
@@ -40,8 +41,9 @@ import { toAuthorResourceView } from '@/lib/author-resources';
 import { prisma } from '@/lib/prisma';
 import { seoConfig, SITE_URL } from '@/lib/seo';
 import { BLOG_CATEGORIES } from '@/types/blog';
+import { blogPostTag } from '@/lib/blog/cache';
 
-export const dynamic = 'force-dynamic';
+export const revalidate = 300;
 
 interface Params {
   authorName: string;
@@ -232,14 +234,13 @@ async function queryPost(authorName: string, slug: string) {
  * Cached per request: `generateMetadata` and the page body share a single
  * database round-trip instead of querying (and previously incrementing) twice.
  */
-const getPost = cache(async (authorName: string, slug: string) => {
-  try {
-    return await queryPost(authorName, slug);
-  } catch (error) {
-    console.error('[article] failed to load post:', error);
-    return null;
-  }
-});
+const getPost = cache((authorName: string, slug: string) =>
+  unstable_cache(
+    () => queryPost(authorName, slug),
+    ['blog-post', authorName.toLowerCase(), slug],
+    { revalidate: 300, tags: [blogPostTag(slug)] },
+  )(),
+);
 
 /** Canonical `/blog/{author}/{slug}` segment for a post. */
 function canonicalAuthorSegment(post: PostRecord, fallback: string) {

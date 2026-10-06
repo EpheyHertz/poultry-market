@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { notifyOnPublish } from '@/lib/email/blog-notifications';
+import { invalidatePublicBlogCaches } from '@/lib/blog/cache';
+import { RelatedPostsService } from '@/lib/search-v2/RelatedPostsService';
 
 export async function POST(request: NextRequest) {
   try {
@@ -88,6 +90,8 @@ export async function POST(request: NextRequest) {
             id: { in: postIds }
           }
         });
+        invalidatePublicBlogCaches();
+        RelatedPostsService.invalidate();
         return NextResponse.json({
           success: true,
           message: `${postIds.length} posts deleted successfully`
@@ -107,6 +111,9 @@ export async function POST(request: NextRequest) {
       },
       data: updateData
     });
+
+    invalidatePublicBlogCaches();
+    RelatedPostsService.invalidate();
 
     // Fan out the subscriber "new article" email for posts that just went
     // live. Fire-and-forget + idempotent so the bulk response never waits on

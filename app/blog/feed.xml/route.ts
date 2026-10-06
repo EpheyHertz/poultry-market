@@ -1,26 +1,10 @@
 import { SITE_URL } from '@/lib/seo';
-import { prisma } from '@/lib/prisma';
+import { getCachedBlogFeedPosts } from '@/lib/blog/cache';
 
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+export const revalidate = 3600;
 
 export async function GET() {
-  const posts = await prisma.blogPost.findMany({
-    where: { status: 'PUBLISHED', publishedAt: { not: null } },
-    orderBy: { publishedAt: 'desc' },
-    take: 20,
-    select: {
-      id: true,
-      title: true,
-      slug: true,
-      excerpt: true,
-      content: true,
-      publishedAt: true,
-      updatedAt: true,
-      author: { select: { name: true } },
-      authorProfile: { select: { username: true } },
-    },
-  });
+  const posts = await getCachedBlogFeedPosts();
 
   const items = posts.map((post) => {
     const authorPath =

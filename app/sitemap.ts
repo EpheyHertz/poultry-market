@@ -1,6 +1,7 @@
 import { MetadataRoute } from 'next';
 import { prisma } from '@/lib/prisma';
 import { SITE_URL } from '@/lib/seo';
+import { getCachedMainSitemapBlogPosts } from '@/lib/blog/cache';
 
 export const revalidate = 3600;
 
@@ -81,26 +82,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
           },
           take: 500,
         }),
-        prisma.blogPost.findMany({
-          where: {
-            status: 'PUBLISHED',
-          },
-          select: {
-            slug: true,
-            updatedAt: true,
-            author: {
-              select: {
-                name: true,
-              },
-            },
-            authorProfile: {
-              select: {
-                username: true,
-              },
-            },
-          },
-          take: 2000,
-        }),
+        getCachedMainSitemapBlogPosts(),
         prisma.authorProfile.findMany({
           where: {
             isPublic: true,

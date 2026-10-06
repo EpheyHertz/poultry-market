@@ -6,6 +6,7 @@ import { notifyOnPublish } from '@/lib/email/blog-notifications';
 import { submitPathToIndexNow } from '@/lib/indexnow';
 import { RelatedPostsService } from '@/lib/search-v2/RelatedPostsService';
 import { z } from 'zod';
+import { invalidatePublicBlogCaches } from '@/lib/blog/cache';
 
 // Approval/rejection/publish schema
 const approvalSchema = z.object({
@@ -147,6 +148,8 @@ export async function PATCH(
         }
       }
     });
+
+    invalidatePublicBlogCaches([existingPost.slug, updatedPost.slug]);
 
     // Status changed → related-posts caches are stale for every post (this
     // post as source AND as candidate). Invalidate the whole related cache

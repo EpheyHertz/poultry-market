@@ -1,4 +1,5 @@
 import { Metadata } from 'next';
+import { unstable_cache } from 'next/cache';
 import { notFound } from 'next/navigation';
 import { cache } from 'react';
 
@@ -12,10 +13,11 @@ import {
   resolveAuthorContactEmail,
 } from '@/lib/author-profile';
 import { toAuthorResourceView } from '@/lib/author-resources';
+import { blogAuthorTag } from '@/lib/blog/cache';
 
 import PublicAuthorProfile, { type PublicAuthorProfileData } from './public-author-profile';
 
-export const dynamic = 'force-dynamic';
+export const revalidate = 300;
 
 interface PageProps {
   params: Promise<{ username: string }>;
@@ -26,8 +28,8 @@ interface PageProps {
  * `cache()` de-duplicates it within one request so the profile is only
  * fetched once (§30 performance).
  */
-const getAuthorProfile = cache(async (username: string) => {
-  return prisma.authorProfile.findUnique({
+const getAuthorProfile = cache((username: string) =>
+  unstable_cache(() => prisma.authorProfile.findUnique({
     where: { username: username.toLowerCase() },
     include: {
       user: {
@@ -81,8 +83,11 @@ const getAuthorProfile = cache(async (username: string) => {
         },
       },
     },
-  });
-});
+  }), ['blog-author', username.toLowerCase()], {
+    revalidate: 300,
+    tags: [blogAuthorTag(username)],
+  })(),
+);
 
 /** Trim a bio into a clean meta description without cutting words in half. */
 function toMetaDescription(text: string, limit = 160): string {

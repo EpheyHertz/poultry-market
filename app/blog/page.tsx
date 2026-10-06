@@ -2,7 +2,7 @@ import { Suspense } from 'react';
 import { Metadata } from 'next';
 import PublicNavbar from '@/components/layout/public-navbar';
 import BlogHome from './blog-home';
-import { getBlogPosts } from '@/lib/blog/get-posts';
+import { getCachedBlogPosts } from '@/lib/blog/cache';
 import { BLOG_PAGE_SIZE, FEATURED_LIMIT } from '@/lib/blog/listing-config';
 import { SITE_URL } from '@/lib/seo';
 import AdsenseScript from '@/components/ads';
@@ -148,8 +148,8 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
   // failure in one never blanks the other.
   if (!search) {
     const [listResult, featuredResult] = await Promise.allSettled([
-      getBlogPosts({ page, category, limit: BLOG_PAGE_SIZE }),
-      getBlogPosts({ page: 1, featured: true, limit: FEATURED_LIMIT }),
+      getCachedBlogPosts({ page, category, limit: BLOG_PAGE_SIZE }),
+      getCachedBlogPosts({ page: 1, featured: true, limit: FEATURED_LIMIT }),
     ]);
 
     if (listResult.status === 'fulfilled') {

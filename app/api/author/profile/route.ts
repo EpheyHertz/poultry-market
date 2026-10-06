@@ -15,6 +15,7 @@ import {
   normalizeAuthorWebsiteInput,
   type ValidationResult,
 } from '@/lib/author-profile';
+import { invalidatePublicAuthorCache, invalidatePublicBlogCaches } from '@/lib/blog/cache';
 
 /**
  * Author-supplied profile fields, validated in one place (author-spec §33).
@@ -264,6 +265,8 @@ export async function POST(request: NextRequest) {
 
     // Link any existing blog posts by this user to the new profile
     const linkedPostsCount = await linkExistingPostsToProfile(user.id, profile.id);
+    invalidatePublicAuthorCache([profile.username]);
+    if (linkedPostsCount > 0) invalidatePublicBlogCaches();
 
     return NextResponse.json({
       profile,
@@ -446,6 +449,9 @@ export async function PATCH(request: NextRequest) {
         }
       }
     });
+
+    invalidatePublicAuthorCache([existing.username, profile.username]);
+    invalidatePublicBlogCaches();
 
     return NextResponse.json({
       profile,

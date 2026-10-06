@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { sendBlogSubmissionAcknowledgmentToAuthor, sendBlogSubmissionToAdmin } from '@/lib/email';
 import { RelatedPostsService } from '@/lib/search-v2/RelatedPostsService';
 import { notifyOnPublish } from '@/lib/email/blog-notifications';
+import { invalidatePublicBlogCaches } from '@/lib/blog/cache';
 
 // Update blog post schema
 const updateBlogPostSchema = z.object({
@@ -387,6 +388,8 @@ export async function PUT(
       }
     });
 
+    invalidatePublicBlogCaches([existingPost.slug, updatedPost.slug]);
+
     // Content/tags/slug may have changed → related-posts caches are stale.
     // Slug could have been regenerated, so invalidate the whole related cache.
     // Fire-and-forget, never fails the update flow.
@@ -517,6 +520,9 @@ export async function DELETE(
     await prisma.blogPost.delete({
       where: { slug }
     });
+
+    invalidatePublicBlogCaches([slug]);
+    RelatedPostsService.invalidate();
 
     return NextResponse.json({
       message: 'Blog post deleted successfully'
