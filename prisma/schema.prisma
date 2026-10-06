@@ -1,13 +1,2163 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
-  // url      = env("DATABASE_URL")
+}
+
+model User {
+  id                      String                   @id @default(cuid())
+  email                   String                   @unique
+  password                String?
+  googleId                String?                  @unique
+  name                    String
+  phone                   String?
+  avatar                  String?
+  role                    UserRole                 @default(CUSTOMER)
+  isActive                Boolean                  @default(true)
+  isVerified              Boolean                  @default(false)
+  verificationToken       String?
+  verificationTokenExpiry DateTime?
+  resetToken              String?
+  resetTokenExpiry        DateTime?
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
+  bio                     String?
+  location                String?
+  website                 String?
+  customDomain            String?
+  dashboardSlug           String?
+  qrCode                  String?
+  agentId                 String?                  @unique
+  vehicleType             String?
+  vehicleNumber           String?
+  licenseNumber           String?
+  coverageArea            String?
+  isApproved              Boolean                  @default(false)
+  deliveryCounties        String[]                 @default([])
+  deliveryFeePerKm        Float?                   @default(0)
+  deliveryProvinces       String[]                 @default([])
+  minOrderForFreeDelivery Float?
+  offersDelivery          Boolean                  @default(false)
+  offersFreeDelivery      Boolean                  @default(false)
+  offersPayAfterDelivery  Boolean                  @default(false)
+  analytics               Analytics[]
+  announcementReactions   AnnouncementReaction[]
+  announcementViews       AnnouncementView[]
+  announcements           Announcement[]
+  apiKeys                 ApiKey[]
+  applications            Application[]
+  attachments             Attachment[]
+  authorProfile           AuthorProfile?
+  blogCommentLikes        BlogCommentLike[]        @relation("BlogCommentLikes")
+  blogComments            BlogComment[]
+  moderatedComments       BlogComment[]            @relation("CommentModerator")
+  blogPostLikes           BlogPostLike[]           @relation("BlogPostLikes")
+  blogPostViews           BlogPostView[]           @relation("UserBlogViews")
+  approvedBlogPosts       BlogPost[]               @relation("BlogPostApprovedBy")
+  blogPosts               BlogPost[]
+  cartItems               CartItem[]
+  sentMessages            ChatMessage[]            @relation("SentMessages")
+  chatsAsParticipant1     Chat[]                   @relation("ChatParticipant1")
+  chatsAsParticipant2     Chat[]                   @relation("ChatParticipant2")
+  checkoutSessions        CheckoutSession[]
+  deliveries              Delivery[]
+  deliveryJobs            DeliveryJob[]            @relation("DeliveryPartnerJobs")
+  deliveryPartner         DeliveryPartner?
+  uploadedDeliveryPhotos  DeliveryPhoto[]
+  adminDeliveryApprovals  DeliveryProof[]          @relation("DeliveryProofApprover")
+  deliveryProofs          DeliveryProof[]          @relation("DeliveryProofSubmitter")
+  eggRecords              EggRecord[]
+  farmEmailPreference     FarmEmailPreference?
+  farmImportJobs          FarmImportJob[]
+  farmInvitationsSent     FarmMember[]             @relation("FarmMemberInviter")
+  farmMemberships         FarmMember[]
+  ownedFarms              Farm[]                   @relation("OwnedFarms")
+  feedRecords             FeedRecord[]
+  flocks                  Flock[]
+  following               Follow[]                 @relation("Following")
+  followers               Follow[]                 @relation("Followers")
+  hatchingRequests        HatchingRequest[]
+  inventoryLogs           InventoryLog[]
+  livestockFlocks         LivestockFlock[]
+  messageReactions        MessageReaction[]        @relation("MessageReactions")
+  mortalityRecords        MortalityRecord[]
+  receivedNotifications   Notification[]           @relation("NotificationReceiver")
+  sentNotifications       Notification[]           @relation("NotificationSender")
+  approvedOrders          Order[]                  @relation("OrderApprovals")
+  orders                  Order[]
+  sellerOrders            Order[]                  @relation("SellerOrders")
+  paymentApprovals        PaymentApprovalLog[]
+  payments                Payment[]
+  productLikes            ProductLike[]
+  products                Product[]
+  reminders               Reminder[]
+  reviewLikes             ReviewLike[]
+  reviewReplies           ReviewReply[]
+  reviews                 Review[]
+  sales                   Sale[]
+  sellerCommission        SellerCommission?
+  sponsorshipApplications SponsorshipApplication[] @relation("SellerSponsorshipApplications")
+  companySponsorships     Sponsorship[]            @relation("CompanySponsorships")
+  sellerSponsorships      Sponsorship[]            @relation("SellerSponsorships")
+  sponsorships            Sponsorship[]            @relation("UserSponsorships")
+  store                   Store?                   @relation("StoreOwner")
+  subscription            Subscription?
+  supportTransactions     SupportTransaction[]     @relation("SupporterTransactions")
+  tags                    UserTag[]
+  vaccinations            Vaccination[]
+  vouchers                Voucher[]
+  walletTransactions      WalletTransaction[]      @relation("WalletTransactions")
+  wallets                 Wallet[]
+  receivedSponsorships    Sponsorship[]            @relation("SponsorshipReceiver")
+
+  @@map("users")
+}
+
+model Farm {
+  id                 String             @id @default(cuid())
+  name               String
+  slug               String?            @unique
+  ownerId            String
+  settings           Json?
+  subscriptionPlan   SubscriptionPlan   @default(FREE)
+  subscriptionStatus SubscriptionStatus @default(INACTIVE)
+  subscriptionEndsAt DateTime?
+  billingEmail       String?
+  billingProvider    String?
+  billingReference   String?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  attachments        Attachment[]
+  eggRecords         EggRecord[]
+  farmImportJobs     FarmImportJob[]
+  members            FarmMember[]
+  roles              FarmRole[]
+  owner              User               @relation("OwnedFarms", fields: [ownerId], references: [id], onDelete: Cascade)
+  feedRecords        FeedRecord[]
+  flocks             Flock[]
+  mortalityRecords   MortalityRecord[]
+  reminders          Reminder[]
+  vaccinations       Vaccination[]
+
+  @@index([ownerId])
+  @@map("farms")
+}
+
+model FarmRole {
+  id          String       @id @default(cuid())
+  farmId      String
+  name        String
+  key         String?
+  rank        Int
+  permissions String[]     @default([])
+  isSystem    Boolean      @default(false)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  members     FarmMember[]
+  farm        Farm         @relation(fields: [farmId], references: [id], onDelete: Cascade)
+
+  @@unique([farmId, name])
+  @@index([farmId, rank])
+  @@map("farm_roles")
+}
+
+model FarmMember {
+  id                  String           @id @default(cuid())
+  farmId              String
+  userId              String?
+  roleId              String
+  invitedById         String?
+  invitedEmail        String
+  invitationTokenHash String?
+  invitationExpiresAt DateTime?
+  status              FarmMemberStatus @default(PENDING)
+  rank                Int              @default(0)
+  invitedAt           DateTime         @default(now())
+  acceptedAt          DateTime?
+  rejectedAt          DateTime?
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+  farm                Farm             @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  invitedBy           User?            @relation("FarmMemberInviter", fields: [invitedById], references: [id])
+  role                FarmRole         @relation(fields: [roleId], references: [id])
+  user                User?            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([farmId, invitedEmail])
+  @@unique([farmId, userId])
+  @@index([farmId, status])
+  @@index([userId])
+  @@map("farm_members")
+}
+
+model Product {
+  id                String              @id @default(cuid())
+  name              String
+  description       String
+  price             Float
+  stock             Int
+  type              ProductType
+  images            String[]
+  sellerId          String
+  isActive          Boolean             @default(true)
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  slug              String?             @unique
+  metaTitle         String?
+  metaDescription   String?
+  hasDiscount       Boolean             @default(false)
+  discountType      DiscountType?
+  discountAmount    Float?
+  discountStartDate DateTime?
+  discountEndDate   DateTime?
+  customType        String?
+  sku               String?
+  storeId           String?
+  unitType          String?
+  vaccinationStatus String?
+  announcements     Announcement[]
+  cartItems         CartItem[]
+  chats             Chat[]
+  checkoutSessions  CheckoutSession[]
+  inventoryLogs     InventoryLog[]
+  orderItems        OrderItem[]
+  categories        ProductCategory[]
+  collections       ProductCollection[]
+  likes             ProductLike[]
+  tags              ProductTag[]
+  seller            User                @relation(fields: [sellerId], references: [id])
+  store             Store?              @relation(fields: [storeId], references: [id])
+  reviews           Review[]
+  saleItems         SaleItem[]
+
+  @@index([storeId])
+  @@map("products")
+}
+
+model ProductTag {
+  id        String   @id @default(cuid())
+  productId String
+  tag       TagType
+  addedAt   DateTime @default(now())
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, tag])
+  @@map("product_tags")
+}
+
+model Order {
+  id                    String               @id @default(cuid())
+  customerId            String
+  status                OrderStatus          @default(PENDING)
+  total                 Float
+  subtotal              Float                @default(0)
+  discountAmount        Float                @default(0)
+  deliveryFee           Float                @default(0)
+  voucherCode           String?
+  notes                 String?
+  rejectionReason       String?
+  paymentType           PaymentType          @default(BEFORE_DELIVERY)
+  paymentStatus         PaymentStatus        @default(UNPAID)
+  paymentDetails        String?
+  paymentPhone          String?
+  paymentReference      String?
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+  deliveryCounty        String?
+  deliveryProvince      String?
+  sellerHandlesDelivery Boolean              @default(false)
+  approvedAt            DateTime?
+  approvedBy            String?
+  completedAt           DateTime?
+  deliveryAddress       String?
+  deliveryProofImages   String[]             @default([])
+  deliveryProofMessage  String?
+  isReviewed            Boolean              @default(false)
+  markedReceivedAt      DateTime?
+  paymentMethod         PaymentMethod        @default(MPESA)
+  reviewId              String?
+  sellerId              String?
+  escrowAmount          Float?
+  escrowReleasedAt      DateTime?
+  escrowStatus          EscrowStatus         @default(NONE)
+  storeId               String?
+  chats                 Chat[]
+  delivery              Delivery?
+  deliveryJobs          DeliveryJob[]
+  deliveryProof         DeliveryProof?
+  invoice               Invoice?
+  notifications         Notification[]
+  items                 OrderItem[]
+  timeline              OrderTimeline[]
+  approver              User?                @relation("OrderApprovals", fields: [approvedBy], references: [id])
+  customer              User                 @relation(fields: [customerId], references: [id])
+  seller                User?                @relation("SellerOrders", fields: [sellerId], references: [id])
+  store                 Store?               @relation(fields: [storeId], references: [id])
+  paymentApprovals      PaymentApprovalLog[]
+  paymentInvoices       PaymentInvoice[]
+  payment               Payment?
+
+  @@index([storeId])
+  @@map("orders")
+}
+
+model OrderTimeline {
+  id          String   @id @default(cuid())
+  orderId     String
+  action      String
+  description String?
+  oldStatus   String?
+  newStatus   String?
+  actorId     String?
+  actorRole   String?
+  actorName   String?
+  metadata    String?
+  createdAt   DateTime @default(now())
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([createdAt])
+  @@map("order_timeline")
+}
+
+model OrderItem {
+  id              String  @id @default(cuid())
+  orderId         String
+  productId       String
+  quantity        Int
+  price           Float
+  discountApplied Float   @default(0)
+  order           Order   @relation(fields: [orderId], references: [id])
+  product         Product @relation(fields: [productId], references: [id])
+
+  @@map("order_items")
+}
+
+model Delivery {
+  id                    String          @id @default(cuid())
+  orderId               String          @unique
+  fee                   Float           @default(0)
+  agentId               String?
+  address               String
+  trackingId            String          @unique
+  status                DeliveryStatus  @default(ASSIGNED)
+  estimatedDelivery     DateTime?
+  actualDelivery        DateTime?
+  pickupTime            DateTime?
+  dispatchTime          DateTime?
+  deliveryNotes         String?
+  agentName             String?
+  agentPhone            String?
+  vehicleInfo           String?
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+  county                String?
+  province              String?
+  sellerHandlesDelivery Boolean         @default(false)
+  agent                 User?           @relation(fields: [agentId], references: [id])
+  order                 Order           @relation(fields: [orderId], references: [id])
+  deliveryPhotos        DeliveryPhoto[]
+
+  @@map("deliveries")
+}
+
+model DeliveryPhoto {
+  id                 String            @id @default(cuid())
+  deliveryId         String
+  uploadedBy         String
+  photoUrl           String
+  cloudinaryPublicId String?
+  caption            String?
+  photoType          DeliveryPhotoType @default(DELIVERY_PROOF)
+  createdAt          DateTime          @default(now())
+  delivery           Delivery          @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  uploader           User              @relation(fields: [uploadedBy], references: [id])
+
+  @@map("delivery_photos")
+}
+
+model DeliveryVoucher {
+  id             String      @id @default(cuid())
+  code           String      @unique
+  name           String?
+  description    String?
+  discountType   VoucherType
+  discountValue  Float
+  minOrderAmount Float       @default(0)
+  maxUses        Int         @default(1)
+  usedCount      Int         @default(0)
+  expiresAt      DateTime?
+  isActive       Boolean     @default(true)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  @@map("delivery_vouchers")
+}
+
+model DeliveryFee {
+  id          String   @id @default(uuid())
+  name        String
+  amount      Float
+  description String?
+  isDefault   Boolean  @default(false)
+  zones       String[]
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Payment {
+  id                String        @id @default(cuid())
+  orderId           String        @unique
+  userId            String
+  amount            Float
+  method            PaymentMethod
+  status            PaymentStatus @default(PENDING)
+  phoneNumber       String?
+  transactionCode   String?
+  mpesaMessage      String?
+  description       String?
+  referenceNumber   String?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  callbackData      String?
+  callbackReceived  Boolean       @default(false)
+  externalReference String?
+  failureReason     String?
+  metadata          String?
+  stkPushData       String?
+  order             Order         @relation(fields: [orderId], references: [id])
+  user              User          @relation(fields: [userId], references: [id])
+
+  @@map("payments")
+}
+
+model PaymentApprovalLog {
+  id         String   @id @default(cuid())
+  orderId    String
+  approverId String
+  action     String
+  notes      String?
+  createdAt  DateTime @default(now())
+  approver   User     @relation(fields: [approverId], references: [id])
+  order      Order    @relation(fields: [orderId], references: [id])
+
+  @@map("payment_approval_logs")
+}
+
+model PaymentInvoice {
+  id             String               @id @default(cuid())
+  invoiceId      String               @unique
+  orderId        String?
+  provider       String               @default("intasend")
+  status         PaymentInvoiceStatus @default(CREATED)
+  amount         Float
+  expectedAmount Float?
+  phoneNumber    String?
+  isUsed         Boolean              @default(false)
+  expiresAt      DateTime
+  metadata       String?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+  order          Order?               @relation(fields: [orderId], references: [id])
+
+  @@map("payment_invoices")
+}
+
+model Voucher {
+  id                     String        @id @default(cuid())
+  code                   String        @unique
+  name                   String?
+  description            String?
+  discountType           VoucherType
+  discountValue          Float
+  minOrderAmount         Float         @default(0)
+  maxDiscountAmount      Float?
+  validFrom              DateTime
+  validUntil             DateTime
+  maxUses                Int           @default(1)
+  usedCount              Int           @default(0)
+  isActive               Boolean       @default(true)
+  createdById            String
+  applicableRoles        UserRole[]
+  applicableProductTypes ProductType[]
+  createdAt              DateTime      @default(now())
+  updatedAt              DateTime      @updatedAt
+  createdBy              User          @relation(fields: [createdById], references: [id])
+
+  @@map("vouchers")
+}
+
+model Review {
+  id        String        @id @default(cuid())
+  productId String
+  userId    String
+  rating    Int
+  comment   String
+  images    String[]
+  isVisible Boolean       @default(true)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  likes     ReviewLike[]
+  replies   ReviewReply[]
+  product   Product       @relation(fields: [productId], references: [id])
+  user      User          @relation(fields: [userId], references: [id])
+
+  @@unique([productId, userId])
+  @@map("reviews")
+}
+
+model ReviewLike {
+  id        String   @id @default(cuid())
+  reviewId  String
+  userId    String
+  createdAt DateTime @default(now())
+  review    Review   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([reviewId, userId])
+  @@map("review_likes")
+}
+
+model ReviewReply {
+  id        String   @id @default(cuid())
+  reviewId  String
+  userId    String
+  comment   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  review    Review   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@map("review_replies")
+}
+
+model HatchingRequest {
+  id         String            @id @default(cuid())
+  customerId String
+  eggType    String
+  quantity   Int
+  purpose    String
+  status     ApplicationStatus @default(PENDING)
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+  customer   User              @relation(fields: [customerId], references: [id])
+
+  @@map("hatching_requests")
+}
+
+model Application {
+  id            String            @id @default(cuid())
+  userId        String
+  requestedRole UserRole
+  businessName  String?
+  businessType  String?
+  description   String?
+  documents     String[]
+  status        ApplicationStatus @default(PENDING)
+  reviewedAt    DateTime?
+  reviewedBy    String?
+  reviewNotes   String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("applications")
+}
+
+model Sponsorship {
+  id           String                   @id @default(cuid())
+  companyId    String
+  sellerId     String?
+  userId       String?
+  amount       Float
+  description  String
+  terms        String?
+  duration     Int?
+  benefits     String[]
+  status       SponsorshipStatus        @default(PENDING)
+  startDate    DateTime?
+  endDate      DateTime?
+  createdAt    DateTime                 @default(now())
+  updatedAt    DateTime                 @updatedAt
+  applications SponsorshipApplication[]
+  company      User                     @relation("CompanySponsorships", fields: [companyId], references: [id], onDelete: Cascade)
+  seller       User?                    @relation("SellerSponsorships", fields: [sellerId], references: [id])
+  user         User?                    @relation("UserSponsorships", fields: [userId], references: [id])
+  User         User[]                   @relation("SponsorshipReceiver")
+
+  @@map("sponsorships")
+}
+
+model SponsorshipApplication {
+  id              String                       @id @default(cuid())
+  sponsorshipId   String
+  sellerId        String
+  message         String?
+  businessDetails Json?
+  status          SponsorshipApplicationStatus @default(PENDING)
+  rejectionReason String?
+  reviewedAt      DateTime?
+  createdAt       DateTime                     @default(now())
+  updatedAt       DateTime                     @updatedAt
+  seller          User                         @relation("SellerSponsorshipApplications", fields: [sellerId], references: [id], onDelete: Cascade)
+  sponsorship     Sponsorship                  @relation(fields: [sponsorshipId], references: [id], onDelete: Cascade)
+
+  @@unique([sponsorshipId, sellerId])
+  @@map("sponsorship_applications")
+}
+
+model UserTag {
+  id      String   @id @default(cuid())
+  userId  String
+  tag     TagType
+  addedBy String?
+  addedAt DateTime @default(now())
+  user    User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, tag])
+  @@map("user_tags")
+}
+
+model Analytics {
+  id              String   @id @default(cuid())
+  userId          String
+  date            DateTime @default(now())
+  totalSales      Float    @default(0)
+  orderCount      Int      @default(0)
+  productViews    Int      @default(0)
+  fulfillmentRate Float    @default(0)
+  averageRating   Float    @default(0)
+  user            User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, date])
+  @@map("analytics")
+}
+
+model Notification {
+  id         String           @id @default(cuid())
+  senderId   String?
+  receiverId String
+  orderId    String?
+  type       NotificationType
+  title      String
+  message    String
+  isRead     Boolean          @default(false)
+  sentAt     DateTime?
+  createdAt  DateTime         @default(now())
+  order      Order?           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  receiver   User             @relation("NotificationReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+  sender     User?            @relation("NotificationSender", fields: [senderId], references: [id])
+
+  @@map("notifications")
+}
+
+model ProductLike {
+  id        String   @id @default(cuid())
+  userId    String
+  productId String
+  createdAt DateTime @default(now())
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@map("product_likes")
+}
+
+model CartItem {
+  id        String   @id @default(cuid())
+  userId    String
+  productId String
+  quantity  Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@map("cart_items")
+}
+
+model Chat {
+  id             String        @id @default(cuid())
+  participant1Id String
+  participant2Id String
+  productId      String?
+  orderId        String?
+  lastMessage    String?
+  lastMessageAt  DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  messages       ChatMessage[]
+  order          Order?        @relation(fields: [orderId], references: [id])
+  participant1   User          @relation("ChatParticipant1", fields: [participant1Id], references: [id], onDelete: Cascade)
+  participant2   User          @relation("ChatParticipant2", fields: [participant2Id], references: [id], onDelete: Cascade)
+  product        Product?      @relation(fields: [productId], references: [id])
+
+  @@unique([participant1Id, participant2Id, productId])
+  @@unique([participant1Id, participant2Id, orderId])
+  @@map("chats")
+}
+
+model ChatMessage {
+  id          String            @id @default(cuid())
+  chatId      String
+  senderId    String
+  content     String
+  type        String            @default("text")
+  images      String[]
+  isRead      Boolean           @default(false)
+  createdAt   DateTime          @default(now())
+  deletedAt   DateTime?
+  deliveredAt DateTime?
+  editedAt    DateTime?
+  isDeleted   Boolean           @default(false)
+  isEdited    Boolean           @default(false)
+  readAt      DateTime?
+  replyToId   String?
+  updatedAt   DateTime          @updatedAt
+  chat        Chat              @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  replyTo     ChatMessage?      @relation("MessageReplies", fields: [replyToId], references: [id])
+  replies     ChatMessage[]     @relation("MessageReplies")
+  sender      User              @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  files       MessageFile[]
+  reactions   MessageReaction[]
+
+  @@map("chat_messages")
+}
+
+model MessageFile {
+  id        String      @id @default(cuid())
+  messageId String
+  name      String
+  url       String
+  type      String
+  size      Int
+  mimeType  String
+  createdAt DateTime    @default(now())
+  message   ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@map("message_files")
+}
+
+model MessageReaction {
+  id        String      @id @default(cuid())
+  messageId String
+  userId    String
+  emoji     String
+  createdAt DateTime    @default(now())
+  message   ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user      User        @relation("MessageReactions", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId, emoji])
+  @@map("message_reactions")
+}
+
+model Category {
+  id          String            @id @default(cuid())
+  name        String            @unique
+  slug        String            @unique
+  description String?
+  icon        String?
+  image       String?
+  isActive    Boolean           @default(true)
+  sortOrder   Int               @default(0)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  products    ProductCategory[]
+
+  @@map("categories")
+}
+
+model ProductCategory {
+  id         String   @id @default(cuid())
+  productId  String
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, categoryId])
+  @@map("product_categories")
+}
+
+model Collection {
+  id          String              @id @default(cuid())
+  name        String              @unique
+  slug        String              @unique
+  description String?
+  image       String?
+  isActive    Boolean             @default(true)
+  isFeatured  Boolean             @default(false)
+  sortOrder   Int                 @default(0)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  products    ProductCollection[]
+
+  @@map("collections")
+}
+
+model ProductCollection {
+  id           String     @id @default(cuid())
+  productId    String
+  collectionId String
+  collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  product      Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, collectionId])
+  @@map("product_collections")
+}
+
+model Follow {
+  id          String   @id @default(cuid())
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+  follower    User     @relation("Following", fields: [followerId], references: [id], onDelete: Cascade)
+  following   User     @relation("Followers", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@map("follows")
+}
+
+model Invoice {
+  id                 String   @id @default(cuid())
+  orderId            String   @unique
+  invoiceNumber      String   @unique
+  fileName           String
+  filePath           String
+  cloudinaryPublicId String?
+  generatedAt        DateTime @default(now())
+  order              Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("invoices")
+}
+
+model Announcement {
+  id            String                 @id @default(cuid())
+  title         String
+  content       String
+  type          AnnouncementType
+  status        AnnouncementStatus     @default(DRAFT)
+  authorId      String
+  productId     String?
+  targetRoles   String[]
+  isGlobal      Boolean                @default(false)
+  publishAt     DateTime?
+  expiresAt     DateTime?
+  imageUrl      String?
+  attachmentUrl String?
+  viewCount     Int                    @default(0)
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+  publishedAt   DateTime?
+  reactions     AnnouncementReaction[]
+  views         AnnouncementView[]
+  author        User                   @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  product       Product?               @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("announcements")
+}
+
+model AnnouncementView {
+  id             String       @id @default(cuid())
+  announcementId String
+  userId         String
+  viewedAt       DateTime     @default(now())
+  announcement   Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([announcementId, userId])
+  @@map("announcement_views")
+}
+
+model AnnouncementReaction {
+  id             String       @id @default(cuid())
+  announcementId String
+  userId         String
+  reaction       String
+  createdAt      DateTime     @default(now())
+  announcement   Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([announcementId, userId])
+  @@map("announcement_reactions")
+}
+
+model CheckoutSession {
+  id               String      @id @default(cuid())
+  userId           String
+  productId        String
+  quantity         Int         @default(1)
+  totalAmount      Float
+  paymentType      PaymentType @default(BEFORE_DELIVERY)
+  deliveryAddress  String?
+  deliveryCounty   String?
+  deliveryProvince String?
+  deliveryFee      Float       @default(0)
+  isCompleted      Boolean     @default(false)
+  expiresAt        DateTime
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  product          Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user             User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("checkout_sessions")
+}
+
+model AuthorProfile {
+  id              String           @id @default(cuid())
+  userId          String           @unique
+  displayName     String
+  username        String           @unique
+  bio             String?
+  avatarUrl       String?
+  coverImageUrl   String?
+  tagline         String?
+  website         String?
+  location        String?
+  occupation      String?
+  company         String?
+  expertise       String[]
+  twitterHandle   String?
+  linkedinUrl     String?
+  githubUsername  String?
+  facebookUrl     String?
+  instagramHandle String?
+  youtubeChannel  String?
+  isPublic        Boolean          @default(true)
+  isVerified      Boolean          @default(false)
+  showEmail       Boolean          @default(false)
+  allowComments   Boolean          @default(true)
+  emailOnComment  Boolean          @default(true)
+  emailOnFollow   Boolean          @default(true)
+  emailOnLike     Boolean          @default(false)
+  totalViews      Int              @default(0)
+  totalLikes      Int              @default(0)
+  totalPosts      Int              @default(0)
+  totalComments   Int              @default(0)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  resources       AuthorResource[] @relation("AuthorProfileResources")
+  wallet          AuthorWallet?
+  blogPosts       BlogPost[]       @relation("AuthorProfilePosts")
+
+  @@index([username])
+  @@index([isPublic, isVerified])
+  @@map("author_profiles")
+}
+
+/// Author-curated external recommendation (product, guide, service...).
+///
+/// Metadata is resolved ONCE when the author saves the resource and stored here,
+/// so rendering a public author profile never makes an outbound request to
+/// Amazon/Jumia/etc. Belongs to the existing AuthorProfile — there is no separate
+/// affiliate author identity.
+model AuthorResource {
+  id                  String                  @id @default(cuid())
+  profileId           String
+  title               String
+  description         String?
+  imageUrl            String?
+  url                 String
+  domain              String
+  merchant            String?
+  isAffiliate         Boolean                 @default(false)
+  affiliateDisclosure String?
+  isActive            Boolean                 @default(true)
+  displayOrder        Int                     @default(0)
+  clickCount          Int                     @default(0)
+  /// When the stored metadata was last resolved from the destination.
+  metadataFetchedAt   DateTime?
+  /// False when the destination returned no usable Open Graph metadata and the
+  /// author supplied the title/description/image manually.
+  metadataResolved    Boolean                 @default(false)
+  createdAt           DateTime                @default(now())
+  updatedAt           DateTime                @updatedAt
+  articles            AuthorResourceArticle[]
+  profile             AuthorProfile           @relation("AuthorProfileResources", fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId, isActive, displayOrder])
+  @@map("author_resources")
+}
+
+/// Explicit many-to-many join between a recommended resource and a blog post.
+/// Prevents irrelevant affiliate content appearing on unrelated articles.
+model AuthorResourceArticle {
+  id         String         @id @default(cuid())
+  resourceId String
+  postId     String
+  createdAt  DateTime       @default(now())
+  post       BlogPost       @relation("BlogPostResources", fields: [postId], references: [id], onDelete: Cascade)
+  resource   AuthorResource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+
+  @@unique([resourceId, postId])
+  @@index([postId])
+  @@map("author_resource_articles")
+}
+
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+model BlogPost {
+  id                  String                   @id @default(cuid())
+  title               String
+  slug                String                   @unique
+  content             String
+  excerpt             String?
+  featuredImage       String?
+  thumbnail           String?
+  images              String[]
+  metaDescription     String?
+  metaKeywords        String?
+  ogTitle             String?
+  ogDescription       String?
+  ogImage             String?
+  twitterTitle        String?
+  twitterDescription  String?
+  twitterImage        String?
+  category            BlogPostCategory
+  status              BlogPostStatus           @default(DRAFT)
+  featured            Boolean                  @default(false)
+  publishedAt         DateTime?
+  scheduledAt         DateTime?
+  submittedAt         DateTime?
+  approvedAt          DateTime?
+  rejectedAt          DateTime?
+  approvedBy          String?
+  rejectionReason     String?
+  submissionNotes     String?
+  viewCount           Int                      @default(0)
+  shareCount          Int                      @default(0)
+  likes               Int                      @default(0)
+  views               Int                      @default(0)
+  readingTime         Int?
+  authorId            String
+  createdAt           DateTime                 @default(now())
+  updatedAt           DateTime                 @updatedAt
+  adminNotes          String?
+  authorProfileId     String?
+  avgReadDuration     Float?
+  canonicalUrl        String?
+  estimatedReadTime   Int?
+  resubmitCount       Int                      @default(0)
+  resubmittedAt       DateTime?
+  tableOfContents     Json?
+  uniqueViewCount     Int                      @default(0)
+  wordCount           Int?
+  tagNames            String?                  @map("tag_names")
+  authorName          String?                  @map("author_name")
+  searchVector        Unsupported("tsvector")? @map("search_vector")
+  resourceLinks       AuthorResourceArticle[]  @relation("BlogPostResources")
+  comments            BlogComment[]
+  concepts            BlogPostConcept[]
+  likedBy             BlogPostLike[]           @relation("BlogPostLikes")
+  tags                BlogPostTag[]
+  postViews           BlogPostView[]           @relation("PostViews")
+  approvedByUser      User?                    @relation("BlogPostApprovedBy", fields: [approvedBy], references: [id])
+  author              User                     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  authorProfile       AuthorProfile?           @relation("AuthorProfilePosts", fields: [authorProfileId], references: [id])
+  supportTransactions SupportTransaction[]     @relation("BlogPostSupport")
+
+  @@index([status, publishedAt])
+  @@index([category])
+  @@index([slug])
+  @@index([authorProfileId])
+  @@map("blog_posts")
+}
+
+model BlogTag {
+  id          String        @id @default(cuid())
+  name        String        @unique
+  slug        String        @unique
+  description String?
+  color       String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  posts       BlogPostTag[]
+
+  @@map("blog_tags")
+}
+
+model SearchQuery {
+  id               String   @id @default(dbgenerated("gen_random_uuid()"))
+  query            String
+  normalized       String
+  filtersJson      Json?    @map("filters_json")
+  sort             String?
+  resultCount      Int      @default(0) @map("result_count")
+  noResults        Boolean  @default(false) @map("no_results")
+  userId           String?  @map("user_id")
+  sessionId        String?  @map("session_id")
+  ipHash           String?  @map("ip_hash")
+  referrer         String?
+  responseMs       Int?     @map("response_ms")
+  searchDurationMs Int?     @map("search_duration_ms")
+  clickedPostId    String?  @map("clicked_post_id")
+  clickedPosition  Int?     @map("clicked_position")
+  timeToClickMs    Int?     @map("time_to_click_ms")
+  openedRelatedId  String?  @map("opened_related_id")
+  autocompleteUsed Boolean  @default(false) @map("autocomplete_used")
+  didYouMeanShown  Boolean  @default(false) @map("did_you_mean_shown")
+  didYouMeanUsed   Boolean  @default(false) @map("did_you_mean_used")
+  source           String?
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([normalized, createdAt(sort: Desc)])
+  @@index([createdAt])
+  @@map("search_queries")
+}
+
+model SearchSynonym {
+  id        String              @id @default(cuid())
+  name      String
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+  words     SearchSynonymWord[]
+
+  @@map("search_synonyms")
+}
+
+model SearchSynonymWord {
+  id        String        @id @default(cuid())
+  synonymId String        @map("synonymId")
+  word      String
+  synonym   SearchSynonym @relation(fields: [synonymId], references: [id], onDelete: Cascade)
+
+  @@unique([synonymId, word])
+  @@index([word])
+  @@map("search_synonym_words")
+}
+
+model SearchConfiguration {
+  key         String   @id
+  value       Decimal
+  description String?
+  updatedAt   DateTime @default(now()) @updatedAt
+
+  @@map("search_configuration")
+}
+
+model SearchBoostRule {
+  id        String    @id @default(cuid())
+  keyword   String
+  weight    Decimal
+  enabled   Boolean   @default(true)
+  startDate DateTime? @map("startDate") @db.Timestamptz(6)
+  endDate   DateTime? @map("endDate") @db.Timestamptz(6)
+  reason    String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@map("search_boost_rules")
+}
+
+model DomainConcept {
+  id        String            @id @default(cuid())
+  name      String            @unique
+  type      ConceptType
+  aliases   String[]          @default([])
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  posts     BlogPostConcept[]
+
+  @@map("domain_concepts")
+}
+
+model BlogPostConcept {
+  postId    String
+  conceptId String
+  concept   DomainConcept @relation(fields: [conceptId], references: [id], onDelete: Cascade)
+  post      BlogPost      @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@id([postId, conceptId])
+  @@index([conceptId])
+  @@map("blog_post_concepts")
+}
+
+model BlogPostTag {
+  id     String   @id @default(cuid())
+  postId String
+  tagId  String
+  post   BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tag    BlogTag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, tagId])
+  @@map("blog_post_tags")
+}
+
+model BlogComment {
+  id               String            @id @default(cuid())
+  content          String
+  images           String[]
+  isApproved       Boolean           @default(false)
+  isEdited         Boolean           @default(false)
+  editedAt         DateTime?
+  moderatedAt      DateTime?
+  moderatedBy      String?
+  moderationReason String?
+  authorId         String?
+  guestName        String?
+  guestEmail       String?
+  postId           String
+  parentId         String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  likedBy          BlogCommentLike[] @relation("BlogCommentLikes")
+  author           User?             @relation(fields: [authorId], references: [id])
+  moderatedByUser  User?             @relation("CommentModerator", fields: [moderatedBy], references: [id])
+  parent           BlogComment?      @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies          BlogComment[]     @relation("CommentReplies")
+  post             BlogPost          @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId])
+  @@index([isApproved])
+  @@map("blog_comments")
+}
+
+model BlogSubscriber {
+  id                    String              @id @default(cuid())
+  email                 String              @unique
+  name                  String?
+  isActive              Boolean             @default(true)
+  weeklyDigest          Boolean             @default(true)
+  newPostAlerts         Boolean             @default(true)
+  categoryUpdates       String?
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+  status                SubscriberStatus    @default(PENDING)
+  verificationTokenHash String?             @unique
+  verificationSentAt    DateTime?
+  verificationExpiresAt DateTime?
+  verificationCount     Int                 @default(0)
+  verifiedAt            DateTime?
+  manageTokenHash       String?             @unique
+  topics                BlogPostCategory[]  @default([])
+  allTopics             Boolean             @default(true)
+  frequency             SubscriberFrequency @default(EVERY_POST)
+  unsubscribedAt        DateTime?
+  resubscribedAt        DateTime?
+  source                String?
+  lastEmailSentAt       DateTime?
+  emailsSent            Int                 @default(0)
+  bounceCount           Int                 @default(0)
+  deliveries            EmailDelivery[]
+  events                SubscriberEvent[]
+
+  @@index([status])
+  @@index([status, allTopics])
+  @@index([verifiedAt])
+  @@map("blog_subscribers")
+}
+
+model SubscriberEvent {
+  id           String         @id @default(cuid())
+  subscriberId String
+  type         String
+  actorType    String         @default("subscriber")
+  actorId      String?
+  metadata     Json?
+  createdAt    DateTime       @default(now())
+  subscriber   BlogSubscriber @relation(fields: [subscriberId], references: [id], onDelete: Cascade)
+
+  @@index([subscriberId, createdAt])
+  @@index([type, createdAt])
+  @@map("subscriber_events")
+}
+
+model EmailCampaign {
+  id              String              @id @default(cuid())
+  type            EmailCampaignType
+  status          EmailCampaignStatus @default(DRAFT)
+  subject         String
+  previewText     String?
+  content         String
+  ctaLabel        String?
+  ctaUrl          String?
+  imageUrl        String?
+  audience        Json
+  topics          BlogPostCategory[]  @default([])
+  blogPostId      String?
+  senderAccount   String              @default("blog")
+  senderName      String?
+  totalRecipients Int                 @default(0)
+  sentCount       Int                 @default(0)
+  failedCount     Int                 @default(0)
+  createdById     String?
+  queuedAt        DateTime?
+  startedAt       DateTime?
+  completedAt     DateTime?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  deliveries      EmailDelivery[]
+
+  @@unique([blogPostId, type])
+  @@index([status, createdAt])
+  @@index([type, createdAt])
+  @@map("email_campaigns")
+}
+
+model EmailDelivery {
+  id                String              @id @default(cuid())
+  campaignId        String
+  subscriberId      String?
+  userId            String?
+  email             String
+  recipientName     String?
+  status            EmailDeliveryStatus @default(PENDING)
+  attempts          Int                 @default(0)
+  providerMessageId String?
+  error             String?
+  sentAt            DateTime?
+  lastAttemptAt     DateTime?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  campaign          EmailCampaign       @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  subscriber        BlogSubscriber?     @relation(fields: [subscriberId], references: [id])
+
+  @@unique([campaignId, email])
+  @@index([status, createdAt])
+  @@index([campaignId, status])
+  @@index([subscriberId])
+  @@map("email_deliveries")
+}
+
+model EmailSetting {
+  key         String   @id
+  value       Json
+  updatedById String?
+  updatedAt   DateTime @updatedAt
+
+  @@map("email_settings")
+}
+
+model BlogPostLike {
+  id        String   @id @default(cuid())
+  userId    String
+  postId    String
+  createdAt DateTime @default(now())
+  post      BlogPost @relation("BlogPostLikes", fields: [postId], references: [id], onDelete: Cascade)
+  user      User     @relation("BlogPostLikes", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+  @@map("blog_post_likes")
+}
+
+model BlogCommentLike {
+  id        String      @id @default(cuid())
+  userId    String
+  commentId String
+  createdAt DateTime    @default(now())
+  comment   BlogComment @relation("BlogCommentLikes", fields: [commentId], references: [id], onDelete: Cascade)
+  user      User        @relation("BlogCommentLikes", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, commentId])
+  @@map("blog_comment_likes")
+}
+
+model ApiKey {
+  id         String       @id @default(cuid())
+  userId     String
+  name       String
+  hashedKey  String
+  lastFour   String       @db.VarChar(10)
+  status     ApiKeyStatus @default(ACTIVE)
+  lastUsedAt DateTime?
+  revokedAt  DateTime?
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("api_keys")
+}
+
+model BlogPostView {
+  id             String   @id @default(cuid())
+  postId         String
+  userId         String?
+  sessionId      String?
+  ipHash         String?
+  readDuration   Int?
+  scrollDepth    Int?
+  referrer       String?
+  utmSource      String?
+  utmMedium      String?
+  utmCampaign    String?
+  deviceType     String?
+  browser        String?
+  country        String?
+  completedRead  Boolean  @default(false)
+  likedAfter     Boolean  @default(false)
+  commentedAfter Boolean  @default(false)
+  sharedAfter    Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  post           BlogPost @relation("PostViews", fields: [postId], references: [id], onDelete: Cascade)
+  user           User?    @relation("UserBlogViews", fields: [userId], references: [id])
+
+  @@unique([postId, userId])
+  @@unique([postId, sessionId])
+  @@index([postId, createdAt])
+  @@index([userId])
+  @@map("blog_post_views")
+}
+
+model AuthorWallet {
+  id                   String               @id @default(cuid())
+  authorProfileId      String               @unique
+  intasendWalletId     String               @unique
+  currency             String               @default("KES")
+  label                String
+  canDisburse          Boolean              @default(true)
+  currentBalance       Float                @default(0)
+  availableBalance     Float                @default(0)
+  totalReceived        Float                @default(0)
+  totalWithdrawn       Float                @default(0)
+  platformFeeTotal     Float                @default(0)
+  mpesaNumber          String?
+  dailyWithdrawLimit   Float                @default(50000)
+  lastWithdrawalDate   DateTime?
+  dailyWithdrawnAmount Float                @default(0)
+  status               WalletStatus         @default(ACTIVE)
+  supportersCount      Int                  @default(0)
+  transactionsCount    Int                  @default(0)
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+  lastSyncedAt         DateTime?
+  authorProfile        AuthorProfile        @relation(fields: [authorProfileId], references: [id], onDelete: Cascade)
+  transactions         SupportTransaction[]
+  withdrawals          WithdrawalRequest[]
+
+  @@index([intasendWalletId])
+  @@index([status])
+  @@map("author_wallets")
+}
+
+model SupportTransaction {
+  id                 String               @id @default(cuid())
+  walletId           String
+  supporterId        String?
+  supporterName      String?
+  supporterEmail     String?
+  isAnonymous        Boolean              @default(false)
+  amount             Float
+  platformFee        Float
+  netAmount          Float
+  currency           String               @default("KES")
+  intasendInvoiceId  String?
+  intasendCheckoutId String?
+  mpesaReference     String?
+  paymentMethod      String?
+  message            String?
+  status             SupportPaymentStatus @default(PENDING)
+  failedReason       String?
+  blogPostId         String?
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  completedAt        DateTime?
+  failedCode         String?
+  refundReason       String?
+  refundedAt         DateTime?
+  refundedById       String?
+  blogPost           BlogPost?            @relation("BlogPostSupport", fields: [blogPostId], references: [id])
+  supporter          User?                @relation("SupporterTransactions", fields: [supporterId], references: [id])
+  wallet             AuthorWallet         @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  @@index([walletId, status])
+  @@index([supporterId])
+  @@index([intasendInvoiceId])
+  @@index([createdAt])
+  @@index([refundedAt])
+  @@map("support_transactions")
+}
+
+model WithdrawalRequest {
+  id               String           @id @default(cuid())
+  walletId         String
+  amount           Float
+  mpesaNumber      String?
+  currency         String           @default("KES")
+  intasendPayoutId String?
+  intasendBatchId  String?
+  mpesaReference   String?
+  status           WithdrawalStatus @default(PENDING)
+  failedReason     String?
+  processedAt      DateTime?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  accountName      String?
+  bankAccount      String?
+  bankCode         String?
+  bankName         String?
+  method           String           @default("MPESA_B2C")
+  paybillAccount   String?
+  paybillNumber    String?
+  statusCode       String?
+  tillNumber       String?
+  wallet           AuthorWallet     @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  @@index([walletId, status])
+  @@index([createdAt])
+  @@map("withdrawal_requests")
+}
+
+model Sale {
+  id                String            @id @default(cuid())
+  receiptNumber     String            @unique
+  sellerId          String
+  subtotal          Float
+  discountAmount    Float             @default(0)
+  taxAmount         Float             @default(0)
+  total             Float
+  paymentMethod     SalePaymentMethod
+  status            SaleStatus        @default(COMPLETED)
+  mpesaReference    String?
+  intasendInvoiceId String?
+  cardReference     String?
+  customerName      String?
+  customerPhone     String?
+  notes             String?
+  currency          String            @default("KES")
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  items             SaleItem[]
+  seller            User              @relation(fields: [sellerId], references: [id])
+
+  @@index([sellerId, createdAt])
+  @@index([receiptNumber])
+  @@index([status])
+  @@map("sales")
+}
+
+model SaleItem {
+  id          String  @id @default(cuid())
+  saleId      String
+  productId   String
+  productName String
+  quantity    Int
+  unitPrice   Float
+  discount    Float   @default(0)
+  total       Float
+  product     Product @relation(fields: [productId], references: [id])
+  sale        Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
+
+  @@index([saleId])
+  @@index([productId])
+  @@map("sale_items")
+}
+
+model InventoryLog {
+  id            String          @id @default(cuid())
+  productId     String
+  userId        String
+  action        InventoryAction
+  quantity      Int
+  previousStock Int
+  newStock      Int
+  saleId        String?
+  orderId       String?
+  reason        String?
+  createdAt     DateTime        @default(now())
+  product       Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user          User            @relation(fields: [userId], references: [id])
+
+  @@index([productId, createdAt])
+  @@index([userId])
+  @@index([action])
+  @@map("inventory_logs")
+}
+
+model SellerCommission {
+  id              String   @id @default(cuid())
+  sellerId        String   @unique
+  rate            Float    @default(5.0)
+  isActive        Boolean  @default(true)
+  totalCommission Float    @default(0)
+  totalSales      Float    @default(0)
+  setBy           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  seller          User     @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+
+  @@index([sellerId])
+  @@map("seller_commissions")
+}
+
+model Wallet {
+  id               String              @id @default(cuid())
+  userId           String
+  intasendId       String              @unique
+  walletType       WalletType          @default(WORKING)
+  currency         String              @default("KES")
+  label            String
+  canDisburse      Boolean             @default(true)
+  currentBalance   Float               @default(0)
+  availableBalance Float               @default(0)
+  isActive         Boolean             @default(true)
+  isPrimary        Boolean             @default(false)
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+  transactions     WalletTransaction[]
+  user             User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([intasendId])
+  @@map("wallets")
+}
+
+model WalletTransaction {
+  id                   String                  @id @default(cuid())
+  walletId             String
+  userId               String
+  type                 WalletTransactionType
+  status               WalletTransactionStatus @default(PENDING)
+  amount               Float
+  fee                  Float                   @default(0)
+  netAmount            Float
+  runningBalance       Float?                  @default(0)
+  currency             String                  @default("KES")
+  invoiceId            String?
+  mpesaReference       String?
+  trackingId           String?
+  externalReference    String?
+  narrative            String?
+  orderId              String?
+  saleId               String?
+  counterpartyWalletId String?
+  failedReason         String?
+  failedCode           String?
+  metadata             String?
+  createdAt            DateTime                @default(now())
+  updatedAt            DateTime                @updatedAt
+  user                 User                    @relation("WalletTransactions", fields: [userId], references: [id])
+  wallet               Wallet                  @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  @@index([walletId, createdAt])
+  @@index([userId])
+  @@index([type])
+  @@index([status])
+  @@index([invoiceId])
+  @@map("wallet_transactions")
+}
+
+model Store {
+  id                String              @id @default(cuid())
+  ownerId           String              @unique
+  storeName         String
+  storeSlug         String              @unique
+  storeDescription  String?
+  logo              String?
+  bannerImage       String?
+  location          String?
+  contactPhone      String?
+  socialLinks       String?
+  themeColor        String?             @default("#16a34a")
+  storeType         StoreType           @default(SELLER)
+  status            StoreStatus         @default(ACTIVE)
+  verificationLevel VerificationLevel   @default(NONE)
+  totalProducts     Int                 @default(0)
+  totalOrders       Int                 @default(0)
+  totalRevenue      Float               @default(0)
+  averageRating     Float               @default(0)
+  totalReviews      Int                 @default(0)
+  totalFollowers    Int                 @default(0)
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  deliveryJobs      DeliveryJob[]
+  orders            Order[]
+  products          Product[]
+  sales             StoreSale[]
+  verifications     StoreVerification[]
+  storeWallet       StoreWallet?
+  withdrawals       StoreWithdrawal[]
+  owner             User                @relation("StoreOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@index([storeSlug])
+  @@index([storeType])
+  @@index([status])
+  @@map("stores")
+}
+
+model StoreWallet {
+  id               String                   @id @default(cuid())
+  storeId          String                   @unique
+  availableBalance Float                    @default(0)
+  pendingBalance   Float                    @default(0)
+  escrowBalance    Float                    @default(0)
+  totalEarned      Float                    @default(0)
+  totalWithdrawn   Float                    @default(0)
+  currency         String                   @default("KES")
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
+  transactions     StoreWalletTransaction[]
+  store            Store                    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@map("store_wallets")
+}
+
+model StoreWalletTransaction {
+  id        String      @id @default(cuid())
+  walletId  String
+  type      String
+  status    String      @default("COMPLETED")
+  amount    Float
+  fee       Float       @default(0)
+  netAmount Float
+  narrative String?
+  orderId   String?
+  saleId    String?
+  createdAt DateTime    @default(now())
+  wallet    StoreWallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  @@index([walletId, createdAt])
+  @@map("store_wallet_transactions")
+}
+
+model StoreWithdrawal {
+  id              String                @id @default(cuid())
+  storeId         String
+  amount          Float
+  method          WithdrawMethodType
+  currency        String                @default("KES")
+  accountName     String?
+  mpesaNumber     String?
+  mpesaTillNumber String?
+  bankName        String?
+  bankAccount     String?
+  bankCode        String?
+  paypalEmail     String?
+  status          StoreWithdrawalStatus @default(PENDING)
+  processedAt     DateTime?
+  processedBy     String?
+  rejectionReason String?
+  transactionRef  String?
+  requestedAt     DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+  store           Store                 @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([storeId, status])
+  @@map("store_withdrawals")
+}
+
+model DeliveryProof {
+  id              String    @id @default(cuid())
+  orderId         String    @unique
+  submittedBy     String
+  proofImages     String[]  @default([])
+  deliveryNote    String?
+  submittedAt     DateTime  @default(now())
+  isApproved      Boolean   @default(false)
+  approvedBy      String?
+  approvedAt      DateTime?
+  rejectionReason String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  approver        User?     @relation("DeliveryProofApprover", fields: [approvedBy], references: [id])
+  order           Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  submitter       User      @relation("DeliveryProofSubmitter", fields: [submittedBy], references: [id])
+
+  @@index([orderId])
+  @@map("delivery_proofs")
+}
+
+model StoreVerification {
+  id                String                    @id @default(cuid())
+  storeId           String
+  requestedLevel    VerificationLevel
+  status            VerificationRequestStatus @default(PENDING)
+  identityDocuments String[]                  @default([])
+  farmPhotos        String[]                  @default([])
+  businessDocuments String[]                  @default([])
+  additionalNotes   String?
+  reviewedBy        String?
+  reviewedAt        DateTime?
+  rejectionReason   String?
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @updatedAt
+  store             Store                     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([storeId, status])
+  @@map("store_verifications")
+}
+
+model DeliveryPartner {
+  id            String        @id @default(cuid())
+  userId        String        @unique
+  name          String
+  phone         String
+  vehicleType   String?
+  vehiclePlate  String?
+  location      String?
+  coverageAreas String[]      @default([])
+  isVerified    Boolean       @default(false)
+  isAvailable   Boolean       @default(true)
+  rating        Float         @default(0)
+  completedJobs Int           @default(0)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  jobs          DeliveryJob[]
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([location])
+  @@index([isAvailable])
+  @@map("delivery_partners")
+}
+
+model DeliveryJob {
+  id                String            @id @default(cuid())
+  storeId           String
+  orderId           String
+  partnerId         String?
+  deliveryPartnerId String?
+  status            DeliveryJobStatus @default(PENDING)
+  pickupAddress     String?
+  deliveryAddress   String?
+  notes             String?
+  fee               Float             @default(0)
+  distance          Float?
+  pickedUpAt        DateTime?
+  deliveredAt       DateTime?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  deliveryPartner   DeliveryPartner?  @relation(fields: [deliveryPartnerId], references: [id])
+  order             Order             @relation(fields: [orderId], references: [id])
+  partner           User?             @relation("DeliveryPartnerJobs", fields: [partnerId], references: [id])
+  store             Store             @relation(fields: [storeId], references: [id])
+
+  @@index([storeId])
+  @@index([deliveryPartnerId, status])
+  @@map("delivery_jobs")
+}
+
+model MarketPrice {
+  id           String   @id @default(cuid())
+  category     String
+  region       String
+  averagePrice Float
+  minPrice     Float?
+  maxPrice     Float?
+  unit         String   @default("per unit")
+  source       String   @default("PLATFORM")
+  recordedAt   DateTime @default(now())
+  updatedBy    String?
+
+  @@index([category, region])
+  @@index([recordedAt])
+  @@map("market_prices")
+}
+
+model StoreSale {
+  id        String   @id @default(cuid())
+  storeId   String
+  saleId    String
+  amount    Float
+  method    String
+  createdAt DateTime @default(now())
+  store     Store    @relation(fields: [storeId], references: [id])
+
+  @@index([storeId, createdAt])
+  @@map("store_sales")
+}
+
+model Subscription {
+  id               String             @id @default(cuid())
+  userId           String             @unique
+  plan             SubscriptionPlan   @default(FREE)
+  status           SubscriptionStatus @default(INACTIVE)
+  intaSendRef      String?
+  paymentReference String?
+  startDate        DateTime?
+  endDate          DateTime?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status, endDate])
+  @@map("subscriptions")
+}
+
+model FarmEmailPreference {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  dailyReminder     Boolean  @default(true)
+  weeklySummary     Boolean  @default(true)
+  inactivityAlerts  Boolean  @default(true)
+  vaccinationAlerts Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("farm_email_preferences")
+}
+
+model Flock {
+  id               String            @id @default(cuid())
+  userId           String
+  name             String
+  breed            String?
+  birdCount        Int               @default(0)
+  acquiredAt       DateTime?
+  status           FlockStatus       @default(ACTIVE)
+  notes            String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  farmId           String?
+  attachments      Attachment[]
+  eggRecords       EggRecord[]
+  feedRecords      FeedRecord[]
+  farm             Farm?             @relation(fields: [farmId], references: [id])
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mortalityRecords MortalityRecord[]
+  reminders        Reminder[]
+  vaccinations     Vaccination[]
+
+  @@index([userId, status])
+  @@index([farmId])
+  @@map("flocks")
+}
+
+model LivestockFlock {
+  id                String                      @id @default(cuid())
+  title             String
+  breed             String
+  birdType          LivestockBirdType
+  quantity          Int
+  location          String
+  status            LivestockFlockStatus        @default(ACTIVE)
+  description       String
+  sellerId          String
+  startRearingDate  DateTime
+  expectedReadyDate DateTime
+  deliveryAvailable Boolean                     @default(false)
+  deliveryScope     LivestockDeliveryScope      @default(FARM_PICKUP)
+  deliveryNotes     String?
+  createdAt         DateTime                    @default(now())
+  updatedAt         DateTime                    @updatedAt
+  medicationsGiven  LivestockFlockMedication[]
+  vaccinationsGiven LivestockFlockVaccination[]
+  seller            User                        @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+
+  @@index([sellerId, status])
+  @@index([birdType])
+  @@index([deliveryScope])
+  @@map("livestock_flocks")
+}
+
+model LivestockFlockVaccination {
+  id        String         @id @default(cuid())
+  flockId   String
+  name      String
+  dateGiven DateTime
+  nextDue   DateTime?
+  createdAt DateTime       @default(now())
+  flock     LivestockFlock @relation(fields: [flockId], references: [id], onDelete: Cascade)
+
+  @@index([flockId, dateGiven])
+  @@map("livestock_flock_vaccinations")
+}
+
+model LivestockFlockMedication {
+  id           String         @id @default(cuid())
+  flockId      String
+  name         String
+  reason       String
+  dateGiven    DateTime
+  durationDays Int
+  createdAt    DateTime       @default(now())
+  flock        LivestockFlock @relation(fields: [flockId], references: [id], onDelete: Cascade)
+
+  @@index([flockId, dateGiven])
+  @@map("livestock_flock_medications")
+}
+
+model PendingEvent {
+  id            String         @id @default(cuid())
+  eventType     FlockEventType
+  entityType    String
+  entityId      String
+  payload       Json
+  status        String         @default("PENDING")
+  errorMessage  String?
+  retryCount    Int            @default(0)
+  lastAttemptAt DateTime?
+  sentAt        DateTime?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@index([status, createdAt])
+  @@index([entityType, entityId])
+  @@map("pending_events")
+}
+
+model EggRecord {
+  id           String       @id @default(cuid())
+  userId       String
+  flockId      String?
+  recordedOn   DateTime
+  quantity     Int
+  damagedCount Int          @default(0)
+  notes        String?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  farmId       String?
+  attachments  Attachment[]
+  farm         Farm?        @relation(fields: [farmId], references: [id])
+  flock        Flock?       @relation(fields: [flockId], references: [id])
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, recordedOn])
+  @@index([flockId])
+  @@index([farmId])
+  @@map("egg_records")
+}
+
+model FeedRecord {
+  id          String       @id @default(cuid())
+  userId      String
+  flockId     String?
+  recordedOn  DateTime
+  feedType    String
+  quantityKg  Float
+  cost        Float?
+  notes       String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  farmId      String?
+  attachments Attachment[]
+  farm        Farm?        @relation(fields: [farmId], references: [id])
+  flock       Flock?       @relation(fields: [flockId], references: [id])
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, recordedOn])
+  @@index([flockId])
+  @@index([farmId])
+  @@map("feed_records")
+}
+
+model MortalityRecord {
+  id          String       @id @default(cuid())
+  userId      String
+  flockId     String?
+  recordedOn  DateTime
+  count       Int
+  cause       String?
+  notes       String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  farmId      String?
+  attachments Attachment[]
+  farm        Farm?        @relation(fields: [farmId], references: [id])
+  flock       Flock?       @relation(fields: [flockId], references: [id])
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, recordedOn])
+  @@index([flockId])
+  @@index([farmId])
+  @@map("mortality_records")
+}
+
+model Vaccination {
+  id               String            @id @default(cuid())
+  userId           String
+  flockId          String?
+  vaccineName      String
+  scheduledDate    DateTime
+  administeredDate DateTime?
+  status           VaccinationStatus @default(SCHEDULED)
+  notes            String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  farmId           String?
+  attachments      Attachment[]
+  farm             Farm?             @relation(fields: [farmId], references: [id])
+  flock            Flock?            @relation(fields: [flockId], references: [id])
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, scheduledDate, status])
+  @@index([flockId])
+  @@index([farmId])
+  @@map("vaccinations")
+}
+
+model Attachment {
+  id                String           @id @default(cuid())
+  userId            String
+  fileName          String
+  fileUrl           String
+  mimeType          String
+  sizeBytes         Int
+  eggRecordId       String?
+  flockId           String?
+  feedRecordId      String?
+  mortalityRecordId String?
+  vaccinationId     String?
+  createdAt         DateTime         @default(now())
+  farmId            String?
+  eggRecord         EggRecord?       @relation(fields: [eggRecordId], references: [id])
+  farm              Farm?            @relation(fields: [farmId], references: [id])
+  feedRecord        FeedRecord?      @relation(fields: [feedRecordId], references: [id])
+  flock             Flock?           @relation(fields: [flockId], references: [id])
+  mortalityRecord   MortalityRecord? @relation(fields: [mortalityRecordId], references: [id])
+  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vaccination       Vaccination?     @relation(fields: [vaccinationId], references: [id])
+
+  @@index([userId, createdAt])
+  @@index([eggRecordId])
+  @@index([flockId])
+  @@index([feedRecordId])
+  @@index([mortalityRecordId])
+  @@index([vaccinationId])
+  @@index([farmId])
+  @@map("attachments")
+}
+
+model FarmImportJob {
+  id             String           @id @default(cuid())
+  userId         String
+  fileName       String
+  fileType       String?
+  status         FarmImportStatus @default(PREVIEW)
+  totalRows      Int              @default(0)
+  validRows      Int              @default(0)
+  invalidRows    Int              @default(0)
+  mapping        String?
+  previewPayload String?
+  errorLog       String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  confirmedAt    DateTime?
+  farmId         String?
+  farm           Farm?            @relation(fields: [farmId], references: [id])
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status, createdAt])
+  @@index([farmId])
+  @@map("farm_import_jobs")
+}
+
+model Reminder {
+  id             String       @id @default(cuid())
+  title          String
+  description    String?
+  type           ReminderType
+  frequency      Frequency
+  customInterval Int?
+  timeOfDay      String?
+  dayOfWeek      Int?
+  nextTriggerAt  DateTime?
+  lastSentAt     DateTime?
+  isActive       Boolean      @default(true)
+  flockId        String?
+  userId         String
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  farmId         String?
+  farm           Farm?        @relation(fields: [farmId], references: [id])
+  flock          Flock?       @relation(fields: [flockId], references: [id])
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, nextTriggerAt])
+  @@index([farmId, nextTriggerAt])
+  @@map("reminders")
 }
 
 enum UserRole {
@@ -20,19 +2170,19 @@ enum UserRole {
 }
 
 enum OrderStatus {
-  PENDING // Order created, awaiting payment
-  PAYMENT_PENDING // Payment initiated but not confirmed
-  PAID // Payment confirmed, awaiting seller approval
-  APPROVED // Seller approved, order in progress
-  PACKED // Seller packed the order
-  READY_FOR_DELIVERY // Ready to be picked up/dispatched
-  IN_TRANSIT // Out for delivery
-  REACHED_COLLECTION_POINT // At collection point
-  READY_FOR_PICKUP // Ready for customer pickup
-  DELIVERED // Delivered to customer
-  COMPLETED // Customer confirmed receipt
-  CANCELLED // Order cancelled
-  REJECTED // Seller rejected the order
+  PENDING
+  PAYMENT_PENDING
+  PAID
+  APPROVED
+  PACKED
+  READY_FOR_DELIVERY
+  IN_TRANSIT
+  REACHED_COLLECTION_POINT
+  READY_FOR_PICKUP
+  DELIVERED
+  COMPLETED
+  CANCELLED
+  REJECTED
 }
 
 enum ProductType {
@@ -86,7 +2236,6 @@ enum PaymentMethod {
   CARD
 }
 
-// POS System Enums
 enum SalePaymentMethod {
   CASH
   MPESA
@@ -100,13 +2249,13 @@ enum SaleStatus {
 }
 
 enum InventoryAction {
-  SALE // Stock deducted from POS sale
-  ORDER // Stock deducted from online order
-  RESTOCK // Manual restock / purchase
-  ADJUSTMENT // Manual adjustment (correction)
-  RETURN // Customer return
-  DAMAGE // Damaged/expired stock write-off
-  TRANSFER // Transfer between locations
+  SALE
+  ORDER
+  RESTOCK
+  ADJUSTMENT
+  RETURN
+  DAMAGE
+  TRANSFER
 }
 
 enum PaymentType {
@@ -115,23 +2264,23 @@ enum PaymentType {
 }
 
 enum PaymentStatus {
-  UNPAID // No payment initiated
-  PENDING // Payment initiated, awaiting confirmation
-  SUBMITTED // Manual payment submitted, awaiting admin verification
-  CONFIRMED // Payment confirmed (by admin for manual, or auto for M-Pesa)
-  APPROVED // Payment approved by admin
-  REJECTED // Payment rejected by admin
-  REFUNDED // Payment refunded
-  FAILED // Payment failed
+  UNPAID
+  PENDING
+  SUBMITTED
+  APPROVED
+  REJECTED
+  REFUNDED
+  CONFIRMED
+  FAILED
 }
 
 enum PaymentInvoiceStatus {
-  CREATED // Invoice created but payment not initiated
-  PENDING // Payment initiated but not completed
-  COMPLETE // Payment completed successfully
-  FAILED // Payment failed
-  EXPIRED // Invoice expired
-  USED // Invoice used for order creation
+  CREATED
+  PENDING
+  COMPLETE
+  FAILED
+  EXPIRED
+  USED
 }
 
 enum SponsorshipStatus {
@@ -263,481 +2412,6 @@ enum FarmImportStatus {
   FAILED
 }
 
-model User {
-  id                      String    @id @default(cuid())
-  email                   String    @unique
-  password                String?
-  googleId                String?   @unique
-  name                    String
-  phone                   String?
-  avatar                  String?
-  role                    UserRole  @default(CUSTOMER)
-  isActive                Boolean   @default(true)
-  isVerified              Boolean   @default(false)
-  verificationToken       String?
-  verificationTokenExpiry DateTime?
-  resetToken              String?
-  resetTokenExpiry        DateTime?
-  createdAt               DateTime  @default(now())
-  updatedAt               DateTime  @updatedAt
-
-  // Profile fields
-  bio      String?
-  location String?
-  website  String?
-
-  // Custom domain/dashboard
-  customDomain  String?
-  dashboardSlug String?
-  qrCode        String?
-
-  // Delivery Agent specific fields
-  agentId       String? @unique
-  vehicleType   String?
-  vehicleNumber String?
-  licenseNumber String?
-  coverageArea  String?
-  isApproved    Boolean @default(false)
-
-  // Seller/Company delivery settings
-  offersDelivery          Boolean  @default(false)
-  offersPayAfterDelivery  Boolean  @default(false)
-  offersFreeDelivery      Boolean  @default(false)
-  deliveryProvinces       String[] @default([]) // Array of provinces they deliver to
-  deliveryCounties        String[] @default([]) // Array of counties they deliver to
-  minOrderForFreeDelivery Float? // Minimum order amount for free delivery
-  deliveryFeePerKm        Float?   @default(0) // Delivery fee per km if not free
-
-  // Customer relationships
-  orders           Order[]
-  sellerOrders     Order[]           @relation("SellerOrders")
-  approvedOrders   Order[]           @relation("OrderApprovals")
-  hatchingRequests HatchingRequest[]
-  applications     Application[]
-  reviews          Review[]
-  reviewLikes      ReviewLike[]
-  payments         Payment[]
-
-  // Seller/Company relationships
-  products                Product[]
-  vouchers                Voucher[]
-  sponsorships            Sponsorship[]            @relation("UserSponsorships")
-  receivedSponsorships    Sponsorship[]            @relation("SponsorshipReceiver")
-  companySponsorships     Sponsorship[]            @relation("CompanySponsorships")
-  sellerSponsorships      Sponsorship[]            @relation("SellerSponsorships")
-  sponsorshipApplications SponsorshipApplication[] @relation("SellerSponsorshipApplications")
-  tags                    UserTag[]
-  analytics               Analytics[]
-  reviewReplies           ReviewReply[]
-
-  // Delivery Agent relationships
-  deliveries Delivery[]
-
-  // Payment approvals
-  paymentApprovals PaymentApprovalLog[]
-
-  // Notifications
-  sentNotifications     Notification[] @relation("NotificationSender")
-  receivedNotifications Notification[] @relation("NotificationReceiver")
-
-  // Product interactions
-  productLikes ProductLike[]
-  cartItems    CartItem[]
-
-  // Chat relationships
-  sentMessages        ChatMessage[]     @relation("SentMessages")
-  messageReactions    MessageReaction[] @relation("MessageReactions")
-  chatsAsParticipant1 Chat[]            @relation("ChatParticipant1")
-  chatsAsParticipant2 Chat[]            @relation("ChatParticipant2")
-
-  // Follow relationships
-  followers Follow[] @relation("Followers")
-  following Follow[] @relation("Following")
-
-  // Delivery photo uploads
-  uploadedDeliveryPhotos DeliveryPhoto[]
-
-  // Announcements
-  announcements         Announcement[]
-  announcementViews     AnnouncementView[]
-  announcementReactions AnnouncementReaction[]
-
-  // Checkout sessions
-  checkoutSessions CheckoutSession[]
-
-  // POS System
-  sales            Sale[]
-  inventoryLogs    InventoryLog[]
-  sellerCommission SellerCommission?
-
-  // Wallet System
-  wallets            Wallet[]
-  walletTransactions WalletTransaction[] @relation("WalletTransactions")
-
-  // Blog relationships
-  blogPosts         BlogPost[]
-  blogComments      BlogComment[]
-  moderatedComments BlogComment[] @relation("CommentModerator")
-  approvedBlogPosts BlogPost[]    @relation("BlogPostApprovedBy")
-
-  // API keys
-  apiKeys ApiKey[]
-
-  // Social interactions
-  blogPostLikes    BlogPostLike[]    @relation("BlogPostLikes")
-  blogCommentLikes BlogCommentLike[] @relation("BlogCommentLikes")
-
-  // Author Profile (separate blog identity)
-  authorProfile AuthorProfile?
-  blogPostViews BlogPostView[] @relation("UserBlogViews")
-
-  // Author Support (as supporter)
-  supportTransactions SupportTransaction[] @relation("SupporterTransactions")
-
-  // Store System
-  store                  Store?           @relation("StoreOwner")
-  deliveryPartner        DeliveryPartner?
-  deliveryJobs           DeliveryJob[]    @relation("DeliveryPartnerJobs")
-  deliveryProofs         DeliveryProof[]  @relation("DeliveryProofSubmitter")
-  adminDeliveryApprovals DeliveryProof[]  @relation("DeliveryProofApprover")
-
-  // Farm Management
-  ownedFarms         Farm[]        @relation("OwnedFarms")
-  farmMemberships    FarmMember[]
-  farmInvitationsSent FarmMember[] @relation("FarmMemberInviter")
-  eggRecords          EggRecord[]
-  livestockFlocks     LivestockFlock[]
-  flocks              Flock[]
-  feedRecords         FeedRecord[]
-  mortalityRecords    MortalityRecord[]
-  vaccinations        Vaccination[]
-  attachments         Attachment[]
-  subscription        Subscription?
-  farmEmailPreference FarmEmailPreference?
-  farmImportJobs      FarmImportJob[]
-
-  // Reminders
-  reminders           Reminder[]
-
-  @@map("users")
-}
-
-model Farm {
-  id     String  @id @default(cuid())
-  name   String
-  slug   String? @unique
-  ownerId String
-  owner   User   @relation("OwnedFarms", fields: [ownerId], references: [id], onDelete: Cascade)
-
-  settings Json?
-
-  // Subscription-aware workspace fields
-  subscriptionPlan   SubscriptionPlan   @default(FREE)
-  subscriptionStatus SubscriptionStatus @default(INACTIVE)
-  subscriptionEndsAt DateTime?
-  billingEmail       String?
-  billingProvider    String?
-  billingReference   String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  roles       FarmRole[]
-  members     FarmMember[]
-  eggRecords  EggRecord[]
-  flocks      Flock[]
-  feedRecords FeedRecord[]
-  mortalityRecords MortalityRecord[]
-  vaccinations Vaccination[]
-  attachments Attachment[]
-  farmImportJobs FarmImportJob[]
-  reminders   Reminder[]
-
-  @@index([ownerId])
-  @@map("farms")
-}
-
-model FarmRole {
-  id          String   @id @default(cuid())
-  farmId      String
-  farm        Farm     @relation(fields: [farmId], references: [id], onDelete: Cascade)
-  name        String
-  key         String?
-  rank        Int
-  permissions String[] @default([])
-  isSystem    Boolean  @default(false)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  members     FarmMember[]
-
-  @@unique([farmId, name])
-  @@index([farmId, rank])
-  @@map("farm_roles")
-}
-
-model FarmMember {
-  id          String           @id @default(cuid())
-  farmId      String
-  farm        Farm             @relation(fields: [farmId], references: [id], onDelete: Cascade)
-
-  userId      String?
-  user        User?            @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  roleId      String
-  role        FarmRole         @relation(fields: [roleId], references: [id], onDelete: Restrict)
-
-  invitedById String?
-  invitedBy   User?            @relation("FarmMemberInviter", fields: [invitedById], references: [id], onDelete: SetNull)
-
-  invitedEmail String
-  invitationTokenHash String?
-  invitationExpiresAt DateTime?
-  status      FarmMemberStatus @default(PENDING)
-  rank        Int              @default(0)
-  invitedAt   DateTime         @default(now())
-  acceptedAt  DateTime?
-  rejectedAt  DateTime?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([farmId, invitedEmail])
-  @@unique([farmId, userId])
-  @@index([farmId, status])
-  @@index([userId])
-  @@map("farm_members")
-}
-
-model Product {
-  id          String      @id @default(cuid())
-  name        String
-  description String
-  price       Float
-  stock       Int
-  type        ProductType
-  customType  String?
-  images      String[]
-  sellerId    String
-  seller      User        @relation(fields: [sellerId], references: [id])
-  isActive    Boolean     @default(true)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-
-  // Store multi-tenant isolation
-  storeId String?
-  store   Store?  @relation(fields: [storeId], references: [id])
-
-  // SEO and metadata
-  slug            String? @unique
-  metaTitle       String?
-  metaDescription String?
-
-  // Discount fields
-  hasDiscount       Boolean       @default(false)
-  discountType      DiscountType?
-  discountAmount    Float?
-  discountStartDate DateTime?
-  discountEndDate   DateTime?
-
-  orderItems       OrderItem[]
-  reviews          Review[]
-  tags             ProductTag[]
-  likes            ProductLike[]
-  cartItems        CartItem[]
-  categories       ProductCategory[]
-  collections      ProductCollection[]
-  chats            Chat[]
-  announcements    Announcement[]
-  checkoutSessions CheckoutSession[]
-
-  // POS System
-  saleItems     SaleItem[]
-  inventoryLogs InventoryLog[]
-
-  // Extended product fields
-  sku               String?
-  unitType          String? // bird, kg, crate, tray
-  vaccinationStatus String?
-
-  @@index([storeId])
-  @@map("products")
-}
-
-model ProductTag {
-  id        String   @id @default(cuid())
-  productId String
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  tag       TagType
-  addedAt   DateTime @default(now())
-
-  @@unique([productId, tag])
-  @@map("product_tags")
-}
-
-model Order {
-  id              String      @id @default(cuid())
-  customerId      String
-  customer        User        @relation(fields: [customerId], references: [id])
-  status          OrderStatus @default(PENDING)
-  total           Float
-  subtotal        Float       @default(0)
-  discountAmount  Float       @default(0)
-  deliveryFee     Float       @default(0)
-  voucherCode     String?
-  notes           String?
-  rejectionReason String?
-
-  // Enhanced payment fields
-  paymentType      PaymentType   @default(BEFORE_DELIVERY)
-  paymentStatus    PaymentStatus @default(UNPAID)
-  paymentDetails   String?
-  paymentPhone     String?
-  paymentReference String?
-  paymentMethod    PaymentMethod @default(MPESA)
-
-  // Enhanced delivery fields
-  deliveryCounty        String?
-  deliveryProvince      String?
-  deliveryAddress       String?
-  sellerHandlesDelivery Boolean @default(false)
-
-  // Seller approval tracking
-  sellerId   String?
-  seller     User?     @relation("SellerOrders", fields: [sellerId], references: [id])
-  approvedAt DateTime?
-  approvedBy String?
-  approver   User?     @relation("OrderApprovals", fields: [approvedBy], references: [id])
-
-  // Delivery proof and completion
-  deliveryProofImages  String[]  @default([])
-  deliveryProofMessage String?
-  completedAt          DateTime?
-  markedReceivedAt     DateTime?
-
-  // Review tracking
-  isReviewed Boolean @default(false)
-  reviewId   String?
-
-  // Escrow & delivery proof
-  escrowStatus     EscrowStatus @default(NONE)
-  escrowAmount     Float? // Amount held in escrow
-  escrowReleasedAt DateTime?
-
-  // Store multi-tenant isolation
-  storeId String?
-  store   Store?  @relation(fields: [storeId], references: [id])
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  items            OrderItem[]
-  delivery         Delivery?
-  payment          Payment?
-  paymentInvoices  PaymentInvoice[]
-  notifications    Notification[]
-  paymentApprovals PaymentApprovalLog[]
-  chats            Chat[]
-  invoice          Invoice?
-  timeline         OrderTimeline[]
-  deliveryProof    DeliveryProof?
-  deliveryJobs     DeliveryJob[]
-
-  @@index([storeId])
-  @@map("orders")
-}
-
-model OrderTimeline {
-  id      String @id @default(cuid())
-  orderId String
-  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
-
-  // Activity tracking
-  action      String // e.g., "Order Created", "Payment Confirmed", "Seller Approved", "Status Updated", "Completed"
-  description String?
-  oldStatus   String? // Previous order status (if status change)
-  newStatus   String? // New order status (if status change)
-
-  // Actor tracking
-  actorId   String?
-  actorRole String? // ADMIN, SELLER, CUSTOMER, SYSTEM
-  actorName String? // Name of person/system that performed the action
-
-  // Additional metadata
-  metadata String? // JSON string for additional data
-
-  createdAt DateTime @default(now())
-
-  @@index([orderId])
-  @@index([createdAt])
-  @@map("order_timeline")
-}
-
-model OrderItem {
-  id              String  @id @default(cuid())
-  orderId         String
-  order           Order   @relation(fields: [orderId], references: [id])
-  productId       String
-  product         Product @relation(fields: [productId], references: [id])
-  quantity        Int
-  price           Float
-  discountApplied Float   @default(0)
-
-  @@map("order_items")
-}
-
-model Delivery {
-  id         String         @id @default(cuid())
-  orderId    String         @unique
-  order      Order          @relation(fields: [orderId], references: [id])
-  fee        Float          @default(0)
-  agentId    String?
-  agent      User?          @relation(fields: [agentId], references: [id])
-  address    String
-  trackingId String         @unique
-  status     DeliveryStatus @default(ASSIGNED)
-
-  // Delivery details
-  estimatedDelivery DateTime?
-  actualDelivery    DateTime?
-  pickupTime        DateTime?
-  dispatchTime      DateTime?
-
-  // Enhanced delivery location and handling
-  county                String?
-  province              String?
-  sellerHandlesDelivery Boolean @default(false)
-  deliveryNotes         String?
-
-  // Agent details
-  agentName   String?
-  agentPhone  String?
-  vehicleInfo String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  deliveryPhotos DeliveryPhoto[]
-
-  @@map("deliveries")
-}
-
-model DeliveryPhoto {
-  id                 String            @id @default(cuid())
-  deliveryId         String
-  delivery           Delivery          @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
-  uploadedBy         String
-  uploader           User              @relation(fields: [uploadedBy], references: [id])
-  photoUrl           String
-  cloudinaryPublicId String?
-  caption            String?
-  photoType          DeliveryPhotoType @default(DELIVERY_PROOF)
-  createdAt          DateTime          @default(now())
-
-  @@map("delivery_photos")
-}
-
 enum DeliveryPhotoType {
   DELIVERY_PROOF
   DAMAGE_REPORT
@@ -745,565 +2419,6 @@ enum DeliveryPhotoType {
   PICKUP_CONFIRMATION
 }
 
-model DeliveryVoucher {
-  id             String      @id @default(cuid())
-  code           String      @unique
-  name           String?
-  description    String?
-  discountType   VoucherType
-  discountValue  Float
-  minOrderAmount Float       @default(0)
-  maxUses        Int         @default(1)
-  usedCount      Int         @default(0)
-  expiresAt      DateTime?
-  isActive       Boolean     @default(true)
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
-
-  @@map("delivery_vouchers")
-}
-
-model DeliveryFee {
-  id          String   @id @default(uuid())
-  name        String
-  amount      Float
-  description String?
-  isDefault   Boolean  @default(false)
-  zones       String[] // PostgreSQL supports array fields natively
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-}
-
-model Payment {
-  id                String        @id @default(cuid())
-  orderId           String        @unique
-  order             Order         @relation(fields: [orderId], references: [id])
-  userId            String
-  user              User          @relation(fields: [userId], references: [id])
-  amount            Float
-  method            PaymentMethod
-  status            PaymentStatus @default(PENDING)
-  phoneNumber       String?
-  transactionCode   String?
-  mpesaMessage      String?
-  description       String?
-  referenceNumber   String?
-  externalReference String? // For tracking external payment systems
-  metadata          String? // JSON string for additional data
-  stkPushData       String? // JSON string for STK Push response data
-  callbackData      String? // JSON string for payment callback data
-  callbackReceived  Boolean       @default(false)
-  failureReason     String? // Reason for payment failure
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
-
-  @@map("payments")
-}
-
-model PaymentApprovalLog {
-  id         String   @id @default(cuid())
-  orderId    String
-  order      Order    @relation(fields: [orderId], references: [id])
-  approverId String
-  approver   User     @relation(fields: [approverId], references: [id])
-  action     String
-  notes      String?
-  createdAt  DateTime @default(now())
-
-  @@map("payment_approval_logs")
-}
-
-model PaymentInvoice {
-  id             String               @id @default(cuid())
-  invoiceId      String               @unique // IntaSend invoice ID
-  orderId        String? // Optional - set when order is created
-  order          Order?               @relation(fields: [orderId], references: [id])
-  provider       String               @default("intasend") // Payment provider (intasend, lipia, etc.)
-  status         PaymentInvoiceStatus @default(CREATED)
-  amount         Float // Original payment amount
-  expectedAmount Float? // Expected amount with fees
-  phoneNumber    String? // Phone number used for payment
-  isUsed         Boolean              @default(false) // Whether invoice has been used for an order
-  expiresAt      DateTime // When invoice expires
-  metadata       String? // JSON string for additional data
-  createdAt      DateTime             @default(now())
-  updatedAt      DateTime             @updatedAt
-
-  @@map("payment_invoices")
-}
-
-model Voucher {
-  id                String      @id @default(cuid())
-  code              String      @unique
-  name              String?
-  description       String?
-  discountType      VoucherType
-  discountValue     Float
-  minOrderAmount    Float       @default(0)
-  maxDiscountAmount Float?
-  validFrom         DateTime
-  validUntil        DateTime
-  maxUses           Int         @default(1)
-  usedCount         Int         @default(0)
-  isActive          Boolean     @default(true)
-
-  // Creator info
-  createdById String
-  createdBy   User   @relation(fields: [createdById], references: [id])
-
-  // Usage restrictions
-  applicableRoles        UserRole[]
-  applicableProductTypes ProductType[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@map("vouchers")
-}
-
-model Review {
-  id        String   @id @default(cuid())
-  productId String
-  product   Product  @relation(fields: [productId], references: [id])
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  rating    Int
-  comment   String
-  images    String[]
-  isVisible Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  likes   ReviewLike[]
-  replies ReviewReply[]
-
-  @@unique([productId, userId])
-  @@map("reviews")
-}
-
-model ReviewLike {
-  id        String   @id @default(cuid())
-  reviewId  String
-  review    Review   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  createdAt DateTime @default(now())
-
-  @@unique([reviewId, userId])
-  @@map("review_likes")
-}
-
-model ReviewReply {
-  id        String   @id @default(cuid())
-  reviewId  String
-  review    Review   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  comment   String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@map("review_replies")
-}
-
-model HatchingRequest {
-  id         String            @id @default(cuid())
-  customerId String
-  customer   User              @relation(fields: [customerId], references: [id])
-  eggType    String
-  quantity   Int
-  purpose    String
-  status     ApplicationStatus @default(PENDING)
-  createdAt  DateTime          @default(now())
-  updatedAt  DateTime          @updatedAt
-
-  @@map("hatching_requests")
-}
-
-model Application {
-  id            String            @id @default(cuid())
-  userId        String
-  user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  requestedRole UserRole
-  businessName  String?
-  businessType  String?
-  description   String?
-  documents     String[]
-  status        ApplicationStatus @default(PENDING)
-  reviewedAt    DateTime?
-  reviewedBy    String?
-  reviewNotes   String?
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
-
-  @@map("applications")
-}
-
-model Sponsorship {
-  id          String            @id @default(cuid())
-  companyId   String
-  sellerId    String?
-  userId      String?
-  amount      Float
-  description String
-  terms       String?
-  duration    Int?
-  benefits    String[]
-  status      SponsorshipStatus @default(PENDING)
-  startDate   DateTime?
-  endDate     DateTime?
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
-
-  company User  @relation("CompanySponsorships", fields: [companyId], references: [id], onDelete: Cascade)
-  seller  User? @relation("SellerSponsorships", fields: [sellerId], references: [id], onDelete: SetNull)
-  user    User? @relation("UserSponsorships", fields: [userId], references: [id])
-
-  applications SponsorshipApplication[]
-  User         User[]                   @relation("SponsorshipReceiver")
-
-  @@map("sponsorships")
-}
-
-model SponsorshipApplication {
-  id              String                       @id @default(cuid())
-  sponsorshipId   String
-  sellerId        String
-  message         String?
-  businessDetails Json?
-  status          SponsorshipApplicationStatus @default(PENDING)
-  rejectionReason String?
-  reviewedAt      DateTime?
-  createdAt       DateTime                     @default(now())
-  updatedAt       DateTime                     @updatedAt
-
-  sponsorship Sponsorship @relation(fields: [sponsorshipId], references: [id], onDelete: Cascade)
-  seller      User        @relation("SellerSponsorshipApplications", fields: [sellerId], references: [id], onDelete: Cascade)
-
-  @@unique([sponsorshipId, sellerId])
-  @@map("sponsorship_applications")
-}
-
-model UserTag {
-  id      String   @id @default(cuid())
-  userId  String
-  user    User     @relation(fields: [userId], references: [id])
-  tag     TagType
-  addedBy String?
-  addedAt DateTime @default(now())
-
-  @@unique([userId, tag])
-  @@map("user_tags")
-}
-
-model Analytics {
-  id     String   @id @default(cuid())
-  userId String
-  user   User     @relation(fields: [userId], references: [id])
-  date   DateTime @default(now())
-
-  totalSales      Float @default(0)
-  orderCount      Int   @default(0)
-  productViews    Int   @default(0)
-  fulfillmentRate Float @default(0)
-  averageRating   Float @default(0)
-
-  @@unique([userId, date])
-  @@map("analytics")
-}
-
-model Notification {
-  id         String           @id @default(cuid())
-  senderId   String?
-  sender     User?            @relation("NotificationSender", fields: [senderId], references: [id])
-  receiverId String
-  receiver   User             @relation("NotificationReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
-  orderId    String?
-  order      Order?           @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  type       NotificationType
-  title      String
-  message    String
-  isRead     Boolean          @default(false)
-  sentAt     DateTime?
-  createdAt  DateTime         @default(now())
-
-  @@map("notifications")
-}
-
-model ProductLike {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  productId String
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
-
-  @@unique([userId, productId])
-  @@map("product_likes")
-}
-
-model CartItem {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  productId String
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  quantity  Int      @default(1)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([userId, productId])
-  @@map("cart_items")
-}
-
-model Chat {
-  id             String    @id @default(cuid())
-  participant1Id String
-  participant1   User      @relation("ChatParticipant1", fields: [participant1Id], references: [id], onDelete: Cascade)
-  participant2Id String
-  participant2   User      @relation("ChatParticipant2", fields: [participant2Id], references: [id], onDelete: Cascade)
-  productId      String?
-  product        Product?  @relation(fields: [productId], references: [id], onDelete: SetNull)
-  orderId        String?
-  order          Order?    @relation(fields: [orderId], references: [id], onDelete: SetNull)
-  lastMessage    String?
-  lastMessageAt  DateTime?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
-
-  messages ChatMessage[]
-
-  @@unique([participant1Id, participant2Id, productId])
-  @@unique([participant1Id, participant2Id, orderId])
-  @@map("chats")
-}
-
-model ChatMessage {
-  id          String            @id @default(cuid())
-  chatId      String
-  chat        Chat              @relation(fields: [chatId], references: [id], onDelete: Cascade)
-  senderId    String
-  sender      User              @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
-  content     String
-  type        String            @default("text") // text, image, file
-  images      String[]
-  files       MessageFile[]
-  isRead      Boolean           @default(false)
-  isEdited    Boolean           @default(false)
-  isDeleted   Boolean           @default(false)
-  deletedAt   DateTime?
-  editedAt    DateTime?
-  replyToId   String?
-  replyTo     ChatMessage?      @relation("MessageReplies", fields: [replyToId], references: [id], onDelete: SetNull)
-  replies     ChatMessage[]     @relation("MessageReplies")
-  reactions   MessageReaction[]
-  readAt      DateTime?
-  deliveredAt DateTime?
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
-
-  @@map("chat_messages")
-}
-
-model MessageFile {
-  id        String      @id @default(cuid())
-  messageId String
-  message   ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
-  name      String
-  url       String
-  type      String
-  size      Int
-  mimeType  String
-  createdAt DateTime    @default(now())
-
-  @@map("message_files")
-}
-
-model MessageReaction {
-  id        String      @id @default(cuid())
-  messageId String
-  message   ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
-  userId    String
-  user      User        @relation("MessageReactions", fields: [userId], references: [id], onDelete: Cascade)
-  emoji     String
-  createdAt DateTime    @default(now())
-
-  @@unique([messageId, userId, emoji])
-  @@map("message_reactions")
-}
-
-model Category {
-  id          String   @id @default(cuid())
-  name        String   @unique
-  slug        String   @unique
-  description String?
-  icon        String?
-  image       String?
-  isActive    Boolean  @default(true)
-  sortOrder   Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  products ProductCategory[]
-
-  @@map("categories")
-}
-
-model ProductCategory {
-  id         String   @id @default(cuid())
-  productId  String
-  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  categoryId String
-  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-
-  @@unique([productId, categoryId])
-  @@map("product_categories")
-}
-
-model Collection {
-  id          String   @id @default(cuid())
-  name        String   @unique
-  slug        String   @unique
-  description String?
-  image       String?
-  isActive    Boolean  @default(true)
-  isFeatured  Boolean  @default(false)
-  sortOrder   Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  products ProductCollection[]
-
-  @@map("collections")
-}
-
-model ProductCollection {
-  id           String     @id @default(cuid())
-  productId    String
-  product      Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
-  collectionId String
-  collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
-
-  @@unique([productId, collectionId])
-  @@map("product_collections")
-}
-
-model Follow {
-  id          String   @id @default(cuid())
-  followerId  String
-  follower    User     @relation("Following", fields: [followerId], references: [id], onDelete: Cascade)
-  followingId String
-  following   User     @relation("Followers", fields: [followingId], references: [id], onDelete: Cascade)
-  createdAt   DateTime @default(now())
-
-  @@unique([followerId, followingId])
-  @@map("follows")
-}
-
-model Invoice {
-  id                 String   @id @default(cuid())
-  orderId            String   @unique
-  order              Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  invoiceNumber      String   @unique
-  fileName           String
-  filePath           String
-  cloudinaryPublicId String?
-  generatedAt        DateTime @default(now())
-
-  @@map("invoices")
-}
-
-model Announcement {
-  id       String             @id @default(cuid())
-  title    String
-  content  String
-  type     AnnouncementType
-  status   AnnouncementStatus @default(DRAFT)
-  authorId String
-  author   User               @relation(fields: [authorId], references: [id], onDelete: Cascade)
-
-  // Optional associations
-  productId String?
-  product   Product? @relation(fields: [productId], references: [id], onDelete: Cascade)
-
-  // Audience targeting
-  targetRoles String[] // JSON array of roles to target
-  isGlobal    Boolean  @default(false) // Visible to all users
-
-  // Scheduling
-  publishAt DateTime? // When to auto-publish
-  expiresAt DateTime? // When announcement expires
-
-  // Media
-  imageUrl      String?
-  attachmentUrl String?
-
-  // Stats
-  viewCount Int @default(0)
-
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  publishedAt DateTime?
-
-  // Relations
-  views     AnnouncementView[]
-  reactions AnnouncementReaction[]
-
-  @@map("announcements")
-}
-
-model AnnouncementView {
-  id             String       @id @default(cuid())
-  announcementId String
-  announcement   Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
-  userId         String
-  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  viewedAt       DateTime     @default(now())
-
-  @@unique([announcementId, userId])
-  @@map("announcement_views")
-}
-
-model AnnouncementReaction {
-  id             String       @id @default(cuid())
-  announcementId String
-  announcement   Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
-  userId         String
-  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  reaction       String // 👍, 👎, ❤️, 😮, 😂, etc.
-  createdAt      DateTime     @default(now())
-
-  @@unique([announcementId, userId])
-  @@map("announcement_reactions")
-}
-
-model CheckoutSession {
-  id          String      @id @default(cuid())
-  userId      String
-  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  productId   String
-  product     Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
-  quantity    Int         @default(1)
-  totalAmount Float
-  paymentType PaymentType @default(BEFORE_DELIVERY)
-
-  // Delivery information
-  deliveryAddress  String?
-  deliveryCounty   String?
-  deliveryProvince String?
-  deliveryFee      Float   @default(0)
-
-  // Session status
-  isCompleted Boolean  @default(false)
-  expiresAt   DateTime
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@map("checkout_sessions")
-}
-
-// Blog System Enums
 enum BlogPostStatus {
   DRAFT
   PENDING_APPROVAL
@@ -1332,249 +2447,6 @@ enum BlogPostCategory {
   ADVANCED_TECHNIQUES
 }
 
-// Author Profile Model - Separate blog identity from main user
-model AuthorProfile {
-  id     String @id @default(cuid())
-  userId String @unique
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  // Public Identity
-  displayName   String
-  username      String  @unique // URL-safe, unique identifier (3-30 chars, lowercase, alphanumeric, underscores)
-  bio           String? @db.Text
-  avatarUrl     String?
-  coverImageUrl String?
-
-  // Professional Info
-  tagline    String? // Short professional tagline
-  website    String?
-  location   String?
-  occupation String?
-  company    String?
-  expertise  String[] // Areas of expertise
-
-  // Social Links (individual fields for type safety)
-  twitterHandle   String?
-  linkedinUrl     String?
-  githubUsername  String?
-  facebookUrl     String?
-  instagramHandle String?
-  youtubeChannel  String?
-
-  // Settings
-  isPublic       Boolean @default(true)
-  isVerified     Boolean @default(false)
-  showEmail      Boolean @default(false)
-  allowComments  Boolean @default(true)
-  emailOnComment Boolean @default(true)
-  emailOnFollow  Boolean @default(true)
-  emailOnLike    Boolean @default(false)
-
-  // Stats (denormalized for performance)
-  totalViews    Int @default(0)
-  totalLikes    Int @default(0)
-  totalPosts    Int @default(0)
-  totalComments Int @default(0)
-
-  // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations
-  blogPosts BlogPost[] @relation("AuthorProfilePosts")
-
-  // Author Support Wallet
-  wallet AuthorWallet?
-
-  // Recommended / affiliate resources curated by this author
-  resources AuthorResource[] @relation("AuthorProfileResources")
-
-  @@index([username])
-  @@index([isPublic, isVerified])
-  @@map("author_profiles")
-}
-
-/// Author-curated external recommendation (product, guide, service...).
-///
-/// Metadata is resolved ONCE when the author saves the resource and stored here,
-/// so rendering a public author profile never makes an outbound request to
-/// Amazon/Jumia/etc. Belongs to the existing AuthorProfile — there is no separate
-/// affiliate author identity.
-model AuthorResource {
-  id        String        @id @default(cuid())
-  profileId String
-  profile   AuthorProfile @relation("AuthorProfileResources", fields: [profileId], references: [id], onDelete: Cascade)
-
-  // Presentation (author-editable, seeded from Open Graph metadata)
-  title       String
-  description String? @db.Text
-  imageUrl    String? @db.Text
-
-  // Destination. `url` keeps the author's affiliate parameters verbatim.
-  url      String  @db.Text
-  domain   String // Normalised hostname, e.g. "amazon.com"
-  merchant String? // Friendly merchant name when confidently identified
-
-  // Affiliate handling
-  isAffiliate         Boolean @default(false)
-  affiliateDisclosure String? @db.Text
-
-  // Management
-  isActive     Boolean @default(true)
-  displayOrder Int     @default(0)
-
-  // Denormalised click counter (GA holds the detailed events)
-  clickCount Int @default(0)
-
-  /// When the stored metadata was last resolved from the destination.
-  metadataFetchedAt DateTime?
-  /// False when the destination returned no usable Open Graph metadata and the
-  /// author supplied the title/description/image manually.
-  metadataResolved  Boolean   @default(false)
-
-  // Optional per-article associations (a resource is only shown on an article
-  // the author deliberately linked it to).
-  articles AuthorResourceArticle[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([profileId, isActive, displayOrder])
-  @@map("author_resources")
-}
-
-/// Explicit many-to-many join between a recommended resource and a blog post.
-/// Prevents irrelevant affiliate content appearing on unrelated articles.
-model AuthorResourceArticle {
-  id         String         @id @default(cuid())
-  resourceId String
-  resource   AuthorResource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
-  postId     String
-  post       BlogPost       @relation("BlogPostResources", fields: [postId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-
-  @@unique([resourceId, postId])
-  @@index([postId])
-  @@map("author_resource_articles")
-}
-
-// Blog Models
-model BlogPost {
-  id              String   @id @default(cuid())
-  title           String
-  slug            String   @unique
-  content         String   @db.Text
-  excerpt         String?  @db.Text
-  featuredImage   String?
-  thumbnail       String?
-  images          String[] // Array of up to 3 image URLs
-  metaDescription String?
-  metaKeywords    String?
-
-  // SEO fields
-  ogTitle            String?
-  ogDescription      String?
-  ogImage            String?
-  twitterTitle       String?
-  twitterDescription String?
-  twitterImage       String?
-  canonicalUrl       String? // Custom canonical URL
-
-  // Content organization
-  category    BlogPostCategory
-  status      BlogPostStatus   @default(DRAFT)
-  featured    Boolean          @default(false)
-  publishedAt DateTime?
-  scheduledAt DateTime?
-
-  // Enhanced content
-  tableOfContents   Json? // Auto-generated TOC structure
-  estimatedReadTime Int? // Calculated reading time in minutes
-  wordCount         Int? // Total word count
-
-  // Approval workflow
-  submittedAt     DateTime? // When submitted for approval
-  approvedAt      DateTime? // When approved by admin
-  rejectedAt      DateTime? // When rejected by admin
-  approvedBy      String? // Admin who approved/rejected
-  approvedByUser  User?     @relation("BlogPostApprovedBy", fields: [approvedBy], references: [id])
-  rejectionReason String? // Reason for rejection
-  submissionNotes String? // Notes from submitter
-
-  // Resubmission workflow
-  resubmittedAt DateTime? // When rejected post was resubmitted
-  resubmitCount Int       @default(0) // Number of times resubmitted
-  adminNotes    String? // Internal admin notes (not visible to author)
-
-  // Engagement metrics
-  viewCount       Int    @default(0)
-  uniqueViewCount Int    @default(0) // Unique visitors
-  shareCount      Int    @default(0)
-  likes           Int    @default(0)
-  views           Int    @default(0)
-  readingTime     Int? // in minutes (legacy field)
-  avgReadDuration Float? // Average time spent reading (seconds)
-
-  // Author information (existing - links to User)
-  authorId String
-  author   User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
-
-  // Author Profile link (new - optional for backward compat)
-  authorProfileId String?
-  authorProfile   AuthorProfile? @relation("AuthorProfilePosts", fields: [authorProfileId], references: [id], onDelete: SetNull)
-
-  // Search engine fields (maintained by DB triggers - read-only here)
-  tagNames     String? @map("tag_names")
-  authorName   String? @map("author_name")
-  searchVector Unsupported("tsvector")? @map("search_vector")
-
-  // Domain concepts (poultry knowledge graph, Phase 8)
-  concepts BlogPostConcept[]
-
-  // Relationships
-  tags      BlogPostTag[]
-  comments  BlogComment[]
-  likedBy   BlogPostLike[] @relation("BlogPostLikes")
-  postViews BlogPostView[] @relation("PostViews")
-
-  // Support transactions from this post
-  supportTransactions SupportTransaction[] @relation("BlogPostSupport")
-
-  // Author recommendations deliberately associated with this article
-  resourceLinks AuthorResourceArticle[] @relation("BlogPostResources")
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([status, publishedAt])
-  @@index([category])
-  @@index([slug])
-  @@index([authorProfileId])
-  @@map("blog_posts")
-}
-
-model BlogTag {
-  id          String  @id @default(cuid())
-  name        String  @unique
-  slug        String  @unique
-  description String?
-  color       String? // Hex color for UI
-
-  // Relationships
-  posts BlogPostTag[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@map("blog_tags")
-}
-
-// ============================================================
-// Search engine models (tables created by the raw-SQL migration
-// 20260803115226_add_search_engine; kept in sync manually)
-// ============================================================
-
 enum ConceptType {
   DISEASE
   VACCINE
@@ -1590,171 +2462,17 @@ enum ConceptType {
   @@map("concept_type")
 }
 
-model SearchQuery {
-  id              String   @id @default(dbgenerated("gen_random_uuid()"))
-  query           String
-  normalized      String
-  filtersJson     Json?    @map("filters_json")
-  sort            String?
-  resultCount     Int      @default(0) @map("result_count")
-  noResults       Boolean  @default(false) @map("no_results")
-  userId          String?  @map("user_id")
-  sessionId       String?  @map("session_id")
-  ipHash          String?  @map("ip_hash")
-  referrer        String?
-  responseMs      Int?     @map("response_ms")
-  searchDurationMs Int?    @map("search_duration_ms")
-  clickedPostId   String?  @map("clicked_post_id")
-  clickedPosition Int?     @map("clicked_position")
-  timeToClickMs   Int?     @map("time_to_click_ms")
-  openedRelatedId String?  @map("opened_related_id")
-  autocompleteUsed Boolean @default(false) @map("autocomplete_used")
-  didYouMeanShown  Boolean @default(false) @map("did_you_mean_shown")
-  didYouMeanUsed   Boolean @default(false) @map("did_you_mean_used")
-  source          String?
-  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-
-  @@index([normalized, createdAt(sort: Desc)])
-  @@index([createdAt])
-  @@map("search_queries")
-}
-
-model SearchSynonym {
-  id        String   @id @default(cuid())
-  name      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  words SearchSynonymWord[]
-
-  @@map("search_synonyms")
-}
-
-model SearchSynonymWord {
-  id        String @id @default(cuid())
-  synonymId String @map("synonymId")
-  word      String
-
-  synonym SearchSynonym @relation(fields: [synonymId], references: [id], onDelete: Cascade)
-
-  @@unique([synonymId, word])
-  @@index([word])
-  @@map("search_synonym_words")
-}
-
-model SearchConfiguration {
-  key         String   @id
-  value       Decimal  @db.Decimal(65, 30)
-  description String?
-  updatedAt   DateTime @default(now()) @updatedAt
-
-  @@map("search_configuration")
-}
-
-model SearchBoostRule {
-  id        String    @id @default(cuid())
-  keyword   String
-  weight    Decimal   @db.Decimal(65, 30)
-  enabled   Boolean   @default(true)
-  startDate DateTime? @map("startDate") @db.Timestamptz(6)
-  endDate   DateTime? @map("endDate") @db.Timestamptz(6)
-  reason    String?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-
-  @@map("search_boost_rules")
-}
-
-model DomainConcept {
-  id        String      @id @default(cuid())
-  name      String      @unique
-  type      ConceptType
-  aliases   String[]    @default([])
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
-
-  posts BlogPostConcept[]
-
-  @@map("domain_concepts")
-}
-
-model BlogPostConcept {
-  postId    String
-  conceptId String
-
-  post    BlogPost      @relation(fields: [postId], references: [id], onDelete: Cascade)
-  concept DomainConcept @relation(fields: [conceptId], references: [id], onDelete: Cascade)
-
-  @@id([postId, conceptId])
-  @@index([conceptId])
-  @@map("blog_post_concepts")
-}
-
-model BlogPostTag {
-  id     String @id @default(cuid())
-  postId String
-  tagId  String
-
-  post BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
-  tag  BlogTag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
-
-  @@unique([postId, tagId])
-  @@map("blog_post_tags")
-}
-
-model BlogComment {
-  id         String    @id @default(cuid())
-  content    String    @db.Text
-  images     String[] // Array of image URLs for comments
-  isApproved Boolean   @default(false)
-  isEdited   Boolean   @default(false)
-  editedAt   DateTime?
-
-  // Moderation fields
-  moderatedAt      DateTime?
-  moderatedBy      String?
-  moderatedByUser  User?     @relation("CommentModerator", fields: [moderatedBy], references: [id], onDelete: SetNull)
-  moderationReason String?
-
-  // Author information
-  authorId String?
-  author   User?   @relation(fields: [authorId], references: [id], onDelete: SetNull)
-
-  // Guest comment fields
-  guestName  String?
-  guestEmail String?
-
-  // Relationships
-  postId String
-  post   BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
-
-  // Reply system
-  parentId String?
-  parent   BlogComment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
-  replies  BlogComment[] @relation("CommentReplies")
-
-  // Social interactions
-  likedBy BlogCommentLike[] @relation("BlogCommentLikes")
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([postId])
-  @@index([isApproved])
-  @@map("blog_comments")
-}
-
 enum SubscriberStatus {
-  PENDING // Signed up, awaiting email verification
-  ACTIVE // Verified and receiving emails
-  UNSUBSCRIBED // Opted out (history preserved)
-  BOUNCED // Suppressed after hard bounces
+  PENDING
+  ACTIVE
+  UNSUBSCRIBED
+  BOUNCED
 }
 
 enum SubscriberFrequency {
-  EVERY_POST // Every matching published article
-  WEEKLY_DIGEST // One weekly roundup
-  IMPORTANT_ONLY // Only major platform updates
+  EVERY_POST
+  WEEKLY_DIGEST
+  IMPORTANT_ONLY
 }
 
 enum EmailCampaignType {
@@ -1783,238 +2501,6 @@ enum EmailDeliveryStatus {
   SKIPPED
 }
 
-model BlogSubscriber {
-  id       String  @id @default(cuid())
-  email    String  @unique // Always stored trimmed + lowercased
-  name     String?
-  isActive Boolean @default(true)
-
-  // Subscription preferences (legacy columns retained for compatibility)
-  weeklyDigest    Boolean @default(true)
-  newPostAlerts   Boolean @default(true)
-  categoryUpdates String? // JSON array of subscribed categories (legacy)
-
-  // Lifecycle
-  status SubscriberStatus @default(PENDING)
-
-  // Double opt-in verification (tokens are stored hashed, never in raw form)
-  verificationTokenHash String?   @unique
-  verificationSentAt    DateTime?
-  verificationExpiresAt DateTime?
-  verificationCount     Int       @default(0)
-  verifiedAt            DateTime?
-
-  // Long-lived token powering "manage preferences" / "unsubscribe" links
-  manageTokenHash String? @unique
-
-  // Topic preferences (reuses the existing blog taxonomy)
-  topics    BlogPostCategory[]  @default([])
-  allTopics Boolean             @default(true)
-  frequency SubscriberFrequency @default(EVERY_POST)
-
-  // Audit / engagement
-  unsubscribedAt  DateTime?
-  resubscribedAt  DateTime?
-  source          String? // blog_page | footer | article | admin | import
-  lastEmailSentAt DateTime?
-  emailsSent      Int       @default(0)
-  bounceCount     Int       @default(0)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  events     SubscriberEvent[]
-  deliveries EmailDelivery[]
-
-  @@index([status])
-  @@index([status, allTopics])
-  @@index([verifiedAt])
-  @@map("blog_subscribers")
-}
-
-model SubscriberEvent {
-  id           String         @id @default(cuid())
-  subscriberId String
-  subscriber   BlogSubscriber @relation(fields: [subscriberId], references: [id], onDelete: Cascade)
-
-  type      String // SUBSCRIBED | VERIFICATION_SENT | VERIFIED | PREFERENCES_UPDATED | UNSUBSCRIBED | RESUBSCRIBED | ADMIN_ACTION
-  actorType String  @default("subscriber") // subscriber | admin | system
-  actorId   String?
-  metadata  Json?
-
-  createdAt DateTime @default(now())
-
-  @@index([subscriberId, createdAt])
-  @@index([type, createdAt])
-  @@map("subscriber_events")
-}
-
-model EmailCampaign {
-  id     String              @id @default(cuid())
-  type   EmailCampaignType
-  status EmailCampaignStatus @default(DRAFT)
-
-  subject     String
-  previewText String?
-  content     String  @db.Text
-  ctaLabel    String?
-  ctaUrl      String?
-  imageUrl    String?
-
-  // Audience definition (kind + topics + explicit ids), stored for auditability
-  audience Json
-  topics   BlogPostCategory[] @default([])
-
-  // Set when the campaign was generated from a published article
-  blogPostId String?
-
-  senderAccount String @default("blog")
-  senderName    String?
-
-  totalRecipients Int @default(0)
-  sentCount       Int @default(0)
-  failedCount     Int @default(0)
-
-  createdById String?
-  queuedAt    DateTime?
-  startedAt   DateTime?
-  completedAt DateTime?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  deliveries EmailDelivery[]
-
-  @@unique([blogPostId, type]) // Guarantees one automatic notification per article
-  @@index([status, createdAt])
-  @@index([type, createdAt])
-  @@map("email_campaigns")
-}
-
-model EmailDelivery {
-  id         String        @id @default(cuid())
-  campaignId String
-  campaign   EmailCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
-
-  subscriberId String?
-  subscriber   BlogSubscriber? @relation(fields: [subscriberId], references: [id], onDelete: SetNull)
-  userId       String?
-  email        String
-  recipientName String?
-
-  status            EmailDeliveryStatus @default(PENDING)
-  attempts          Int                 @default(0)
-  providerMessageId String?
-  error             String?
-  sentAt            DateTime?
-  lastAttemptAt     DateTime?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([campaignId, email]) // Hard guarantee against duplicate sends
-  @@index([status, createdAt])
-  @@index([campaignId, status])
-  @@index([subscriberId])
-  @@map("email_deliveries")
-}
-
-model EmailSetting {
-  key         String   @id
-  value       Json
-  updatedById String?
-  updatedAt   DateTime @updatedAt
-
-  @@map("email_settings")
-}
-
-
-// Social Interaction Models
-model BlogPostLike {
-  id     String   @id @default(cuid())
-  userId String
-  user   User     @relation("BlogPostLikes", fields: [userId], references: [id], onDelete: Cascade)
-  postId String
-  post   BlogPost @relation("BlogPostLikes", fields: [postId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-
-  @@unique([userId, postId])
-  @@map("blog_post_likes")
-}
-
-model BlogCommentLike {
-  id        String      @id @default(cuid())
-  userId    String
-  user      User        @relation("BlogCommentLikes", fields: [userId], references: [id], onDelete: Cascade)
-  commentId String
-  comment   BlogComment @relation("BlogCommentLikes", fields: [commentId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-
-  @@unique([userId, commentId])
-  @@map("blog_comment_likes")
-}
-
-model ApiKey {
-  id         String       @id @default(cuid())
-  userId     String
-  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name       String
-  hashedKey  String
-  lastFour   String       @db.VarChar(10)
-  status     ApiKeyStatus @default(ACTIVE)
-  lastUsedAt DateTime?
-  revokedAt  DateTime?
-  createdAt  DateTime     @default(now())
-  updatedAt  DateTime     @updatedAt
-
-  @@index([userId])
-  @@map("api_keys")
-}
-
-// Blog Post View Tracking
-model BlogPostView {
-  id     String   @id @default(cuid())
-  postId String
-  post   BlogPost @relation("PostViews", fields: [postId], references: [id], onDelete: Cascade)
-
-  // Viewer Info
-  userId    String? // Null for anonymous views
-  user      User?   @relation("UserBlogViews", fields: [userId], references: [id], onDelete: SetNull)
-  sessionId String? // For anonymous visitor tracking
-  ipHash    String? // Hashed IP for uniqueness (privacy-safe)
-
-  // View Analytics
-  readDuration Int? // Seconds spent on page
-  scrollDepth  Int? // 0-100 percentage scrolled
-  referrer     String? // Where they came from
-  utmSource    String? // UTM tracking
-  utmMedium    String?
-  utmCampaign  String?
-  deviceType   String? // mobile, tablet, desktop
-  browser      String?
-  country      String?
-
-  // Engagement flags
-  completedRead  Boolean @default(false) // Read > 80% of article
-  likedAfter     Boolean @default(false) // Liked after reading
-  commentedAfter Boolean @default(false) // Commented after reading
-  sharedAfter    Boolean @default(false) // Shared after reading
-
-  createdAt DateTime @default(now())
-
-  @@unique([postId, userId])
-  @@unique([postId, sessionId])
-  @@index([postId, createdAt])
-  @@index([userId])
-  @@map("blog_post_views")
-}
-
-// ================================
-// Author Support System Models
-// ================================
-
 enum WalletStatus {
   ACTIVE
   SUSPENDED
@@ -2036,281 +2522,21 @@ enum WithdrawalStatus {
   REJECTED
 }
 
-model AuthorWallet {
-  id              String        @id @default(cuid())
-  authorProfileId String        @unique
-  authorProfile   AuthorProfile @relation(fields: [authorProfileId], references: [id], onDelete: Cascade)
-
-  // IntaSend Wallet Info
-  intasendWalletId String  @unique // IntaSend wallet_id
-  currency         String  @default("KES")
-  label            String // Wallet label
-  canDisburse      Boolean @default(true)
-
-  // Balance (cached, synced from IntaSend)
-  currentBalance   Float @default(0)
-  availableBalance Float @default(0)
-  totalReceived    Float @default(0)
-  totalWithdrawn   Float @default(0)
-  platformFeeTotal Float @default(0) // 5% platform fee collected
-
-  // Withdrawal settings
-  mpesaNumber          String? // Default M-Pesa withdrawal number
-  dailyWithdrawLimit   Float     @default(50000) // Daily limit in KES
-  lastWithdrawalDate   DateTime?
-  dailyWithdrawnAmount Float     @default(0)
-
-  // Status
-  status WalletStatus @default(ACTIVE)
-
-  // Stats
-  supportersCount   Int @default(0)
-  transactionsCount Int @default(0)
-
-  // Timestamps
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  lastSyncedAt DateTime? // Last time balance was synced from IntaSend
-
-  // Relations
-  transactions SupportTransaction[]
-  withdrawals  WithdrawalRequest[]
-
-  @@index([intasendWalletId])
-  @@index([status])
-  @@map("author_wallets")
-}
-
-model SupportTransaction {
-  id       String       @id @default(cuid())
-  walletId String
-  wallet   AuthorWallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
-
-  // Supporter info
-  supporterId    String? // User ID if logged in
-  supporter      User?   @relation("SupporterTransactions", fields: [supporterId], references: [id], onDelete: SetNull)
-  supporterName  String? // Name (optional)
-  supporterEmail String? // Email for receipt
-  isAnonymous    Boolean @default(false)
-
-  // Payment details
-  amount      Float // Gross amount in KES (min 10)
-  platformFee Float // 5% platform fee
-  netAmount   Float // Amount after fee (goes to author)
-  currency    String @default("KES")
-
-  // IntaSend tracking
-  intasendInvoiceId  String? // IntaSend invoice ID
-  intasendCheckoutId String? // IntaSend checkout ID (for card payments)
-  mpesaReference     String? // M-Pesa confirmation code
-  paymentMethod      String? // MPESA_STK, CARD_CHECKOUT
-
-  // Message to author
-  message String? @db.Text
-
-  // Status
-  status       SupportPaymentStatus @default(PENDING)
-  failedReason String? // User-friendly error message
-  failedCode   String? // IntaSend error code for debugging
-
-  // In-app refund (ledger reversal - we do NOT call IntaSend's refund API)
-  refundedAt    DateTime?
-  refundReason  String?   @db.Text
-  refundedById  String? // User who approved the refund (admin or the author)
-
-  // Blog post reference (if supporting from specific post)
-  blogPostId String?
-  blogPost   BlogPost? @relation("BlogPostSupport", fields: [blogPostId], references: [id], onDelete: SetNull)
-
-  // Timestamps
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  completedAt DateTime?
-
-  @@index([walletId, status])
-  @@index([supporterId])
-  @@index([intasendInvoiceId])
-  @@index([createdAt])
-  @@index([refundedAt])
-  @@map("support_transactions")
-}
-
-model WithdrawalRequest {
-  id       String       @id @default(cuid())
-  walletId String
-  wallet   AuthorWallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
-
-  // Withdrawal method
-  method String @default("MPESA_B2C") // MPESA_B2C, MPESA_B2B_PAYBILL, MPESA_B2B_TILL, BANK
-
-  // Withdrawal details
-  amount   Float // Amount to withdraw
-  currency String @default("KES")
-
-  // M-Pesa specific fields
-  mpesaNumber    String? // Target M-Pesa number (B2C)
-  paybillNumber  String? // PayBill number (B2B)
-  paybillAccount String? // PayBill account reference (B2B)
-  tillNumber     String? // Till number (B2B)
-
-  // Bank specific fields
-  bankName    String? // Beneficiary bank name
-  bankCode    String? // Bank code for PesaLink
-  bankAccount String? // Bank account number
-  accountName String? // Name on bank account
-
-  // IntaSend tracking
-  intasendPayoutId String? // IntaSend payout ID
-  intasendBatchId  String? // IntaSend batch ID
-  mpesaReference   String? // M-Pesa/Bank confirmation reference
-
-  // Status
-  status       WithdrawalStatus @default(PENDING)
-  statusCode   String? // IntaSend status code (TS100, TF106, etc.)
-  failedReason String?
-  processedAt  DateTime?
-
-  // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([walletId, status])
-  @@index([createdAt])
-  @@map("withdrawal_requests")
-}
-
-// ================================
-// POS System Models
-// ================================
-
-model Sale {
-  id            String @id @default(cuid())
-  receiptNumber String @unique // Auto-generated receipt (e.g., POS-20260301-0001)
-  sellerId      String
-  seller        User   @relation(fields: [sellerId], references: [id])
-
-  // Sale totals
-  subtotal       Float
-  discountAmount Float @default(0)
-  taxAmount      Float @default(0)
-  total          Float
-
-  // Payment
-  paymentMethod SalePaymentMethod
-  status        SaleStatus        @default(COMPLETED)
-
-  // M-Pesa / IntaSend fields
-  mpesaReference    String? // M-Pesa transaction code
-  intasendInvoiceId String? // IntaSend invoice ID
-  cardReference     String? // Card payment reference
-
-  // Walk-in customer info (optional)
-  customerName  String?
-  customerPhone String?
-
-  // Metadata
-  notes    String?
-  currency String  @default("KES")
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  items SaleItem[]
-
-  @@index([sellerId, createdAt])
-  @@index([receiptNumber])
-  @@index([status])
-  @@map("sales")
-}
-
-model SaleItem {
-  id          String  @id @default(cuid())
-  saleId      String
-  sale        Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
-  productId   String
-  product     Product @relation(fields: [productId], references: [id])
-  productName String // Snapshot of product name at time of sale
-  quantity    Int
-  unitPrice   Float // Price per unit at time of sale
-  discount    Float   @default(0)
-  total       Float // (unitPrice * quantity) - discount
-
-  @@index([saleId])
-  @@index([productId])
-  @@map("sale_items")
-}
-
-model InventoryLog {
-  id        String  @id @default(cuid())
-  productId String
-  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-  userId    String // Who performed the action
-  user      User    @relation(fields: [userId], references: [id])
-
-  action        InventoryAction
-  quantity      Int // Positive for additions, negative for deductions
-  previousStock Int // Stock before this action
-  newStock      Int // Stock after this action
-
-  // Reference to source
-  saleId  String? // If from POS sale
-  orderId String? // If from online order
-
-  reason String? // Additional notes/reason
-
-  createdAt DateTime @default(now())
-
-  @@index([productId, createdAt])
-  @@index([userId])
-  @@index([action])
-  @@map("inventory_logs")
-}
-
-// ================================
-// Commission System
-// ================================
-
-model SellerCommission {
-  id       String @id @default(cuid())
-  sellerId String @unique
-  seller   User   @relation(fields: [sellerId], references: [id], onDelete: Cascade)
-
-  rate     Float   @default(5.0) // Commission percentage (e.g., 5.0 = 5%)
-  isActive Boolean @default(true)
-
-  // Accumulated totals (updated on each sale/order)
-  totalCommission Float @default(0) // Total commission earned by platform
-  totalSales      Float @default(0) // Total sales volume
-
-  // Admin who set the rate
-  setBy String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([sellerId])
-  @@map("seller_commissions")
-}
-
-// ================================
-// Wallet System (IntaSend Integration)
-// ================================
-
 enum WalletType {
-  SETTLEMENT // Main platform wallet
-  WORKING // Sub-account wallet (per seller/user)
+  SETTLEMENT
+  WORKING
 }
 
 enum WalletTransactionType {
-  DEPOSIT // M-Pesa STK Push or Card funded
-  WITHDRAWAL_MPESA // Withdrawal to M-Pesa B2C
-  WITHDRAWAL_B2B // Withdrawal to PayBill/Till
-  WITHDRAWAL_BANK // Withdrawal via PesaLink
-  INTERNAL_IN // Intra-wallet transfer received
-  INTERNAL_OUT // Intra-wallet transfer sent
-  COMMISSION // Platform commission deducted
-  REFUND // Refund credited
-  SALE_CREDIT // POS / order sale credited
+  DEPOSIT
+  WITHDRAWAL_MPESA
+  WITHDRAWAL_B2B
+  WITHDRAWAL_BANK
+  INTERNAL_IN
+  INTERNAL_OUT
+  COMMISSION
+  REFUND
+  SALE_CREDIT
 }
 
 enum WalletTransactionStatus {
@@ -2320,84 +2546,6 @@ enum WalletTransactionStatus {
   FAILED
   CANCELLED
 }
-
-model Wallet {
-  id          String     @id @default(cuid())
-  userId      String
-  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  intasendId  String     @unique // IntaSend wallet_id (e.g. "AWR19L")
-  walletType  WalletType @default(WORKING)
-  currency    String     @default("KES")
-  label       String // Human-readable label
-  canDisburse Boolean    @default(true)
-
-  // Cached balances (synced from IntaSend)
-  currentBalance   Float @default(0)
-  availableBalance Float @default(0)
-
-  isActive  Boolean @default(true)
-  isPrimary Boolean @default(false) // Primary wallet for the user
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations
-  transactions WalletTransaction[]
-
-  @@index([userId])
-  @@index([intasendId])
-  @@map("wallets")
-}
-
-model WalletTransaction {
-  id       String @id @default(cuid())
-  walletId String
-  wallet   Wallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
-  userId   String
-  user     User   @relation("WalletTransactions", fields: [userId], references: [id])
-
-  type   WalletTransactionType
-  status WalletTransactionStatus @default(PENDING)
-
-  amount         Float // Gross amount
-  fee            Float  @default(0) // Platform or IntaSend fee
-  netAmount      Float // Net amount after fees
-  runningBalance Float? @default(0) // Balance after this transaction
-  currency       String @default("KES")
-
-  // Payment references
-  invoiceId         String? // IntaSend invoice_id
-  mpesaReference    String? // M-Pesa confirmation code
-  trackingId        String? // IntaSend payout tracking_id  
-  externalReference String? // Our internal reference
-  narrative         String? // Description / memo
-
-  // Linked entities
-  orderId String? // Linked order (if sale credit)
-  saleId  String? // Linked POS sale
-
-  // For internal transfers
-  counterpartyWalletId String? // The other wallet in a transfer
-
-  // Error info
-  failedReason String?
-  failedCode   String?
-
-  metadata  String? // JSON blob for extra data
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([walletId, createdAt])
-  @@index([userId])
-  @@index([type])
-  @@index([status])
-  @@index([invoiceId])
-  @@map("wallet_transactions")
-}
-
-// ================================
-// Multi-Tenant Store System
-// ================================
 
 enum StoreType {
   SELLER
@@ -2411,19 +2559,19 @@ enum StoreStatus {
 }
 
 enum EscrowStatus {
-  NONE // No escrow — legacy or cash orders
-  HELD // Funds held in escrow
-  AWAITING_DELIVERY_CONFIRMATION // Waiting for customer to confirm delivery
-  DELIVERY_PROOF_SUBMITTED // Customer uploaded delivery proof
-  RELEASED // Admin approved, funds released to seller
-  REFUNDED // Dispute resolved, refunded to buyer
+  NONE
+  HELD
+  AWAITING_DELIVERY_CONFIRMATION
+  DELIVERY_PROOF_SUBMITTED
+  RELEASED
+  REFUNDED
 }
 
 enum VerificationLevel {
   NONE
-  IDENTITY_VERIFIED // Level 1
-  FARM_VERIFIED // Level 2
-  CERTIFIED_SUPPLIER // Level 3
+  IDENTITY_VERIFIED
+  FARM_VERIFIED
+  CERTIFIED_SUPPLIER
 }
 
 enum VerificationRequestStatus {
@@ -2455,652 +2603,4 @@ enum DeliveryJobStatus {
   DELIVERED
   FAILED
   CANCELLED
-}
-
-model Store {
-  id      String @id @default(cuid())
-  ownerId String @unique
-  owner   User   @relation("StoreOwner", fields: [ownerId], references: [id], onDelete: Cascade)
-
-  storeName        String
-  storeSlug        String      @unique
-  storeDescription String?
-  logo             String?
-  bannerImage      String?
-  location         String?
-  contactPhone     String?
-  socialLinks      String? // JSON: { facebook, twitter, instagram, youtube }
-  themeColor       String?     @default("#16a34a")
-  storeType        StoreType   @default(SELLER)
-  status           StoreStatus @default(ACTIVE)
-
-  // Verification
-  verificationLevel VerificationLevel @default(NONE)
-
-  // Stats (cached)
-  totalProducts  Int   @default(0)
-  totalOrders    Int   @default(0)
-  totalRevenue   Float @default(0)
-  averageRating  Float @default(0)
-  totalReviews   Int   @default(0)
-  totalFollowers Int   @default(0)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations
-  products      Product[]
-  orders        Order[]
-  storeWallet   StoreWallet?
-  withdrawals   StoreWithdrawal[]
-  verifications StoreVerification[]
-  deliveryJobs  DeliveryJob[]
-  sales         StoreSale[]
-
-  @@index([storeSlug])
-  @@index([storeType])
-  @@index([status])
-  @@map("stores")
-}
-
-// ================================
-// Store Wallet (Escrow-backed)
-// ================================
-
-model StoreWallet {
-  id      String @id @default(cuid())
-  storeId String @unique
-  store   Store  @relation(fields: [storeId], references: [id], onDelete: Cascade)
-
-  availableBalance Float  @default(0) // Ready to withdraw
-  pendingBalance   Float  @default(0) // Released from escrow, pending clearance
-  escrowBalance    Float  @default(0) // Held in escrow
-  totalEarned      Float  @default(0) // Lifetime earnings
-  totalWithdrawn   Float  @default(0) // Lifetime withdrawals
-  currency         String @default("KES")
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  transactions StoreWalletTransaction[]
-
-  @@map("store_wallets")
-}
-
-model StoreWalletTransaction {
-  id       String      @id @default(cuid())
-  walletId String
-  wallet   StoreWallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
-
-  type      String // ESCROW_HOLD, ESCROW_RELEASE, WITHDRAWAL, COMMISSION, SALE_CREDIT, REFUND
-  status    String  @default("COMPLETED") // PENDING, COMPLETED, FAILED
-  amount    Float
-  fee       Float   @default(0)
-  netAmount Float
-  narrative String?
-  orderId   String? // Linked order
-  saleId    String? // Linked POS sale
-
-  createdAt DateTime @default(now())
-
-  @@index([walletId, createdAt])
-  @@map("store_wallet_transactions")
-}
-
-// ================================
-// Store Withdrawals
-// ================================
-
-model StoreWithdrawal {
-  id      String @id @default(cuid())
-  storeId String
-  store   Store  @relation(fields: [storeId], references: [id], onDelete: Cascade)
-
-  amount   Float
-  method   WithdrawMethodType
-  currency String             @default("KES")
-
-  // Account details
-  accountName     String?
-  mpesaNumber     String?
-  mpesaTillNumber String?
-  bankName        String?
-  bankAccount     String?
-  bankCode        String?
-  paypalEmail     String?
-
-  status          StoreWithdrawalStatus @default(PENDING)
-  processedAt     DateTime?
-  processedBy     String? // Admin who approved/rejected
-  rejectionReason String?
-  transactionRef  String? // IntaSend payout tracking
-
-  requestedAt DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@index([storeId, status])
-  @@map("store_withdrawals")
-}
-
-// ================================
-// Delivery Proof
-// ================================
-
-model DeliveryProof {
-  id      String @id @default(cuid())
-  orderId String @unique
-  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
-
-  // Customer submission
-  submittedBy  String
-  submitter    User     @relation("DeliveryProofSubmitter", fields: [submittedBy], references: [id])
-  proofImages  String[] @default([])
-  deliveryNote String?
-  submittedAt  DateTime @default(now())
-
-  // Admin verification
-  isApproved      Boolean   @default(false)
-  approvedBy      String?
-  approver        User?     @relation("DeliveryProofApprover", fields: [approvedBy], references: [id])
-  approvedAt      DateTime?
-  rejectionReason String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([orderId])
-  @@map("delivery_proofs")
-}
-
-// ================================
-// Store Verification
-// ================================
-
-model StoreVerification {
-  id      String @id @default(cuid())
-  storeId String
-  store   Store  @relation(fields: [storeId], references: [id], onDelete: Cascade)
-
-  requestedLevel VerificationLevel
-  status         VerificationRequestStatus @default(PENDING)
-
-  // Documents
-  identityDocuments String[] @default([])
-  farmPhotos        String[] @default([])
-  businessDocuments String[] @default([])
-  additionalNotes   String?
-
-  // Review
-  reviewedBy      String?
-  reviewedAt      DateTime?
-  rejectionReason String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([storeId, status])
-  @@map("store_verifications")
-}
-
-// ================================
-// Delivery Partner System
-// ================================
-
-model DeliveryPartner {
-  id     String @id @default(cuid())
-  userId String @unique
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  name          String
-  phone         String
-  vehicleType   String?
-  vehiclePlate  String?
-  location      String?
-  coverageAreas String[] @default([])
-  isVerified    Boolean  @default(false)
-  isAvailable   Boolean  @default(true)
-  rating        Float    @default(0)
-  completedJobs Int      @default(0)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  jobs DeliveryJob[]
-
-  @@index([location])
-  @@index([isAvailable])
-  @@map("delivery_partners")
-}
-
-model DeliveryJob {
-  id                String           @id @default(cuid())
-  storeId           String
-  store             Store            @relation(fields: [storeId], references: [id])
-  orderId           String
-  order             Order            @relation(fields: [orderId], references: [id])
-  partnerId         String?
-  partner           User?            @relation("DeliveryPartnerJobs", fields: [partnerId], references: [id])
-  deliveryPartnerId String?
-  deliveryPartner   DeliveryPartner? @relation(fields: [deliveryPartnerId], references: [id])
-
-  status          DeliveryJobStatus @default(PENDING)
-  pickupAddress   String?
-  deliveryAddress String?
-  notes           String?
-  fee             Float             @default(0)
-  distance        Float? // km
-
-  pickedUpAt  DateTime?
-  deliveredAt DateTime?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([storeId])
-  @@index([deliveryPartnerId, status])
-  @@map("delivery_jobs")
-}
-
-// ================================
-// Market Price Index
-// ================================
-
-model MarketPrice {
-  id       String @id @default(cuid())
-  category String // e.g. "Broilers", "Eggs (Tray)", "Day Old Chicks"
-  region   String // e.g. "Nairobi", "Kiambu", "Nakuru"
-
-  averagePrice Float
-  minPrice     Float?
-  maxPrice     Float?
-  unit         String @default("per unit") // per kg, per tray, per bird, etc.
-  source       String @default("PLATFORM") // PLATFORM (auto-calculated) or MANUAL
-
-  recordedAt DateTime @default(now())
-  updatedBy  String? // Admin who manually set the price
-
-  @@index([category, region])
-  @@index([recordedAt])
-  @@map("market_prices")
-}
-
-// ================================
-// POS Sales linked to Store
-// ================================
-
-model StoreSale {
-  id      String @id @default(cuid())
-  storeId String
-  store   Store  @relation(fields: [storeId], references: [id])
-  saleId  String // Reference to the Sale model's ID
-
-  amount Float
-  method String // CASH, MPESA, CARD
-
-  createdAt DateTime @default(now())
-
-  @@index([storeId, createdAt])
-  @@map("store_sales")
-}
-
-// ================================
-// Poultry Farm Management
-// ================================
-
-model Subscription {
-  id     String @id @default(cuid())
-  userId String @unique
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  plan             SubscriptionPlan   @default(FREE)
-  status           SubscriptionStatus @default(INACTIVE)
-  intaSendRef      String?
-  paymentReference String?
-  startDate        DateTime?
-  endDate          DateTime?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([status, endDate])
-  @@map("subscriptions")
-}
-
-model FarmEmailPreference {
-  id     String @id @default(cuid())
-  userId String @unique
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  dailyReminder     Boolean @default(true)
-  weeklySummary     Boolean @default(true)
-  inactivityAlerts  Boolean @default(true)
-  vaccinationAlerts Boolean @default(true)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@map("farm_email_preferences")
-}
-
-model Flock {
-  id     String @id @default(cuid())
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  farmId String?
-  farm   Farm?   @relation(fields: [farmId], references: [id], onDelete: SetNull)
-
-  name       String
-  breed      String?
-  birdCount  Int         @default(0)
-  acquiredAt DateTime?
-  status     FlockStatus @default(ACTIVE)
-  notes      String?     @db.Text
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  eggRecords       EggRecord[]
-  feedRecords      FeedRecord[]
-  mortalityRecords MortalityRecord[]
-  vaccinations     Vaccination[]
-  attachments      Attachment[]
-  reminders        Reminder[]
-
-  @@index([userId, status])
-  @@index([farmId])
-  @@map("flocks")
-}
-
-model LivestockFlock {
-  id String @id @default(cuid())
-
-  title       String
-  breed       String
-  birdType    LivestockBirdType
-  quantity    Int
-  location    String
-  status      LivestockFlockStatus @default(ACTIVE)
-  description String              @db.Text
-
-  sellerId String
-  seller   User @relation(fields: [sellerId], references: [id], onDelete: Cascade)
-
-  startRearingDate  DateTime
-  expectedReadyDate DateTime
-  deliveryAvailable Boolean               @default(false)
-  deliveryScope     LivestockDeliveryScope @default(FARM_PICKUP)
-  deliveryNotes     String?               @db.Text
-
-  vaccinationsGiven LivestockFlockVaccination[]
-  medicationsGiven  LivestockFlockMedication[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([sellerId, status])
-  @@index([birdType])
-  @@index([deliveryScope])
-  @@map("livestock_flocks")
-}
-
-model LivestockFlockVaccination {
-  id String @id @default(cuid())
-
-  flockId String
-  flock   LivestockFlock @relation(fields: [flockId], references: [id], onDelete: Cascade)
-
-  name      String
-  dateGiven DateTime
-  nextDue   DateTime?
-
-  createdAt DateTime @default(now())
-
-  @@index([flockId, dateGiven])
-  @@map("livestock_flock_vaccinations")
-}
-
-model LivestockFlockMedication {
-  id String @id @default(cuid())
-
-  flockId String
-  flock   LivestockFlock @relation(fields: [flockId], references: [id], onDelete: Cascade)
-
-  name         String
-  reason       String
-  dateGiven    DateTime
-  durationDays Int
-
-  createdAt DateTime @default(now())
-
-  @@index([flockId, dateGiven])
-  @@map("livestock_flock_medications")
-}
-
-model PendingEvent {
-  id String @id @default(cuid())
-
-  eventType    FlockEventType
-  entityType   String
-  entityId     String
-  payload      Json
-  status       String   @default("PENDING")
-  errorMessage String?
-  retryCount   Int      @default(0)
-  lastAttemptAt DateTime?
-  sentAt       DateTime?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([status, createdAt])
-  @@index([entityType, entityId])
-  @@map("pending_events")
-}
-
-model EggRecord {
-  id     String @id @default(cuid())
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  farmId String?
-  farm   Farm?   @relation(fields: [farmId], references: [id], onDelete: SetNull)
-
-  flockId String?
-  flock   Flock?  @relation(fields: [flockId], references: [id], onDelete: SetNull)
-
-  recordedOn   DateTime
-  quantity     Int
-  damagedCount Int      @default(0)
-  notes        String?  @db.Text
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  attachments Attachment[]
-
-  @@index([userId, recordedOn])
-  @@index([flockId])
-  @@index([farmId])
-  @@map("egg_records")
-}
-
-model FeedRecord {
-  id     String @id @default(cuid())
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  farmId String?
-  farm   Farm?   @relation(fields: [farmId], references: [id], onDelete: SetNull)
-
-  flockId String?
-  flock   Flock?  @relation(fields: [flockId], references: [id], onDelete: SetNull)
-
-  recordedOn DateTime
-  feedType   String
-  quantityKg Float
-  cost       Float?
-  notes      String?  @db.Text
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  attachments Attachment[]
-
-  @@index([userId, recordedOn])
-  @@index([flockId])
-  @@index([farmId])
-  @@map("feed_records")
-}
-
-model MortalityRecord {
-  id     String @id @default(cuid())
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  farmId String?
-  farm   Farm?   @relation(fields: [farmId], references: [id], onDelete: SetNull)
-
-  flockId String?
-  flock   Flock?  @relation(fields: [flockId], references: [id], onDelete: SetNull)
-
-  recordedOn DateTime
-  count      Int
-  cause      String?
-  notes      String?  @db.Text
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  attachments Attachment[]
-
-  @@index([userId, recordedOn])
-  @@index([flockId])
-  @@index([farmId])
-  @@map("mortality_records")
-}
-
-model Vaccination {
-  id     String @id @default(cuid())
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  farmId String?
-  farm   Farm?   @relation(fields: [farmId], references: [id], onDelete: SetNull)
-
-  flockId String?
-  flock   Flock?  @relation(fields: [flockId], references: [id], onDelete: SetNull)
-
-  vaccineName      String
-  scheduledDate    DateTime
-  administeredDate DateTime?
-  status           VaccinationStatus @default(SCHEDULED)
-  notes            String?           @db.Text
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  attachments Attachment[]
-
-  @@index([userId, scheduledDate, status])
-  @@index([flockId])
-  @@index([farmId])
-  @@map("vaccinations")
-}
-
-model Attachment {
-  id     String @id @default(cuid())
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  farmId String?
-  farm   Farm?   @relation(fields: [farmId], references: [id], onDelete: SetNull)
-
-  fileName  String
-  fileUrl   String
-  mimeType  String
-  sizeBytes Int
-
-  eggRecordId String?
-  eggRecord   EggRecord? @relation(fields: [eggRecordId], references: [id], onDelete: SetNull)
-
-  flockId String?
-  flock   Flock?  @relation(fields: [flockId], references: [id], onDelete: SetNull)
-
-  feedRecordId String?
-  feedRecord   FeedRecord? @relation(fields: [feedRecordId], references: [id], onDelete: SetNull)
-
-  mortalityRecordId String?
-  mortalityRecord   MortalityRecord? @relation(fields: [mortalityRecordId], references: [id], onDelete: SetNull)
-
-  vaccinationId String?
-  vaccination   Vaccination? @relation(fields: [vaccinationId], references: [id], onDelete: SetNull)
-
-  createdAt DateTime @default(now())
-
-  @@index([userId, createdAt])
-  @@index([eggRecordId])
-  @@index([flockId])
-  @@index([feedRecordId])
-  @@index([mortalityRecordId])
-  @@index([vaccinationId])
-  @@index([farmId])
-  @@map("attachments")
-}
-
-model FarmImportJob {
-  id     String @id @default(cuid())
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  farmId String?
-  farm   Farm?   @relation(fields: [farmId], references: [id], onDelete: SetNull)
-
-  fileName       String
-  fileType       String?
-  status         FarmImportStatus @default(PREVIEW)
-  totalRows      Int              @default(0)
-  validRows      Int              @default(0)
-  invalidRows    Int              @default(0)
-  mapping        String?
-  previewPayload String?
-  errorLog       String?
-
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  confirmedAt DateTime?
-
-  @@index([userId, status, createdAt])
-  @@index([farmId])
-  @@map("farm_import_jobs")
-}
-
-model Reminder {
-  id             String     @id @default(cuid())
-  title          String
-  description    String?
-  type           ReminderType
-  frequency      Frequency
-  customInterval Int?       // number of days when frequency = CUSTOM
-  timeOfDay      String?    // e.g. "09:00" (local time)
-  dayOfWeek      Int?       // 0 = Sunday .. 6 = Saturday (for WEEKLY)
-  nextTriggerAt  DateTime?
-  lastSentAt     DateTime?
-  isActive       Boolean    @default(true)
-
-  flockId String?
-  flock   Flock?   @relation(fields: [flockId], references: [id], onDelete: SetNull)
-
-  farmId String?
-  farm   Farm?   @relation(fields: [farmId], references: [id], onDelete: SetNull)
-
-  userId String
-  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([userId, nextTriggerAt])
-  @@index([farmId, nextTriggerAt])
-  @@map("reminders")
 }
