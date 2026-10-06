@@ -2,7 +2,7 @@
   "crons": [
     {
       "path": "/api/cron/email/drain",
-      "schedule": "* * * * *"
+      "schedule": "0 0 * * *"
     },
     {
       "path": "/api/cron/email/weekly-digest",
