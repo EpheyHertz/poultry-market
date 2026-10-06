@@ -1,5 +1,5 @@
+
 import { PrismaClient } from '@prisma/client'
-import { Pool } from 'pg'
 import { PrismaPg } from '@prisma/adapter-pg'
 
 const globalForPrisma = globalThis as unknown as {
@@ -15,34 +15,40 @@ function createPrismaClient(): PrismaClient {
       console.warn('[Prisma] Skipping real client creation during build')
       return new PrismaClient()
     }
+
     throw new Error('DATABASE_URL environment variable is not set')
   }
 
- const pool = new Pool({
-  connectionString,
-  ssl: {
-    rejectUnauthorized: false,
-  },
-})
-  const adapter = new PrismaPg(pool)
+  const adapter = new PrismaPg({
+    connectionString,
+    ssl: {
+      rejectUnauthorized: false,
+    },
+    max: 5,
+    connectionTimeoutMillis: 10000,
+    idleTimeoutMillis: 30000,
+  })
 
-  return new PrismaClient({ adapter })
+  return new PrismaClient({
+    adapter,
+  })
 }
 
-// Singleton getter — reuses one client (and one pg Pool) across the whole
-// process, and across hot-reloads in dev via globalThis.
+// Singleton getter — reuses one Prisma client across the process
+// and across hot-reloads in development via globalThis.
 function getPrismaClient(): PrismaClient {
   if (!globalForPrisma.prisma) {
     globalForPrisma.prisma = createPrismaClient()
   }
+
   return globalForPrisma.prisma
 }
 
-// Lazy proxy - only touches the real client (and DATABASE_URL) on first
-// actual property access, not at import time.
+// Lazy proxy — only creates the real client when first accessed.
 export const prisma = new Proxy({} as PrismaClient, {
   get(_, prop) {
     const client = getPrismaClient()
     return client[prop as keyof PrismaClient]
   },
 })
+
