@@ -1,0 +1,144 @@
+
+name: Aiven to Neon Daily Backup
+
+on:
+  # 00:00 Kenya time (EAT = UTC+3)
+  schedule:
+    - cron: "0 21 * * *"
+
+  # Allows you to run it manually from GitHub
+  workflow_dispatch:
+
+jobs:
+  backup:
+    name: Backup Aiven → Neon
+    runs-on: ubuntu-latest
+
+    container:
+      image: postgres:18-bookworm
+
+    steps:
+      - name: Check PostgreSQL tools
+        run: |
+          psql --version
+          pg_dump --version
+          pg_restore --version
+
+      - name: Test Aiven connection
+        env:
+          AIVEN_DATABASE_URL: ${{ secrets.AIVEN_DATABASE_URL }}
+        run: |
+          psql "$AIVEN_DATABASE_URL" \
+            -v ON_ERROR_STOP=1 \
+            -c "SELECT current_database(), current_user, version();"
+
+      - name: Test Neon backup connection
+        env:
+          NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+        run: |
+          psql "$NEON_DATABASE_URL" \
+            -v ON_ERROR_STOP=1 \
+            -c "SELECT current_database(), current_user, version();"
+
+      - name: Record source database structure
+        env:
+          AIVEN_DATABASE_URL: ${{ secrets.AIVEN_DATABASE_URL }}
+        run: |
+          psql "$AIVEN_DATABASE_URL" \
+            -v ON_ERROR_STOP=1 \
+            -Atc "
+              SELECT table_schema || '.' || table_name
+              FROM information_schema.tables
+              WHERE table_schema NOT IN ('pg_catalog', 'information_schema')
+                AND table_type = 'BASE TABLE'
+              ORDER BY 1;
+            " > /tmp/aiven-tables.txt
+
+          echo "Aiven tables:"
+          cat /tmp/aiven-tables.txt
+
+      - name: Dump Aiven database
+        env:
+          AIVEN_DATABASE_URL: ${{ secrets.AIVEN_DATABASE_URL }}
+        run: |
+          pg_dump \
+            --dbname="$AIVEN_DATABASE_URL" \
+            --format=custom \
+            --no-owner \
+            --no-privileges \
+            --file=/tmp/pmk-aiven-backup.dump
+
+          test -s /tmp/pmk-aiven-backup.dump
+
+          echo "Backup created:"
+          ls -lh /tmp/pmk-aiven-backup.dump
+
+      - name: Validate backup
+        run: |
+          pg_restore \
+            --list \
+            /tmp/pmk-aiven-backup.dump \
+            > /tmp/pmk-backup-contents.txt
+
+          test -s /tmp/pmk-backup-contents.txt
+
+          echo "Backup contains:"
+          wc -l /tmp/pmk-backup-contents.txt
+
+      - name: Restore Aiven backup into Neon
+        env:
+          NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+        run: |
+          pg_restore \
+            --dbname="$NEON_DATABASE_URL" \
+            --clean \
+            --if-exists \
+            --no-owner \
+            --no-privileges \
+            --exit-on-error \
+            --single-transaction \
+            --verbose \
+            /tmp/pmk-aiven-backup.dump
+
+      - name: Verify Neon tables
+        env:
+          AIVEN_DATABASE_URL: ${{ secrets.AIVEN_DATABASE_URL }}
+          NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+        run: |
+          echo "Checking Aiven table count..."
+
+          AIVEN_TABLE_COUNT=$(psql "$AIVEN_DATABASE_URL" \
+            -Atc "
+              SELECT count(*)
+              FROM information_schema.tables
+              WHERE table_schema NOT IN ('pg_catalog', 'information_schema')
+                AND table_type = 'BASE TABLE';
+            ")
+
+          echo "Aiven tables: $AIVEN_TABLE_COUNT"
+
+          echo "Checking Neon table count..."
+
+          NEON_TABLE_COUNT=$(psql "$NEON_DATABASE_URL" \
+            -Atc "
+              SELECT count(*)
+              FROM information_schema.tables
+              WHERE table_schema NOT IN ('pg_catalog', 'information_schema')
+                AND table_type = 'BASE TABLE';
+            ")
+
+          echo "Neon tables: $NEON_TABLE_COUNT"
+
+          if [ "$AIVEN_TABLE_COUNT" != "$NEON_TABLE_COUNT" ]; then
+            echo "ERROR: Table counts do not match."
+            exit 1
+          fi
+
+          echo "SUCCESS: Table counts match."
+
+      - name: Verify backup completion
+        run: |
+          echo "======================================"
+          echo "Aiven → Neon backup completed"
+          echo "======================================"
+
