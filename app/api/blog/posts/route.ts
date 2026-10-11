@@ -3,6 +3,7 @@ import { getCurrentUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { getOrCreateAuthorProfile } from '@/lib/author';
 import { getBlogPosts } from '@/lib/blog/get-posts';
+import { getCachedBlogPosts } from '@/lib/blog/cache';
 import { BLOG_PAGE_SIZE } from '@/lib/blog/listing-config';
 import { notifyOnPublish } from '@/lib/email/blog-notifications';
 import { z } from 'zod';
@@ -60,7 +61,7 @@ export async function GET(request: NextRequest) {
     // Delegate to the shared data layer so SSR (`/blog`) and client-side paging
     // use exactly the same ordering. If they diverged, offset pagination would
     // silently duplicate or skip posts between page 1 and page 2.
-    const result = await getBlogPosts({
+    const query = {
       page: Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1,
       limit: Number.isFinite(parsedLimit) && parsedLimit > 0 ? Math.min(parsedLimit, 50) : BLOG_PAGE_SIZE,
       category: searchParams.get('category') || undefined,
@@ -70,7 +71,15 @@ export async function GET(request: NextRequest) {
       sort: searchParams.get('sort'),
       featured: featured ? featured === 'true' : undefined,
       status: (status as any) || undefined,
-    });
+    };
+
+    // Public reads share the same tagged Data Cache as the server-rendered
+    // blog pages. Keep non-public status queries uncached because they may
+    // contain drafts or moderation data.
+    const isPublicStatus = !query.status || query.status === 'PUBLISHED' || query.status === 'APPROVED';
+    const result = isPublicStatus
+      ? await getCachedBlogPosts(query)
+      : await getBlogPosts(query);
 
     return NextResponse.json(result);
 
