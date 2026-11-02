@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { sendWeeklyBlogAnalyticsDigest } from '@/lib/email'
+import { toIsoDate } from '@/lib/blog/article/format'
 
 export async function POST(request: NextRequest) {
   try {
@@ -120,7 +121,7 @@ export async function POST(request: NextRequest) {
         views: post.viewCount ?? post.views ?? 0,
         likes: post.likes ?? 0,
         comments: post._count.comments ?? 0,
-        publishedAt: (post.publishedAt ?? post.createdAt).toISOString(),
+        publishedAt: toIsoDate(post.publishedAt ?? post.createdAt) ?? new Date().toISOString(),
       }))
 
     await sendWeeklyBlogAnalyticsDigest({

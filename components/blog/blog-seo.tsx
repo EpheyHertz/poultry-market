@@ -1,10 +1,11 @@
 import { Metadata } from 'next';
+import { toIsoDate } from '@/lib/blog/article/format';
 
 interface BlogPost {
   title: string;
   excerpt?: string;
   featuredImage?: string;
-  publishedAt: string;
+  publishedAt: string | Date;
   author: {
     name: string;
   };
@@ -46,7 +47,7 @@ export function generateBlogMetadata({
     const postTitle = post.ogTitle || post.title;
     const postDescription = post.metaDescription || post.ogDescription || post.excerpt || '';
     const postImage = post.ogImage || post.featuredImage || `${siteUrl}/images/blog-default.jpg`;
-    const publishedTime = new Date(post.publishedAt).toISOString();
+    const publishedTime = toIsoDate(post.publishedAt);
 
     return {
       title: `${postTitle} - Poultry Market Kenya Blog`,
@@ -66,7 +67,7 @@ export function generateBlogMetadata({
             alt: postTitle,
           }
         ],
-        publishedTime,
+        publishedTime: publishedTime ?? undefined,
         authors: [post.author.name],
         section: post.category.replace('_', ' '),
         tags: post.tags.map(tag => tag.name),
@@ -84,7 +85,7 @@ export function generateBlogMetadata({
         canonical: postUrl,
       },
       other: {
-        'article:published_time': publishedTime,
+        ...(publishedTime ? { 'article:published_time': publishedTime } : {}),
         'article:author': post.author.name,
         'article:section': post.category.replace('_', ' '),
         'article:tag': post.tags.map(tag => tag.name).join(','),
@@ -154,8 +155,8 @@ export function generateBlogStructuredData(post: BlogPost, postSlug: string) {
         url: `${siteUrl}/images/logo.png`,
       },
     },
-    datePublished: new Date(post.publishedAt).toISOString(),
-    dateModified: new Date(post.publishedAt).toISOString(),
+    datePublished: toIsoDate(post.publishedAt),
+    dateModified: toIsoDate(post.publishedAt),
     mainEntityOfPage: {
       '@type': 'WebPage',
       '@id': postUrl,

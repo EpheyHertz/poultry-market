@@ -2,6 +2,7 @@
 
 import Image from 'next/image';
 import { format } from 'date-fns';
+import { toIsoDate } from '@/lib/blog/article/format';
 import { BadgeCheck, Clock, Eye } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatCompactNumber, getAuthorAvatar, getAuthorName, type BlogCardPost } from './types';
@@ -79,7 +80,7 @@ export function PostMeta({
 
   if (showDate && post.publishedAt) {
     items.push(
-      <time key="date" dateTime={new Date(post.publishedAt).toISOString()}>
+      <time key="date" dateTime={toIsoDate(post.publishedAt) ?? undefined}>
         {format(new Date(post.publishedAt), 'MMM d, yyyy')}
       </time>
     );

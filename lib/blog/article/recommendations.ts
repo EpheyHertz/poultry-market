@@ -18,6 +18,7 @@
  */
 
 import { prisma } from '@/lib/prisma';
+import { toIsoDate } from './format';
 import { RelatedPostsService } from '@/lib/search-v2/RelatedPostsService';
 import type { RelatedPostItem } from '@/lib/search-v2/relatedTypes';
 
@@ -332,7 +333,7 @@ function mapPrismaCandidate(post: PrismaCandidate): RecommendedArticle {
         title: post.title,
         excerpt: post.excerpt,
         category: post.category,
-        publishedAt: published ? published.toISOString() : null,
+        publishedAt: toIsoDate(published),
         thumbnail: post.thumbnail,
         featuredImage: post.featuredImage,
         readingTime: post.readingTime ?? post.estimatedReadTime ?? null,
@@ -621,5 +622,4 @@ function assignInArticle(
 
     return result;
 }
-
 

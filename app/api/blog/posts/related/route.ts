@@ -23,6 +23,7 @@ import { prisma } from '@/lib/prisma';
 import { checkRateLimit, getClientIdentifier } from '@/lib/rate-limit';
 import { RelatedPostsService } from '@/lib/search-v2/RelatedPostsService';
 import { SearchValidationError } from '@/lib/search-v2/types';
+import { toIsoDate } from '@/lib/blog/article/format';
 
 export const dynamic = 'force-dynamic';
 
@@ -83,7 +84,7 @@ function toLegacyShape(post: LegacyPostRow) {
     excerpt: post.excerpt,
     featuredImage: post.featuredImage,
     readingTime: post.estimatedReadTime ?? post.readingTime,
-    publishedAt: post.publishedAt?.toISOString() || '',
+    publishedAt: toIsoDate(post.publishedAt) || '',
     category: post.category,
     views: post.viewCount,
     likes: post.likes,

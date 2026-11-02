@@ -12,6 +12,7 @@
  */
 
 import { prisma } from '@/lib/prisma';
+import { toIsoDate } from '@/lib/blog/article/format';
 import { ConfigService } from './ConfigService';
 import { EngineRegistry } from './registry';
 import type { RelatedEnvelope, RelatedPostItem } from './relatedTypes';
@@ -70,7 +71,7 @@ function toItem(c: {
     title: c.title,
     excerpt: c.excerpt,
     category: c.category,
-    publishedAt: c.publishedAt ? c.publishedAt.toISOString() : null,
+    publishedAt: toIsoDate(c.publishedAt),
     thumbnail: c.thumbnail,
     featuredImage: c.featuredImage ?? null,
     readingTime: c.readingTime ?? null,

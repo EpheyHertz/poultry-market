@@ -14,6 +14,7 @@ import {
 } from '@/lib/author-profile';
 import { toAuthorResourceView } from '@/lib/author-resources';
 import { blogAuthorTag } from '@/lib/blog/cache';
+import { toIsoDate } from '@/lib/blog/article/format';
 
 import PublicAuthorProfile, { type PublicAuthorProfileData } from './public-author-profile';
 
@@ -29,61 +30,80 @@ interface PageProps {
  * fetched once (§30 performance).
  */
 const getAuthorProfile = cache((username: string) =>
-  unstable_cache(() => prisma.authorProfile.findUnique({
-    where: { username: username.toLowerCase() },
-    include: {
-      user: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          avatar: true,
-          createdAt: true,
-          _count: { select: { followers: true } },
+  unstable_cache(async () => {
+    const normalizedUsername = username.trim().toLowerCase();
+    const query = () => prisma.authorProfile.findUnique({
+      where: { username: normalizedUsername },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            avatar: true,
+            createdAt: true,
+            _count: { select: { followers: true } },
+          },
+        },
+        // Wallet presence controls whether "Support author" is offered.
+        wallet: { select: { id: true, status: true } },
+        // Recommended / affiliate resources. Read from stored columns only —
+        // a public render never fetches a merchant URL (ext §24).
+        resources: {
+          where: { isActive: true },
+          orderBy: [{ displayOrder: 'asc' }, { createdAt: 'asc' }],
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            url: true,
+            domain: true,
+            merchant: true,
+            imageUrl: true,
+            isAffiliate: true,
+            affiliateDisclosure: true,
+            isActive: true,
+            displayOrder: true,
+          },
+        },
+        blogPosts: {
+          // Drafts / pending / archived posts are never exposed publicly (§12).
+          where: { status: 'PUBLISHED' },
+          orderBy: { publishedAt: 'desc' },
+          select: {
+            id: true,
+            title: true,
+            slug: true,
+            excerpt: true,
+            featuredImage: true,
+            category: true,
+            readingTime: true,
+            viewCount: true,
+            publishedAt: true,
+            author: { select: { id: true, name: true } },
+            tags: { include: { tag: true } },
+            _count: { select: { likedBy: true, comments: true } },
+          },
         },
       },
-      // Wallet presence controls whether "Support author" is offered.
-      wallet: { select: { id: true, status: true } },
-      // Recommended / affiliate resources. Read from stored columns only —
-      // a public render never fetches a merchant URL (ext §24).
-      resources: {
-        where: { isActive: true },
-        orderBy: [{ displayOrder: 'asc' }, { createdAt: 'asc' }],
-        select: {
-          id: true,
-          title: true,
-          description: true,
-          url: true,
-          domain: true,
-          merchant: true,
-          imageUrl: true,
-          isAffiliate: true,
-          affiliateDisclosure: true,
-          isActive: true,
-          displayOrder: true,
-        },
-      },
-      blogPosts: {
-        // Drafts / pending / archived posts are never exposed publicly (§12).
-        where: { status: 'PUBLISHED' },
-        orderBy: { publishedAt: 'desc' },
-        select: {
-          id: true,
-          title: true,
-          slug: true,
-          excerpt: true,
-          featuredImage: true,
-          category: true,
-          readingTime: true,
-          viewCount: true,
-          publishedAt: true,
-          author: { select: { id: true, name: true } },
-          tags: { include: { tag: true } },
-          _count: { select: { likedBy: true, comments: true } },
-        },
-      },
-    },
-  }), ['blog-author', username.toLowerCase()], {
+    });
+
+    try {
+      return await query();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (!/connection terminated|connection timeout|connection reset/i.test(message)) {
+        throw error;
+      }
+
+      console.warn('[AuthorProfile] Retrying transient database connection error', {
+        username: normalizedUsername,
+        message,
+      });
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      return query();
+    }
+  }, ['blog-author', username.trim().toLowerCase()], {
     revalidate: 300,
     tags: [blogAuthorTag(username)],
   })(),
@@ -259,7 +279,7 @@ export default async function PublicAuthorPage({ params }: PageProps) {
       category: post.category,
       readingTime: post.readingTime,
       viewCount: post.viewCount,
-      publishedAt: post.publishedAt ? post.publishedAt.toISOString() : null,
+      publishedAt: toIsoDate(post.publishedAt),
       authorId: post.author.id,
       authorName: post.author.name,
       tags: post.tags.map((entry) => ({
