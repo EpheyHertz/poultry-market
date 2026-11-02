@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { toIsoDate } from '@/lib/blog/article/format';
 
 export async function GET(request: NextRequest) {
   try {
@@ -218,7 +219,7 @@ export async function GET(request: NextRequest) {
         views: post.views,
         likes: post.likes,
         comments: post._count.comments,
-        publishedAt: post.publishedAt?.toISOString() || ''
+        publishedAt: toIsoDate(post.publishedAt) || ''
       })),
       categoryStats: categoryStats.map(stat => ({
         category: stat.category,

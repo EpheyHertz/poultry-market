@@ -9,6 +9,7 @@ import 'dotenv/config';
 import { prisma } from '../lib/prisma';
 import { getBlogPosts } from '../lib/blog/get-posts';
 import { BLOG_PAGE_SIZE, FEATURED_LIMIT } from '../lib/blog/listing-config';
+import { toIsoDate } from '../lib/blog/article/format';
 
 const PUBLIC = { status: { in: ['PUBLISHED', 'APPROVED'] as any } };
 
@@ -56,7 +57,7 @@ async function main() {
   const page1 = await getBlogPosts({ page: 1, limit: BLOG_PAGE_SIZE });
   page1.posts.forEach((p, i) => {
     const flag = p.featured ? '[F]' : '   ';
-    const date = (p.publishedAt ?? p.createdAt).toISOString().slice(0, 10);
+    const date = toIsoDate(p.publishedAt ?? p.createdAt)?.slice(0, 10) ?? 'unknown';
     console.log(`  ${pad(String(i + 1), 3)} ${flag} ${pad(p.authorDisplayName, 26)} ${date}`);
   });
   const page1Authors = new Set(page1.posts.map((p) => p.authorDisplayName));

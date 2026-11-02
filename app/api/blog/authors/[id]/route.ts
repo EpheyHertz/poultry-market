@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { toIsoDate } from '@/lib/blog/article/format';
 
 const authorSchema = z.object({
   id: z.string().min(1)
@@ -83,9 +84,9 @@ export async function GET(
       },
       posts: author.blogPosts.map(post => ({
         ...post,
-        publishedAt: post.publishedAt?.toISOString() || new Date().toISOString()
+        publishedAt: toIsoDate(post.publishedAt) || new Date().toISOString()
       })),
-      createdAt: author.createdAt.toISOString()
+      createdAt: toIsoDate(author.createdAt) || new Date().toISOString()
     };
 
     return NextResponse.json(formattedAuthor);

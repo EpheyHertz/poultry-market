@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { buildAndSendWeeklyDigest } from '@/lib/email/weekly-digest';
+import { toIsoDate } from '@/lib/blog/article/format';
 
 export const dynamic = 'force-dynamic';
 
@@ -56,7 +57,7 @@ export async function GET(_request: NextRequest) {
         return NextResponse.json({
             articles: articles.map((a) => ({
                 ...a,
-                publishedAt: a.publishedAt ? a.publishedAt.toISOString() : null,
+                publishedAt: toIsoDate(a.publishedAt),
             })),
             estimatedAudience: {
                 verifiedUsers: verifiedUserCount,

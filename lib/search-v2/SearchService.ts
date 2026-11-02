@@ -12,6 +12,7 @@
  */
 
 import { randomUUID } from 'crypto';
+import { toIsoDate } from '@/lib/blog/article/format';
 import { ConfigService } from './ConfigService';
 import { DidYouMeanService } from './DidYouMeanService';
 import { encodeCursor, FilterService } from './FilterService';
@@ -81,7 +82,7 @@ function toItem(c: RankedCandidate): SearchResultItem {
     authorId: c.authorId,
     authorProfileId: c.authorProfileId,
     authorUsername: c.authorUsername,
-    publishedAt: c.publishedAt ? c.publishedAt.toISOString() : null,
+    publishedAt: toIsoDate(c.publishedAt),
     readingTime: c.readingTime,
     views: c.views,
     likes: c.likes,

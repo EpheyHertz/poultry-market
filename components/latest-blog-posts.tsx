@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
 import { SITE_URL } from '@/lib/seo';
+import { toIsoDate } from '@/lib/blog/article/format';
 
 export default async function LatestBlogPosts() {
   const recentPosts = await prisma.blogPost.findMany({
@@ -59,7 +60,7 @@ export default async function LatestBlogPosts() {
                 <div className="p-6 flex-1 flex flex-col">
                   {post.publishedAt && (
                     <time
-                      dateTime={post.publishedAt.toISOString()}
+                      dateTime={toIsoDate(post.publishedAt) ?? undefined}
                       className="text-sm text-gray-500 dark:text-gray-400 mb-2"
                     >
                       {new Date(post.publishedAt).toLocaleDateString('en-US', {

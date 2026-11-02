@@ -24,6 +24,7 @@
  */
 
 import { prisma } from '@/lib/prisma';
+import { toIsoDate } from '@/lib/blog/article/format';
 import { SITE_URL } from '@/lib/seo';
 
 import type {
@@ -1752,10 +1753,7 @@ export class SearchService {
           item.tag.name,
       ),
 
-      publishedAt:
-        post.publishedAt
-          ? post.publishedAt.toISOString()
-          : null,
+      publishedAt: toIsoDate(post.publishedAt),
 
       url: buildPostUrl(
         post.slug,
