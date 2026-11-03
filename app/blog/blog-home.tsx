@@ -20,6 +20,7 @@ import {
 import NewsletterSubscribe from '@/components/blog/newsletter-subscribe';
 import { FeaturedCarousel } from '@/components/blog/featured-carousel';
 import AdSlot from '@/components/ads/ad-slot';
+import BlogNetworkAds from '@/components/blog/blog-network-ads';
 import { BlogPagination } from '@/components/blog/pagination';
 import { BLOG_PAGE_SIZE, FEATURED_LIMIT } from '@/lib/blog/listing-config';
 
@@ -690,6 +691,16 @@ export default function BlogHome({
               onPostClick={handlePostClick}
             />
           )}
+
+          <section
+            aria-label="Advertisement"
+            className="overflow-hidden rounded-2xl border border-gray-100 bg-gray-50/60 p-3 dark:border-slate-800 dark:bg-slate-900/40"
+          >
+            <p className="mb-2 text-center text-[10px] font-medium uppercase tracking-[0.18em] text-gray-400 dark:text-slate-500">
+              Advertisement
+            </p>
+            <BlogNetworkAds />
+          </section>
 
           {/* ── ALL ARTICLES + TRENDING ──────────────────────────────────── */}
           <div ref={listRef} className="grid grid-cols-1 gap-8 lg:grid-cols-3">

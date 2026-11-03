@@ -6,7 +6,6 @@ import { getCachedBlogPosts } from '@/lib/blog/cache';
 import { BLOG_PAGE_SIZE, FEATURED_LIMIT } from '@/lib/blog/listing-config';
 import { SITE_URL } from '@/lib/seo';
 import AdsenseScript from '@/components/ads';
-import BlogNetworkAds from '@/components/blog/blog-network-ads';
 
 // ISR: revalidate every 5 minutes
 export const revalidate = 300;
@@ -229,7 +228,6 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
   return (
     <>
       <AdsenseScript />
-      <BlogNetworkAds />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
