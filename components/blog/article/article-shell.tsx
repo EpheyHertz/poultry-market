@@ -23,6 +23,7 @@ import { ArrowUp, Mail, MessageCircle, Package, ShieldCheck, Tag } from 'lucide-
 
 import AdSlot from '@/components/ads/ad-slot';
 import BlogNetworkAds from '@/components/blog/blog-network-ads';
+import BlogBannerAd from '@/components/blog/blog-banner-ad';
 import { trackEvent } from '@/components/analytics/google-analytics';
 import { AuthorResourcesSection } from '@/components/author/author-resource-card';
 import AuthorSocialLinks from '@/components/author/author-social-links';
@@ -383,6 +384,10 @@ export function ArticleShell({
                                     </p>
                                     <BlogNetworkAds />
                                 </section>
+                                <BlogBannerAd
+                                    variant="mobile"
+                                    className="mt-8 rounded-xl border border-gray-100 bg-gray-50/60 py-2 dark:border-gray-800 dark:bg-gray-900/40"
+                                />
                                 {/* Very short posts have no usable boundary — keep the ad. */}
                                 {boundaries === 0 ? (
                                     <div className="not-prose mt-10">
