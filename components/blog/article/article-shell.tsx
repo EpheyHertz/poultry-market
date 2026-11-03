@@ -22,6 +22,7 @@ import { useEffect, useState } from 'react';
 import { ArrowUp, Mail, MessageCircle, Package, ShieldCheck, Tag } from 'lucide-react';
 
 import AdSlot from '@/components/ads/ad-slot';
+import BlogNetworkAds from '@/components/blog/blog-network-ads';
 import { trackEvent } from '@/components/analytics/google-analytics';
 import { AuthorResourcesSection } from '@/components/author/author-resource-card';
 import AuthorSocialLinks from '@/components/author/author-social-links';
@@ -373,6 +374,15 @@ export function ArticleShell({
                                     id={CONTENT_ID}
                                     inlineSlots={inlineSlots}
                                 />
+                                <section
+                                    aria-label="Advertisement"
+                                    className="not-prose mt-10 overflow-hidden rounded-2xl border border-gray-100 bg-gray-50/60 p-3 dark:border-gray-800 dark:bg-gray-900/40"
+                                >
+                                    <p className="mb-2 text-center text-[10px] font-medium uppercase tracking-[0.18em] text-gray-400 dark:text-slate-500">
+                                        Advertisement
+                                    </p>
+                                    <BlogNetworkAds />
+                                </section>
                                 {/* Very short posts have no usable boundary — keep the ad. */}
                                 {boundaries === 0 ? (
                                     <div className="not-prose mt-10">

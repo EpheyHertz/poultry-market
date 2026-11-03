@@ -19,7 +19,6 @@ import { notFound, redirect } from 'next/navigation';
 import { cache } from 'react';
 
 import AdsenseScript from '@/components/ads';
-import BlogNetworkAds from '@/components/blog/blog-network-ads';
 import ArticleShell from '@/components/blog/article/article-shell';
 import PublicNavbar from '@/components/layout/public-navbar';
 import {
@@ -530,7 +529,6 @@ export default async function BlogPostPage({ params }: { params: Promise<Params>
   return (
     <>
       <AdsenseScript />
-      <BlogNetworkAds />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
