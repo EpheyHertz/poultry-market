@@ -24,6 +24,7 @@ import { ArrowUp, Mail, MessageCircle, Package, ShieldCheck, Tag } from 'lucide-
 import AdSlot from '@/components/ads/ad-slot';
 import BlogNetworkAds from '@/components/blog/blog-network-ads';
 import BlogBannerAd from '@/components/blog/blog-banner-ad';
+import { BlogPopunderAd, BlogSmartlinkAd } from '@/components/blog/blog-smartlink-ad';
 import { trackEvent } from '@/components/analytics/google-analytics';
 import { AuthorResourcesSection } from '@/components/author/author-resource-card';
 import AuthorSocialLinks from '@/components/author/author-social-links';
@@ -440,6 +441,8 @@ export function ArticleShell({
                             <AuthorCard article={article} />
 
                             <AdSlot name="postBottom" />
+                            <BlogSmartlinkAd />
+                            <BlogPopunderAd />
                         </div>
                     </div>
 
