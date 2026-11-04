@@ -43,7 +43,7 @@ function getClientIdentifier(apiKey: string | null, request: Request) {
 const payloadSchema = z.object({
   title: z.string().min(5).max(200),
   content: z.string().min(50),
-  excerpt: z.string().max(300).optional(),
+  excerpt: z.string().max(400).optional(),
   category: z.nativeEnum(BlogPostCategory),
   tags: z.array(z.string().min(2).max(30)).max(10).optional().default([]),
   featuredImage: z.string().url().optional(),
