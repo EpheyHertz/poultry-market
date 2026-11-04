@@ -22,6 +22,7 @@ import { FeaturedCarousel } from '@/components/blog/featured-carousel';
 import AdSlot from '@/components/ads/ad-slot';
 import BlogNetworkAds from '@/components/blog/blog-network-ads';
 import BlogBannerAd from '@/components/blog/blog-banner-ad';
+import { BlogPopunderAd, BlogSmartlinkAd } from '@/components/blog/blog-smartlink-ad';
 import { BlogPagination } from '@/components/blog/pagination';
 import { BLOG_PAGE_SIZE, FEATURED_LIMIT } from '@/lib/blog/listing-config';
 
@@ -849,6 +850,8 @@ export default function BlogHome({
 
           {/* Ad: Blog Bottom */}
           <AdSlot name="blogBottom" className="py-2" />
+          <BlogSmartlinkAd />
+          <BlogPopunderAd />
 
           <div id="subscribe" className="scroll-mt-24">
             <NewsletterSubscribe source="blog-home" />
