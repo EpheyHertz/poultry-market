@@ -10,7 +10,14 @@ export const config = {
   ],
 };
 
-const allowedOrigins =['http://localhost:3000', 'http://localhost:8081','https://poultrymarketke.vercel.app','poultrymarket.app']
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:8081',
+  'https://poultrymarketke.vercel.app',
+  'https://poultrymarket.app',
+  'https://www.poultrymarket.app',
+  'https://poultrymarketke.netlify.app',
+];
 
 export async function proxy(request: NextRequest) {
   const origin = request.headers.get('origin');
