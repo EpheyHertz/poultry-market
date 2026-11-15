@@ -2,6 +2,7 @@ import { SITE_URL } from '@/lib/seo';
 import { getCachedBlogFeedPosts } from '@/lib/blog/cache';
 
 export const revalidate = 3600;
+export const dynamic = 'force-dynamic';
 
 export async function GET() {
   const posts = await getCachedBlogFeedPosts();
