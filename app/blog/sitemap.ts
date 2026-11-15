@@ -3,6 +3,7 @@ import { SITE_URL } from '@/lib/seo';
 import { getCachedBlogSitemapPosts } from '@/lib/blog/cache';
 
 export const revalidate = 3600;
+export const dynamic = 'force-dynamic';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = SITE_URL;
