@@ -43,7 +43,6 @@ export async function GET(request: NextRequest) {
     
     return NextResponse.json({
       status: 'error',
-      baseUrl: LIPIA_BASE_URL,
       message: 'Failed to connect to Lipia API',
       error: error instanceof Error ? error.message : 'Unknown error',
       timestamp: new Date().toISOString()
